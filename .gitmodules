@@ -1,0 +1,3 @@
+[submodule "bamcmc"]
+	path = bamcmc
+	url = github:bamonroe/bamcmc

@@ -1,0 +1,1031 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{Technical Report: BHM Hyperprior Derivation from Prior Selection}
+\author{Generated for Bezier Utility Estimation Project}
+\date{January 2026}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\text{Var}}
+
+\begin{document}
+\maketitle
+
+\section{Overview}
+
+This document describes how the Bayesian Hierarchical Model (BHM) hyperprior selection follows the methodology outlined in Section 3.2 of the paper (``Hyper-Prior Specification for the Bayesian Hierarchical Model'').
+
+\subsection{Key Simplification}
+
+\textbf{The central insight of this approach is a dramatic reduction in researcher degrees of freedom.}
+
+Traditionally, specifying BHM hyperpriors for the B\'{e}zier utility function requires choosing 16 hyperprior parameters:
+\begin{itemize}
+  \item 4 shape parameters $(a, b, c, d)$
+  \item Each with 4 hyperprior parameters: $(\mu_0, \tau_0^2, \alpha_0, \beta_0)$
+  \item Total: $4 \times 4 = 16$ parameters
+\end{itemize}
+
+Under the constraint that the \textbf{unconditional BHM prior must equal the prior for a single random individual}, this reduces to at most \textbf{$2p$ decisions} (variance partition ratios $\rho_j$ and concentration parameters $\alpha_{0,j}$ for each of $p$ parameters). In practice, using common values $\rho_j = \rho$ and $\alpha_{0,j} = \alpha_0$ further reduces this to \textbf{just 2 decisions}.
+
+\subsection{The Prior Selection Question}
+
+The prior selection exercise answers the question: \textit{``What might the preferences of a single random individual, drawn from some population, look like?''}
+
+This question is fundamentally about an \textbf{individual}, not about a ``representative agent'' or ``pooled'' model. However, the answer implicitly integrates over the heterogeneity in the population from which that individual was sampled:
+\begin{equation}
+  p(\theta) = \int_\alpha p(\theta | \alpha) p(\alpha) \, d\alpha
+  \label{eq:unconditional}
+\end{equation}
+where $\theta$ represents the individual's parameters and $\alpha$ represents the (unknown) population distribution.
+
+When we ask ``what do credible preferences look like for a random person?'' we are simultaneously expressing:
+\begin{enumerate}
+  \item Uncertainty about this particular individual's preferences
+  \item Uncertainty about the population distribution they were drawn from
+\end{enumerate}
+
+The prior selection exercise captures both sources of uncertainty in a single distribution $p(\theta)$. The BHM then \textit{decomposes} this into explicit population-level and individual-level components, but the unconditional prior must remain consistent with our original answer about a single random individual.
+
+\section{Paper Specification}
+
+\subsection{Individual-Level Model}
+
+The paper specifies that individual parameters follow logit-normal distributions:
+\begin{align}
+  a_i &\sim \text{Logit-Normal}(a_\mu, a_\sigma^2) \\
+  b_i &\sim \text{Logit-Normal}(b_\mu, b_\sigma^2) \\
+  c_i &\sim \text{Logit-Normal}(c_\mu, c_\sigma^2) \\
+  d_i &\sim \text{Logit-Normal}(d_\mu, d_\sigma^2) \\
+  \lambda_i &\sim \text{Log-Normal}(\lambda_\mu, \lambda_\sigma^2)
+\end{align}
+where the logit-normal distribution means:
+\[
+  \text{logit}(\theta_i) = \log\left(\frac{\theta_i}{1-\theta_i}\right) \sim \text{Normal}(\mu, \sigma^2)
+\]
+
+\subsection{Hyperprior Structure}
+
+The paper specifies conjugate hyperpriors:
+\begin{align}
+  \theta_\mu &\sim \text{Normal}(\mu_0, \tau_0^2) \\
+  \theta_{\sigma^2} &\sim \text{Inverse-Gamma}(\alpha_0, \beta_0)
+\end{align}
+This conjugate structure enables efficient Gibbs sampling:
+\begin{itemize}
+  \item Normal-Normal conjugacy for updating population means
+  \item Normal-Inverse-Gamma conjugacy for updating population variances
+\end{itemize}
+
+\section{Deriving Independent Hyperpriors from Prior Selection}
+
+This section provides a detailed derivation of the independent hyperprior structure, explaining both the mathematics and the reasoning behind each step.
+
+\subsection{The Problem: 16 Parameters to Specify}
+
+The independent hyperprior structure requires specifying 4 hyperparameters for each of the $p = 4$ shape parameters:
+\begin{center}
+\begin{tabular}{cl}
+\toprule
+Hyperparameter & Meaning \\
+\midrule
+$\mu_{0,j}$ & Prior mean of population mean $\mu_j$ \\
+$\tau_{0,j}^2$ & Prior variance of population mean $\mu_j$ \\
+$\alpha_{0,j}$ & Shape parameter of Inverse-Gamma prior on $\sigma_j^2$ \\
+$\beta_{0,j}$ & Scale parameter of Inverse-Gamma prior on $\sigma_j^2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This gives $4 \times 4 = 16$ hyperparameters that the researcher must specify. Without a systematic approach, this would require 16 separate judgments about interdependent quantities---an impractical and error-prone task.
+
+\textbf{Our approach:} We impose the constraint that the \textit{unconditional} BHM prior must equal the prior selection distribution. This constraint absorbs 8 of the 16 degrees of freedom, leaving 8 remaining choices which we reparameterize as variance partition ratios $\rho_j$ and concentration parameters $\alpha_{0,j}$.
+
+\textbf{Important caveat:} The reduction from 16 to 8 is in some sense a ``pseudo'' reduction. The prior selection exercise itself required researcher choices: specifying 4 means and 4 variances for the (independent) multivariate normal distribution over logit-transformed parameters. These 8 prior selection choices, combined with the 8 remaining BHM choices ($\rho_j$ and $\alpha_{0,j}$), bring the total researcher input back to 16.
+
+\textbf{So what have we gained?} The value of this approach is not in reducing the total number of choices, but in \textit{where} those choices are made:
+\begin{itemize}
+  \item \textbf{Prior selection choices} (8): Made by reasoning about ``what might a random individual's preferences look like?'' This is cognitively tractable---we can visualize the prior predictive distribution of utility functions and RRA values, checking whether the implied preferences are reasonable.
+  \item \textbf{BHM structure choices} (8): Made by reasoning about variance decomposition---how much of the prior uncertainty reflects ``not knowing the population mean'' versus ``expected heterogeneity across individuals.'' These are more abstract but have sensible defaults ($\rho = 0.3$, $\alpha_0 = 6$).
+\end{itemize}
+
+The key insight is that it is far easier to begin by reasoning about a prior predictive distribution for an individual---which can be simulated and inspected---than to directly specify 16 interdependent hyperparameters whose joint implications are difficult to assess.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Step & Constraint/Choice & Degrees of Freedom \\
+\midrule
+Starting point & --- & 16 \\
+Mean constraint (Section 3.4) & $\mu_{0,j}$ determined by $\boldsymbol{\mu}_{\text{ps}}$ & $16 - 4 = 12$ \\
+Variance constraint (Section 3.4) & One equation per parameter & $12 - 4 = 8$ \\
+\midrule
+Reparameterization & $\rho_j$ and $\alpha_{0,j}$ for each $j$ & 8 \\
+Common $\rho$ (Section 3.9) & $\rho_j = \rho$ for all $j$ & $8 - 3 = 5$ \\
+Common $\alpha_0$ (Section 3.9) & $\alpha_{0,j} = \alpha_0$ for all $j$ & $5 - 3 = 2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Using common values for $\rho$ and $\alpha_0$ further reduces the 8 BHM structure choices to just 2, giving a final accounting of $8 + 2 = 10$ explicit researcher decisions (versus 16 opaque hyperparameters).
+
+\subsection{The Starting Point: Prior Selection Results}
+
+The prior selection exercise produces a multivariate normal distribution on the logit scale:
+\[
+  \begin{pmatrix} \text{logit}(a) \\ \text{logit}(b) \\ \text{logit}(c) \\ \text{logit}(d) \end{pmatrix}
+  \sim \text{MVN}(\boldsymbol{\mu}_{\text{ps}}, \boldsymbol{\Sigma}_{\text{ps}})
+\]
+where ``ps'' denotes ``prior selection.'' This distribution represents our beliefs about what a \textit{single random individual's} preferences might look like, before seeing any data.
+
+For the ATL dataset:
+\begin{align*}
+  \boldsymbol{\mu}_{\text{ps}} &= (-1.61, -1.07, 1.81, 1.98)^T
+\end{align*}
+\[
+  \boldsymbol{\Sigma}_{\text{ps}} = \begin{pmatrix}
+    0.29 & 0.08 & -0.10 & 0.05 \\
+    0.08 & 0.56 & -0.21 & -0.06 \\
+    -0.10 & -0.21 & 0.92 & 0.45 \\
+    0.05 & -0.06 & 0.45 & 1.26
+  \end{pmatrix}
+\]
+
+\subsection{The BHM Structure}
+
+The Bayesian Hierarchical Model decomposes the individual-level distribution into two levels:
+
+\textbf{Level 1 (Individual):} Each subject's parameter is drawn from a population distribution:
+\[
+  \text{logit}(\theta_{ij}) \sim \text{Normal}(\mu_j, \sigma_j^2)
+\]
+where $j \in \{a, b, c, d\}$ indexes the parameter and $i$ indexes the subject.
+
+\textbf{Level 2 (Population):} The population parameters have hyperpriors:
+\begin{align}
+  \mu_j &\sim \text{Normal}(\mu_{0,j}, \tau_{0,j}^2) \\
+  \sigma_j^2 &\sim \text{Inverse-Gamma}(\alpha_{0,j}, \beta_{0,j})
+\end{align}
+
+\subsection{The Key Constraint: Matching Unconditional Distribution}
+
+The crucial insight is that if we integrate out the population parameters, the \textit{unconditional} distribution of $\theta_{ij}$ should match the prior selection distribution. This ensures consistency: our beliefs about a random individual are the same whether we think about them directly (prior selection) or as a draw from an unknown population (BHM).
+
+\textbf{Matching the mean ($16 \to 12$ degrees of freedom):}
+
+For the unconditional mean:
+\[
+  \E[\text{logit}(\theta_{ij})] = \E[\E[\text{logit}(\theta_{ij}) | \mu_j]] = \E[\mu_j] = \mu_{0,j}
+\]
+For this to equal $(\boldsymbol{\mu}_{\text{ps}})_j$, we must set $\mu_{0,j} = (\boldsymbol{\mu}_{\text{ps}})_j$. This completely determines all 4 values of $\mu_{0,j}$---no researcher choice is involved. \textbf{This eliminates 4 degrees of freedom}, reducing from 16 to 12.
+
+\textbf{Matching the variance ($12 \to 8$ degrees of freedom):}
+
+For the unconditional variance, we use the law of total variance:
+\begin{align}
+  \Var[\text{logit}(\theta_{ij})] &= \E[\Var[\text{logit}(\theta_{ij}) | \mu_j, \sigma_j^2]] + \Var[\E[\text{logit}(\theta_{ij}) | \mu_j, \sigma_j^2]] \nonumber \\
+  &= \E[\sigma_j^2] + \Var[\mu_j] \nonumber \\
+  &= \underbrace{\frac{\beta_{0,j}}{\alpha_{0,j} - 1}}_{\text{expected population variance}} + \underbrace{\tau_{0,j}^2}_{\text{uncertainty about pop.\ mean}}
+  \label{eq:total_variance}
+\end{align}
+
+For this to equal the prior selection variance $(\boldsymbol{\Sigma}_{\text{ps}})_{jj}$, we need:
+\begin{equation}
+  \frac{\beta_{0,j}}{\alpha_{0,j} - 1} + \tau_{0,j}^2 = (\boldsymbol{\Sigma}_{\text{ps}})_{jj}
+  \label{eq:variance_constraint}
+\end{equation}
+
+This is one constraint per parameter, involving three unknowns ($\tau_{0,j}^2$, $\alpha_{0,j}$, $\beta_{0,j}$) each. Four constraints on 12 unknowns \textbf{eliminates 4 more degrees of freedom}, leaving $12 - 4 = 8$.
+
+\subsection{Reparameterizing the Remaining 8 Degrees of Freedom}
+
+We now have 8 degrees of freedom: for each parameter $j$, the constraint~\eqref{eq:variance_constraint} is one equation in three unknowns ($\tau_{0,j}^2$, $\alpha_{0,j}$, $\beta_{0,j}$), leaving 2 free choices per parameter.
+
+Rather than asking the researcher to directly specify values like $\tau_{0,j}^2 = 0.077$ or $\beta_{0,j} = 0.895$, we reparameterize in terms of quantities with clearer interpretations: the \textit{variance partition ratio} $\rho_j$ and the \textit{concentration parameter} $\alpha_{0,j}$.
+
+\textbf{Constraint 1: Variance Partition Ratio}
+
+We introduce a variance partition ratio $\rho_j \in (0, 1)$ for each parameter $j$, representing the fraction of total variance attributed to uncertainty about the population mean:
+\begin{equation}
+  \rho_j = \frac{\tau_{0,j}^2}{(\boldsymbol{\Sigma}_{\text{ps}})_{jj}}
+  \label{eq:rho_def}
+\end{equation}
+
+This gives us:
+\begin{align}
+  \tau_{0,j}^2 &= \rho_j \cdot (\boldsymbol{\Sigma}_{\text{ps}})_{jj} \label{eq:tau_from_rho} \\
+  \E[\sigma_j^2] = \frac{\beta_{0,j}}{\alpha_{0,j} - 1} &= (1 - \rho_j) \cdot (\boldsymbol{\Sigma}_{\text{ps}})_{jj} \label{eq:Esigma_from_rho}
+\end{align}
+
+\textbf{Critical observation:} For \textit{any} choice of $\rho_j \in (0, 1)$---whether different values for each parameter or a common value across all parameters---the unconditional variance of $\text{logit}(\theta_j)$ equals the prior selection variance $(\boldsymbol{\Sigma}_{\text{ps}})_{jj}$ by construction. This is because:
+\[
+  \Var[\text{logit}(\theta_j)] = \underbrace{(1 - \rho_j)(\boldsymbol{\Sigma}_{\text{ps}})_{jj}}_{\E[\sigma_j^2]} + \underbrace{\rho_j (\boldsymbol{\Sigma}_{\text{ps}})_{jj}}_{\tau_{0,j}^2} = (\boldsymbol{\Sigma}_{\text{ps}})_{jj}
+\]
+The two terms always sum to the target variance regardless of how the partition is chosen. Thus, the choice of $\rho_j$ values affects only how the variance is \textit{decomposed} between population heterogeneity and uncertainty about the population mean---it does not affect the unconditional distribution of individual parameters, which remains equivalent to the prior selection distribution by definition.
+
+\textbf{Interpretation of $\rho_j$:}
+\begin{itemize}
+  \item $\rho_j \to 0$: Almost all prior uncertainty for parameter $j$ comes from population heterogeneity. We are confident about where the population is centered, but individuals vary greatly.
+  \item $\rho_j \to 1$: Almost all prior uncertainty comes from not knowing the population mean. Once we learn $\mu_j$, individuals cluster tightly around it.
+  \item $\rho_j = 0.3$: 30\% of prior width reflects uncertainty about the population center; 70\% reflects expected individual heterogeneity.
+\end{itemize}
+
+\textbf{Constraint 2: Concentration Parameter $\alpha_0$}
+
+Equation~\eqref{eq:Esigma_from_rho} still has two unknowns: $\alpha_{0,j}$ and $\beta_{0,j}$. We need one more constraint.
+
+The Inverse-Gamma distribution has mean and variance:
+\begin{align}
+  \E[\sigma^2] &= \frac{\beta_0}{\alpha_0 - 1} \quad \text{for } \alpha_0 > 1 \\
+  \Var[\sigma^2] &= \frac{\beta_0^2}{(\alpha_0 - 1)^2 (\alpha_0 - 2)} \quad \text{for } \alpha_0 > 2
+\end{align}
+
+The coefficient of variation (CV) of $\sigma^2$ is:
+\begin{equation}
+  \text{CV}[\sigma^2] = \frac{\sqrt{\Var[\sigma^2]}}{\E[\sigma^2]} = \frac{1}{\sqrt{\alpha_0 - 2}}
+  \label{eq:cv_ig}
+\end{equation}
+
+The CV measures how uncertain we are about the population variance \textit{relative to its expected value}. A small CV means we're confident the true $\sigma^2$ is close to $\E[\sigma^2]$; a large CV means $\sigma^2$ could be much smaller or larger than expected.
+
+\textbf{Why CV = 0.5?} This is a modeling choice reflecting moderate uncertainty about the population variance. Let's consider the implications:
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+CV & $\alpha_0$ & Interpretation \\
+\midrule
+1.0 & 3 & High uncertainty: $\sigma^2$ could easily be 2$\times$ or 0.5$\times$ the expected value \\
+0.71 & 4 & Moderate-high uncertainty \\
+0.5 & 6 & Moderate uncertainty: $\pm$50\% variation is plausible \\
+0.33 & 11 & Low uncertainty: $\sigma^2$ is fairly well-determined \\
+0.25 & 18 & Very low uncertainty: strong prior belief about $\sigma^2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+With CV = 0.5 ($\alpha_0 = 6$):
+\begin{itemize}
+  \item The prior allows $\sigma^2$ to range from roughly 0.3$\times$ to 2$\times$ its expected value with reasonable probability
+  \item We're not dogmatic about the prior selection variance being exactly correct
+  \item But we're not so uncertain that the data has no prior guidance
+\end{itemize}
+
+\textbf{Alternative interpretation via effective sample size:} For the Inverse-Gamma, $\alpha_0$ can be interpreted as an effective sample size---the number of ``prior observations'' we have about $\sigma^2$. With $\alpha_0 = 6$, we have the equivalent of 6 prior observations, which provides moderate information while leaving substantial room for the data to inform the posterior.
+
+\subsection{Solving for the Hyperprior Parameters}
+
+Given the prior selection results $(\boldsymbol{\mu}_{\text{ps}}, \boldsymbol{\Sigma}_{\text{ps}})$, a variance partition ratio $\rho_j \in (0,1)$, and a concentration parameter $\alpha_{0,j} > 2$ for each parameter $j$:
+
+\textbf{Step 1: Mean hyperprior location}
+\[
+  \mu_{0,j} = (\boldsymbol{\mu}_{\text{ps}})_j
+\]
+
+\textbf{Step 2: Mean hyperprior variance (from $\rho_j$)}
+\[
+  \tau_{0,j}^2 = \rho_j \cdot V_j \quad \text{where } V_j = (\boldsymbol{\Sigma}_{\text{ps}})_{jj}
+\]
+
+\textbf{Step 3: Expected population variance (from $\rho_j$)}
+\[
+  \E[\sigma_j^2] = (1 - \rho_j) \cdot V_j
+\]
+
+\textbf{Step 4: Inverse-Gamma scale parameter (from $\alpha_{0,j}$ and $\E[\sigma_j^2]$)}
+\[
+  \beta_{0,j} = \E[\sigma_j^2] \cdot (\alpha_{0,j} - 1) = (1 - \rho_j) \cdot V_j \cdot (\alpha_{0,j} - 1)
+\]
+
+\subsection{Verification: The Unconditional Variance Matches}
+
+We can verify that our construction satisfies the constraint~\eqref{eq:variance_constraint} for any valid $\rho_j$:
+\begin{align*}
+  \frac{\beta_{0,j}}{\alpha_{0,j} - 1} + \tau_{0,j}^2 &= \frac{(1-\rho_j) V_j (\alpha_{0,j} - 1)}{\alpha_{0,j} - 1} + \rho_j V_j \\
+  &= (1 - \rho_j) V_j + \rho_j V_j \\
+  &= V_j = (\boldsymbol{\Sigma}_{\text{ps}})_{jj} \quad \checkmark
+\end{align*}
+where $V_j = (\boldsymbol{\Sigma}_{\text{ps}})_{jj}$ is the target variance from prior selection.
+
+\textbf{This identity holds for any $\rho_j \in (0, 1)$ and any $\alpha_{0,j} > 2$.} Whether the researcher chooses different partition ratios for each parameter (e.g., $\rho_a = 0.2$, $\rho_b = 0.4$, $\rho_c = 0.3$, $\rho_d = 0.1$) or a common value ($\rho_j = 0.3$ for all $j$), the unconditional distribution of each parameter matches the prior selection target by construction. The choice of partition ratios is purely about expressing beliefs regarding the \textit{source} of variance---not its magnitude.
+
+\subsection{What About Correlations?}
+
+The independent structure ignores the off-diagonal elements of $\boldsymbol{\Sigma}_{\text{ps}}$. Under this structure:
+\[
+  \text{Cov}[\text{logit}(\theta_j), \text{logit}(\theta_k)] = 0 \quad \text{for } j \neq k
+\]
+
+This is a limitation. The prior selection found $\text{Corr}[a, c] = -0.35$, which encodes the constraint that utility functions with low initial curvature tend to have high upper curvature. The independent structure loses this information.
+
+However, with sufficient data (120 choices per subject), the likelihood will effectively rule out implausible $(a, c)$ combinations, mitigating the impact of this approximation. For small datasets, the correlated (NIW) structure may be preferable despite its computational challenges.
+
+\subsection{Reducing Degrees of Freedom: Common $\rho$ and $\alpha_0$ ($8 \to 2$)}
+
+At this point, the prior selection constraint has reduced 16 hyperparameters to 8 researcher choices: $\rho_j$ and $\alpha_{0,j}$ for each of the $p = 4$ parameters. This flexibility is available because, as shown above, \textit{any} valid choice of these 8 values produces an unconditional distribution matching the prior selection target.
+
+However, we rarely have strong prior beliefs that would justify different partition ratios or concentration parameters across the Bézier shape parameters. Absent such beliefs, we set:
+\begin{align}
+  \rho_j &= \rho \quad \text{for all } j \quad \text{(reduces 4 choices to 1)} \\
+  \alpha_{0,j} &= \alpha_0 \quad \text{for all } j \quad \text{(reduces 4 choices to 1)}
+\end{align}
+
+This reduces the researcher degrees of freedom from 8 to 2: a single $\rho$ and a single $\alpha_0$. The complete accounting:
+\[
+  \underbrace{16}_{\text{starting}} \xrightarrow{\text{mean constraint}} \underbrace{12}_{\mu_{0,j} \text{ fixed}} \xrightarrow{\text{variance constraint}} \underbrace{8}_{\text{reparameterized}} \xrightarrow{\text{common } \rho} \underbrace{5}_{} \xrightarrow{\text{common } \alpha_0} \underbrace{2}_{\text{final}}
+\]
+
+\textbf{When might different $\rho_j$ values be warranted?}
+
+A researcher might choose different partition ratios if they have prior beliefs about how variance is distributed differently across parameters. For example:
+\begin{itemize}
+  \item If prior literature strongly establishes the population mean of parameter $a$ (implying low $\rho_a$) but says little about $c$ (implying higher $\rho_c$)
+  \item If some parameters are known to be highly heterogeneous across populations while others are relatively stable
+\end{itemize}
+
+Absent such specific prior information, using a common $\rho$ is more parsimonious and easier to interpret: the statement ``30\% of prior variance reflects uncertainty about population location'' applies uniformly across all parameters.
+
+\textbf{Further simplification:} In most applications, we also hold $\alpha_0$ constant (e.g., $\alpha_0 = 6$ for all parameters), reducing the researcher's task to selecting a single value $\rho$. This single parameter has a clear interpretation: the fraction of total prior variance attributed to not knowing where the population is centered.
+
+\subsection{Summary of the Independent Hyperprior Derivation}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Given} & \textbf{From} \\
+\midrule
+$\boldsymbol{\mu}_{\text{ps}}$, $\boldsymbol{\Sigma}_{\text{ps}}$ & Prior selection exercise \\
+$\rho_j \in (0, 1)$ for each $j$ & Researcher choice (we use common $\rho = 0.3$) \\
+$\alpha_{0,j} > 2$ for each $j$ & Researcher choice (we use common $\alpha_0 = 6$) \\
+\midrule
+\textbf{Derived} & \textbf{Formula} \\
+\midrule
+$\mu_{0,j}$ & $(\boldsymbol{\mu}_{\text{ps}})_j$ \\
+$\tau_{0,j}^2$ & $\rho_j \cdot (\boldsymbol{\Sigma}_{\text{ps}})_{jj}$ \\
+$\beta_{0,j}$ & $(1 - \rho_j) \cdot (\boldsymbol{\Sigma}_{\text{ps}})_{jj} \cdot (\alpha_{0,j} - 1)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Key property:} For any valid choice of $\rho_j$ and $\alpha_{0,j}$ values, the unconditional distribution of $\theta_j$ matches the prior selection target by construction.
+
+\textbf{Practical simplification:} While the general formulation allows $2p$ researcher choices ($\rho_j$ and $\alpha_{0,j}$ for each of $p$ parameters), using common values $\rho_j = \rho$ and $\alpha_{0,j} = \alpha_0$ reduces this to just 2 choices. This is our approach, absent specific prior beliefs about differential variance decomposition across parameters.
+
+\section{Derived Hyperpriors for ATL Dataset}
+
+Applying the above methodology to the ATL prior selection results:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+Parameter & $V_{\text{target}}$ & $\mu_0$ & $\tau_0^2$ & $\alpha_0$ & $\beta_0$ \\
+\midrule
+$a$ & 0.256 & $-1.641$ & 0.077 & 6.0 & 0.895 \\
+$b$ & 0.096 & $-0.796$ & 0.029 & 6.0 & 0.338 \\
+$c$ & 5.813 & $4.670$ & 1.744 & 6.0 & 20.34 \\
+$d$ & 6.452 & $4.438$ & 1.936 & 6.0 & 22.58 \\
+$\mu$ & 1.000 & $-2.300$ & 0.300 & 6.0 & 3.500 \\
+\bottomrule
+\end{tabular}
+\caption{Derived BHM hyperpriors from ATL prior selection}
+\end{table}
+
+\subsection{Verification of Unconditional Variance}
+
+For each parameter, we verify that the unconditional variance matches the target:
+\[
+  \E[\sigma^2] + \tau_0^2 = \frac{\beta_0}{\alpha_0 - 1} + \tau_0^2 = \frac{\beta_0}{5} + \tau_0^2
+\]
+
+For parameter $a$:
+\[
+  \frac{0.895}{5} + 0.077 = 0.179 + 0.077 = 0.256 \quad \checkmark
+\]
+
+\section{Deriving Correlated (NIW) Hyperpriors from Prior Selection}
+
+This section provides a detailed derivation of the correlated hyperprior structure using the Normal-Inverse-Wishart (NIW) conjugate prior, paralleling the development in Section 3.
+
+\subsection{The Problem: 16 Parameters to Specify}
+
+The correlated hyperprior structure requires specifying parameters for the Normal-Inverse-Wishart prior:
+\begin{center}
+\begin{tabular}{clc}
+\toprule
+Hyperparameter & Meaning & Count \\
+\midrule
+$\boldsymbol{\mu}_0$ & Prior mean vector for population mean & 4 \\
+$\kappa_0$ & Shrinkage parameter (how tightly $\mu$ is centered on $\mu_0$) & 1 \\
+$\boldsymbol{\Psi}_0$ & Scale matrix for Inverse-Wishart (symmetric $4 \times 4$) & 10 \\
+$\nu_0$ & Degrees of freedom for Inverse-Wishart & 1 \\
+\midrule
+& \textbf{Total} & \textbf{16} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+As with the independent case, directly specifying 16 interdependent parameters is impractical. We use the same approach: impose the constraint that the unconditional BHM prior must equal the prior selection distribution, then reparameterize the remaining degrees of freedom.
+
+\textbf{Important:} The NIW structure has exactly the same number of hyperparameters (16) as the independent structure, but they are organized differently---a 4-vector, two scalars, and a $4 \times 4$ symmetric matrix rather than 4 groups of 4 scalars.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Step & Constraint/Choice & Degrees of Freedom \\
+\midrule
+Starting point & --- & 16 \\
+Mean constraint (Section 5.4) & $\boldsymbol{\mu}_0 = \boldsymbol{\mu}_{\text{ps}}$ & $16 - 4 = 12$ \\
+Covariance constraint (Section 5.4) & Matrix equation (10 unique elements) & $12 - 10 = 2$ \\
+\midrule
+Reparameterization & $\rho$ and $\nu_0$ & 2 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Key difference from independent case:} The covariance constraint is a \textit{matrix} equation with 10 independent constraints (for the symmetric $4 \times 4$ matrix), which absorbs 10 degrees of freedom at once. This leaves only 2 remaining choices, compared to 8 in the independent case.
+
+\textbf{Pseudo-reduction caveat:} As before, the prior selection exercise required specifying a mean vector (4 values) and covariance matrix (10 unique values), totaling 14 choices. Combined with the 2 NIW structure choices ($\rho$ and $\nu_0$), the total researcher input is 16---the same as directly specifying hyperparameters. The value is in \textit{where} choices are made: prior selection choices are cognitively tractable (visualize utility functions), while $\rho$ and $\nu_0$ have clear interpretations.
+
+\subsection{The Starting Point: Prior Selection Results}
+
+The prior selection exercise produces a multivariate normal distribution on the logit scale:
+\[
+  \boldsymbol{\theta} = \begin{pmatrix} \text{logit}(a) \\ \text{logit}(b) \\ \text{logit}(c) \\ \text{logit}(d) \end{pmatrix}
+  \sim \text{MVN}(\boldsymbol{\mu}_{\text{ps}}, \boldsymbol{\Sigma}_{\text{ps}})
+\]
+
+Unlike the independent case, we now use the \textit{full} covariance matrix $\boldsymbol{\Sigma}_{\text{ps}}$, including off-diagonal correlations. For the ATL dataset:
+\[
+  \boldsymbol{\Sigma}_{\text{ps}} = \begin{pmatrix}
+    0.29 & 0.08 & -0.10 & 0.05 \\
+    0.08 & 0.56 & -0.21 & -0.06 \\
+    -0.10 & -0.21 & 0.92 & 0.45 \\
+    0.05 & -0.06 & 0.45 & 1.26
+  \end{pmatrix}
+\]
+
+The correlation between $a$ and $c$ is approximately $-0.19$, encoding the constraint that utility functions with certain initial curvature tend to have compensating upper curvature.
+
+\subsection{The NIW BHM Structure}
+
+The Normal-Inverse-Wishart conjugate prior generalizes the univariate Normal-Inverse-Gamma:
+
+\textbf{Level 1 (Individual):} Each subject's parameters are drawn from a population distribution:
+\[
+  \boldsymbol{\theta}_i | \boldsymbol{\mu}, \boldsymbol{\Sigma} \sim \text{MVN}(\boldsymbol{\mu}, \boldsymbol{\Sigma})
+\]
+
+\textbf{Level 2 (Population):} The population parameters have NIW hyperpriors:
+\begin{align}
+  \boldsymbol{\mu} | \boldsymbol{\Sigma} &\sim \text{MVN}(\boldsymbol{\mu}_0, \boldsymbol{\Sigma}/\kappa_0) \\
+  \boldsymbol{\Sigma} &\sim \text{Inverse-Wishart}(\nu_0, \boldsymbol{\Psi}_0)
+\end{align}
+
+The conditional structure $\boldsymbol{\mu} | \boldsymbol{\Sigma}$ is key: uncertainty about the population mean scales with the population covariance, preserving the correlation structure at both levels.
+
+\subsection{The Key Constraint: Matching Unconditional Distribution}
+
+\textbf{Matching the mean ($16 \to 12$ degrees of freedom):}
+
+The unconditional mean is:
+\[
+  \E[\boldsymbol{\theta}_i] = \E[\E[\boldsymbol{\theta}_i | \boldsymbol{\mu}]] = \E[\boldsymbol{\mu}] = \boldsymbol{\mu}_0
+\]
+For this to equal $\boldsymbol{\mu}_{\text{ps}}$, we must set $\boldsymbol{\mu}_0 = \boldsymbol{\mu}_{\text{ps}}$. This completely determines the 4-element mean vector---no researcher choice is involved. \textbf{This eliminates 4 degrees of freedom.}
+
+\textbf{Matching the covariance ($12 \to 2$ degrees of freedom):}
+
+The unconditional covariance uses the law of total covariance:
+\begin{align}
+  \Var[\boldsymbol{\theta}_i] &= \E[\Var[\boldsymbol{\theta}_i | \boldsymbol{\mu}, \boldsymbol{\Sigma}]] + \Var[\E[\boldsymbol{\theta}_i | \boldsymbol{\mu}, \boldsymbol{\Sigma}]] \nonumber \\
+  &= \E[\boldsymbol{\Sigma}] + \Var[\boldsymbol{\mu}] \nonumber \\
+  &= \underbrace{\frac{\boldsymbol{\Psi}_0}{\nu_0 - p - 1}}_{\text{expected population cov.}} + \underbrace{\frac{1}{\kappa_0} \cdot \frac{\boldsymbol{\Psi}_0}{\nu_0 - p - 1}}_{\text{uncertainty about pop.\ mean}}
+  \label{eq:niw_total_cov}
+\end{align}
+
+This simplifies to:
+\begin{equation}
+  \Var[\boldsymbol{\theta}_i] = \left(1 + \frac{1}{\kappa_0}\right) \cdot \frac{\boldsymbol{\Psi}_0}{\nu_0 - p - 1}
+  \label{eq:niw_unconditional_cov}
+\end{equation}
+
+For this to equal $\boldsymbol{\Sigma}_{\text{ps}}$, we need:
+\begin{equation}
+  \boldsymbol{\Psi}_0 = \frac{\kappa_0}{\kappa_0 + 1} \cdot (\nu_0 - p - 1) \cdot \boldsymbol{\Sigma}_{\text{ps}}
+  \label{eq:psi_constraint}
+\end{equation}
+
+This is a \textit{matrix} equation. Given choices of $\kappa_0$ and $\nu_0$, the entire $4 \times 4$ scale matrix $\boldsymbol{\Psi}_0$ is determined (10 unique elements). \textbf{This eliminates 10 degrees of freedom}, leaving only 2.
+
+\subsection{Reparameterizing the Remaining 2 Degrees of Freedom}
+
+The 2 remaining degrees of freedom are $\kappa_0$ and $\nu_0$. We reparameterize $\kappa_0$ in terms of the variance partition ratio $\rho$ for interpretability.
+
+\textbf{Researcher Choice 1: Variance Partition Ratio $\rho$}
+
+Define $\rho$ as the fraction of unconditional variance from uncertainty about the population mean:
+\[
+  \rho = \frac{\Var[\boldsymbol{\mu}]}{\Var[\boldsymbol{\theta}]} = \frac{\frac{1}{\kappa_0} \E[\boldsymbol{\Sigma}]}{\left(1 + \frac{1}{\kappa_0}\right) \E[\boldsymbol{\Sigma}]} = \frac{1}{1 + \kappa_0}
+\]
+
+Solving for $\kappa_0$:
+\begin{equation}
+  \kappa_0 = \frac{1 - \rho}{\rho}
+  \label{eq:kappa_from_rho}
+\end{equation}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+$\rho$ & $\kappa_0$ & Interpretation \\
+\midrule
+0.1 & 9.0 & 10\% mean uncertainty, 90\% heterogeneity \\
+0.3 & 2.33 & 30\% mean uncertainty, 70\% heterogeneity (our choice) \\
+0.5 & 1.0 & Equal split \\
+0.7 & 0.43 & 70\% mean uncertainty, 30\% heterogeneity \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Researcher Choice 2: Degrees of Freedom $\nu_0$}
+
+The degrees of freedom $\nu_0$ controls how concentrated the Inverse-Wishart distribution is around its expected value. Must satisfy $\nu_0 > p + 1 = 5$ for finite variance.
+
+\begin{center}
+\begin{tabular}{ccp{8cm}}
+\toprule
+$\nu_0$ & CV of $\Sigma_{jj}$ & Interpretation \\
+\midrule
+6 & $\approx 1.0$ & Minimal information; highly uncertain about $\boldsymbol{\Sigma}$. \textbf{Warning:} Severe skewness (see Section 7). \\
+10 & $\approx 0.5$ & Moderate information; less skewness. \\
+20 & $\approx 0.3$ & Substantial information; $\boldsymbol{\Sigma}$ fairly well-determined. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Solving for the Hyperprior Parameters}
+
+Given the prior selection results $(\boldsymbol{\mu}_{\text{ps}}, \boldsymbol{\Sigma}_{\text{ps}})$, the variance partition ratio $\rho$, and the degrees of freedom $\nu_0$:
+
+\textbf{Step 1: Mean hyperprior location}
+\[
+  \boldsymbol{\mu}_0 = \boldsymbol{\mu}_{\text{ps}}
+\]
+
+\textbf{Step 2: Shrinkage parameter (from $\rho$)}
+\[
+  \kappa_0 = \frac{1 - \rho}{\rho}
+\]
+
+\textbf{Step 3: Target expected population covariance}
+\[
+  \E[\boldsymbol{\Sigma}] = (1 - \rho) \cdot \boldsymbol{\Sigma}_{\text{ps}}
+\]
+
+\textbf{Step 4: Inverse-Wishart scale matrix}
+\[
+  \boldsymbol{\Psi}_0 = (\nu_0 - p - 1) \cdot \E[\boldsymbol{\Sigma}] = (\nu_0 - p - 1) \cdot (1 - \rho) \cdot \boldsymbol{\Sigma}_{\text{ps}}
+\]
+
+\subsection{Verification: The Unconditional Covariance Matches}
+
+We verify that our construction satisfies the constraint. Starting from equation~\eqref{eq:niw_unconditional_cov}:
+\begin{align*}
+  \Var[\boldsymbol{\theta}_i] &= \left(1 + \frac{1}{\kappa_0}\right) \cdot \frac{\boldsymbol{\Psi}_0}{\nu_0 - p - 1} \\
+  &= \left(1 + \frac{\rho}{1-\rho}\right) \cdot \frac{(\nu_0 - p - 1)(1-\rho)\boldsymbol{\Sigma}_{\text{ps}}}{\nu_0 - p - 1} \\
+  &= \frac{1}{1-\rho} \cdot (1-\rho) \cdot \boldsymbol{\Sigma}_{\text{ps}} \\
+  &= \boldsymbol{\Sigma}_{\text{ps}} \quad \checkmark
+\end{align*}
+
+\textbf{This identity holds for any $\rho \in (0, 1)$ and any $\nu_0 > p + 1$.} The choice of $\rho$ and $\nu_0$ affects only how the variance is decomposed and how uncertain we are about $\boldsymbol{\Sigma}$---not the unconditional distribution of individual parameters.
+
+\subsection{What the Correlated Structure Preserves}
+
+Unlike the independent structure, the NIW approach preserves the \textit{entire} correlation structure from prior selection:
+\begin{itemize}
+  \item $\E[\boldsymbol{\Sigma}] = (1-\rho) \cdot \boldsymbol{\Sigma}_{\text{ps}}$ has the same correlation structure as $\boldsymbol{\Sigma}_{\text{ps}}$
+  \item $\Var[\boldsymbol{\mu}] = \frac{1}{\kappa_0} \E[\boldsymbol{\Sigma}]$ also preserves correlations
+  \item The strong $a$-$c$ correlation is maintained at both population and individual levels
+\end{itemize}
+
+\subsection{Summary of the NIW Hyperprior Derivation}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Given} & \textbf{From} \\
+\midrule
+$\boldsymbol{\mu}_{\text{ps}}$, $\boldsymbol{\Sigma}_{\text{ps}}$ & Prior selection exercise (full covariance) \\
+$\rho \in (0, 1)$ & Researcher choice (we use $\rho = 0.3$) \\
+$\nu_0 > p + 1$ & Researcher choice (we use $\nu_0 = 6$) \\
+\midrule
+\textbf{Derived} & \textbf{Formula} \\
+\midrule
+$\boldsymbol{\mu}_0$ & $\boldsymbol{\mu}_{\text{ps}}$ \\
+$\kappa_0$ & $(1 - \rho) / \rho$ \\
+$\boldsymbol{\Psi}_0$ & $(\nu_0 - p - 1) \cdot (1 - \rho) \cdot \boldsymbol{\Sigma}_{\text{ps}}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Key property:} For any valid choice of $\rho$ and $\nu_0$, the unconditional distribution of $\boldsymbol{\theta}$ matches the prior selection target by construction.
+
+\textbf{Comparison with independent case:} The NIW structure has only 2 researcher degrees of freedom (versus 8 for independent, or 2 with common values). This is because the matrix covariance constraint absorbs 10 degrees of freedom at once. However, the NIW structure brings computational challenges and the Inverse-Wishart skewness issue (Section 7).
+
+\section{The Researcher's Decision}
+
+\subsection{Constraint: Consistent Prior for a Random Individual}
+
+We impose the constraint that the \textbf{prior predictive for a single random individual must be identical} whether we use an individual-level model or a BHM.
+
+The prior selection exercise directly answers: ``What do credible preferences look like for a random individual?''
+\[
+  p(\theta) = \text{MVN}_{\text{logit}}(\boldsymbol{\mu}, \boldsymbol{\Sigma})
+\]
+
+For the BHM, the \textit{unconditional} prior (integrating over population parameters) must yield the same answer:
+\[
+  p_{\text{BHM}}(\theta) = \int p(\theta | \mu, \sigma^2) p(\mu) p(\sigma^2) \, d\mu \, d\sigma^2 = p(\theta)
+\]
+
+This constraint is conceptually important: both formulations encode the same prior beliefs about what a random individual's preferences look like. The difference is that the BHM explicitly decomposes this into population-level structure, allowing us to estimate \textit{how heterogeneous} the population is and to share information across individuals during estimation.
+
+\subsection{From 16 Parameters to 2}
+
+Whether using independent or correlated hyperpriors, the variance partition can be expressed as:
+\[
+  \Var[\boldsymbol{\theta}] = \underbrace{\E[\boldsymbol{\Sigma}]}_{\text{population heterogeneity}} + \underbrace{\Var[\boldsymbol{\mu}]}_{\text{uncertainty about population mean}}
+\]
+
+Two decisions determine the hyperprior structure:
+
+\begin{enumerate}
+  \item \textbf{Variance Partition Ratio} $\rho \in (0, 1)$: How to split the prior selection variance between uncertainty about the population mean and population heterogeneity.
+
+  \item \textbf{Concentration Parameter} ($\alpha_0$ or $\nu_0$): How confident we are that the prior selection (co)variance reflects the true population (co)variance.
+\end{enumerate}
+
+These two decisions apply to both structures:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+& \textbf{Independent} & \textbf{Correlated (NIW)} \\
+\midrule
+Population mean prior & $\mu_j \sim N(\mu_{0,j}, \tau_{0,j}^2)$ & $\boldsymbol{\mu} \sim N(\boldsymbol{\mu}_0, \boldsymbol{\Sigma}/\kappa_0)$ \\
+Population variance prior & $\sigma_j^2 \sim \text{IG}(\alpha_0, \beta_{0,j})$ & $\boldsymbol{\Sigma} \sim \text{IW}(\nu_0, \boldsymbol{\Psi}_0)$ \\
+\midrule
+Mean location & $\mu_{0,j} = (\boldsymbol{\mu}_{\text{logit}})_j$ & $\boldsymbol{\mu}_0 = \boldsymbol{\mu}_{\text{logit}}$ \\
+Partition via $\rho$ & $\tau_{0,j}^2 = \rho \cdot \Sigma_{jj}$ & $\kappa_0 = (1-\rho)/\rho$ \\
+Concentration & $\alpha_0$ (shape parameter) & $\nu_0$ (degrees of freedom) \\
+Scale & $\beta_{0,j} = (1-\rho)\Sigma_{jj}(\alpha_0-1)$ & $\boldsymbol{\Psi}_0 = (1-\rho)(\nu_0-p-1)\boldsymbol{\Sigma}_{\text{logit}}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The prior selection determines the mean and total (co)variance. The two researcher decisions ($\rho$ and concentration) then fully determine all hyperprior parameters. The correlated structure additionally preserves the full correlation matrix from prior selection.
+
+\subsection{Decision 1: Variance Partition Ratio}
+
+The partition ratio $\rho \in (0, 1)$ is the fraction of total prior variance attributed to uncertainty about the population mean:
+
+\begin{center}
+\begin{tabular}{cp{10cm}}
+\toprule
+$\rho$ & Interpretation \\
+\midrule
+$\rho \to 0$ & The pooled prior is wide because we expect \textit{high population heterogeneity}. The population mean is well-determined, but individuals vary greatly around it. \\
+$\rho \to 1$ & The pooled prior is wide because we are \textit{uncertain about the population mean}. Once we learn the population mean, individuals cluster tightly around it. \\
+$\rho = 0.3$ & (Our choice) Most prior width reflects heterogeneity (70\%), with moderate uncertainty about population location (30\%). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Decision 2: Concentration Parameter}
+
+The concentration parameter controls how tightly the population (co)variance is distributed around its expected value:
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+& \textbf{Independent} ($\alpha_0$) & \textbf{Correlated} ($\nu_0$) \\
+\midrule
+Minimum for finite mean & $\alpha_0 > 1$ & $\nu_0 > p + 1 = 5$ \\
+Minimum for finite variance & $\alpha_0 > 2$ & $\nu_0 > p + 3 = 7$ \\
+\midrule
+Low value (e.g., 6) & Diffuse; wide range of $\sigma^2$ values & Very diffuse; severe skewness \\
+High value (e.g., 20) & Concentrated near $\E[\sigma^2]$ & Concentrated near $\E[\boldsymbol{\Sigma}]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Key difference}: The Inverse-Wishart with low $\nu_0$ exhibits extreme skewness (see Section~\ref{sec:iw-skewness}), while the Inverse-Gamma is more moderately skewed. This makes the choice of $\nu_0$ more consequential than the choice of $\alpha_0$.
+
+Interpretation of the concentration parameter:
+\begin{itemize}
+  \item \textbf{Low values}: ``I am uncertain whether the prior selection variance is correct. The true population variance could be much smaller or larger.''
+  \item \textbf{High values}: ``I am confident that the prior selection variance is close to the true population variance.''
+\end{itemize}
+
+\subsection{Summary: What the Researcher Must Decide}
+
+\begin{enumerate}
+  \item \textbf{Prior Selection}: Answer the question ``What do preferences look like for a single random individual?'' by defining credible RRA patterns and fitting the MVN prior. This determines $p(\theta)$ for any individual-level analysis.
+
+  \item \textbf{Variance Partition Ratio} $\rho$: How much of the prior width comes from uncertainty about the population center vs.\ heterogeneity within the population.
+  \begin{itemize}
+    \item Our default: $\rho = 0.3$ (30\% location uncertainty, 70\% heterogeneity)
+  \end{itemize}
+
+  \item \textbf{Concentration Parameter} ($\alpha_0$ or $\nu_0$): How confident we are in the prior selection variance estimate.
+  \begin{itemize}
+    \item Independent: $\alpha_0 = 6$ gives moderate uncertainty (CV $\approx 0.5$ for $\sigma^2$)
+    \item Correlated: $\nu_0 = 6$ gives minimal information but causes severe skewness; consider $\nu_0 \geq 10$ for more typical behavior
+  \end{itemize}
+\end{enumerate}
+
+All other hyperprior parameters (16 total) are then \textit{derived} from the prior selection and these two decisions. The BHM decomposes the individual-level prior into population structure, but the unconditional prior for a random individual remains consistent with the prior selection.
+
+\section{The Inverse-Wishart Skewness Problem}
+\label{sec:iw-skewness}
+
+\subsection{The Issue with Low Degrees of Freedom}
+
+When using the Normal-Inverse-Wishart (NIW) structure for correlated hyperpriors, a critical issue arises from the choice of degrees of freedom $\nu_0$ in the Inverse-Wishart distribution.
+
+For a $p \times p$ covariance matrix, the Inverse-Wishart distribution $\text{IW}(\nu_0, \boldsymbol{\Psi}_0)$ requires $\nu_0 > p - 1$ to be proper, and $\nu_0 > p + 1$ for the mean to exist. The mean is:
+\[
+  \E[\boldsymbol{\Sigma}] = \frac{\boldsymbol{\Psi}_0}{\nu_0 - p - 1}
+\]
+
+With $p = 4$ shape parameters, we need $\nu_0 > 5$ for finite mean. A natural choice is $\nu_0 = 6$, giving a denominator of $\nu_0 - p - 1 = 1$.
+
+\subsection{Extreme Skewness of the Inverse-Wishart}
+
+The problem is that with $\nu_0 = 6$ (just above the minimum), the Inverse-Wishart distribution is \textbf{extremely right-skewed}. While the \textit{expected value} of $\boldsymbol{\Sigma}$ matches our target, the \textit{distribution} of $\boldsymbol{\Sigma}$ values is highly asymmetric:
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Statistic & Value (trace of $\boldsymbol{\Sigma}$) \\
+\midrule
+Expected value & 2.125 \\
+Median & 1.099 \\
+5th percentile & 0.450 \\
+25th percentile & 0.727 \\
+75th percentile & 1.891 \\
+95th percentile & 5.582 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Key observations:
+\begin{itemize}
+  \item The \textbf{median} (1.099) is only \textbf{52\%} of the expected value (2.125)
+  \item \textbf{79\%} of samples have $\text{tr}(\boldsymbol{\Sigma})$ below the expected value
+  \item \textbf{48\%} of samples have $\text{tr}(\boldsymbol{\Sigma})$ less than half the expected value
+  \item The mean is pulled up by rare, very large values (95th percentile is 2.6$\times$ the expected value)
+\end{itemize}
+
+\subsection{Visual Consequences}
+
+This skewness has important consequences for the prior predictive distribution. When sampling from the NIW hierarchical model:
+\begin{enumerate}
+  \item Sample $\boldsymbol{\Sigma} \sim \text{IW}(\nu_0, \boldsymbol{\Psi}_0)$
+  \item Sample $\boldsymbol{\mu} | \boldsymbol{\Sigma} \sim \text{MVN}(\boldsymbol{\mu}_0, \boldsymbol{\Sigma}/\kappa_0)$
+  \item Sample $\boldsymbol{\theta} | \boldsymbol{\mu}, \boldsymbol{\Sigma} \sim \text{MVN}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$
+\end{enumerate}
+
+Most draws of $\boldsymbol{\Sigma}$ are \textit{smaller} than expected, leading to:
+\begin{itemize}
+  \item Tighter clustering of $\boldsymbol{\theta}$ values around the population mean
+  \item A prior predictive distribution that \textit{looks} more concentrated than the direct MVN sample from prior selection
+  \item The mathematical expectation of the variance is correct, but the \textit{typical} draw has lower variance
+\end{itemize}
+
+This is not a bug---it reflects the NIW prior's ``skepticism'' about large population variance. The prior effectively says: ``I believe most populations have moderate heterogeneity, with occasional very heterogeneous populations.''
+
+\subsection{Increasing Degrees of Freedom}
+
+One could increase $\nu_0$ to concentrate the Inverse-Wishart closer to its mean. The coefficient of variation of $\Sigma_{jj}$ decreases as $\nu_0$ increases:
+\[
+  \text{CV}[\Sigma_{jj}] = \sqrt{\frac{2}{(\nu_0 - p - 1)^2(\nu_0 - p - 3)}}
+\]
+
+However, increasing $\nu_0$ changes the model's interpretation:
+\begin{itemize}
+  \item Higher $\nu_0$ means stronger prior beliefs about the population covariance structure
+  \item With $\nu_0 = 6$, we have minimal prior information about $\boldsymbol{\Sigma}$
+  \item With $\nu_0 = 20$, we have substantial prior confidence in $\E[\boldsymbol{\Sigma}]$
+\end{itemize}
+
+There is no ``correct'' choice---it depends on how confident we are that the prior selection covariance represents the true population covariance.
+
+\section{Detailed Comparison: Independent vs.\ Correlated Hyperpriors}
+
+We now provide a comprehensive comparison of the two hyperprior structures, including their mathematical properties, computational considerations, and practical implications.
+
+\subsection{Mathematical Structure}
+
+\subsubsection{Independent Hyperpriors}
+
+Under the independent structure, each shape parameter has its own univariate hierarchical prior:
+\begin{align}
+  \text{logit}(\theta_{ij}) | \mu_j, \sigma_j^2 &\sim \text{Normal}(\mu_j, \sigma_j^2) \\
+  \mu_j &\sim \text{Normal}(\mu_{0,j}, \tau_{0,j}^2) \\
+  \sigma_j^2 &\sim \text{Inverse-Gamma}(\alpha_0, \beta_{0,j})
+\end{align}
+for $j \in \{a, b, c, d\}$.
+
+The unconditional distribution of $\theta_j$ (integrating over hyperparameters) is:
+\[
+  \text{logit}(\theta_j) \sim t_{\nu}(\mu_{0,j}, s_j^2)
+\]
+where $\nu = 2\alpha_0$ and $s_j^2 = \tau_{0,j}^2 + \frac{\beta_{0,j}}{\alpha_0}$ for large $\alpha_0$, or approximately Normal when $\alpha_0$ is large.
+
+\textbf{Key property}: Parameters are \textit{a priori independent}:
+\[
+  \text{Cov}[\text{logit}(\theta_j), \text{logit}(\theta_k)] = 0 \quad \text{for } j \neq k
+\]
+
+\subsubsection{Correlated Hyperpriors (Normal-Inverse-Wishart)}
+
+Under the correlated structure:
+\begin{align}
+  \text{logit}(\boldsymbol{\theta}_i) | \boldsymbol{\mu}, \boldsymbol{\Sigma} &\sim \text{MVN}_4(\boldsymbol{\mu}, \boldsymbol{\Sigma}) \\
+  \boldsymbol{\mu} | \boldsymbol{\Sigma} &\sim \text{MVN}_4(\boldsymbol{\mu}_0, \boldsymbol{\Sigma}/\kappa_0) \\
+  \boldsymbol{\Sigma} &\sim \text{Inverse-Wishart}(\nu_0, \boldsymbol{\Psi}_0)
+\end{align}
+
+The unconditional distribution is a multivariate $t$-distribution:
+\[
+  \text{logit}(\boldsymbol{\theta}) \sim t_{\nu_0 - p + 1}\left(\boldsymbol{\mu}_0, \frac{\kappa_0 + 1}{\kappa_0(\nu_0 - p + 1)} \boldsymbol{\Psi}_0\right)
+\]
+
+\textbf{Key property}: Parameters can be \textit{a priori correlated}:
+\[
+  \text{Cov}[\text{logit}(\theta_j), \text{logit}(\theta_k)] = \frac{\kappa_0 + 1}{\kappa_0} \cdot \frac{(\boldsymbol{\Psi}_0)_{jk}}{\nu_0 - p - 1}
+\]
+
+\subsection{What Each Structure Preserves from Prior Selection}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Property & Independent & Correlated (NIW) \\
+\midrule
+Marginal means & \checkmark & \checkmark \\
+Marginal variances & \checkmark & \checkmark \\
+Off-diagonal covariances & $\times$ & \checkmark \\
+Correlation structure & $\times$ & \checkmark \\
+\midrule
+Unconditional distribution shape & Approx.\ Normal & Multivariate $t$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{The Lost Correlations Problem}
+
+The prior selection for the ATL dataset revealed strong correlations, particularly:
+\[
+  \text{Corr}[\text{logit}(a), \text{logit}(c)] = -0.75
+\]
+
+This correlation encodes an important constraint: utility functions with low initial curvature (small $a$) tend to have high upper curvature (large $c$), and vice versa. This maintains sensible utility shapes.
+
+Under the independent structure, this correlation is \textit{ignored}. The prior allows combinations like (high $a$, high $c$) or (low $a$, low $c$) with equal probability, even though the prior selection identified these as implausible.
+
+\subsection{Distributional Shape Differences}
+
+\subsubsection{Independent: Product of Marginal $t$-Distributions}
+
+The unconditional distribution under independent hyperpriors is:
+\[
+  p(\boldsymbol{\theta}) = \prod_{j=1}^{4} p(\theta_j)
+\]
+where each $p(\theta_j)$ is approximately a scaled $t$-distribution (or Normal for large $\alpha_0$).
+
+This is \textit{not} a multivariate $t$-distribution---the product of univariate $t$s has lighter tails in the joint distribution than a true multivariate $t$.
+
+\subsubsection{Correlated: Multivariate $t$-Distribution}
+
+The NIW structure produces a true multivariate $t$-distribution with:
+\begin{itemize}
+  \item Heavier joint tails than the Normal
+  \item Correlation between extreme values in different dimensions
+  \item The skewness issues discussed in Section 7 when $\nu_0$ is small
+\end{itemize}
+
+\subsection{Typical vs.\ Expected Behavior}
+
+This is the crucial practical difference:
+
+\begin{center}
+\begin{tabular}{lp{5cm}p{5cm}}
+\toprule
+& \textbf{Independent} & \textbf{Correlated (NIW)} \\
+\midrule
+Expected variance & Matches prior selection & Matches prior selection \\
+Typical variance & Close to expected & Often \textit{smaller} than expected \\
+Distribution shape & Symmetric around expectation & Right-skewed (for variance) \\
+Prior predictive appearance & Similar spread to prior selection & Tighter than prior selection \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Under the independent structure with Inverse-Gamma($\alpha_0 = 6$, $\cdot$):
+\begin{itemize}
+  \item The median of $\sigma_j^2$ equals $\frac{\beta_{0,j}}{\alpha_0 + 1} \approx 0.83 \times \E[\sigma_j^2]$
+  \item The distribution is moderately right-skewed
+  \item Typical draws are close to the expected value
+\end{itemize}
+
+Under the correlated structure with Inverse-Wishart($\nu_0 = 6$, $\cdot$):
+\begin{itemize}
+  \item The median of $\text{tr}(\boldsymbol{\Sigma})$ is only $\approx 0.52 \times \E[\text{tr}(\boldsymbol{\Sigma})]$
+  \item The distribution is \textit{extremely} right-skewed
+  \item Typical draws are much smaller than expected
+\end{itemize}
+
+\subsection{Computational Considerations}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Aspect & Independent & Correlated (NIW) \\
+\midrule
+Number of hyperparameters to sample & 8 (4 means + 4 variances) & 14 (4 means + 10 Cholesky) \\
+Conjugate updates available & \checkmark & \checkmark \\
+Blocking structure & Simple (per-parameter) & Complex (matrix elements) \\
+Acceptance rate sensitivity & Low & High (especially with low $\nu_0$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The NIW structure requires sampling a $4 \times 4$ covariance matrix (10 unique elements via Cholesky decomposition), leading to higher-dimensional proposal steps and potentially lower acceptance rates.
+
+\subsection{When to Use Each Structure}
+
+\textbf{Use Independent Hyperpriors when:}
+\begin{itemize}
+  \item Prior correlations are weak ($|\rho| < 0.3$)
+  \item Computational efficiency is important
+  \item The likelihood is highly informative (data dominates prior)
+  \item You want the prior predictive to visually match the prior selection
+\end{itemize}
+
+\textbf{Use Correlated Hyperpriors (NIW) when:}
+\begin{itemize}
+  \item Prior correlations are strong and encode important constraints
+  \item You want to model the full population covariance structure
+  \item Sample sizes are very small (prior has substantial influence)
+  \item You accept that the ``typical'' prior draw will be tighter than expected
+\end{itemize}
+
+\subsection{Our Pragmatic Choice}
+
+For the Bézier utility estimation problem, we use the \textbf{independent structure} because:
+
+\begin{enumerate}
+  \item The strong $a$-$c$ correlation ($-0.75$) primarily serves to exclude implausible utility shapes. With 120 choices per subject, the likelihood will quickly rule out these shapes regardless of the prior correlation.
+
+  \item The independent structure produces a prior predictive that visually matches the prior selection exercise, making it easier to verify and communicate.
+
+  \item The computational simplicity allows for better MCMC mixing with smaller blocks.
+
+  \item The NIW skewness issue means the correlated structure doesn't deliver what it promises---the \textit{typical} prior draw doesn't reflect the \textit{expected} correlation structure.
+\end{enumerate}
+
+If preserving correlations is essential, consider:
+\begin{itemize}
+  \item Using a higher $\nu_0$ (e.g., 15-20) to reduce skewness, at the cost of stronger prior beliefs
+  \item Using an LKJ prior on the correlation matrix (separating correlation from variance)
+  \item Directly parameterizing the Cholesky factor with appropriate priors
+\end{itemize}
+
+\section{Conclusion}
+
+This document describes how BHM hyperpriors can be derived from a prior selection exercise, dramatically reducing researcher degrees of freedom:
+\begin{enumerate}
+  \item Using prior selection to answer: ``What do preferences look like for a single random individual?''
+  \item Deriving BHM hyperpriors such that the unconditional prior matches this individual-level prior
+  \item Reducing researcher degrees of freedom from 16 hyperprior parameters to 2 interpretable choices
+  \item Maintaining conjugate structure (Normal-Inverse-Gamma or Normal-Inverse-Wishart) for efficient sampling
+\end{enumerate}
+
+The key insight is that the prior selection exercise answers a question about \textit{individuals}---what credible preferences look like for a random person. This answer implicitly integrates over population heterogeneity. The BHM then decomposes this integrated prior into explicit population-level components, but the unconditional prior must remain consistent with our original intuitions about individuals.
+
+The two modeling decisions for the BHM are:
+\begin{enumerate}
+  \item \textbf{Variance partition ratio} $\rho$: How to split prior variance between uncertainty about the population center and heterogeneity within the population.
+  \item \textbf{Concentration parameter} ($\alpha_0$ or $\nu_0$): How confident we are in the prior selection variance estimate.
+\end{enumerate}
+
+All other hyperprior parameters follow mechanically from these choices and the prior selection results.
+
+For the correlated (NIW) structure, the concentration parameter $\nu_0$ has substantial implications due to the extreme skewness of the Inverse-Wishart distribution at low degrees of freedom. This makes the independent structure preferable in most practical applications, despite its inability to capture prior correlations.
+
+\end{document}

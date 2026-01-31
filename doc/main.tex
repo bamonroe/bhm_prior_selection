@@ -1,0 +1,67 @@
+\documentclass[12pt,a4paper]{article}
+
+\input{packages}
+
+\hyphenpenalty=10000
+
+\title{A BHM of Risk Preferences with an informed prior}
+\author{
+	Brian Albert Monroe\\
+    \small{Center for the Economic Analysis of Risk, }\\
+    \small{Maurice R. Greenberg School of Risk Science,}\\
+    \small{J. Mack Robinson College of Business,}\\
+    \small{Georgia State University}\\
+		\small{bmonroe3@gsu.edu}}
+
+
+\newcommand\blfootnote[1]{
+    \begingroup
+    \renewcommand\thefootnote{}\footnote{#1}
+    \addtocounter{footnote}{-1}
+    \endgroup
+}
+
+\begin{document}
+
+
+\maketitle
+\pagenumbering{gobble}
+\singlespacing{}
+
+\begin{abstract}
+
+  \begin{justify}
+  \end{justify}
+
+\end{abstract}
+\vspace{\fill}
+\small
+
+
+\normalsize
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\doublespacing
+
+\section{Introduction}
+
+
+% The References for the main text
+\pagebreak
+\printbibliography
+\pagebreak
+
+% Appendices
+\appendixsetup{}
+\appsection{First appendix}
+\label{app:function}
+
+\titleformat*{\subsection}{\normalsize\itshape}
+\subsection{First sub-appendix}
+\label{app:function_of_x}
+
+% print references from this section only
+\appendixref{}
+
+\end{document}

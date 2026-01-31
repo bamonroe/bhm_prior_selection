@@ -1,0 +1,206 @@
+% Define \noopsort for bibliography sorting (used for names like "van de Kuilen")
+%\providecommand{\noopsort}[1]{}
+
+% utf8 support
+\usepackage[utf8]{inputenc}
+% PDF font support
+\usepackage[T1]{fontenc}
+% lmodern fonts
+\usepackage{lmodern}
+\usepackage{eurosym}
+\usepackage{textcomp}
+% double spacing
+\usepackage[nodisplayskipstretch]{setspace}
+% Ragged right with indentation
+\usepackage[document]{ragged2e}
+\setlength{\RaggedRightParindent}{\parindent}
+% Indent the first paragraph
+\usepackage{indentfirst}
+
+% Captions for figures
+\usepackage[justification=centering]{caption}
+\usepackage{subcaption}
+
+\usepackage{geometry}
+\usepackage{xcolor}
+
+% For quoting
+\usepackage[style = american]{csquotes}
+%To make references into links
+\usepackage[hidelinks]{hyperref}
+% For equation stuff
+\usepackage{mathtools}
+% For xfrac
+\usepackage{xfrac}
+% For math symbols
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[mathcal]{euscript}
+% For Bold math Symbols
+\usepackage{bm}
+% For nice looking fractions
+\usepackage{nicefrac}
+% For Graphics
+\usepackage{graphicx}
+% To float pictures appropriately
+\usepackage{float}
+% Read about this, tested it, and was sold.
+\usepackage[stretch=15]{microtype}
+
+% Adjust titles
+% and section rules
+\usepackage{titling}
+\usepackage[raggedright]{titlesec}
+\titleformat*{\subsection}{\large\itshape}
+
+% Include PDF pages directly
+\usepackage{pdfpages}
+% For landscape pages
+\usepackage{pdflscape}
+
+% Stuff for Tables
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\centering\arraybackslash}X} % A centered column type that sucks up excess space
+% For \toprule, \midrule, and \bottomrule
+\usepackage{booktabs}
+% Have a value over multiple rows in a table
+\usepackage{multirow}
+
+% Squish things onto the page
+\usepackage{adjustbox}
+
+% PythonTeX for embedding Python code
+\usepackage{pythontex}
+
+% bibliography stuff
+\usepackage[american]{babel}
+\usepackage[
+	backend=biber,
+	bibstyle=IEEEtran,
+	uniquename=false,
+	doi=false,
+	uniquelist=false,
+	isbn=false,
+	url=false,
+	style=authoryear-comp,
+	maxcitenames=1,
+	maxcitenames=4,
+	maxbibnames=999,
+	useprefix=true
+]{biblatex}
+% No Oxford Commas
+\DefineBibliographyExtras{english}{\let\finalandcomma=\empty}
+% Don't put "in:" in anything
+\renewbibmacro{in:}{}
+% The path to the bibliography file
+\IfFileExists{/home/bam/Dropbox/papers/library.bib}{
+	\addbibresource{/home/bam/Dropbox/papers/library.bib}
+}{}
+\addbibresource{./library.bib}
+% Add some space between entries
+\setlength\bibitemsep{1.5\itemsep}
+% Define \noopsort for Dutch name sorting (e.g., van de Kuilen sorted under K)
+\providecommand{\noopsort}[1]{}
+
+% Convenience Commands
+\newcommand{\overbar}[1]{\mkern 1.5mu\overline{\mkern-1.5mu#1\mkern-1.5mu}\mkern 1.5mu} % Command to make a shorter overline/longer bar
+
+% Make a break a column title into 2 lines
+\newcommand{\cnline}[2][c]{%
+	\setlength{\extrarowheight}{0em}
+	\begin{tabular}[#1]{@{}c@{}}#2\end{tabular}
+	\setlength{\extrarowheight}{5em}
+}
+
+%% Personal Commands
+\newcommand\email[1]{\href{mailto:#1}{#1}}
+
+% Sincgle space the sections
+\let\oldsection\section
+\renewcommand{\section}[2][]{\singlespacing\oldsection#1{#2}\doublespacing}
+\let\newsection\section
+
+\let\oldsubsection\subsection
+\renewcommand{\subsection}[1]{\singlespacing\oldsubsection{#1}\doublespacing}
+\let\newsubsection\subsection
+
+
+% Some commands to help with appendicies
+\let\pbib\printbibliography
+\renewcommand{\printbibliography}{
+
+	\let\section\oldsection
+	\let\subsection\oldsubsection
+
+	\singlespacing
+	\pbib
+	\doublespacing
+
+	\let\section\newsection
+	\let\subsection\newsubsection
+}
+
+\newcommand{\appendixsetup}{
+	\appendix
+	\titleformat{\section}[hang]
+		{\normalfont\normalsize\bfseries}
+		{Appendix \thesection}
+		{0pt}
+		{: \normalsize\bfseries\filcenter}
+	\renewcommand{\thetable}{\Alph{section}.\arabic{table}}
+	\renewcommand{\thefigure}{\Alph{section}.\arabic{figure}}
+	\renewcommand{\theequation}{\Alph{section}.\arabic{equation}}
+}
+
+\newcommand{\appendixref}{
+	\titleformat{\section}[hang]
+		{\normalfont\normalsize\bfseries}
+		{Appendix \thesection}
+		{0pt}
+		{\normalsize\bfseries\filcenter}
+
+	\singlespacing
+	\printbibliography
+	\doublespacing
+
+	\titleformat{\section}[hang]
+		{\normalfont\normalsize\bfseries}
+		{Appendix \thesection}
+		{0pt}
+		{: \normalsize\bfseries\filcenter}
+}
+
+\newcommand{\appsection}[1]{
+	\renewcommand{\thetable}{\Alph{section}.\arabic{table}}
+	\renewcommand{\thefigure}{\Alph{section}.\arabic{figure}}
+	\renewcommand{\theequation}{\Alph{section}.\arabic{equation}}
+	\setcounter{table}{0}
+	\setcounter{figure}{0}
+	\setcounter{equation}{0}
+	\section{#1}
+	\newrefsection
+}
+
+%% Commands for figures and captions
+
+\newcommand{\addfig}[2][]{
+  \IfFileExists{#2}{
+    \includegraphics[#1]{#2}
+  }{
+    \textbf{FIGURE: \enquote{\detokenize{#2}} NOT FOUND! Go make it in the code!}
+  }
+}
+
+% Let the captions be actually centered!
+\newcommand{\mycaption}[1]{
+  \setlength{\RaggedRightParindent}{0pt}
+  \caption{#1}
+  \setlength{\RaggedRightParindent}{\parindent}
+}
+
+\newcommand{\mycaptionof}[2]{
+  \setlength{\RaggedRightParindent}{0pt}
+  \captionof{#1}{#2}
+  \setlength{\RaggedRightParindent}{\parindent}
+}
+

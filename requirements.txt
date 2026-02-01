@@ -1,0 +1,24 @@
+# Requirements for BHM Risk Preferences project
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# Note: For GPU support, install jaxlib with CUDA:
+#   pip install jax[cuda12]
+
+# Core dependencies
+numpy>=1.20
+jax>=0.4.0
+jaxlib>=0.4.0
+
+# Scientific computing
+scipy>=1.7.0
+
+# Plotting
+matplotlib>=3.5.0
+
+# Testing
+pytest>=7.0
+
+# Local bamcmc package (editable install)
+-e ./bamcmc

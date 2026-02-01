@@ -24,6 +24,11 @@ venv/
 *.synctex.gz
 *.bbl
 *.blg
+*.bcf
+*.run.xml
+*.pytxcode
+pythontex-files-*/
+*.pdf
 
 # Output data (large files, regeneratable)
 data/output/

@@ -48,10 +48,13 @@ A copy is in the `lit/` directory.
 
 ## Key Code Files
 
+**For detailed code architecture, see `code/README.md`.**
+
 ### Core Implementation
 
 - **`code/prior_selection.py`** - The paper's core contribution
   - `rdu_power_prior_selection()`: Define individual-level priors for RDU params
+  - `uninformative_prior_selection()`: Baseline N(0, 100^2) priors for comparison
   - `derive_hyperpriors(ps, rho=0.3, alpha_0=6.0)`: Variance decomposition
   - `verify_hyperpriors()`: Confirm unconditional variance matches target
 
@@ -59,6 +62,7 @@ A copy is in the `lit/` directory.
   - 3 params per subject: r (CRRA), gamma (prob weighting), mu (Fechner noise)
   - 6 hyperparameters: population mean + log-sdev for each
   - Uses indexed data for efficient likelihood (13 outcomes × 10 probabilities)
+  - `set_prior_mode(uninformative=True/False)`: Toggle between prior modes
 
 - **`code/posteriors/common_fns.py`** - Shared utility functions
   - CRRA utility, power probability weighting, risk likelihood

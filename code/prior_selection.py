@@ -61,6 +61,40 @@ class DerivedHyperpriors:
     ps_variance: np.ndarray
 
 
+def uninformative_prior_selection() -> PriorSelectionResult:
+    """
+    Uninformative (diffuse) prior selection for comparison purposes.
+
+    Uses mean=0, sd=100 for all parameters to represent minimal prior information.
+    This serves as a baseline to compare against the principled prior selection.
+
+    Returns:
+    --------
+    PriorSelectionResult with diffuse priors (mean=0, variance=10000)
+    """
+    param_names = ('r', 'gamma_raw', 'mu_raw')
+
+    # Uninformative: mean 0, sd 100 for all
+    mean = np.array([0.0, 0.0, 0.0])
+    variance = np.array([10000.0, 10000.0, 10000.0])  # sd=100 => var=10000
+
+    description = """
+    Uninformative (diffuse) prior selection for all RDU parameters:
+
+    All parameters: N(0, 10000) i.e., mean=0, sd=100
+
+    This represents minimal prior information and serves as a baseline
+    for comparison with the principled prior selection approach.
+    """
+
+    return PriorSelectionResult(
+        param_names=param_names,
+        mean=mean,
+        variance=variance,
+        description=description
+    )
+
+
 def rdu_power_prior_selection() -> PriorSelectionResult:
     """
     Prior selection for RDU model with power probability weighting.
@@ -269,14 +303,31 @@ def print_hyperprior_summary(hyperpriors: DerivedHyperpriors):
     print(f"  - Individual prior: theta_ij ~ N(mu_j, sigma_j^2)")
 
 
-def get_hyperpriors_for_rdu_bhm(rho: float = 0.3, alpha_0: float = 6.0) -> Dict:
+def get_hyperpriors_for_rdu_bhm(
+    rho: float = 0.3,
+    alpha_0: float = 6.0,
+    uninformative: bool = False
+) -> Dict:
     """
     Get hyperprior parameters formatted for rdu_bhm.py.
+
+    Parameters:
+    -----------
+    rho : float
+        Variance partition ratio (ignored if uninformative=True)
+    alpha_0 : float
+        Concentration parameter (ignored if uninformative=True)
+    uninformative : bool
+        If True, use uninformative priors (mean=0, sd=100) instead of
+        the principled prior selection approach.
 
     Returns a dict with the hyperprior values in the format expected by
     the log_posterior function.
     """
-    ps = rdu_power_prior_selection()
+    if uninformative:
+        ps = uninformative_prior_selection()
+    else:
+        ps = rdu_power_prior_selection()
     hp = derive_hyperpriors(ps, rho=rho, alpha_0=alpha_0)
 
     return {

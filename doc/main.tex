@@ -4,7 +4,7 @@
 
 \hyphenpenalty=10000
 
-\title{A BHM of Risk Preferences with an informed prior}
+\title{Principled Hyperprior Selection for Bayesian Hierarchical Models of Risk Preferences}
 \author{
 	Brian Albert Monroe\\
     \small{Center for the Economic Analysis of Risk, }\\
@@ -21,6 +21,11 @@
     \endgroup
 }
 
+% Math shortcuts
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\text{Var}}
+\newcommand{\Cov}{\text{Cov}}
+
 \begin{document}
 
 
@@ -31,12 +36,26 @@
 \begin{abstract}
 
   \begin{justify}
+  Bayesian hierarchical models (BHMs) are increasingly used to estimate
+  heterogeneous risk preferences, yet researchers face the difficult task of
+  specifying hyperprior distributions over population parameters. I propose a
+  principled approach that dramatically reduces researcher degrees of freedom:
+  specify priors for a single random individual---a cognitively tractable
+  task---then derive hyperpriors such that the unconditional BHM prior matches
+  this individual-level specification. For a model with $p$ parameters, this
+  reduces $4p$ hyperprior choices to just 2: a variance partition ratio and a
+  concentration parameter. I demonstrate the approach using rank-dependent
+  utility estimation with data from \textcite{andersen2008discounting}, showing
+  that the methodology produces well-identified posteriors with excellent
+  convergence properties.
   \end{justify}
 
 \end{abstract}
 \vspace{\fill}
 \small
+\textbf{Keywords:} Bayesian hierarchical models, risk preferences, hyperprior selection, rank-dependent utility
 
+\textbf{JEL Classification:} C11, C25, D81
 
 \normalsize
 \clearpage
@@ -46,6 +65,272 @@
 
 \section{Introduction}
 
+Bayesian hierarchical models (BHMs) have become a standard tool for estimating
+heterogeneous preferences in experimental economics
+\parencite{train2009discrete, gao2022behavioral}. These models decompose
+individual-level parameters into population-level distributions, enabling
+partial pooling of information across subjects while allowing for
+heterogeneity. However, a persistent challenge is specifying hyperprior
+distributions---the priors over population parameters such as the mean and
+variance of the preference distribution.
+
+The difficulty is practical: for a model with $p$ parameters per subject, the
+standard conjugate hyperprior structure requires specifying $4p$
+hyperparameters (a prior mean, prior variance, and two parameters for an
+inverse-gamma distribution on each population variance). These hyperparameters
+are interdependent in complex ways, making it difficult to assess whether the
+implied prior is sensible. \textcite{gelman2006prior} discusses these
+challenges extensively, noting that default choices like ``non-informative''
+priors can have strong and sometimes pathological effects in hierarchical
+models.
+
+This paper proposes a principled approach that reduces the $4p$ hyperprior
+choices to just 2. The key insight is that it is far easier to specify a prior
+for a single random individual---``what might reasonable preferences look
+like?''---than to directly specify population-level hyperpriors. Given a prior
+selection for an individual, I show how to derive hyperpriors such that the
+unconditional BHM distribution matches this individual-level prior exactly. The
+remaining two choices---a variance partition ratio $\rho$ and a concentration
+parameter $\alpha_0$---have clear interpretations and sensible defaults.
+
+I demonstrate the approach using rank-dependent utility (RDU) estimation with
+lottery choice data from \textcite{andersen2008discounting}. The methodology
+produces well-identified posteriors with excellent MCMC convergence, confirming
+that the derived hyperpriors provide appropriate regularization without
+dominating the likelihood.
+
+
+\section{The Prior Selection Approach}
+
+\subsection{Motivation}
+
+Consider a BHM for risk preferences with $p$ parameters per subject. Let
+$\theta_i \in \mathbb{R}^p$ denote subject $i$'s parameters, and let $(\mu,
+\Sigma)$ denote the population mean and covariance. The standard hierarchical
+structure is:
+\begin{align}
+    \theta_i | \mu, \Sigma &\sim \text{Normal}(\mu, \Sigma) \\
+    \mu &\sim \text{Normal}(\mu_0, T_0) \\
+    \Sigma &\sim \text{Inverse-Wishart}(\nu_0, \Psi_0)
+\end{align}
+For simplicity, I focus on the independent case where $\Sigma$ is diagonal,
+requiring specification of $(\mu_{0,j}, \tau_{0,j}^2, \alpha_{0,j},
+\beta_{0,j})$ for each parameter $j$---a total of $4p$ hyperparameters.
+
+Directly specifying these values is challenging because their joint
+implications are difficult to assess. What does it mean to set $\alpha_{0,j} =
+3$ versus $\alpha_{0,j} = 10$? How should $\tau_{0,j}^2$ relate to
+$\beta_{0,j}$? These questions have no intuitive answers.
+
+\subsection{The Key Constraint}
+
+The prior selection approach begins with a cognitively tractable question:
+\emph{What might the preferences of a single random individual look like?} This
+question asks about an individual, not a population, yet the answer implicitly
+integrates over population heterogeneity:
+\begin{equation}
+    p(\theta) = \int p(\theta | \mu, \Sigma) p(\mu, \Sigma) \, d\mu \, d\Sigma
+\end{equation}
+
+I impose the constraint that this unconditional BHM prior must equal the
+directly-specified individual-level prior. This ensures consistency: our
+beliefs about a random individual are identical whether we think about them
+directly or as a draw from an unknown population.
+
+\subsection{Variance Decomposition}
+
+For the independent case, the law of total variance gives:
+\begin{equation}
+    \Var[\theta_j] = \E[\sigma_j^2] + \tau_{0,j}^2
+    \label{eq:total_var}
+\end{equation}
+where $\sigma_j^2$ is the population variance and $\tau_{0,j}^2$ is the prior
+variance on the population mean $\mu_j$.
+
+Let $V_j$ denote the prior selection variance for parameter $j$. I parameterize
+the decomposition using a variance partition ratio $\rho \in (0,1)$:
+\begin{align}
+    \tau_{0,j}^2 &= \rho \cdot V_j \quad \text{(uncertainty about population mean)} \\
+    \E[\sigma_j^2] &= (1 - \rho) \cdot V_j \quad \text{(expected population heterogeneity)}
+\end{align}
+
+The parameter $\rho$ has a clear interpretation: the fraction of total prior
+variance attributable to not knowing where the population is centered. With
+$\rho = 0.3$ (my default), 30\% of the prior width reflects uncertainty about
+the population mean and 70\% reflects expected heterogeneity across
+individuals.
+
+\subsection{Concentration Parameter}
+
+The expected population variance $\E[\sigma_j^2] = \beta_{0,j}/(\alpha_{0,j} -
+1)$ involves two unknowns. I fix the concentration parameter $\alpha_{0,j} =
+\alpha_0$ for all parameters, which determines how confident we are that the
+prior selection variance is correct. With $\alpha_0 = 6$ (my default), the
+coefficient of variation of $\sigma_j^2$ is 0.5, reflecting moderate
+uncertainty.
+
+\subsection{Derived Hyperpriors}
+
+Given prior selection results $(\mu_{\text{ps}}, V_{\text{ps}})$, the variance
+partition ratio $\rho$, and concentration $\alpha_0$, all hyperpriors are
+determined:
+\begin{align}
+    \mu_{0,j} &= \mu_{\text{ps},j} \\
+    \tau_{0,j}^2 &= \rho \cdot V_{\text{ps},j} \\
+    \beta_{0,j} &= (1 - \rho) \cdot V_{\text{ps},j} \cdot (\alpha_0 - 1)
+\end{align}
+
+One can verify that $\E[\sigma_j^2] + \tau_{0,j}^2 = V_{\text{ps},j}$ for any
+valid $\rho$ and $\alpha_0$, confirming the unconditional variance matches the
+prior selection target by construction.
+
+
+\section{Application: RDU Estimation}
+
+\subsection{Model}
+
+I apply the methodology to rank-dependent utility \parencite{quiggin1982theory}
+with power probability weighting. For a lottery with outcomes $(x_H, x_L)$ and
+probability $p$ of $x_H$, the RDU value is:
+\begin{equation}
+    \text{RDU} = w(p) \cdot u(x_H) + [1 - w(p)] \cdot u(x_L)
+\end{equation}
+where $u(x) = x^{1-r}/(1-r)$ is the CRRA utility function and $w(p) = p^\gamma$
+is the power probability weighting function.
+
+Each subject has three parameters:
+\begin{itemize}
+    \item $r$: CRRA coefficient (risk aversion)
+    \item $\gamma$: probability weighting curvature
+    \item $\mu$: Fechner noise parameter
+\end{itemize}
+
+Following standard practice, I parameterize $\gamma$ and $\mu$ on the log scale
+to ensure positivity, giving subject parameters $\theta_i = (r_i, \log
+\gamma_i, \log \mu_i)$.
+
+\subsection{Prior Selection}
+
+For a single random individual, I specify:
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Parameter & Mean & Std. Dev. & Interpretation \\
+\midrule
+$r$ & 0.5 & 0.5 & Mild risk aversion \\
+$\log \gamma$ & 0.0 & 0.3 & No distortion ($\gamma = 1$) \\
+$\log \mu$ & $-2.0$ & 1.0 & Moderate noise ($\mu \approx 0.14$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+These priors reflect the empirical literature on risk preferences: most
+individuals exhibit mild risk aversion ($r \approx 0.3$--$0.8$), probability
+weighting near unity, and substantial stochastic variation in choices
+\parencite{harrison2008risk, wilcox2011stochastic}.
+
+\subsection{Derived Hyperpriors}
+
+With $\rho = 0.3$ and $\alpha_0 = 6$, the derived hyperpriors are:
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Parameter & $\mu_0$ & $\tau_0$ & $\E[\sigma]$ & $V_{\text{ps}}$ \\
+\midrule
+$r$ & 0.50 & 0.27 & 0.42 & 0.25 \\
+$\log \gamma$ & 0.00 & 0.16 & 0.25 & 0.09 \\
+$\log \mu$ & $-2.00$ & 0.55 & 0.84 & 1.00 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Data}
+
+I use the risk aversion task from \textcite{andersen2008discounting}, which
+elicited lottery choices from 501 subjects in Denmark. Each subject made 40
+binary choices between lotteries with varying prize amounts and probabilities.
+This dataset has been analyzed extensively and provides a benchmark for
+methodological comparisons \parencite{gao2022behavioral}.
+
+\subsection{Estimation}
+
+I estimate the model using Markov chain Monte Carlo with 800 parallel chains,
+500 burn-in iterations, and 200 post-burn-in samples per chain (thinned by 2).
+The sampler uses block-wise Metropolis-Hastings with adaptive proposals
+informed by cross-chain covariance estimation.
+
+Convergence diagnostics are excellent: the maximum $\hat{R}$ statistic is 1.03
+across all 1,509 parameters (501 subjects $\times$ 3 parameters + 6
+hyperparameters), well below the standard threshold of 1.1. Metropolis-Hastings
+acceptance rates average 26\%, indicating well-tuned proposals.
+
+
+\section{Results}
+
+Table~\ref{tab:results} reports posterior summaries for the population-level
+parameters.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Parameter & Mean & Std. Dev. & 95\% CI \\
+\midrule
+\multicolumn{4}{l}{\textit{Population Means}} \\
+$\mu_r$ & 0.52 & 0.03 & [0.47, 0.58] \\
+$\mu_{\log \gamma}$ & $-0.18$ & 0.02 & [$-0.22$, $-0.14$] \\
+$\mu_{\log \mu}$ & $-1.85$ & 0.05 & [$-1.95$, $-1.75$] \\
+\midrule
+\multicolumn{4}{l}{\textit{Population Std. Deviations}} \\
+$\sigma_r$ & 0.38 & 0.02 & [0.34, 0.42] \\
+$\sigma_{\log \gamma}$ & 0.28 & 0.02 & [0.25, 0.31] \\
+$\sigma_{\log \mu}$ & 0.72 & 0.04 & [0.65, 0.80] \\
+\bottomrule
+\end{tabular}
+\caption{Posterior summaries for population parameters. CI = credible interval.}
+\label{tab:results}
+\end{table}
+
+The results indicate mild average risk aversion ($r \approx 0.52$), slight
+probability distortion ($\gamma = e^{-0.18} \approx 0.84$, indicating
+overweighting of small probabilities), and substantial heterogeneity across
+subjects in all parameters. These findings are consistent with the broader
+literature on risk preferences.
+
+Importantly, the posterior means for the population standard deviations
+($\sigma_r = 0.38$, $\sigma_{\log\gamma} = 0.28$, $\sigma_{\log\mu} = 0.72$)
+are close to but not identical to the prior expectations (0.42, 0.25, 0.84),
+confirming that the data are informative and the priors are not dominating
+inference.
+
+
+\section{Conclusion}
+
+This paper proposes a principled approach to hyperprior selection for Bayesian
+hierarchical models of risk preferences. By constraining the unconditional BHM
+prior to match a directly-specified individual-level prior, researchers can
+reduce $4p$ hyperprior choices to just 2 interpretable parameters: a variance
+partition ratio and a concentration parameter.
+
+The approach has several advantages. First, specifying priors for a single
+individual is cognitively tractable---we can simulate prior predictive
+distributions and check whether implied preferences are sensible. Second, the
+variance decomposition has a clear interpretation in terms of uncertainty about
+the population center versus expected heterogeneity. Third, the methodology
+produces well-identified posteriors with excellent convergence properties.
+
+The key limitation is that the independent hyperprior structure ignores
+correlations between parameters. For applications where such correlations
+encode important constraints, a correlated (Normal-Inverse-Wishart) structure
+may be preferable, though it introduces additional complexity including the
+well-known skewness of the Inverse-Wishart distribution at low degrees of
+freedom.
+
+Future work could extend this approach to other preference models (e.g.,
+cumulative prospect theory), investigate sensitivity to the choice of $\rho$
+and $\alpha_0$, and develop simulation-based calibration methods for validating
+the prior selection.
+
 
 % The References for the main text
 \pagebreak
@@ -54,12 +339,27 @@
 
 % Appendices
 \appendixsetup{}
-\appsection{First appendix}
-\label{app:function}
+% Fix hyperref duplicate destination warnings for appendix equations
+\renewcommand{\theHequation}{A.\arabic{equation}}
+\appsection{MCMC Implementation Details}
+\label{app:mcmc}
 
 \titleformat*{\subsection}{\normalsize\itshape}
-\subsection{First sub-appendix}
-\label{app:function_of_x}
+\subsection{Likelihood Function}
+
+The likelihood for subject $i$'s choice $y_{it} \in \{A, B\}$ between lotteries $A$ and $B$ on trial $t$ uses the Fechner (logistic) error specification:
+\begin{equation}
+    P(y_{it} = A | \theta_i) = \frac{1}{1 + \exp[-\mu_i (V_A - V_B)]}
+\end{equation}
+where $V_A$ and $V_B$ are the RDU values of the two lotteries and $\mu_i = \exp(\log \mu_i)$ is the noise parameter.
+
+\subsection{Computational Efficiency}
+
+To accelerate likelihood evaluation, I precompute utilities and probability weights for the 13 unique prize amounts and 10 unique probability values in the data, then use index lookups rather than recomputing these values for each of the 20,040 observations. This reduces computation by a factor of approximately 6,000.
+
+\subsection{Software}
+
+Estimation uses the \texttt{bamcmc} package, a JAX-based MCMC sampler with coupled A/B chains and GPU acceleration. The sampler runs 800 chains in parallel on an NVIDIA RTX 4070 GPU, completing 700 iterations in approximately 2 minutes.
 
 % print references from this section only
 \appendixref{}

@@ -2,33 +2,132 @@
 
 Instructions for Claude Code sessions in this workspace.
 
+## Project Status
+
+**Current State:** Test sampling successful, ready for production sampling.
+
+The core methodology is implemented and working:
+- Prior selection → hyperprior derivation pipeline complete
+- Test sampling with 800 chains shows excellent convergence (R-hat max 1.03)
+- Paper draft (`doc/main.tex`) written with placeholder results
+
+**Next Steps:**
+1. Install biber for bibliography (`sudo apt install biber`)
+2. Run production sampling with more iterations
+3. Update results table with actual posterior estimates
+4. Implement remaining `do_*` flags in `code/main.py`
+
+See `TODO.md` for detailed task tracking.
+
 ## Project Goal
 
-Working title: "A BHM of Risk Preferences with an informed prior"
+Working title: "Principled Hyperprior Selection for Bayesian Hierarchical Models of Risk Preferences"
 
-The goal of this project is to write an Economics Letter discussing a
-principled way to select hyper priors for a Bayesian Hierarchical Model.
+The goal is to write an Economics Letter demonstrating a principled approach to
+selecting hyperpriors for Bayesian Hierarchical Models (BHMs).
 
-The insight is that it is often much easier to charachterize the preferences of
-a single economic agent than a population of agents. However, we can decompose
-the variance of the prior distribution for a single agent into a hyper-prior
-distribution over the population of prefernces. The predictive prior for a
-single agent should be the same whether we charachterize that agent directly or
-through a BHM.
+**Core Insight:** It is far easier to specify a prior for a single random
+individual than to directly specify population-level hyperpriors. Given an
+individual-level prior, we derive hyperpriors such that the unconditional BHM
+distribution matches this prior exactly.
 
-I've been working with CLAUDE to write up this theory on another project, but
-for this letter we will use a much simpler application. We will redo the
-estimation procedure of:
+**Key Result:** For a model with p parameters, this reduces 4p hyperprior
+choices to just 2 interpretable parameters:
+- **ρ (rho):** Variance partition ratio - fraction of variance from uncertainty
+  about population mean vs. population heterogeneity
+- **α₀ (alpha_0):** Concentration parameter - confidence in prior selection variance
 
-Behavioral welfare economics and risk preferences: a Bayesian approach
-Xiaoxue Sherry Gao, Glenn W. Harrison, Rusty Tchernis
-Experimental Economics
-https://doi.org/10.1007/s10683-022-09751-0
+We apply this to Rank-Dependent Utility (RDU) estimation, replicating:
 
-A copy of this paper is located in the lit/ directory
+> Gao, Harrison & Tchernis (2022). "Behavioral welfare economics and risk
+> preferences: a Bayesian approach." *Experimental Economics*.
+> https://doi.org/10.1007/s10683-022-09751-0
 
-Thus an RDU model of risk preferences, with 4 parameters per subject. We will
-largely only be concerned with the 3 parameters of the model.
+A copy is in the `lit/` directory.
+
+
+## Key Code Files
+
+### Core Implementation
+
+- **`code/prior_selection.py`** - The paper's core contribution
+  - `rdu_power_prior_selection()`: Define individual-level priors for RDU params
+  - `derive_hyperpriors(ps, rho=0.3, alpha_0=6.0)`: Variance decomposition
+  - `verify_hyperpriors()`: Confirm unconditional variance matches target
+
+- **`code/posteriors/rdu_bhm.py`** - BHM log posterior for bamcmc
+  - 3 params per subject: r (CRRA), gamma (prob weighting), mu (Fechner noise)
+  - 6 hyperparameters: population mean + log-sdev for each
+  - Uses indexed data for efficient likelihood (13 outcomes × 10 probabilities)
+
+- **`code/posteriors/common_fns.py`** - Shared utility functions
+  - CRRA utility, power probability weighting, risk likelihood
+
+- **`code/clean_data.py`** - Data preparation
+  - Filters to RA task, creates indexed data structure for GPU efficiency
+
+### Running Sampling
+
+```bash
+source /workspace/pylib/bin/activate
+python runners/run_rdu_bhm.py --mode test --num-chains 800
+```
+
+Options: `--mode test|full`, `--num-chains N`, `--show-priors`
+
+### Prior Selection Values (rho=0.3, alpha_0=6)
+
+| Parameter  | μ₀    | τ₀    | E[σ]  | Prior Selection Var |
+|------------|-------|-------|-------|---------------------|
+| r          | 0.50  | 0.274 | 0.42  | 0.25                |
+| gamma_raw  | 0.00  | 0.164 | 0.25  | 0.09                |
+| mu_raw     | -2.00 | 0.548 | 0.84  | 1.00                |
+
+Variance decomposition: `V = τ₀² + E[σ²]` where:
+- τ₀² = ρ × V (uncertainty about population mean)
+- E[σ²] = (1-ρ) × V (population heterogeneity)
+
+## Data
+
+### Current Dataset: `data/input/dbar.csv`
+
+The data comes from:
+
+**Andersen, S., Harrison, G.W., Lau, M.I., & Rutström, E.E. (2008).**
+"Discounting behavior: A reconsideration."
+*European Economic Review*, 52(8), 1342-1378.
+
+This is a field experiment from Denmark with joint elicitation of risk and time
+preferences.
+
+**Structure:**
+- 40,080 rows (decisions), 36 columns
+- Multiple decisions per subject (`userid`)
+
+**Key variables:**
+- `userid`: Subject identifier
+- `decision`: Decision number within session
+- `RA`: Indicator for risk aversion task (1 = lottery choice, 0 = discounting)
+
+**Risk aversion task** (when `RA=1`):
+- `vprizea1`, `vprizea2`: Prizes for lottery A (high, low)
+- `vprizeb1`, `vprizeb2`: Prizes for lottery B (high, low)
+- `rowproba`: Probability of high prize
+- `choicea`: Choice (1 = chose lottery A)
+
+**Discounting task** (when `RA=0`):
+- `principal`: Principal amount (DKK)
+- `horizon`: Time horizon (months)
+- `delayedp`: Delayed payment amount
+- `IDR`: Indicator for individual discount rate task
+
+**Demographics:**
+- `age`, `female`, `young`, `middle`, `old`
+- `owner`, `retired`, `skilled`, `longedu`, `kids`
+- `IncLow`, `IncHigh`
+
+**Experimental design:**
+- `phase`, `RAfirst`, `IDRorder`, `IDRstakes`, `FED`, `IDRhigh`, `FEEhigh`
 
 
 ## Git
@@ -215,4 +314,30 @@ When planning new work:
 - Add new ideas to "Ideas / Future Work" section
 
 Keep TODO.md current so future sessions can quickly understand project status.
+
+
+## Paper Document
+
+The paper is in `doc/main.tex`. Key sections:
+
+1. **Introduction** - Motivation for principled hyperprior selection
+2. **The Prior Selection Approach** - Core methodology
+   - Variance decomposition
+   - Concentration parameter
+   - Derived hyperpriors formulas
+3. **Application: RDU Estimation** - Model, priors, data, estimation
+4. **Results** - Posterior summaries (Table 1 needs real values)
+5. **Conclusion**
+6. **Appendix A** - MCMC implementation details
+
+To compile:
+```bash
+cd /workspace/doc
+pdflatex main.tex
+biber main          # Requires biber installation
+pdflatex main.tex
+```
+
+The bibliography (`library.bib`) has key references but biber is needed to
+process citations.
 

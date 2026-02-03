@@ -32,10 +32,7 @@ def gen_paper_quantities(history_dir, output_path=None):
     # Combine histories
     print("Combining histories...")
     history_paths = [str(f) for f in history_files]
-    combined = combine_batch_histories(history_paths)
-
-    history = combined['history']
-    iterations = combined['iterations']
+    history, iterations, likelihoods, metadata = combine_batch_histories(history_paths)
 
     print(f"Combined history shape: {history.shape}")
     print(f"Iteration range: [{iterations.min()}, {iterations.max()}]")

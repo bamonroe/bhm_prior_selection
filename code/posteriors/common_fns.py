@@ -192,13 +192,143 @@ def risk_likelihood(weighted_probs, utilities, datai, sid, mu):
 
 
 # =============================================================================
-# Direct Sampler Dispatch (for hyperparameters)
+# Direct Sampler Factories (for hierarchical hyperparameters)
 # =============================================================================
 
-def direct_dispatch_4params(key, chain_state, param_indices, data):
+def make_direct_sampler_mean(nparams):
     """
-    Placeholder direct sampler for hyperparameters.
+    Factory for hierarchical mean direct samplers.
 
-    In MH-only models, this just returns the current state.
+    Uses conjugate Normal-Normal update for population means.
+
+    Args:
+        nparams: Number of parameters per subject
+
+    Returns:
+        A direct sampler function for population means
     """
-    return chain_state, key
+    def sampler(key, chain_state, hyper_idx, data):
+        nids = data["static"][0]
+        first_hyper = nids * nparams
+
+        hyper_offset = hyper_idx - first_hyper
+        param_type = hyper_offset // 2  # Which parameter (0, 1, 2, ...)
+
+        # Hyper-Prior: Normal(mu_0, tau_0)
+        mu_0 = 0.0
+        tau_0_sq = 100.0
+
+        ln_sigma = chain_state[hyper_idx + 1]
+        sigma_sq = jnp.exp(ln_sigma)**2
+
+        # Pre-extract all subject parameter arrays using STATIC start indices
+        all_subjects = [chain_state[i:first_hyper:nparams] for i in range(nparams)]
+
+        # Use jax.lax.switch to select the appropriate array based on param_type
+        subjects = jax.lax.switch(
+            param_type,
+            [lambda arr=arr: arr for arr in all_subjects]
+        )
+
+        n = nids
+        sum_theta = jnp.sum(subjects)
+
+        # Conjugate posterior
+        post_prec = (1.0 / tau_0_sq) + (n / sigma_sq)
+        post_var = 1.0 / post_prec
+        post_mean = post_var * ((mu_0 / tau_0_sq) + (sum_theta / sigma_sq))
+
+        new_key, sample_key = random.split(key)
+        sample = random.normal(sample_key) * jnp.sqrt(post_var) + post_mean
+        return chain_state.at[hyper_idx].set(sample), new_key
+
+    return sampler
+
+
+def make_direct_sampler_variance(nparams):
+    """
+    Factory for hierarchical variance direct samplers.
+
+    Uses conjugate Normal-InverseGamma update for population variances.
+
+    Args:
+        nparams: Number of parameters per subject
+
+    Returns:
+        A direct sampler function for population log-standard-deviations
+    """
+    def sampler(key, chain_state, hyper_idx, data):
+        nids = data["static"][0]
+        first_hyper = nids * nparams
+
+        hyper_offset = hyper_idx - first_hyper
+        param_type = hyper_offset // 2  # Which parameter (0, 1, 2, ...)
+
+        pop_mean = chain_state[hyper_idx - 1]
+
+        # Pre-extract all subject parameter arrays using STATIC start indices
+        all_subjects = [chain_state[i:first_hyper:nparams] for i in range(nparams)]
+
+        # Use jax.lax.switch to select the appropriate array based on param_type
+        subjects = jax.lax.switch(
+            param_type,
+            [lambda arr=arr: arr for arr in all_subjects]
+        )
+
+        n = nids
+
+        # Hyper-Prior: InverseGamma(alpha_0, beta_0)
+        alpha_0 = 2.0
+        beta_0 = 2.0
+
+        alpha_n = alpha_0 + n / 2.0
+        sse = jnp.sum((subjects - pop_mean)**2)
+        beta_n = beta_0 + 0.5 * sse
+
+        new_key, sample_key = random.split(key)
+        gamma_sample = random.gamma(sample_key, alpha_n)
+        gamma_sample = jnp.maximum(gamma_sample, 1e-10)
+
+        sigma_sq_new = beta_n / gamma_sample
+        ln_sigma_new = 0.5 * jnp.log(sigma_sq_new)
+
+        return chain_state.at[hyper_idx].set(ln_sigma_new), new_key
+
+    return sampler
+
+
+def make_direct_dispatch(nparams):
+    """
+    Factory for direct sampler dispatch functions.
+
+    Routes to mean sampler (even offsets) or variance sampler (odd offsets).
+
+    Args:
+        nparams: Number of parameters per subject
+
+    Returns:
+        A dispatch function that routes to mean or variance sampler
+    """
+    from functools import partial
+
+    mean_sampler = make_direct_sampler_mean(nparams)
+    variance_sampler = make_direct_sampler_variance(nparams)
+
+    def dispatch(key, chain_state, param_indices, data):
+        hyper_idx = param_indices[0]
+        nids = data["static"][0]
+        first_hyper = nids * nparams
+        offset = hyper_idx - first_hyper
+        is_mean = (offset % 2 == 0)
+
+        true_branch = partial(mean_sampler, data=data)
+        false_branch = partial(variance_sampler, data=data)
+        return jax.lax.cond(is_mean, true_branch, false_branch, key, chain_state, hyper_idx)
+
+    return dispatch
+
+
+# Pre-create dispatch functions for common parameter counts
+direct_dispatch_2params = make_direct_dispatch(2)
+direct_dispatch_3params = make_direct_dispatch(3)
+direct_dispatch_4params = make_direct_dispatch(4)

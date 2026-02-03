@@ -110,38 +110,51 @@ Reusable functions across RDU model variants.
 
 ### posteriors/rdu_bhm.py - Primary Model
 
-Rank-Dependent Utility with power probability weighting.
+Rank-Dependent Utility with power probability weighting, using **Non-Centered Parameterization (NCP)**.
 
-**Model Parameters (per subject):**
-- `r`: CRRA risk aversion coefficient
-- `gamma_raw`: log(gamma) probability weighting parameter
-- `mu_raw`: log(mu) Fechner noise parameter
+**NCP Benefits:**
+- Breaks the "funnel" coupling between hyperparameters and subject parameters
+- Dramatically improves mixing for hierarchical models
+- Hyperparameter updates achieve ~30-50% acceptance rates via theta-preserving transforms
+
+**Parameterization:**
+- Subject parameters store epsilon ~ N(0,1) standardized deviations
+- Actual parameters computed as: theta = mu + sigma * epsilon
+- Transform to positive: gamma = exp(gamma_raw), mu = exp(mu_raw)
+
+**Model Parameters (per subject, stored as epsilon):**
+- `r_eps`: CRRA risk aversion epsilon
+- `gamma_eps`: probability weighting epsilon
+- `mu_eps`: Fechner noise epsilon
 
 **Hyperparameters (6 total):**
 - Population mean and log-std for each of 3 parameters
+- Updated via COUPLED_TRANSFORM sampler for theta-preserving proposals
 
-**Prior Modes:**
-
-```python
-from code.posteriors import rdu_bhm
-
-# Use principled priors (default)
-rdu_bhm.set_prior_mode(uninformative=False)
-
-# Use uninformative priors for comparison
-rdu_bhm.set_prior_mode(uninformative=True)
-```
+**Hyperprior Specifications:**
+Derived from `prior_selection.py` with rho=0.3, alpha_0=6.0:
+- mu ~ N(mu_0, tau_0^2)
+- sigma^2 ~ InvGamma(alpha_0, beta_0)
 
 **Key Functions:**
 
 | Function | Purpose |
 |----------|---------|
 | `log_posterior()` | Dispatch to subject or hyperparameter posterior |
-| `_subject_log_posterior()` | Hierarchical prior + tempered likelihood |
-| `_hyper_log_posterior()` | Hyperpriors (principled or uninformative) |
-| `batch_type()` | Define MCMC block structure |
-| `initial_vector()` | Generate starting values for all chains |
-| `generated_quantities()` | Transform parameters to natural scale |
+| `_transform_eps_to_theta()` | NCP transform: theta = mu + sigma * eps |
+| `coupled_transform_dispatch()` | Theta-preserving hyperparameter updates |
+| `batch_type()` | Define MCMC block structure (MH + COUPLED_TRANSFORM) |
+| `initial_vector()` | Generate epsilon near 0, hyperparams at prior means |
+| `generated_quantities()` | Transform epsilon to natural scale parameters |
+
+**COUPLED_TRANSFORM Sampler:**
+When hyperparameters (mu, sigma) are proposed:
+1. Compute new epsilon: eps' = (theta - mu') / sigma'
+2. Accept/reject based on priors only (likelihood cancels!)
+3. Log acceptance ratio includes:
+   - Jacobian: N * log(sigma_old / sigma_new)
+   - Epsilon prior ratio: -0.5 * (sum(eps'^2) - sum(eps^2))
+   - Hyperprior ratio
 
 ### posteriors/rdu_prelec_bhm.py - Alternative Model
 
@@ -199,4 +212,5 @@ python runners/run_rdu_bhm.py --mode test --num-chains 800
 2. **JAX Optimization**: JIT compilation and vectorization for GPU efficiency
 3. **Indexed Lookups**: Precomputed unique values eliminate redundant computation
 4. **Hierarchical Structure**: Subject priors from population, population from hyperpriors
-5. **Multiple Prior Modes**: Flag-based switching for robustness checks
+5. **Non-Centered Parameterization**: Store epsilon ~ N(0,1), compute theta = mu + sigma * epsilon
+6. **Theta-Preserving Updates**: COUPLED_TRANSFORM sampler for hyperparameters

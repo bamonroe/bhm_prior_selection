@@ -1,20 +1,44 @@
 """
 Plotting functions for diagnostics and paper figures.
 
-This module generates trace plots, posterior histograms, and publication-ready figures.
+Plot styles follow the project template conventions:
+- Hyperparameter plots: 2-column (traces left, densities right), 5 params per page
+- Color scheme: steelblue for data, red for median, tab20 for chains
+- Output: Multi-page PDFs
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+from scipy import stats
 from pathlib import Path
 
 from bamcmc import combine_batch_histories
 from posteriors.rdu_bhm import NPARAMS, N_HYPER
 
 
+# Hyperparameter display info: (state_name, latex_label)
+HYPERPARAM_INFO = [
+    ('r_mean', r'$\mu_r$'),
+    ('r_logsd', r'$\ln\sigma_r$'),
+    ('gamma_mean', r'$\mu_{\gamma}$ (log scale)'),
+    ('gamma_logsd', r'$\ln\sigma_{\gamma}$'),
+    ('mu_mean', r'$\mu_{\mu}$ (log scale)'),
+    ('mu_logsd', r'$\ln\sigma_{\mu}$'),
+]
+
+# Color schemes
+COLOR_DATA = 'steelblue'
+COLOR_MEDIAN = 'red'
+COLOR_REFERENCE = 'black'
+RUN_COLORS = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628']
+
+
 def diagnostic_plots(history_dir, plots_dir):
     """
     Generate diagnostic plots from MCMC output.
+
+    Creates a multi-page PDF with hyperparameter traces and densities.
 
     Args:
         history_dir: Directory containing history_*.npz files
@@ -33,52 +57,121 @@ def diagnostic_plots(history_dir, plots_dir):
     history_paths = [str(f) for f in history_files]
     history, iterations, likelihoods, metadata = combine_batch_histories(history_paths)
 
-    n_params = history.shape[2]
+    n_samples, n_chains, n_params = history.shape
     n_subjects = (n_params - N_HYPER - 6) // (NPARAMS + 3)
     first_hyper = n_subjects * NPARAMS
 
-    # Plot 1: Hyperparameter traces
-    print("Generating hyperparameter trace plots...")
-    fig, axes = plt.subplots(3, 2, figsize=(12, 10))
-    hyper_names = ['r_mean', 'r_logsd', 'gamma_mean', 'gamma_logsd', 'mu_mean', 'mu_logsd']
+    # Get run boundaries from metadata
+    batch_boundaries = metadata.get('batch_boundaries', [0])
 
-    for i, (ax, name) in enumerate(zip(axes.flat, hyper_names)):
-        param_idx = first_hyper + i
-        # Plot a subset of chains
-        for chain_idx in range(0, min(20, history.shape[1]), 2):
-            ax.plot(iterations, history[:, chain_idx, param_idx], alpha=0.5, lw=0.5)
-        ax.set_title(name)
-        ax.set_xlabel('Iteration')
+    print(f"  Samples: {n_samples}, Chains: {n_chains}, Params: {n_params}")
+    print(f"  Hyperparameters start at index {first_hyper}")
 
-    plt.tight_layout()
-    trace_path = plots_dir / 'hyperparameter_traces.pdf'
-    plt.savefig(trace_path)
-    plt.close()
-    print(f"  Saved: {trace_path}")
-
-    # Plot 2: Hyperparameter posteriors
-    print("Generating hyperparameter posterior plots...")
-    fig, axes = plt.subplots(3, 2, figsize=(12, 10))
-
-    # Use second half as post burn-in
-    burn_idx = len(iterations) // 2
-    post_samples = history[burn_idx:].reshape(-1, n_params)
-
-    for i, (ax, name) in enumerate(zip(axes.flat, hyper_names)):
-        param_idx = first_hyper + i
-        samples = post_samples[:, param_idx]
-        ax.hist(samples, bins=50, density=True, alpha=0.7)
-        ax.axvline(samples.mean(), color='r', linestyle='--', label=f'Mean: {samples.mean():.3f}')
-        ax.set_title(name)
-        ax.legend()
-
-    plt.tight_layout()
-    post_path = plots_dir / 'hyperparameter_posteriors.pdf'
-    plt.savefig(post_path)
-    plt.close()
-    print(f"  Saved: {post_path}")
+    # Generate hyperparameter diagnostic PDF
+    _plot_hyperparameters(
+        history, iterations, first_hyper, batch_boundaries,
+        plots_dir / 'rdu_bhm_hyperparams.pdf'
+    )
 
     print(f"\nDiagnostic plots saved to: {plots_dir}")
+
+
+def _plot_hyperparameters(history, iterations, first_hyper, batch_boundaries, output_path):
+    """
+    Generate hyperparameter diagnostic PDF.
+
+    Layout: 2 columns (traces left, densities right), up to 5 params per page.
+    """
+    n_samples, n_chains, _ = history.shape
+    n_hyper = len(HYPERPARAM_INFO)
+    params_per_page = 5
+
+    # Subsample chains for visibility (max 100)
+    chain_subsample = min(100, n_chains)
+    chain_indices = np.linspace(0, n_chains - 1, chain_subsample, dtype=int)
+
+    # Colors for chains
+    chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, chain_subsample)))
+
+    print(f"Generating hyperparameter diagnostics ({n_hyper} params)...")
+
+    with PdfPages(output_path) as pdf:
+        # Process in pages of 5
+        for page_start in range(0, n_hyper, params_per_page):
+            page_end = min(page_start + params_per_page, n_hyper)
+            n_on_page = page_end - page_start
+
+            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, 2.8 * n_on_page))
+            if n_on_page == 1:
+                axes = axes.reshape(1, 2)
+
+            for i, param_idx_on_page in enumerate(range(page_start, page_end)):
+                state_name, latex_label = HYPERPARAM_INFO[param_idx_on_page]
+                param_idx = first_hyper + param_idx_on_page
+
+                ax_trace = axes[i, 0]
+                ax_density = axes[i, 1]
+
+                # Extract samples for this parameter
+                param_samples = history[:, :, param_idx]
+
+                # --- Trace plot (left column) ---
+                for j, chain_idx in enumerate(chain_indices):
+                    color = chain_colors[j % len(chain_colors)]
+                    ax_trace.plot(
+                        iterations, param_samples[:, chain_idx],
+                        color=color, alpha=0.4, lw=0.3
+                    )
+
+                # Add run boundary lines
+                for boundary in batch_boundaries[1:]:
+                    if boundary < len(iterations):
+                        ax_trace.axvline(
+                            iterations[boundary], color='gray',
+                            linestyle=':', alpha=0.7, lw=1
+                        )
+
+                # Median line
+                median_val = np.median(param_samples)
+                ax_trace.axhline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=1.5, alpha=0.8)
+
+                ax_trace.set_ylabel(latex_label)
+                ax_trace.set_xlabel('Iteration')
+                ax_trace.set_title(f'{state_name} - Trace')
+
+                # --- Density plot (right column) ---
+                # Flatten samples for density estimation
+                flat_samples = param_samples.flatten()
+
+                # KDE
+                try:
+                    kde = stats.gaussian_kde(flat_samples)
+                    x_range = np.linspace(flat_samples.min(), flat_samples.max(), 200)
+                    ax_density.fill_between(
+                        x_range, kde(x_range),
+                        color=COLOR_DATA, alpha=0.6
+                    )
+                    ax_density.plot(x_range, kde(x_range), color=COLOR_DATA, lw=1.5)
+                except Exception:
+                    # Fallback to histogram if KDE fails
+                    ax_density.hist(flat_samples, bins=50, density=True, color=COLOR_DATA, alpha=0.6)
+
+                # Median line with value
+                ax_density.axvline(
+                    median_val, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                    label=f'Median: {median_val:.3f}'
+                )
+                ax_density.legend(loc='upper right', fontsize=9)
+
+                ax_density.set_xlabel(latex_label)
+                ax_density.set_ylabel('Density')
+                ax_density.set_title(f'{state_name} - Posterior')
+
+            plt.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+    print(f"  Saved: {output_path}")
 
 
 def paper_plots(quantities_path, plots_dir):
@@ -104,6 +197,11 @@ def paper_plots(quantities_path, plots_dir):
     print(f"  R-hat max: {data['rhat_max']:.4f}")
 
     # TODO: Add specific paper plots as needed
+    # Examples:
+    # - Prior vs posterior comparison
+    # - Population distribution plots
+    # - Individual heterogeneity visualization
+
     print("\nPaper plots: Add specific visualizations based on paper requirements")
 
 

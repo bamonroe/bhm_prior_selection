@@ -349,6 +349,44 @@ def get_hyperpriors_for_rdu_bhm(
     }
 
 
+def run_prior_selection(rho=0.3, alpha_0=6.0, output_path=None):
+    """
+    Run prior selection, derive hyperpriors, and save to file.
+
+    Args:
+        rho: Variance partition ratio (default 0.3)
+        alpha_0: Concentration parameter (default 6.0)
+        output_path: Path to save NPZ file (default: data/output/prior_params.npz)
+    """
+    from pathlib import Path
+
+    print("Running prior selection for RDU model...")
+    ps = rdu_power_prior_selection()
+    print(ps.description)
+
+    # Derive hyperpriors
+    hp = derive_hyperpriors(ps, rho=rho, alpha_0=alpha_0)
+    print_hyperprior_summary(hp)
+
+    # Verify constraints
+    print()
+    verify_hyperpriors(hp)
+
+    # Get formatted hyperpriors
+    params = get_hyperpriors_for_rdu_bhm(rho=rho, alpha_0=alpha_0)
+
+    # Save to file
+    if output_path is None:
+        output_path = Path(__file__).parent.parent / 'data' / 'output' / 'prior_params.npz'
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    np.savez(output_path, **params)
+    print(f"\nSaved hyperpriors to: {output_path}")
+
+    return params
+
+
 if __name__ == "__main__":
     # Run prior selection and derive hyperpriors
     print("RDU Power Probability Weighting - Prior Selection")

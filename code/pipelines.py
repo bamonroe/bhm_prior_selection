@@ -46,13 +46,14 @@ def run_sampling(sampling_opts):
     print("Running: MCMC Sampling")
     print("=" * 60)
     from sampling import run_sampling as _run_sampling
+    num_chains = sampling_opts['num_chains']
     _run_sampling(
         output_dir=sampling_opts['output_dir'],
         num_runs=sampling_opts['resume_runs'],
         num_collect=sampling_opts['num_collect'],
         config={
-            'num_chains_a': sampling_opts['chains_a'],
-            'num_chains_b': sampling_opts['chains_b'],
+            'num_chains_a': num_chains,
+            'num_chains_b': num_chains,
             'thin_iteration': sampling_opts['thin_iteration'],
             'rng_seed': sampling_opts['seed'],
         },

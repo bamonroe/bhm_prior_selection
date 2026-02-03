@@ -1,9 +1,9 @@
 # TODO - BHM Risk Preferences with Informed Prior
 
-## Project Status: Test Sampling Successful
+## Project Status: Pipeline Complete, Ready for Production
 
-The RDU-BHM model with informed hyperpriors is working. Test sampling shows excellent
-convergence (R-hat max 1.037, 0% > 1.1). Ready for production sampling.
+The RDU-BHM model with NCP parameterization and full pipeline is implemented.
+All do_* flags in main.py are wired up and working.
 
 ---
 
@@ -30,14 +30,14 @@ See CLAUDE.md for full variable documentation.
 
 ## Up Next
 
-### 5. Production Sampling
-- [ ] Run full sampling with many chains and iterations
+### 6. Production Sampling
+- [ ] Run full sampling: `python code/main.py --sampling --num-runs 10`
 - [ ] Generate convergence diagnostics
-- [ ] Extract posterior summaries
+- [ ] Extract posterior summaries: `python code/main.py --gen-paper-quantities`
 
-### 6. Paper Writing
-- [ ] Fill in `doc/main.tex` sections
-- [ ] Generate paper figures in `plots/paper/`
+### 7. Paper Writing
+- [ ] Fill in `doc/main.tex` results section with actual posteriors
+- [ ] Generate paper figures: `python code/main.py --paper-plots`
 - [ ] Write results comparing our approach to original Gao et al.
 
 ---
@@ -79,13 +79,35 @@ See CLAUDE.md for full variable documentation.
 
 ### 5. Test Sampling
 - [x] Create runner script (`runners/run_rdu_bhm.py`)
-- [x] Test sampling with bamcmc
+- [x] Test sampling with bamcmc (initial centered parameterization)
   - 32 chains, 500 burn-in, 200 collection (700 total iterations)
   - **R-hat max: 1.037** (excellent convergence)
   - **R-hat median: 1.015**
   - **0% of parameters > 1.1**
   - MH acceptance rates: 26.5% (ideal)
-  - Time per iteration: ~0.05s on CPU
+
+### 5b. NCP Refactor
+- [x] Rewrite RDU BHM to use Non-Centered Parameterization (NCP)
+  - Subject params store epsilon ~ N(0,1), compute theta = mu + sigma * epsilon
+  - Breaks "funnel" coupling between hyperparameters and subject parameters
+- [x] Implement COUPLED_TRANSFORM sampler for hyperparameters
+  - Theta-preserving updates: eps' = (theta - mu') / sigma'
+  - Likelihood cancels from acceptance ratio
+  - Achieves ~30-50% acceptance rates
+- [x] Add `coupled_transform_dispatch()` function
+- [x] Update documentation in code/README.md
+
+### 5c. Pipeline Integration
+- [x] Wire up all do_* flags in main.py
+  - `--clean-data`: Load and prepare data
+  - `--gen-paper-data`: Generate summary statistics
+  - `--generate-prior`: Run prior selection
+  - `--sampling`: Run MCMC with bamcmc
+  - `--gen-paper-quantities`: Extract posterior summaries
+  - `--diagnostic-plots`: Generate trace plots
+  - `--paper-plots`: Generate publication plots
+- [x] Add command-line interface with argparse
+- [x] Configure SAMPLING_CONFIG (100+100 chains, 1000 iter, thin 10)
 
 ---
 

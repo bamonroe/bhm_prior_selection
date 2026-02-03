@@ -9,6 +9,7 @@ code/
 ├── __init__.py              # Package initialization
 ├── main.py                  # Hub: JAX config, flags, configuration
 ├── pipelines.py             # Pipeline dispatch functions for main.py
+├── helpers.py               # Helper functions and path constants
 ├── clean_data.py            # Data preparation and cleaning
 ├── prior_selection.py       # Core contribution: hyperprior derivation
 ├── sampling.py              # MCMC sampling with bamcmc
@@ -29,12 +30,19 @@ code/
 Hub script with the following sections:
 
 1. **JAX Environment Config** - GPU memory, compilation cache (must be before JAX imports)
-2. **Path Configuration** - OUTPUTS dict with expected file paths
+2. **Path Configuration** - Imports OUTPUTS and helpers from helpers.py
 3. **Prior Selection Config** - rho, alpha_0, seeds
 4. **Control Flags** - Boolean do_* flags grouped by category
 5. **Sampling Options** - sampling_opts dict for MCMC configuration
-6. **Helper Functions** - Dependency checking, path getters
-7. **Pipeline Dispatch** - Calls pipelines.run_*() functions
+6. **Pipeline Dispatch** - Calls pipelines.run_*() functions
+
+### helpers.py - Path Constants and Utilities
+
+Provides shared path constants and helper functions:
+- `OUTPUTS` - Dict of expected output file paths for dependency checking
+- `check_dependency()` - Verify required outputs exist before running a step
+- `get_mcmc_dir()` - Get MCMC output directory for a model
+- `get_plots_dir()` - Get plots directory for a model
 
 ```python
 # Configuration sections

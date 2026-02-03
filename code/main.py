@@ -85,14 +85,14 @@ SEEDS = {
 # =============================================================================
 
 # --- Data Pipeline ---
-do_clean_data     = True
-do_gen_paper_data = True
+do_clean_data     = False
+do_gen_paper_data = False
 
 # --- Prior Selection ---
-do_generate_prior = True
+do_generate_prior = False
 
 # --- MCMC Sampling ---
-do_sampling = True
+do_sampling = False
 
 # --- Post-Processing ---
 do_gen_paper_quantities = True

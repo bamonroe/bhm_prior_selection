@@ -31,10 +31,7 @@ def diagnostic_plots(history_dir, plots_dir):
 
     print(f"Loading {len(history_files)} history files...")
     history_paths = [str(f) for f in history_files]
-    combined = combine_batch_histories(history_paths)
-
-    history = combined['history']
-    iterations = combined['iterations']
+    history, iterations, likelihoods, metadata = combine_batch_histories(history_paths)
 
     n_params = history.shape[2]
     n_subjects = (n_params - N_HYPER - 6) // (NPARAMS + 3)

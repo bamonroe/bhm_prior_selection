@@ -7,13 +7,17 @@ This directory contains the core implementation for principled hyperprior select
 ```
 code/
 ├── __init__.py              # Package initialization
-├── main.py                  # Hub orchestration with do_* flags
+├── main.py                  # Hub orchestration with CONFIG and do_* flags
 ├── clean_data.py            # Data preparation and cleaning
 ├── prior_selection.py       # Core contribution: hyperprior derivation
+├── sampling.py              # MCMC sampling with bamcmc
+├── gen_paper_data.py        # Generate data summary statistics
+├── gen_paper_quantities.py  # Extract posterior summaries
+├── plotting.py              # Diagnostic and paper plots
 └── posteriors/
     ├── __init__.py          # Posterior package initialization
     ├── common_fns.py        # Shared utility functions
-    ├── rdu_bhm.py           # RDU with power probability weighting (primary)
+    ├── rdu_bhm.py           # RDU with power probability weighting (NCP)
     └── rdu_prelec_bhm.py    # RDU with Prelec 2-parameter weighting
 ```
 
@@ -21,19 +25,35 @@ code/
 
 ### main.py - Project Orchestration
 
-Central entry point with boolean flags controlling workflow stages:
+Minimal hub with configuration and step dispatch:
 
-| Flag | Purpose | Status |
+```python
+CONFIG = {
+    'output_dir': ...,
+    'num_chains_a': 100,
+    'num_chains_b': 100,
+    'num_collect': 1000,
+    ...
+}
+```
+
+| Flag | Purpose | Module |
 |------|---------|--------|
-| `do_clean_data` | Load raw CSV, filter to RA task | Implemented |
-| `do_gen_paper_data` | Generate summary statistics | Not implemented |
-| `do_generate_prior` | Derive hyperpriors | Not implemented |
-| `do_sampling` | Run MCMC with bamcmc | Not implemented |
-| `do_gen_paper_quantities` | Extract posterior summaries | Not implemented |
-| `do_diagnostic_plots` | Generate diagnostics | Not implemented |
-| `do_paper_plots` | Create publication plots | Not implemented |
+| `do_clean_data` | Load raw CSV, filter to RA task | clean_data.py |
+| `do_gen_paper_data` | Generate summary statistics | gen_paper_data.py |
+| `do_generate_prior` | Derive hyperpriors | prior_selection.py |
+| `do_sampling` | Run MCMC with bamcmc | sampling.py |
+| `do_gen_paper_quantities` | Extract posterior summaries | gen_paper_quantities.py |
+| `do_diagnostic_plots` | Generate diagnostics | plotting.py |
+| `do_paper_plots` | Create publication plots | plotting.py |
 
 Each flag assumes previous steps are complete.
+
+**Usage:**
+```bash
+python code/main.py --all                    # Run all steps
+python code/main.py --sampling --num-runs 10 # Custom sampling
+```
 
 ### clean_data.py - Data Preparation
 

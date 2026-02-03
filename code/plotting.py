@@ -51,8 +51,8 @@ def diagnostic_plots(history_dir, plots_dir):
         ax.set_xlabel('Iteration')
 
     plt.tight_layout()
-    trace_path = plots_dir / 'hyperparameter_traces.png'
-    plt.savefig(trace_path, dpi=150)
+    trace_path = plots_dir / 'hyperparameter_traces.pdf'
+    plt.savefig(trace_path)
     plt.close()
     print(f"  Saved: {trace_path}")
 
@@ -73,8 +73,8 @@ def diagnostic_plots(history_dir, plots_dir):
         ax.legend()
 
     plt.tight_layout()
-    post_path = plots_dir / 'hyperparameter_posteriors.png'
-    plt.savefig(post_path, dpi=150)
+    post_path = plots_dir / 'hyperparameter_posteriors.pdf'
+    plt.savefig(post_path)
     plt.close()
     print(f"  Saved: {post_path}")
 

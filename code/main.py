@@ -85,19 +85,19 @@ SEEDS = {
 # =============================================================================
 
 # --- Data Pipeline ---
-do_clean_data     = False
-do_gen_paper_data = False
+do_clean_data     = True
+do_gen_paper_data = True
 
 # --- Prior Selection ---
-do_generate_prior = False
+do_generate_prior = True
 
 # --- MCMC Sampling ---
-do_sampling = False
+do_sampling = True
 
 # --- Post-Processing ---
-do_gen_paper_quantities = False
-do_diagnostic_plots     = False
-do_paper_plots          = False
+do_gen_paper_quantities = True
+do_diagnostic_plots     = True
+do_paper_plots          = True
 
 
 # =============================================================================
@@ -108,6 +108,7 @@ sampling_opts = {
     'model': 'rdu_bhm',
     'output_dir': DATA_DIR / 'output' / 'rdu_bhm',
     'plots_dir': PLOTS_DIR / 'rdu_bhm',
+    'clean': True,
     'reset_runs': 0,
     'resume_runs': 5,
     'num_chains': 1000,

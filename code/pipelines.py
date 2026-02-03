@@ -45,6 +45,17 @@ def run_sampling(sampling_opts):
     print("\n" + "=" * 60)
     print("Running: MCMC Sampling")
     print("=" * 60)
+
+    # Clean existing files if requested
+    if sampling_opts.get('clean', False):
+        from bamcmc import clean_model_files
+        output_dir = str(sampling_opts['output_dir'])
+        model_name = sampling_opts['model']
+        print(f"Cleaning existing files for {model_name}...")
+        result = clean_model_files(output_dir, model_name, mode='all')
+        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
+        print(f"  Deleted {len(result['deleted_histories'])} histories")
+
     from sampling import run_sampling as _run_sampling
     num_chains = sampling_opts['num_chains']
     _run_sampling(

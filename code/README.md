@@ -7,7 +7,7 @@ This directory contains the core implementation for principled hyperprior select
 ```
 code/
 ├── __init__.py              # Package initialization
-├── main.py                  # Hub: JAX config, flags, configuration, CLI
+├── main.py                  # Hub: JAX config, flags, configuration
 ├── pipelines.py             # Pipeline dispatch functions for main.py
 ├── clean_data.py            # Data preparation and cleaning
 ├── prior_selection.py       # Core contribution: hyperprior derivation
@@ -34,8 +34,7 @@ Hub script with the following sections:
 4. **Control Flags** - Boolean do_* flags grouped by category
 5. **Sampling Options** - sampling_opts dict for MCMC configuration
 6. **Helper Functions** - Dependency checking, path getters
-7. **CLI** - argparse for command-line overrides
-8. **Pipeline Dispatch** - Calls pipelines.run_*() functions
+7. **Pipeline Dispatch** - Calls pipelines.run_*() functions
 
 ```python
 # Configuration sections
@@ -64,11 +63,9 @@ sampling_opts = {
 
 Each flag checks dependencies via `check_dependency()` before running.
 
-**Usage:**
+**Usage:** Set desired `do_*` flags to `True` in the file, then run:
 ```bash
-python code/main.py --all                    # Run all steps
-python code/main.py --sampling --num-runs 10 # Custom sampling
-python code/main.py --num-chains 200         # Override chain count
+python code/main.py
 ```
 
 ### pipelines.py - Pipeline Dispatch
@@ -239,13 +236,8 @@ rdu_bhm.log_posterior() --> likelihood computation
 # Activate environment
 source /workspace/pylib/bin/activate
 
-# Run full pipeline
-python code/main.py --all
-
-# Run individual steps
-python code/main.py --clean-data
-python code/main.py --generate-prior
-python code/main.py --sampling --num-runs 5 --num-chains 200
+# Edit main.py to set desired do_* flags to True, then run:
+python code/main.py
 
 # Run prior selection demo standalone
 python code/prior_selection.py

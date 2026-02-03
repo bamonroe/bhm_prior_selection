@@ -5,7 +5,6 @@ This is the hub script that controls which analyses are executed via boolean
 flags. Implementation details are in the separate pipeline modules.
 
 Usage: Set desired do_* flags to True, then run `python code/main.py`
-       Or use command line: `python code/main.py --sampling --num-runs 10`
 
 Pipeline dependency chain:
   clean_data -> gen_paper_data -> generate_prior -> sampling
@@ -117,9 +116,9 @@ sampling_opts = {
     'plots_dir': PLOTS_DIR / 'rdu_bhm',
     'reset_runs': 0,
     'resume_runs': 5,
-    'chains_a': 100,
-    'chains_b': 100,
-    'num_collect': 1000,
+    'chains_a': 1000,
+    'chains_b': 1000,
+    'num_collect': 100,
     'thin_iteration': 10,
     'seed': SEEDS['sampling'],
 }
@@ -159,84 +158,11 @@ def get_plots_dir(model='rdu_bhm'):
 
 
 # =============================================================================
-# Command Line Interface
-# =============================================================================
-
-def parse_args():
-    """Parse command line arguments to override flags."""
-    import argparse
-    parser = argparse.ArgumentParser(
-        description="BHM Risk Preferences - Main Pipeline",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-    python code/main.py                    # Run with flags set in file
-    python code/main.py --all              # Run all steps
-    python code/main.py --sampling         # Run only sampling
-    python code/main.py --sampling --num-runs 10
-        """
-    )
-
-    # Step flags
-    parser.add_argument('--clean-data', action='store_true', help='Run data cleaning')
-    parser.add_argument('--gen-paper-data', action='store_true', help='Generate paper data summaries')
-    parser.add_argument('--generate-prior', action='store_true', help='Run prior selection')
-    parser.add_argument('--sampling', action='store_true', help='Run MCMC sampling')
-    parser.add_argument('--gen-paper-quantities', action='store_true', help='Extract paper quantities')
-    parser.add_argument('--diagnostic-plots', action='store_true', help='Generate diagnostic plots')
-    parser.add_argument('--paper-plots', action='store_true', help='Generate paper plots')
-    parser.add_argument('--all', action='store_true', help='Run all steps')
-
-    # Sampling options (override sampling_opts)
-    parser.add_argument('--num-runs', type=int, help='Number of MCMC runs (resume_runs)')
-    parser.add_argument('--num-collect', type=int, help='Collection iterations per run')
-    parser.add_argument('--num-chains', type=int, help='Number of chains (per A/B group)')
-
-    return parser.parse_args()
-
-
-# =============================================================================
 # Run Selected Pipelines
 # =============================================================================
 
 if __name__ == '__main__':
     import pipelines
-
-    # Parse command line arguments
-    args = parse_args()
-
-    # Override flags from command line
-    if args.all:
-        do_clean_data = True
-        do_gen_paper_data = True
-        do_generate_prior = True
-        do_sampling = True
-        do_gen_paper_quantities = True
-        do_diagnostic_plots = True
-        do_paper_plots = True
-    else:
-        any_flag_set = any([
-            args.clean_data, args.gen_paper_data, args.generate_prior,
-            args.sampling, args.gen_paper_quantities,
-            args.diagnostic_plots, args.paper_plots
-        ])
-        if any_flag_set:
-            do_clean_data = args.clean_data
-            do_gen_paper_data = args.gen_paper_data
-            do_generate_prior = args.generate_prior
-            do_sampling = args.sampling
-            do_gen_paper_quantities = args.gen_paper_quantities
-            do_diagnostic_plots = args.diagnostic_plots
-            do_paper_plots = args.paper_plots
-
-    # Override sampling options from command line
-    if args.num_runs:
-        sampling_opts['resume_runs'] = args.num_runs
-    if args.num_collect:
-        sampling_opts['num_collect'] = args.num_collect
-    if args.num_chains:
-        sampling_opts['chains_a'] = args.num_chains
-        sampling_opts['chains_b'] = args.num_chains
 
     # -------------------------------------------------------------------------
     # Data Pipeline

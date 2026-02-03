@@ -106,11 +106,11 @@ do_paper_plots          = True
 
 sampling_opts = {
     'model': 'rdu_bhm',
-    'output_dir': DATA_DIR / 'output' / 'rdu_bhm',
+    'output_dir': DATA_DIR / 'output',  # bamcmc creates {model}/ subdirectory
     'plots_dir': PLOTS_DIR / 'rdu_bhm',
     'clean': True,
     'reset_runs': 0,
-    'resume_runs': 5,
+    'resume_runs': 1,
     'num_chains': 1000,
     'num_collect': 50,
     'thin_iteration': 1,

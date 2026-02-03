@@ -66,38 +66,120 @@
 \section{Introduction}
 
 Bayesian hierarchical models (BHMs) have become a standard tool for estimating
-heterogeneous preferences in experimental economics
-\parencite{train2009discrete, gao2022behavioral}. These models decompose
-individual-level parameters into population-level distributions, enabling
-partial pooling of information across subjects while allowing for
-heterogeneity. However, a persistent challenge is specifying hyperprior
-distributions---the priors over population parameters such as the mean and
-variance of the preference distribution.
+heterogeneous preferences in experimental economics \parencite{Gao2022}. These
+models jointly estimate individual-level parameters and the hyper-parameters
+that govern their prior distributions. With the assumption that individuals are
+exchangeable, BHMs have the advantage of using the distribution of individual
+estimands to inform the prior distribution for the estimands. There is no free
+lunch, however, instead of needing a specified prior distribution for a given
+individual, one must now specify a \textit{hyper-prior} over the
+\textit{hyper-parameters} of the individual level estimands.
 
-The difficulty is practical: for a model with $p$ parameters per subject, the
-standard conjugate hyperprior structure requires specifying $4p$
-hyperparameters (a prior mean, prior variance, and two parameters for an
-inverse-gamma distribution on each population variance). These hyperparameters
-are interdependent in complex ways, making it difficult to assess whether the
-implied prior is sensible. \textcite{gelman2006prior} discusses these
-challenges extensively, noting that default choices like ``non-informative''
-priors can have strong and sometimes pathological effects in hierarchical
-models.
+It is common for models to specify $p$ parameters, and assign a prior
+distribution with 2 hyper-parameters; for example, a normal distribution with a
+mean and variance. For BHMs, each hyper-parameter needs it's own prior
+distribution, which is again of often formulated with 2 degrees of freedom; for
+example, another normal distribution for the hyper-mean parameter and an
+inverse-gamma distribution for the hyper-variance parameter. Thus, a model with
+$p$ parameters typically results in a hyper-prior that requires the
+specification of $4p$ hyper-prior parameters.
 
-This paper proposes a principled approach that reduces the $4p$ hyperprior
-choices to just 2. The key insight is that it is far easier to specify a prior
-for a single random individual---``what might reasonable preferences look
-like?''---than to directly specify population-level hyperpriors. Given a prior
-selection for an individual, I show how to derive hyperpriors such that the
-unconditional BHM distribution matches this individual-level prior exactly. The
-remaining two choices---a variance partition ratio $\rho$ and a concentration
-parameter $\alpha_0$---have clear interpretations and sensible defaults.
+Common models of risk preferences modeled with Expected Utility Theory (EUT)
+can have 2-3 parameters, models assuming Rank Dependent Utility (RDU) can have
+3-5 parameters, and models assuming Cumulative Prospect Theory (CPT) can have
+up to 9. These parameters interact in complex ways, making the choice of
+picking 4 hyper-prior parameters per model parameter difficult.
+
+In this paper, I propose a principled way to select hyper-prior parameters for
+BHMs of risk preference models by first specifying a prior predictive
+distribution for a single agent, and then, noting the assumed exchangeability
+of agents, deriving the hyper-prior that produces the same distribution in
+expectation. Since it is often simpler and more natural to think of risk
+preferences for individual agents, I believe this process results in proper
+hyper-prior distributions that can help researchers pick informed priors, and
+help critics of research using BHMs focus on priors of convenience that ignore
+substage knowledge about the target domain.
 
 I demonstrate the approach using rank-dependent utility (RDU) estimation with
-lottery choice data from \textcite{andersen2008discounting}. The methodology
-produces well-identified posteriors with excellent MCMC convergence, confirming
-that the derived hyperpriors provide appropriate regularization without
-dominating the likelihood.
+lottery choice data from \textcite{Andersen2008}. I show how the methodology
+produces prior-predictive distributions that are worthy of focus, and that
+these informed priors can lead to substantive differences in the posterior
+predictive distributions for certain agents.
+
+\section{Defining a Bayesian Hierarchical Model of Risk Preferences}
+
+To demonstrate this method I define a BHM where all subjects have RDU risk
+preferences using the CRRA utility function and the 2-parameter
+\textcite{Prelec1998} probability weighting function (PWF).
+\begin{align}
+  \label{eq:rdu}
+  U  &= \sum_i d_i u(x_i)\\
+  \label{eq:crra}
+  u(x) &= \frac{x^{1-r}}{1 - r}
+\end{align}
+\noindent where $d_i$ is the decision weight associated with outcome $x_i$. For
+a lottery with $n$ outcomes ranked from worst ($x_1$) to best ($x_n$), let
+$p_i$ denote the probability of outcome $x_i$. The 2-parameter
+\textcite{Prelec1998} probability weighting function transforms probabilities
+into decisions weights as follows:
+\begin{align}
+  c_i &= \sum_{j=1}^{i} p_j \\
+  \label{eq:prelec}
+  w_i &= \exp\left(-\eta \left(-\ln c_i\right)^\phi\right)\\
+  \label{eq:decision_weight}
+  d_i &= w_i - w_{i - 1}
+\end{align}
+with $w_0 = 0$ and $\phi, \eta > 0$. When $\phi = \eta = 1$, the probability
+weighting function is linear, resulting in $d_i = p_i$, the special case of
+EUT\@.
+
+The likelihood that a lottery \textit{A} is chosen over \textit{B} follows the
+logistic choice function:
+\begin{align}
+\label{eq:likelihood}
+\begin{split}
+  L(A) &= \frac{1}{1 + \exp\left(-d\right)} \\
+  d &= \frac{U(A) - U(B)}{\lambda \left(u(\bar{x}) - u(\underbar{x})\right)}
+\end{split}
+\end{align}
+\noindent where $d$ is a non-linear latent index of utility differences,
+$\lambda > 0$ is a \enquote{Fechnerian} noise scaling parameter, and $u(\bar{x}) -
+u(\underbar{x})$ is the difference between the greatest and least outcome with
+positive probability across \textit{A} and \textit{B}, which normalizes the
+difference in utilities to be between $[-1, 1]$ and applies the Contextual
+Utility model of \textcite{Wilcox2011}.
+
+This basic model has been estimated numerous times in varied applications. It
+was used by \textcite{Harrison2021} to assess the changes in risk preferences
+of during the COVID-19 pandemic, it was used to recover subjective beliefs in
+\textcite{Harrison2019a}, and many more applications. \textcite{Gao2022} make
+use of this model in a BHM to demonstrate how individual preferences can be
+informed by the assumption of exchangeability among subjects.
+
+As a model for an individual agent, the vector $\theta_i = [r_i, \phi_i,
+\eta_i, \lambda_i]$ must be estimated. In a Bayesian framework, this estimation
+takes the form of finding the posterior distribution of $\theta$ conditional on
+observed choice data:
+\begin{equation}
+  p(\theta_i | D) \propto L(D | \theta_i) p(\theta_i | \alpha^0)
+\end{equation}
+\noindent where (\ref{eq:likelihood}) specifies how the likelihood $L(D |
+\theta_i)$ is calculated, and the job of the researcher is to specify the prior
+distribution $p(\theta_i | \alpha^0)$ and its governing prior parameter vector
+$\alpha^0$.\footnote{
+  I use the $0$ superscript throughout to designate when a parameter is
+  specified rather than estimated.
+} Extending this model to a hierarchical setting requires factoring out a
+distribution of $\alpha$:
+\begin{equation}
+  p(\theta_i | D) \propto \int L(D | \theta_i) p(\theta_i | \alpha) p(\alpha | \beta^0) \, d\alpha
+\end{equation}
+\noindent where additional hierarchies can be added by again factoring out
+$\beta^0$, but it is common to assume individual subjects in a sample are
+exchangeable with respect to a specified \textit{hyper-prior} given by $\beta$.
+
+It is this assumption of exchangeability of subjects that leads to the proposed
+methods of selecting $\beta$.
 
 
 \section{The Prior Selection Approach}

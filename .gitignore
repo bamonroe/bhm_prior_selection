@@ -51,3 +51,5 @@ jax_cache/
 .DS_Store
 Thumbs.db
 code/example_code/
+code/main
+code/main.log

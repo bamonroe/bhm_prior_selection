@@ -27,7 +27,7 @@ builtins.print = functools.partial(builtins.print, flush=True)
 # GPU memory preallocation:
 #   'true'  = Preallocate ~90% GPU memory (faster, exclusive GPU use)
 #   'false' = Allocate on-demand (allows GPU sharing, slightly slower)
-os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'true'
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'true' if False else 'false'
 
 # GPU memory allocator (recommended for large models)
 os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
@@ -112,8 +112,8 @@ sampling_opts = {
     'reset_runs': 0,
     'resume_runs': 5,
     'num_chains': 1000,
-    'num_collect': 100,
-    'thin_iteration': 10,
+    'num_collect': 50,
+    'thin_iteration': 1,
     'seed': SEEDS['sampling'],
 }
 

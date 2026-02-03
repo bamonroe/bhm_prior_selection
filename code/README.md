@@ -19,8 +19,7 @@ code/
 └── posteriors/
     ├── __init__.py          # Posterior package initialization
     ├── common_fns.py        # Shared utility functions
-    ├── rdu_bhm.py           # RDU with power probability weighting (NCP)
-    └── rdu_prelec_bhm.py    # RDU with Prelec 2-parameter weighting
+    └── rdu_bhm.py           # RDU with power probability weighting (NCP)
 ```
 
 ## Module Overview
@@ -203,12 +202,6 @@ When hyperparameters (mu, sigma) are proposed:
    - Jacobian: N * log(sigma_old / sigma_new)
    - Epsilon prior ratio: -0.5 * (sum(eps'^2) - sum(eps^2))
    - Hyperprior ratio
-
-### posteriors/rdu_prelec_bhm.py - Alternative Model
-
-RDU with Prelec's 2-parameter probability weighting (4 params per subject).
-
-Same structure as rdu_bhm.py but adds alpha and beta for Prelec weighting.
 
 ## Data Flow
 

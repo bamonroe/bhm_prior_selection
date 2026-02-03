@@ -95,7 +95,7 @@ do_generate_prior = False
 do_sampling = False
 
 # --- Post-Processing ---
-do_gen_paper_quantities = True
+do_gen_paper_quantities = False
 do_diagnostic_plots     = True
 do_paper_plots          = True
 
@@ -110,9 +110,9 @@ sampling_opts = {
     'plots_dir': PLOTS_DIR / 'rdu_bhm',
     'clean': True,
     'reset_runs': 0,
-    'resume_runs': 1,
+    'resume_runs': 5,
     'num_chains': 1000,
-    'num_collect': 50,
+    'num_collect': 100,
     'thin_iteration': 1,
     'seed': SEEDS['sampling'],
 }

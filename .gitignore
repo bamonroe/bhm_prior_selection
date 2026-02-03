@@ -50,3 +50,4 @@ jax_cache/
 # OS
 .DS_Store
 Thumbs.db
+code/example_code/

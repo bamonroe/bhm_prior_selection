@@ -7,7 +7,8 @@ This directory contains the core implementation for principled hyperprior select
 ```
 code/
 ├── __init__.py              # Package initialization
-├── main.py                  # Hub orchestration with CONFIG and do_* flags
+├── main.py                  # Hub: JAX config, flags, configuration, CLI
+├── pipelines.py             # Pipeline dispatch functions for main.py
 ├── clean_data.py            # Data preparation and cleaning
 ├── prior_selection.py       # Core contribution: hyperprior derivation
 ├── sampling.py              # MCMC sampling with bamcmc
@@ -25,35 +26,57 @@ code/
 
 ### main.py - Project Orchestration
 
-Minimal hub with configuration and step dispatch:
+Hub script with the following sections:
+
+1. **JAX Environment Config** - GPU memory, compilation cache (must be before JAX imports)
+2. **Path Configuration** - OUTPUTS dict with expected file paths
+3. **Prior Selection Config** - rho, alpha_0, seeds
+4. **Control Flags** - Boolean do_* flags grouped by category
+5. **Sampling Options** - sampling_opts dict for MCMC configuration
+6. **Helper Functions** - Dependency checking, path getters
+7. **CLI** - argparse for command-line overrides
+8. **Pipeline Dispatch** - Calls pipelines.run_*() functions
 
 ```python
-CONFIG = {
-    'output_dir': ...,
-    'num_chains_a': 100,
-    'num_chains_b': 100,
+# Configuration sections
+OUTPUTS = {'clean_data': ..., 'paper_data': ..., ...}
+PRIOR_SELECTION = {'rho': 0.3, 'alpha_0': 6.0}
+SEEDS = {'sampling': 42}
+
+# Sampling options
+sampling_opts = {
+    'model': 'rdu_bhm',
+    'chains_a': 100,
     'num_collect': 1000,
     ...
 }
 ```
 
-| Flag | Purpose | Module |
-|------|---------|--------|
-| `do_clean_data` | Load raw CSV, filter to RA task | clean_data.py |
-| `do_gen_paper_data` | Generate summary statistics | gen_paper_data.py |
-| `do_generate_prior` | Derive hyperpriors | prior_selection.py |
-| `do_sampling` | Run MCMC with bamcmc | sampling.py |
-| `do_gen_paper_quantities` | Extract posterior summaries | gen_paper_quantities.py |
-| `do_diagnostic_plots` | Generate diagnostics | plotting.py |
-| `do_paper_plots` | Create publication plots | plotting.py |
+| Flag | Purpose | Pipeline Function |
+|------|---------|-------------------|
+| `do_clean_data` | Load raw CSV, filter to RA task | `pipelines.run_clean_data()` |
+| `do_gen_paper_data` | Generate summary statistics | `pipelines.run_gen_paper_data()` |
+| `do_generate_prior` | Derive hyperpriors | `pipelines.run_prior_selection()` |
+| `do_sampling` | Run MCMC with bamcmc | `pipelines.run_sampling()` |
+| `do_gen_paper_quantities` | Extract posterior summaries | `pipelines.run_gen_paper_quantities()` |
+| `do_diagnostic_plots` | Generate diagnostics | `pipelines.run_diagnostic_plots()` |
+| `do_paper_plots` | Create publication plots | `pipelines.run_paper_plots()` |
 
-Each flag assumes previous steps are complete.
+Each flag checks dependencies via `check_dependency()` before running.
 
 **Usage:**
 ```bash
 python code/main.py --all                    # Run all steps
 python code/main.py --sampling --num-runs 10 # Custom sampling
+python code/main.py --num-chains 200         # Override chain count
 ```
+
+### pipelines.py - Pipeline Dispatch
+
+Wrapper functions that main.py calls. Each function:
+- Prints status header
+- Imports and calls the implementation module
+- Prints completion message
 
 ### clean_data.py - Data Preparation
 
@@ -216,13 +239,18 @@ rdu_bhm.log_posterior() --> likelihood computation
 # Activate environment
 source /workspace/pylib/bin/activate
 
-# Run data cleaning
-python -c "from code.clean_data import clean_and_save_data; clean_and_save_data()"
+# Run full pipeline
+python code/main.py --all
 
-# Run prior selection demo
+# Run individual steps
+python code/main.py --clean-data
+python code/main.py --generate-prior
+python code/main.py --sampling --num-runs 5 --num-chains 200
+
+# Run prior selection demo standalone
 python code/prior_selection.py
 
-# Run sampling (via runner)
+# Run sampling via runner (alternative)
 python runners/run_rdu_bhm.py --mode test --num-chains 800
 ```
 

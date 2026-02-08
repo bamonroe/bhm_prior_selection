@@ -22,9 +22,10 @@
 }
 
 % Math shortcuts
-\newcommand{\E}{\mathbb{E}}
-\newcommand{\Var}{\text{Var}}
-\newcommand{\Cov}{\text{Cov}}
+\newcommand{\E}[1]{\mathbb{E}\left[#1\right]}
+\newcommand{\Var}[1]{\text{Var}\left[#1\right]}
+\newcommand{\Cov}[2]{\text{Cov}\left[#1, #2\right]}
+\newcommand{\tij}{\theta_i^j}
 
 \begin{document}
 

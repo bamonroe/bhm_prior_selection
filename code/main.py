@@ -32,6 +32,9 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'true' if False else 'false'
 # GPU memory allocator (recommended for large models)
 os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 
+# Enable 64-bit precision in JAX (required for int64 indices)
+os.environ['JAX_ENABLE_X64'] = 'true'
+
 # JAX compilation cache directory (speeds up subsequent runs)
 os.environ['JAX_COMPILATION_CACHE_DIR'] = os.path.dirname(__file__) + '/jax_cache'
 
@@ -79,6 +82,9 @@ SEEDS = {
     'sampling': 42,
 }
 
+# Parallel processing
+N_WORKERS = 15  # Number of parallel workers for plotting, etc.
+
 
 # =============================================================================
 # Control Flags
@@ -95,7 +101,7 @@ do_generate_prior = False
 do_sampling = False
 
 # --- Post-Processing ---
-do_gen_paper_quantities = False
+do_gen_paper_quantities = True
 do_diagnostic_plots     = True
 do_paper_plots          = True
 
@@ -110,8 +116,8 @@ sampling_opts = {
     'plots_dir': PLOTS_DIR / 'rdu_bhm',
     'clean': True,
     'reset_runs': 0,
-    'resume_runs': 5,
-    'num_chains': 1000,
+    'resume_runs': 1,
+    'num_chains': 500,
     'num_collect': 100,
     'thin_iteration': 1,
     'seed': SEEDS['sampling'],
@@ -163,7 +169,7 @@ if __name__ == '__main__':
     if do_diagnostic_plots:
         check_dependency('diagnostic_plots', ['clean_data'])
         history_dir = get_mcmc_dir() / 'history' / 'full'
-        pipelines.run_diagnostic_plots(history_dir, get_plots_dir())
+        pipelines.run_diagnostic_plots(history_dir, get_plots_dir(), n_workers=N_WORKERS)
 
     if do_paper_plots:
         check_dependency('paper_plots', ['paper_quantities'])

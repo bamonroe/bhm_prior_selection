@@ -83,13 +83,13 @@ def run_gen_paper_quantities(history_dir, data_dir):
     print("Done.\n")
 
 
-def run_diagnostic_plots(history_dir, plots_dir):
+def run_diagnostic_plots(history_dir, plots_dir, n_workers=1):
     """Generate diagnostic plots."""
     print("\n" + "=" * 60)
     print("Running: Diagnostic Plots")
     print("=" * 60)
     from plotting import diagnostic_plots
-    diagnostic_plots(history_dir, plots_dir)
+    diagnostic_plots(history_dir, plots_dir, n_workers=n_workers)
     print("Done.\n")
 
 

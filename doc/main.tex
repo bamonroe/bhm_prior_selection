@@ -101,11 +101,200 @@ hyper-prior distributions that can help researchers pick informed priors, and
 help critics of research using BHMs focus on priors of convenience that ignore
 substage knowledge about the target domain.
 
-I demonstrate the approach using rank-dependent utility (RDU) estimation with
-lottery choice data from \textcite{Andersen2008}. I show how the methodology
-produces prior-predictive distributions that are worthy of focus, and that
+I begin by outlining the process for selecting a hyper-prior for an arbitrary
+model. I then demonstrate the approach using rank-dependent utility (RDU)
+estimation with lottery choice data from \textcite{Andersen2008}. I show that
 these informed priors can lead to substantive differences in the posterior
 predictive distributions for certain agents.
+
+\section{The Prior Selection Approach}
+
+I begin with an arbitrary, single parameter model:
+\begin{equation}
+  \label{eq:simple_model}
+  y_i = \Phi(\theta_i, x),
+\end{equation}
+\noindent where $y_i$ is some modeled quantity conditional on other observable
+data, $x$, and $\theta_i \in \mathbb{R}$, a parameter of interest for a single
+subject. A Bayesian model seeks to find the posterior distribution of
+$\theta_i$ conditional on the observed data:
+\begin{align}
+  \label{eq:bayes_post}
+  \begin{split}
+    p(\theta_i | y,x) &= \frac{p(y | \theta_i, x) p(\theta_i)}{\displaystyle\int p(y | \theta_i, x) p(\theta_i) \, d\theta_i} \\
+    {} &\propto p(y | \theta_i, x) p(\theta_i) \\
+  \end{split}
+\end{align}
+\noindent where $p(\theta_i | y,x)$ is the posterior of the parameter of
+interest, $p(y | \theta_i, x)$ the likelihood of the modelled quantity
+conditional on $\theta_i$ and the observed data $x$, and $p(\theta_i)$ is the
+prior distribution of $\theta_i$.
+
+While the prior distribution $p(\theta_i)$ can be any proper probability
+distribution,\footnote{
+  And in some cases, an improper distribution.
+} it is useful for now to think of $\theta_i \in \mathbb{R}$ and normally
+distributed:
+\begin{equation}
+\label{eq:simple_prior}
+  \theta_i \sim \text{Normal}(\mu, \sigma^2)
+\end{equation}
+\noindent where $\mu$ and $\sigma^2$ are prior mean and variance parameters
+signifying the researcher's prior belief about the distribution of possible
+$\theta_i$ parameters that describe an individual.
+
+If we have data from multiple individuals, it is reasonable to think that
+different posterior distributions of $\theta_i$ across subjects may influence
+our beliefs about the population they were drawn from. This influence is
+directly modelled with a Bayesian Hierarchical Model (BHM), whereby the
+prior parameters are themselves said to be distributed according to some
+\textit{hyper-prior} distribution.
+\begin{align}
+  \label{eq:simple_bhm_mean}
+  \mu &\sim \text{Normal}(\mu_0, \tau_0^2) \\
+  \label{eq:simple_bhm_sd}
+  \sigma^2 &\sim \text{Inverse-Gamma}(\alpha_0, \beta_0)
+\end{align}
+\noindent The use of Normal and Inverse-Gamma distribution is common for
+real-valued hierarchical models because its lends it self to the cognate
+relationship of normal distributions.\footnote{
+  For now, I assume the model takes a single parameter, but it should be clear
+  that a set of uncorrelated parameters $\theta^j_i$, with $j \in [1, p]$ can
+  be specified in the same way. Additionally, while I initially assume
+  independence across all parameters $\theta^j_i$, the case with full
+  covariance structure is discussed in Appendix \ref{app:full_cov}. For now, I
+  drop the $j$ superscript for convenience.
+}
+
+The simple BHM model specified in equations
+(\ref{eq:simple_prior}-\ref{eq:simple_bhm_sd}) requires the estimation of 4
+hyper-parameters for parameter $\theta_i$. Directly specifying these values can
+challenging because their joint implications are often difficult to assess.
+What does it mean to set $\alpha_{0} = 3$ versus $\alpha_{0} = 10$? How should
+$\tau_{0}^2$ relate to $\beta_{0}$? These questions often lack intuitive
+answers, even if $\theta_i$ is well understood.
+
+\section{Exchangeability and a prior over an individual}
+
+For the moment, we revisit the problem of selecting prior in
+(\ref{eq:simple_prior}). The prior selection approach begins with a cognitively
+tractable question: \emph{What might the value $\theta_i$ of a single random
+individual look like?} This requires the specification of $\mu$ and $\sigma^2$
+prior parameters. This lower-level specification of prior parameters is often
+conceptually easier than the direct specification of hyper-prior parameters.
+Let us designate this \enquote{direct prior} as:
+\begin{equation}
+  \label{eq:direct_prior}
+  p^*(\theta_i | \mu^*, \sigma^{2*}) = \text{Normal}(\mu^*, \sigma^{2*}) \\
+\end{equation}
+\noindent Note here that we use the superscript ${}^*$ to designate our direct prior
+parameters. When omitted, the parameter is modelled rather than specified.
+
+While the question posed asks about an individual, not a population, the answer
+implicitly integrates over population heterogeneity introduced in
+(\ref{eq:simple_bhm_mean})-(\ref{eq:simple_bhm_sd}):
+\begin{equation}
+    p^*(\theta_i |\  \mu^*, \sigma^{2*}) = \int p(\theta_i |\  \mu, \sigma^2) p(\mu, \sigma^2 |\  \mu_0, \tau_0^2, \alpha_0, \beta_0 ) \, d\mu \, d\sigma^2
+\end{equation}
+\noindent This restriction, that a prior specified over a given individual
+implicitly integrates over all possible heterogeneity that could have produced
+that prior, is the key component to the proposed hyper-prior selection process.
+This restriction amounts to a consistency of beliefs about population-level
+parameters $\mu_0, \tau_0^2, \alpha_0, \beta_0$, and our beliefs about what a
+random individual would look like directly $\mu^*, \sigma^{2*}$.
+
+The solution to picking the hyper-prior parameters is reconciling these two
+sets of parameters. If a direct prior has two degrees of freedom, like a normal
+distribution, then any hyper-prior must have:
+\begin{align}
+\label{eq:prior_decomposed}
+\begin{split}
+  \E{\theta_i} &= \E{\E{\theta_i | \mu}} \\
+  \Var{\theta_i} &= \E{\sigma^2} + \Var{\mu}
+\end{split}
+\end{align}
+\noindent Where the first part of (\ref{eq:prior_decomposed}) is due to the law
+of iterated expectations, and the second part is due to the law of total
+variance.\footnote{
+  In general, if the direct prior had $n$ degrees of freedom, then
+  (\ref{eq:prior_decomposed}) would require the expansion of $n$ equations
+  using the law of total cumulance. For cumulant $\kappa_n$:
+  \begin{equation*}
+    \kappa_n(Y) = \E{\kappa_n(Y|X)} + g_n(\kappa_1, \ldots, \kappa_{n-1})
+  \end{equation*}
+  where $g_n$ involves lower-order cumulants. For $n=1$ (mean), $\kappa_1(Y) =
+  \E{\kappa_1(Y|X)}$, which is the law of iterated expectations. For $n=2$
+  (variance), $\kappa_2(Y) = \E{\kappa_2(Y|X)} + \kappa_2(\kappa_1(Y|X))$,
+  which is the law of total variance. An example using the 3 parameter
+  skew-Normal distribution is given in Appendix \ref{app:skew_normal}.
+}
+
+\subsection{Mean and Variance Decomposition}
+
+The first part of (\ref{eq:prior_decomposed}) is relatively simple for a normal
+distribution given its symmetry:
+\begin{align}
+\begin{split}
+\mu^* &= \E{\theta_i} \\
+  {} &= \E{\E{\theta_i | \mu}} \\
+  {} &= \E{\mu} \\
+  {} &= \mu_0
+\end{split}
+\end{align}
+\noindent Thus, the mean of the $\mu$ \textit{hyper-parameter}, must be equal
+to the mean of the direct prior.
+
+The decomposition of the variance parameter however, requires some additional
+re-parameterization. For the Normal-Inverse-Gamma case, the law of total
+variance gives:
+\begin{align}
+    \label{eq:total_var}
+    \begin{split}
+    \Var{\theta_i} &= \E{\sigma^2} + \Var{\mu} \\
+    \sigma^{2*} &= \frac{\beta_0}{\left(\alpha_0 - 1\right)} + \tau_{0}^2 \\
+    \end{split}
+\end{align}
+where $\tau_{0}^2$ is the prior
+variance on the mean hyper-parameter $\mu$, and $\alpha_0, \beta_0$ are the
+shape and scale parameters for the inverse-gamma distribution used to model the
+variance hyper-parameter, $\sigma^2$.
+
+Let $V_j$ denote the prior selection variance for parameter $j$. I parameterize
+the decomposition using a variance partition ratio $\rho \in (0,1)$:
+\begin{align}
+    \tau_{0,j}^2 &= \rho \cdot V_j \quad \text{(uncertainty about population mean)} \\
+    \E[\sigma_j^2] &= (1 - \rho) \cdot V_j \quad \text{(expected population heterogeneity)}
+\end{align}
+
+The parameter $\rho$ has a clear interpretation: the fraction of total prior
+variance attributable to not knowing where the population is centered. With
+$\rho = 0.3$ (my default), 30\% of the prior width reflects uncertainty about
+the population mean and 70\% reflects expected heterogeneity across
+individuals.
+
+\subsection{Concentration Parameter}
+
+The expected population variance $\E[\sigma_j^2] = \beta_{0,j}/(\alpha_{0,j} -
+1)$ involves two unknowns. I fix the concentration parameter $\alpha_{0,j} =
+\alpha_0$ for all parameters, which determines how confident we are that the
+prior selection variance is correct. With $\alpha_0 = 6$ (my default), the
+coefficient of variation of $\sigma_j^2$ is 0.5, reflecting moderate
+uncertainty.
+
+\subsection{Derived Hyperpriors}
+
+Given prior selection results $(\mu_{\text{ps}}, V_{\text{ps}})$, the variance
+partition ratio $\rho$, and concentration $\alpha_0$, all hyperpriors are
+determined:
+\begin{align}
+    \mu_{0,j} &= \mu_{\text{ps},j} \\
+    \tau_{0,j}^2 &= \rho \cdot V_{\text{ps},j} \\
+    \beta_{0,j} &= (1 - \rho) \cdot V_{\text{ps},j} \cdot (\alpha_0 - 1)
+\end{align}
+
+One can verify that $\E[\sigma_j^2] + \tau_{0,j}^2 = V_{\text{ps},j}$ for any
+valid $\rho$ and $\alpha_0$, confirming the unconditional variance matches the
+prior selection target by construction.
 
 \section{Defining a Bayesian Hierarchical Model of Risk Preferences}
 
@@ -176,96 +365,18 @@ distribution of $\alpha$:
   p(\theta_i | D) \propto \int L(D | \theta_i) p(\theta_i | \alpha) p(\alpha | \beta^0) \, d\alpha
 \end{equation}
 \noindent where additional hierarchies can be added by again factoring out
-$\beta^0$, but it is common to assume individual subjects in a sample are
+$\beta^0$.\footnote{
+  This can be done to induce some degree of conditional heterogeneity in
+  the model. For example, we may think that hyper-parameters differ based
+  on a subject's gender identification, or national identity, or college major.
+  Additional hierarchies would then be introduced to assume some degree
+  exchangeability between genders, nationalities, or majors. This extension
+  is not covered here, but the hyper-prior selection approach suggested here
+  can be extended to such additional hierarchies.
+} It is common, however, to assume individual subjects in a sample are
 exchangeable with respect to a specified \textit{hyper-prior} given by $\beta$.
-
 It is this assumption of exchangeability of subjects that leads to the proposed
 methods of selecting $\beta$.
-
-
-\section{The Prior Selection Approach}
-
-\subsection{Motivation}
-
-Consider a BHM for risk preferences with $p$ parameters per subject. Let
-$\theta_i \in \mathbb{R}^p$ denote subject $i$'s parameters, and let $(\mu,
-\Sigma)$ denote the population mean and covariance. The standard hierarchical
-structure is:
-\begin{align}
-    \theta_i | \mu, \Sigma &\sim \text{Normal}(\mu, \Sigma) \\
-    \mu &\sim \text{Normal}(\mu_0, T_0) \\
-    \Sigma &\sim \text{Inverse-Wishart}(\nu_0, \Psi_0)
-\end{align}
-For simplicity, I focus on the independent case where $\Sigma$ is diagonal,
-requiring specification of $(\mu_{0,j}, \tau_{0,j}^2, \alpha_{0,j},
-\beta_{0,j})$ for each parameter $j$---a total of $4p$ hyperparameters.
-
-Directly specifying these values is challenging because their joint
-implications are difficult to assess. What does it mean to set $\alpha_{0,j} =
-3$ versus $\alpha_{0,j} = 10$? How should $\tau_{0,j}^2$ relate to
-$\beta_{0,j}$? These questions have no intuitive answers.
-
-\subsection{The Key Constraint}
-
-The prior selection approach begins with a cognitively tractable question:
-\emph{What might the preferences of a single random individual look like?} This
-question asks about an individual, not a population, yet the answer implicitly
-integrates over population heterogeneity:
-\begin{equation}
-    p(\theta) = \int p(\theta | \mu, \Sigma) p(\mu, \Sigma) \, d\mu \, d\Sigma
-\end{equation}
-
-I impose the constraint that this unconditional BHM prior must equal the
-directly-specified individual-level prior. This ensures consistency: our
-beliefs about a random individual are identical whether we think about them
-directly or as a draw from an unknown population.
-
-\subsection{Variance Decomposition}
-
-For the independent case, the law of total variance gives:
-\begin{equation}
-    \Var[\theta_j] = \E[\sigma_j^2] + \tau_{0,j}^2
-    \label{eq:total_var}
-\end{equation}
-where $\sigma_j^2$ is the population variance and $\tau_{0,j}^2$ is the prior
-variance on the population mean $\mu_j$.
-
-Let $V_j$ denote the prior selection variance for parameter $j$. I parameterize
-the decomposition using a variance partition ratio $\rho \in (0,1)$:
-\begin{align}
-    \tau_{0,j}^2 &= \rho \cdot V_j \quad \text{(uncertainty about population mean)} \\
-    \E[\sigma_j^2] &= (1 - \rho) \cdot V_j \quad \text{(expected population heterogeneity)}
-\end{align}
-
-The parameter $\rho$ has a clear interpretation: the fraction of total prior
-variance attributable to not knowing where the population is centered. With
-$\rho = 0.3$ (my default), 30\% of the prior width reflects uncertainty about
-the population mean and 70\% reflects expected heterogeneity across
-individuals.
-
-\subsection{Concentration Parameter}
-
-The expected population variance $\E[\sigma_j^2] = \beta_{0,j}/(\alpha_{0,j} -
-1)$ involves two unknowns. I fix the concentration parameter $\alpha_{0,j} =
-\alpha_0$ for all parameters, which determines how confident we are that the
-prior selection variance is correct. With $\alpha_0 = 6$ (my default), the
-coefficient of variation of $\sigma_j^2$ is 0.5, reflecting moderate
-uncertainty.
-
-\subsection{Derived Hyperpriors}
-
-Given prior selection results $(\mu_{\text{ps}}, V_{\text{ps}})$, the variance
-partition ratio $\rho$, and concentration $\alpha_0$, all hyperpriors are
-determined:
-\begin{align}
-    \mu_{0,j} &= \mu_{\text{ps},j} \\
-    \tau_{0,j}^2 &= \rho \cdot V_{\text{ps},j} \\
-    \beta_{0,j} &= (1 - \rho) \cdot V_{\text{ps},j} \cdot (\alpha_0 - 1)
-\end{align}
-
-One can verify that $\E[\sigma_j^2] + \tau_{0,j}^2 = V_{\text{ps},j}$ for any
-valid $\rho$ and $\alpha_0$, confirming the unconditional variance matches the
-prior selection target by construction.
 
 
 \section{Application: RDU Estimation}

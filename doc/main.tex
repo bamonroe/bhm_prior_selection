@@ -547,7 +547,7 @@ This appendix is for the full covariance derivation.
 
 \pagebreak
 
-\appsection{Skew-Normal Total Cumulants}
+\appsection{Prior Matching with 3 Moments: The Skew-Normal Distribution}
 \label{app:skew_normal}
 \titleformat*{\subsection}{\normalsize\itshape}
 
@@ -590,40 +590,113 @@ The cumulants are:
 \subsection{Hierarchical Decomposition}
 
 Suppose we wish to specify hyper-priors such that the unconditional distribution
-of $\theta_i$ is $\text{Skew-Normal}(\xi^*, \omega^*, \alpha^*)$. Following the
-prior selection approach, we must match three cumulants.
+of $\theta_i$ matches a direct prior $\text{Skew-Normal}(\xi^*, \omega^*, \alpha^*)$.
+The Skew-Normal has three parameters, so following the prior selection approach,
+we must match three cumulants using the law of total cumulance.
 
 Consider a hierarchical structure where $\theta_i \sim
-\text{Skew-Normal}(\mu, \sigma, \alpha)$ with the shape parameter $\alpha$ fixed
-and $\mu$, $\sigma^2$ drawn from hyperpriors.
-Applying (\ref{eq:total_skewness}) by conditioning on $(\mu, \sigma^2)$:
+\text{Skew-Normal}(\xi, \omega, \alpha)$ with all three parameters drawn from
+hyperpriors. Applying the law of total cumulance by conditioning on
+$(\xi, \omega, \alpha)$:
 
-\paragraph{Term 1: Expected conditional skewness.}
+\paragraph{First cumulant (mean).}
+Using the law of iterated expectations:
+\begin{equation}
+  \kappa_1^* = \E{\kappa_1(\theta_i | \xi, \omega, \alpha)}
+             = \E{\xi + \omega \delta(\alpha) \sqrt{2/\pi}}
+\end{equation}
+where $\delta(\alpha) = \alpha / \sqrt{1 + \alpha^2}$.
+
+\paragraph{Second cumulant (variance).}
+Using the law of total variance:
+\begin{equation}
+  \kappa_2^* = \E{\kappa_2(\theta_i | \xi, \omega, \alpha)} + \Var{\kappa_1(\theta_i | \xi, \omega, \alpha)}
+\end{equation}
+The conditional variance is $\omega^2(1 - 2\delta(\alpha)^2/\pi)$, giving:
+\begin{equation}
+  \kappa_2^* = \E{\omega^2 \left(1 - \frac{2\delta(\alpha)^2}{\pi}\right)}
+             + \Var{\xi + \omega \delta(\alpha) \sqrt{2/\pi}}
+\end{equation}
+
+\paragraph{Third cumulant (skewness).}
+Applying (\ref{eq:total_skewness}):
+\begin{equation}
+  \kappa_3^* = \E{\kappa_3(\theta_i | \xi, \omega, \alpha)}
+             + 3\Cov{\kappa_1(\theta_i | \xi, \omega, \alpha)}{\kappa_2(\theta_i | \xi, \omega, \alpha)}
+             + \kappa_3(\kappa_1(\theta_i | \xi, \omega, \alpha))
+\end{equation}
 The conditional third cumulant is:
 \begin{equation}
-  \kappa_3(\theta_i | \mu, \sigma^2) = \frac{4-\pi}{2} \left(\delta\sqrt{\frac{2}{\pi}}\right)^3 \sigma^3
+  \kappa_3(\theta_i | \xi, \omega, \alpha) = \frac{4-\pi}{2} \left(\delta(\alpha)\sqrt{\frac{2}{\pi}}\right)^3 \omega^3
 \end{equation}
-Taking expectations: $\E{\kappa_3(\theta_i | \mu, \sigma^2)} = c_\alpha \cdot \E{\sigma^3}$
-where $c_\alpha = \frac{4-\pi}{2}\left(\delta\sqrt{2/\pi}\right)^3$.
 
-\paragraph{Term 2: Covariance term.}
-If $\mu$ and $\sigma^2$ are independent (as in standard hyper-prior specifications),
-$\Cov{\E{\theta_i|X}}{\Var{\theta_i|X}} = 0$.
+\paragraph{Matching conditions.}
+The three cumulant equations provide constraints that link the hyperprior
+parameters to the direct prior parameters $(\xi^*, \omega^*, \alpha^*)$.
+Unlike the Normal case where two equations suffice for two parameters, the
+Skew-Normal requires matching all three cumulants, which couples the hyperpriors
+for $\xi$, $\omega$, and $\alpha$ in a more complex manner.
 
-\paragraph{Term 3: Skewness of conditional means.}
-If $\mu \sim \text{Normal}(\mu_0, \tau_0^2)$, then $\kappa_3(\mu) = 0$.
+If independence is assumed across hyperpriors, the covariance terms vanish,
+simplifying the system. However, the nonlinear dependence on $\delta(\alpha)$
+means that even with independence, the matching conditions involve moments of
+$\alpha$ that may not have closed-form solutions for standard hyperprior choices.
 
-\paragraph{Matching condition.}
-For the unconditional distribution to have the target skewness:
+\paragraph{Hyperprior specification.}
+Consider the hyperprior structure:
+\begin{align}
+  \xi &\sim \text{Normal}(\mu_\xi, \tau_\xi^2) \\
+  \omega^2 &\sim \text{Inverse-Gamma}(\alpha_\omega, \beta_\omega) \\
+  \alpha &\sim \text{Normal}(\mu_\alpha, \tau_\alpha^2)
+\end{align}
+This introduces 6 hyperprior parameters: $(\mu_\xi, \tau_\xi^2, \alpha_\omega,
+\beta_\omega, \mu_\alpha, \tau_\alpha^2)$. The 3 cumulant matching conditions
+determine 3 of these, leaving 3 degrees of freedom for researcher choice.
+
+\paragraph{Researcher-specified parameters.}
+Following the structure from the Normal case, I propose three interpretable
+parameters:
+\begin{enumerate}
+  \item $\rho \in (0,1)$: \textbf{Variance partition ratio.} As in the Normal
+    case, this governs the fraction of prior variance attributable to
+    uncertainty about population location versus population heterogeneity.
+
+  \item $\alpha_\omega > 2$: \textbf{Scale concentration.} The shape parameter
+    for the Inverse-Gamma prior on $\omega^2$, controlling confidence in the
+    prior selection scale. Analogous to $\alpha_0$ in the Normal case.
+
+  \item $\tau_\alpha^2 > 0$: \textbf{Shape uncertainty.} The prior variance on
+    the population shape parameter $\alpha$. This controls how much the
+    skewness can vary across the population. When $\tau_\alpha^2 \to 0$,
+    skewness is fixed at the population level; larger values allow individuals
+    to differ in their degree of asymmetry.
+\end{enumerate}
+
+\paragraph{Determined parameters.}
+Given the researcher choices $(\rho, \alpha_\omega, \tau_\alpha^2)$ and the
+direct prior cumulants $(\kappa_1^*, \kappa_2^*, \kappa_3^*)$, the remaining
+three hyperprior parameters $(\mu_\xi, \beta_\omega, \mu_\alpha)$ are determined
+by solving the cumulant matching conditions:
+\begin{align}
+  \kappa_1^* &= \mu_\xi + \sqrt{2/\pi} \cdot \E{\omega} \E{\delta(\alpha)} \\
+  \kappa_2^* &= \E{\omega^2}\E{1 - 2\delta(\alpha)^2/\pi} + \tau_\xi^2
+              + \frac{2}{\pi}\Var{\omega\delta(\alpha)} \\
+  \kappa_3^* &= \E{\kappa_3(\theta | \xi, \omega, \alpha)}
+              + \kappa_3\left(\E{\theta | \xi, \omega, \alpha}\right)
+\end{align}
+where $\tau_\xi^2 = \rho \cdot \kappa_2^*$ (from the variance partition), and
+$\E{\omega^2} = \beta_\omega / (\alpha_\omega - 1)$.
+
+\paragraph{Numerical solution.}
+The nonlinear dependence on $\delta(\alpha) = \alpha/\sqrt{1+\alpha^2}$ generally
+precludes closed-form solutions. However, given researcher choices, the system
+reduces to 3 equations in 3 unknowns $(\mu_\xi, \beta_\omega, \mu_\alpha)$,
+solvable via root-finding:
 \begin{equation}
-  \kappa_3^* = c_\alpha \cdot \E{\sigma^3}
+  \text{Find } \theta \text{such that } \kappa_n^{\text{implied}}(\theta) = \kappa_n^* \text{for } n = 1, 2, 3
 \end{equation}
-
-This provides a constraint on $\E{\sigma^3}$, which for an Inverse-Gamma
-distribution on $\sigma^2$ requires matching the appropriate moment. Unlike the
-Normal case where two equations suffice, the Skew-Normal requires this additional
-third-cumulant constraint, reducing the degrees of freedom available for
-hyper-prior specification.
+The implied cumulants can be computed via Monte Carlo integration over the
+hyperprior distributions.
 
 % print references from this section only
 \appendixref{}

@@ -46,7 +46,8 @@ def parse_ra_data(ra_rows):
     Each lottery choice has:
     - Lottery A: prizes (vprizea1, vprizea2) with prob (rowproba, 1-rowproba)
     - Lottery B: prizes (vprizeb1, vprizeb2) with prob (rowproba, 1-rowproba)
-    - Choice: choicea (1 = chose A, 0 = chose B)
+    - Choice: choicea is RIGHT-SIDE indicator (1 = chose right/B, 0 = chose left/A)
+      We flip this to: 1 = chose A, 0 = chose B for the model
 
     Returns dict with:
     - subject_ids: unique subject identifiers
@@ -57,7 +58,7 @@ def parse_ra_data(ra_rows):
     - prize_b_high: (n_subjects, n_choices) high prize for lottery B
     - prize_b_low: (n_subjects, n_choices) low prize for lottery B
     - prob_high: (n_subjects, n_choices) probability of high prize
-    - choices: (n_subjects, n_choices) 1 = chose A, 0 = chose B
+    - choices: (n_subjects, n_choices) 1 = chose A (left), 0 = chose B (right)
     """
     # Group by subject
     by_subject = defaultdict(list)
@@ -95,7 +96,8 @@ def parse_ra_data(ra_rows):
             prize_b_high[i][j] = float(r['vprizeb1'])
             prize_b_low[i][j] = float(r['vprizeb2'])
             prob_high[i][j] = float(r['rowproba'])
-            choices[i][j] = int(r['choicea'])
+            # Flip choice: raw 1=right/B, 0=left/A -> model 1=A, 0=B
+            choices[i][j] = 1 - int(r['choicea'])
 
     return {
         'subject_ids': [int(s) for s in subject_ids],
@@ -131,7 +133,7 @@ def print_data_summary(data):
     print(f"    Prize B high: [{min(pb_high):.0f}, {max(pb_high):.0f}]")
     print(f"    Prize B low:  [{min(pb_low):.0f}, {max(pb_low):.0f}]")
     print(f"    Prob high:    [{min(p_high):.2f}, {max(p_high):.2f}]")
-    print(f"    Choice A rate: {sum(ch) / len(ch):.3f}")
+    print(f"    Choice A rate: {sum(ch) / len(ch):.3f} (after flipping raw right/left encoding)")
 
     # Unique probability values
     unique_probs = sorted(set(p_high))

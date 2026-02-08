@@ -24,7 +24,17 @@ See CLAUDE.md for full variable documentation.
 
 ## In Progress
 
-(none currently)
+### Switch to Prelec Probability Weighting
+- [x] Fix choice encoding bug (choice=1 was right/B, not A) in clean_data.py
+- [x] Update rdu_bhm.py to use 2-parameter Prelec PWF: w(p) = exp(-η(-ln p)^φ)
+  - Changed from 3 to 4 params per subject: r, phi, eta, mu
+  - Changed from 6 to 8 hyperparameters
+  - Updated all indexing and likelihood calls
+- [x] Update plotting.py to handle 4 parameters
+- [x] Update gen_paper_quantities.py for 4 parameters
+- [ ] Update prior_selection.py with priors for phi and eta (currently using default priors)
+- [ ] Re-run test sampling to verify convergence
+- [ ] Delete old MCMC output (incompatible with new model)
 
 ---
 

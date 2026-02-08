@@ -54,9 +54,9 @@ def gen_paper_quantities(history_dir, output_path=None):
     n_params = history_post.shape[2]
     # history has params + generated quantities
     # params = n_subjects * NPARAMS + N_HYPER
-    # gq = n_subjects * 3 + 6
-    # total = params + gq = n_subjects * (NPARAMS + 3) + N_HYPER + 6
-    n_subjects = (n_params - N_HYPER - 6) // (NPARAMS + 3)
+    # gq = n_subjects * 4 + 8 (r, phi, eta, mu per subject + 8 pop params)
+    # total = params + gq = n_subjects * (NPARAMS + 4) + N_HYPER + 8
+    n_subjects = (n_params - N_HYPER - 8) // (NPARAMS + 4)
     first_hyper = n_subjects * NPARAMS
 
     # Extract posterior means
@@ -72,10 +72,12 @@ def gen_paper_quantities(history_dir, output_path=None):
     print(f"\nHyperparameter Posterior Summary:")
     print(f"  r_mean:      {hyper_means[0]:.4f} ± {hyper_stds[0]:.4f} (R-hat: {hyper_rhat[0]:.3f})")
     print(f"  r_logsd:     {hyper_means[1]:.4f} ± {hyper_stds[1]:.4f} (R-hat: {hyper_rhat[1]:.3f})")
-    print(f"  gamma_mean:  {hyper_means[2]:.4f} ± {hyper_stds[2]:.4f} (R-hat: {hyper_rhat[2]:.3f})")
-    print(f"  gamma_logsd: {hyper_means[3]:.4f} ± {hyper_stds[3]:.4f} (R-hat: {hyper_rhat[3]:.3f})")
-    print(f"  mu_mean:     {hyper_means[4]:.4f} ± {hyper_stds[4]:.4f} (R-hat: {hyper_rhat[4]:.3f})")
-    print(f"  mu_logsd:    {hyper_means[5]:.4f} ± {hyper_stds[5]:.4f} (R-hat: {hyper_rhat[5]:.3f})")
+    print(f"  phi_mean:    {hyper_means[2]:.4f} ± {hyper_stds[2]:.4f} (R-hat: {hyper_rhat[2]:.3f})")
+    print(f"  phi_logsd:   {hyper_means[3]:.4f} ± {hyper_stds[3]:.4f} (R-hat: {hyper_rhat[3]:.3f})")
+    print(f"  eta_mean:    {hyper_means[4]:.4f} ± {hyper_stds[4]:.4f} (R-hat: {hyper_rhat[4]:.3f})")
+    print(f"  eta_logsd:   {hyper_means[5]:.4f} ± {hyper_stds[5]:.4f} (R-hat: {hyper_rhat[5]:.3f})")
+    print(f"  mu_mean:     {hyper_means[6]:.4f} ± {hyper_stds[6]:.4f} (R-hat: {hyper_rhat[6]:.3f})")
+    print(f"  mu_logsd:    {hyper_means[7]:.4f} ± {hyper_stds[7]:.4f} (R-hat: {hyper_rhat[7]:.3f})")
 
     # R-hat summary
     print(f"\nR-hat Summary:")

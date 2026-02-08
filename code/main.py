@@ -106,6 +106,15 @@ PRIOR_SELECTION = {
     'alpha_0': 6.0,
 }
 
+# Uninformative (diffuse) prior for comparison
+# Uses N(0, 100^2) = N(0, 10000) for all parameters
+UNINFORMATIVE_PRIOR = {
+    'r': {'mu': 0.0, 'sigma2': 10000.0},
+    'phi_raw': {'mu': 0.0, 'sigma2': 10000.0},
+    'eta_raw': {'mu': 0.0, 'sigma2': 10000.0},
+    'lambda_raw': {'mu': 0.0, 'sigma2': 10000.0},
+}
+
 # Skew-Normal example configuration (for Appendix B)
 # Direct prior: SN(ξ*, ω*, α*) - the target unconditional distribution
 SKEW_NORMAL_DIRECT_PRIOR = {
@@ -138,16 +147,20 @@ N_WORKERS = 15  # Number of parallel workers for plotting, etc.
 do_clean_data     = False
 do_gen_paper_data = False
 
-# --- Prior Selection ---
+# --- Prior Selection and Plots ---
 do_generate_prior = False
+do_prior_plots    = False
 
-# --- MCMC Sampling ---
+# --- MCMC Sampling (Informative Prior) ---
 do_sampling = False
 
+# --- MCMC Sampling (Uninformative Prior) ---
+do_sampling_uninformative = False
+
 # --- Post-Processing ---
-do_gen_paper_quantities = True
-do_diagnostic_plots     = True
-do_paper_plots          = True
+do_gen_paper_quantities = False
+do_diagnostic_plots     = False
+do_paper_plots          = False
 
 # --- Appendix Examples ---
 do_skew_normal_example  = False
@@ -193,7 +206,7 @@ if __name__ == '__main__':
         )
 
     # -------------------------------------------------------------------------
-    # Prior Selection
+    # Prior Selection and Plots
     # -------------------------------------------------------------------------
     if do_generate_prior:
         pipelines.run_prior_selection(
@@ -203,12 +216,38 @@ if __name__ == '__main__':
             direct_prior=DIRECT_PRIOR
         )
 
+    if do_prior_plots:
+        pipelines.run_prior_plots(
+            direct_prior=DIRECT_PRIOR,
+            prior_selection=PRIOR_SELECTION,
+            output_dir=PLOTS_DIR / 'priors',
+            seed=SEEDS['sampling']
+        )
+
     # -------------------------------------------------------------------------
-    # MCMC Sampling
+    # MCMC Sampling (Informative Prior)
     # -------------------------------------------------------------------------
     if do_sampling:
         check_dependency('sampling', ['clean_data', 'prior_params'])
         pipelines.run_sampling(sampling_opts)
+
+    # -------------------------------------------------------------------------
+    # MCMC Sampling (Uninformative Prior)
+    # -------------------------------------------------------------------------
+    if do_sampling_uninformative:
+        check_dependency('sampling_uninformative', ['clean_data'])
+        # Generate uninformative prior params
+        pipelines.run_prior_selection(
+            DATA_DIR,
+            rho=PRIOR_SELECTION['rho'],
+            alpha_0=PRIOR_SELECTION['alpha_0'],
+            direct_prior=UNINFORMATIVE_PRIOR
+        )
+        # Run sampling with uninformative prior
+        uninformative_opts = sampling_opts.copy()
+        uninformative_opts['output_dir'] = DATA_DIR / 'output_uninformative'
+        uninformative_opts['plots_dir'] = PLOTS_DIR / 'rdu_bhm_uninformative'
+        pipelines.run_sampling(uninformative_opts)
 
     # -------------------------------------------------------------------------
     # Post-Processing

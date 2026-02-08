@@ -114,3 +114,27 @@ def run_skew_normal_example(direct_prior, researcher_choices, output_dir,
     _run(direct_prior, researcher_choices, output_dir,
          n_mc_samples=n_mc_samples, seed=seed)
     print("Done.\n")
+
+
+def run_prior_plots(direct_prior, prior_selection, output_dir, seed=42):
+    """Generate prior distribution plots."""
+    print("\n" + "=" * 60)
+    print("Running: Prior Distribution Plots")
+    print("=" * 60)
+    from plotting import plot_direct_prior, plot_unconditional_prior, plot_prior_comparison
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print("  Plotting direct prior...")
+    plot_direct_prior(direct_prior, output_dir / 'direct_prior.pdf', seed=seed)
+
+    print("  Plotting unconditional prior (BHM)...")
+    plot_unconditional_prior(direct_prior, prior_selection,
+                              output_dir / 'unconditional_prior.pdf', seed=seed)
+
+    print("  Plotting prior comparison...")
+    plot_prior_comparison(direct_prior, prior_selection,
+                           output_dir / 'prior_comparison.pdf', seed=seed)
+
+    print("Done.\n")

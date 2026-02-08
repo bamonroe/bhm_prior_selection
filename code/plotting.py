@@ -591,3 +591,250 @@ def paper_plots(quantities_path, plots_dir):
 
     # TODO: Add specific paper plots as needed
     print("  Paper plots not yet implemented")
+
+
+# =============================================================================
+# PRIOR DISTRIBUTION PLOTS
+# =============================================================================
+
+# Parameter display info for prior plots
+PRIOR_PARAM_INFO = [
+    ('r', r'$r$ (CRRA)', False),           # (key, label, log_scale)
+    ('phi_raw', r'$\ln\phi$', True),
+    ('eta_raw', r'$\ln\eta$', True),
+    ('lambda_raw', r'$\ln\lambda$', True),
+]
+
+
+def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
+    """
+    Generate 4-panel plot of the direct prior distribution.
+
+    Samples from N(mu, sigma2) for each parameter and plots the distribution.
+
+    Args:
+        direct_prior: Dict with {param: {'mu': float, 'sigma2': float}}
+        output_path: Path to save the figure
+        n_samples: Number of samples to draw
+        seed: Random seed for reproducibility
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    np.random.seed(seed)
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    axes = axes.flatten()
+    fig.suptitle('Direct Prior Distribution', fontsize=14, fontweight='bold')
+
+    for i, (key, label, is_log) in enumerate(PRIOR_PARAM_INFO):
+        ax = axes[i]
+        mu = direct_prior[key]['mu']
+        sigma = np.sqrt(direct_prior[key]['sigma2'])
+
+        # Sample from direct prior
+        samples = np.random.normal(mu, sigma, n_samples)
+
+        # Plot histogram and KDE
+        ax.hist(samples, bins=50, density=True, alpha=0.6, color=COLOR_DATA,
+                edgecolor='white', linewidth=0.5)
+
+        try:
+            kde = stats.gaussian_kde(samples)
+            x_range = np.linspace(samples.min(), samples.max(), 200)
+            ax.plot(x_range, kde(x_range), color=COLOR_DATA, lw=2)
+        except Exception:
+            pass
+
+        # Mark mean
+        ax.axvline(mu, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                   label=f'Mean: {mu:.2f}')
+
+        # Add ±2σ range
+        ax.axvline(mu - 2*sigma, color='gray', linestyle=':', alpha=0.7)
+        ax.axvline(mu + 2*sigma, color='gray', linestyle=':', alpha=0.7)
+
+        ax.set_xlabel(label, fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.set_title(f'{label.split("$")[1].split("$")[0] if "$" in label else key}', fontsize=12)
+        ax.legend(loc='upper right', fontsize=9)
+
+        # Add text annotation
+        ax.text(0.02, 0.98, f'$\\mu={mu:.2f}$, $\\sigma={sigma:.2f}$',
+                transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Saved: {output_path}")
+
+
+def plot_unconditional_prior(direct_prior, prior_selection, output_path,
+                              n_samples=10000, seed=42):
+    """
+    Generate 4-panel plot of the unconditional BHM prior distribution.
+
+    Samples from the full BHM structure:
+    1. Sample hyperparams: mu ~ N(mu_0, tau_0^2), sigma^2 ~ IG(alpha_0, beta_0)
+    2. Sample individual: theta ~ N(mu, sigma^2)
+
+    Args:
+        direct_prior: Dict with {param: {'mu': float, 'sigma2': float}}
+        prior_selection: Dict with {'rho': float, 'alpha_0': float}
+        output_path: Path to save the figure
+        n_samples: Number of samples to draw
+        seed: Random seed for reproducibility
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    np.random.seed(seed)
+
+    rho = prior_selection['rho']
+    alpha_0 = prior_selection['alpha_0']
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    axes = axes.flatten()
+    fig.suptitle('Unconditional Prior Distribution (BHM)', fontsize=14, fontweight='bold')
+
+    for i, (key, label, is_log) in enumerate(PRIOR_PARAM_INFO):
+        ax = axes[i]
+
+        # Get direct prior params
+        mu_ps = direct_prior[key]['mu']
+        var_ps = direct_prior[key]['sigma2']
+
+        # Derive hyperpriors
+        tau_0_sq = rho * var_ps
+        expected_sigma_sq = (1 - rho) * var_ps
+        beta_0 = expected_sigma_sq * (alpha_0 - 1)
+
+        # Sample from BHM
+        samples = np.zeros(n_samples)
+        for j in range(n_samples):
+            # Sample population mean
+            mu = np.random.normal(mu_ps, np.sqrt(tau_0_sq))
+
+            # Sample population variance (Inverse-Gamma)
+            sigma_sq = 1.0 / np.random.gamma(alpha_0, 1.0 / beta_0)
+
+            # Sample individual
+            samples[j] = np.random.normal(mu, np.sqrt(sigma_sq))
+
+        # Plot histogram and KDE
+        ax.hist(samples, bins=50, density=True, alpha=0.6, color=COLOR_DATA,
+                edgecolor='white', linewidth=0.5)
+
+        try:
+            kde = stats.gaussian_kde(samples)
+            x_range = np.linspace(samples.min(), samples.max(), 200)
+            ax.plot(x_range, kde(x_range), color=COLOR_DATA, lw=2)
+        except Exception:
+            pass
+
+        # Mark direct prior mean
+        ax.axvline(mu_ps, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                   label=f'Prior mean: {mu_ps:.2f}')
+
+        # Add ±2σ range from direct prior
+        sigma_ps = np.sqrt(var_ps)
+        ax.axvline(mu_ps - 2*sigma_ps, color='gray', linestyle=':', alpha=0.7)
+        ax.axvline(mu_ps + 2*sigma_ps, color='gray', linestyle=':', alpha=0.7)
+
+        ax.set_xlabel(label, fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.set_title(f'{label.split("$")[1].split("$")[0] if "$" in label else key}', fontsize=12)
+        ax.legend(loc='upper right', fontsize=9)
+
+        # Add text with sample stats
+        sample_mean = np.mean(samples)
+        sample_std = np.std(samples)
+        ax.text(0.02, 0.98, f'Sample: $\\mu={sample_mean:.2f}$, $\\sigma={sample_std:.2f}$\n'
+                           f'Target: $\\mu={mu_ps:.2f}$, $\\sigma={sigma_ps:.2f}$',
+                transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Saved: {output_path}")
+
+
+def plot_prior_comparison(direct_prior, prior_selection, output_path,
+                           n_samples=10000, seed=42):
+    """
+    Generate comparison plot showing direct prior vs unconditional BHM prior.
+
+    Overlays both distributions to verify they match.
+
+    Args:
+        direct_prior: Dict with {param: {'mu': float, 'sigma2': float}}
+        prior_selection: Dict with {'rho': float, 'alpha_0': float}
+        output_path: Path to save the figure
+        n_samples: Number of samples to draw
+        seed: Random seed for reproducibility
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    np.random.seed(seed)
+
+    rho = prior_selection['rho']
+    alpha_0 = prior_selection['alpha_0']
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    axes = axes.flatten()
+    fig.suptitle('Prior Comparison: Direct vs Unconditional BHM', fontsize=14, fontweight='bold')
+
+    for i, (key, label, is_log) in enumerate(PRIOR_PARAM_INFO):
+        ax = axes[i]
+
+        # Get direct prior params
+        mu_ps = direct_prior[key]['mu']
+        var_ps = direct_prior[key]['sigma2']
+        sigma_ps = np.sqrt(var_ps)
+
+        # Sample from direct prior
+        direct_samples = np.random.normal(mu_ps, sigma_ps, n_samples)
+
+        # Derive hyperpriors and sample from BHM
+        tau_0_sq = rho * var_ps
+        expected_sigma_sq = (1 - rho) * var_ps
+        beta_0 = expected_sigma_sq * (alpha_0 - 1)
+
+        bhm_samples = np.zeros(n_samples)
+        for j in range(n_samples):
+            mu = np.random.normal(mu_ps, np.sqrt(tau_0_sq))
+            sigma_sq = 1.0 / np.random.gamma(alpha_0, 1.0 / beta_0)
+            bhm_samples[j] = np.random.normal(mu, np.sqrt(sigma_sq))
+
+        # Plot both distributions
+        x_min = min(direct_samples.min(), bhm_samples.min())
+        x_max = max(direct_samples.max(), bhm_samples.max())
+        x_range = np.linspace(x_min, x_max, 200)
+
+        try:
+            kde_direct = stats.gaussian_kde(direct_samples)
+            ax.plot(x_range, kde_direct(x_range), color='blue', lw=2,
+                    label='Direct Prior', alpha=0.8)
+            ax.fill_between(x_range, kde_direct(x_range), color='blue', alpha=0.2)
+        except Exception:
+            pass
+
+        try:
+            kde_bhm = stats.gaussian_kde(bhm_samples)
+            ax.plot(x_range, kde_bhm(x_range), color='red', lw=2,
+                    label='Unconditional BHM', linestyle='--', alpha=0.8)
+        except Exception:
+            pass
+
+        ax.set_xlabel(label, fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.set_title(f'{label.split("$")[1].split("$")[0] if "$" in label else key}', fontsize=12)
+        ax.legend(loc='upper right', fontsize=9)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Saved: {output_path}")

@@ -229,25 +229,31 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------
     if do_sampling:
         check_dependency('sampling', ['clean_data', 'prior_params'])
-        pipelines.run_sampling(sampling_opts)
+        prior_params_path = DATA_DIR / 'output' / 'prior_params.npz'
+        pipelines.run_sampling(sampling_opts, prior_params_path=prior_params_path)
 
     # -------------------------------------------------------------------------
     # MCMC Sampling (Uninformative Prior)
     # -------------------------------------------------------------------------
     if do_sampling_uninformative:
         check_dependency('sampling_uninformative', ['clean_data'])
-        # Generate uninformative prior params
-        pipelines.run_prior_selection(
-            DATA_DIR,
+
+        # Generate uninformative prior params to separate file
+        uninformative_prior_path = DATA_DIR / 'output' / 'prior_params_uninformative.npz'
+        from prior_selection import run_prior_selection as _run_prior
+        _run_prior(
             rho=PRIOR_SELECTION['rho'],
             alpha_0=PRIOR_SELECTION['alpha_0'],
+            output_path=uninformative_prior_path,
             direct_prior=UNINFORMATIVE_PRIOR
         )
+
         # Run sampling with uninformative prior
         uninformative_opts = sampling_opts.copy()
         uninformative_opts['output_dir'] = DATA_DIR / 'output_uninformative'
         uninformative_opts['plots_dir'] = PLOTS_DIR / 'rdu_bhm_uninformative'
-        pipelines.run_sampling(uninformative_opts)
+        uninformative_opts['clean'] = True  # Clean previous uninformative runs
+        pipelines.run_sampling(uninformative_opts, prior_params_path=uninformative_prior_path)
 
     # -------------------------------------------------------------------------
     # Post-Processing

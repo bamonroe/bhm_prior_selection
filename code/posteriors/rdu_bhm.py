@@ -101,6 +101,68 @@ HYPERPRIOR_SPECS = {
 PARAM_NAMES = ('r', 'phi_raw', 'eta_raw', 'lambda_raw')
 
 
+def load_hyperpriors_from_file(filepath):
+    """
+    Load hyperprior specifications from a prior_params.npz file.
+
+    Updates the global HYPERPRIOR_SPECS with values from the file.
+    This should be called BEFORE running sampling to use custom priors.
+
+    Args:
+        filepath: Path to prior_params.npz file
+
+    Returns:
+        dict: The loaded hyperprior specs
+    """
+    global HYPERPRIOR_SPECS
+
+    data = np.load(filepath)
+
+    # Build new hyperprior specs from file
+    new_specs = {}
+
+    # r
+    new_specs['r'] = {
+        'mu_0': float(data['r_mean']),
+        'tau_0_sq': float(np.exp(data['ln_r_sdev']) ** 2),
+        'alpha_0': float(data['alpha_0']),
+        'beta_0': float(data['beta_0_r']),
+    }
+
+    # phi_raw
+    new_specs['phi_raw'] = {
+        'mu_0': float(data['phi_mean']),
+        'tau_0_sq': float(np.exp(data['ln_phi_sdev']) ** 2),
+        'alpha_0': float(data['alpha_0']),
+        'beta_0': float(data['beta_0_phi']),
+    }
+
+    # eta_raw
+    new_specs['eta_raw'] = {
+        'mu_0': float(data['eta_mean']),
+        'tau_0_sq': float(np.exp(data['ln_eta_sdev']) ** 2),
+        'alpha_0': float(data['alpha_0']),
+        'beta_0': float(data['beta_0_eta']),
+    }
+
+    # lambda_raw
+    new_specs['lambda_raw'] = {
+        'mu_0': float(data['lambda_mean']),
+        'tau_0_sq': float(np.exp(data['ln_lambda_sdev']) ** 2),
+        'alpha_0': float(data['alpha_0']),
+        'beta_0': float(data['beta_0_lambda']),
+    }
+
+    HYPERPRIOR_SPECS.update(new_specs)
+    print(f"Loaded hyperpriors from {filepath}")
+    print(f"  r: mu_0={new_specs['r']['mu_0']:.4f}, tau_0={np.sqrt(new_specs['r']['tau_0_sq']):.4f}")
+    print(f"  phi_raw: mu_0={new_specs['phi_raw']['mu_0']:.4f}")
+    print(f"  eta_raw: mu_0={new_specs['eta_raw']['mu_0']:.4f}")
+    print(f"  lambda_raw: mu_0={new_specs['lambda_raw']['mu_0']:.4f}")
+
+    return new_specs
+
+
 # =============================================================================
 # Index Helpers
 # =============================================================================

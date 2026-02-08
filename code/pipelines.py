@@ -41,11 +41,22 @@ def run_prior_selection(data_dir, rho=0.3, alpha_0=6.0, direct_prior=None):
     print("Done.\n")
 
 
-def run_sampling(sampling_opts):
-    """Run MCMC sampling."""
+def run_sampling(sampling_opts, prior_params_path=None):
+    """Run MCMC sampling.
+
+    Args:
+        sampling_opts: Sampling configuration dict
+        prior_params_path: Path to prior_params.npz to load hyperpriors from.
+                          If None, uses default hyperpriors.
+    """
     print("\n" + "=" * 60)
     print("Running: MCMC Sampling")
     print("=" * 60)
+
+    # Load hyperpriors from file if specified
+    if prior_params_path is not None:
+        from posteriors.rdu_bhm import load_hyperpriors_from_file
+        load_hyperpriors_from_file(prior_params_path)
 
     # Clean existing files if requested
     if sampling_opts.get('clean', False):

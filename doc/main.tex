@@ -25,7 +25,6 @@
 \newcommand{\E}[1]{\mathbb{E}\left[#1\right]}
 \newcommand{\Var}[1]{\text{Var}\left[#1\right]}
 \newcommand{\Cov}[2]{\text{Cov}\left[#1, #2\right]}
-\newcommand{\tij}{\theta_i^j}
 
 \begin{document}
 
@@ -295,15 +294,19 @@ initial 4 degrees of freedom needed to select hyper-prior parameters. With
 these specifications, the hyper-parameters specified in
 (\ref{eq:simple_bhm_mean}) and (\ref{eq:simple_bhm_sd}) are fully defined:
 \begin{align}
-    \mu_{0,j} &= \mu_{\text{ps},j} \label{eq:hp_mu}\\
-    \tau_{0,j}^2 &= \rho \cdot V_{\text{ps},j} \label{eq:hp_tau}\\
+    \mu_{0} &= \mu^* \label{eq:hp_mu}\\
+    \tau_{0}^2 &= \rho \sigma^{2*} \label{eq:hp_tau}\\
     \alpha_0 &= \alpha_0 \quad \text{(researcher specified)} \label{eq:hp_alpha}\\
-    \beta_{0,j} &= (1 - \rho) \cdot V_{\text{ps},j} \cdot (\alpha_0 - 1) \label{eq:hp_beta}
+    \beta_{0} &= (1 - \rho) \sigma^{2*} (\alpha_0 - 1) \label{eq:hp_beta}
 \end{align}
 
-One can verify that $\E[\sigma_j^2] + \tau_{0,j}^2 = V_{\text{ps},j}$ for any
-valid $\rho$ and $\alpha_0$, confirming the unconditional variance matches the
-prior selection target by construction.
+It is worth noting that there is no \enquote{free lunch} here, with 4
+hyper-prior parameters, there are still 4 research decisions to make to satisfy
+the 4 degrees of freedom. The primary advantage of this approach is when it is
+easier to specify the prior for a given individual $\theta_i$ through a simpler
+distribution, and then re-parameterize such that the researcher decision then
+becomes about the degree of heterogeneity in the population.
+
 
 \section{Defining a Bayesian Hierarchical Model of Risk Preferences}
 
@@ -337,16 +340,17 @@ logistic choice function:
 \begin{align}
 \label{eq:likelihood}
 \begin{split}
-  L(A) &= \frac{1}{1 + \exp\left(-d\right)} \\
-  d &= \frac{U(A) - U(B)}{\lambda \left(u(\bar{x}) - u(\underbar{x})\right)}
+  L(A) &= \frac{1}{1 + \exp\left(-\Delta\right)} \\
+  \Delta &= \frac{U(A) - U(B)}{\lambda \left(u(\bar{x}) - u(\underbar{x})\right)}
 \end{split}
 \end{align}
-\noindent where $d$ is a non-linear latent index of utility differences,
-$\lambda > 0$ is a \enquote{Fechnerian} noise scaling parameter, and $u(\bar{x}) -
-u(\underbar{x})$ is the difference between the greatest and least outcome with
-positive probability across \textit{A} and \textit{B}, which normalizes the
-difference in utilities to be between $[-1, 1]$ and applies the Contextual
-Utility model of \textcite{Wilcox2011}.
+\noindent where $\Delta$ is a non-linear latent index of utility differences,
+$\lambda > 0$ is a \enquote{Fechnerian} noise scaling parameter, and
+$u(\bar{x}) - u(\underbar{x})$ is the difference between the greatest and least
+outcome with positive probability across \textit{A} and \textit{B}. Dividing by
+the difference of maximum and minimum utilities normalizes the difference in
+utilities to be between $[-1, 1]$ and applies the Contextual Utility model of
+\textcite{Wilcox2011}.
 
 This basic model has been estimated numerous times in varied applications. It
 was used by \textcite{Harrison2021} to assess the changes in risk preferences
@@ -360,32 +364,40 @@ As a model for an individual agent, the vector $\theta_i = [r_i, \phi_i,
 takes the form of finding the posterior distribution of $\theta$ conditional on
 observed choice data:
 \begin{equation}
-  p(\theta_i | D) \propto L(D | \theta_i) p(\theta_i | \alpha^0)
+  p(\theta_i | D) \propto L(D | \theta_i) p(\theta_i)
 \end{equation}
 \noindent where (\ref{eq:likelihood}) specifies how the likelihood $L(D |
 \theta_i)$ is calculated, and the job of the researcher is to specify the prior
-distribution $p(\theta_i | \alpha^0)$ and its governing prior parameter vector
-$\alpha^0$.\footnote{
-  I use the $0$ superscript throughout to designate when a parameter is
-  specified rather than estimated.
-} Extending this model to a hierarchical setting requires factoring out a
-distribution of $\alpha$:
-\begin{equation}
-  p(\theta_i | D) \propto \int L(D | \theta_i) p(\theta_i | \alpha) p(\alpha | \beta^0) \, d\alpha
-\end{equation}
-\noindent where additional hierarchies can be added by again factoring out
-$\beta^0$.\footnote{
-  This can be done to induce some degree of conditional heterogeneity in
-  the model. For example, we may think that hyper-parameters differ based
-  on a subject's gender identification, or national identity, or college major.
-  Additional hierarchies would then be introduced to assume some degree
-  exchangeability between genders, nationalities, or majors. This extension
-  is not covered here, but the hyper-prior selection approach suggested here
-  can be extended to such additional hierarchies.
-} It is common, however, to assume individual subjects in a sample are
-exchangeable with respect to a specified \textit{hyper-prior} given by $\beta$.
-It is this assumption of exchangeability of subjects that leads to the proposed
-methods of selecting $\beta$.
+distribution $p(\theta_i)$.
+
+\subsection{Prior Specification of a Single RDU Agent}
+
+\begin{pycode}
+dprior = {
+    "r": {"mu": 0.5, "sigma2": 0.25},
+    "gamma_raw": {"mu": 0.0, "sigma2": 0.09},
+    "mu_raw": {"mu": -2.0, "sigma2": 1.0}
+}
+\end{pycode}
+
+Following the example above, we define the $r_i$ parameter, and the natural log
+of the remaining parameters, to have a Normal distribution:
+\begin{align}
+\begin{split}
+  r &\sim N(\mu_r, \sigma_r^2) \\
+  \ln{\gamma} &\sim N(\mu_{\ln\gamma}, \sigma_{\ln\gamma}^2) \\
+  \ln{\mu} &\sim N(\mu_{\ln\mu}, \sigma_{\ln\mu}^2)
+\end{split}
+\end{align}
+\noindent with specific values for these \enquote{direct prior} parameters:
+\begin{align}
+\begin{split}
+  \mu_r &= \py{dprior["r"]["mu"]}, \quad \sigma_r^2 = \py{dprior["r"]["sigma2"]} \\
+  \mu_{\ln\gamma} &= \py{dprior["gamma_raw"]["mu"]}, \quad \sigma_{\ln\gamma}^2 = \py{dprior["gamma_raw"]["sigma2"]} \\
+  \mu_{\ln\mu} &= \py{dprior["mu_raw"]["mu"]}, \quad \sigma_{\ln\mu}^2 = \py{dprior["mu_raw"]["sigma2"]}
+\end{split}
+\end{align}
+
 
 
 \section{Application: RDU Estimation}

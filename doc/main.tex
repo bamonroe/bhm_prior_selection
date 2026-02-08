@@ -46,7 +46,7 @@
   this individual-level specification. For a model with $p$ parameters, this
   reduces $4p$ hyperprior choices to just 2: a variance partition ratio and a
   concentration parameter. I demonstrate the approach using rank-dependent
-  utility estimation with data from \textcite{andersen2008discounting}, showing
+  utility estimation with data from \textcite{Andersen2008}, showing
   that the methodology produces well-identified posteriors with excellent
   convergence properties.
   \end{justify}
@@ -256,8 +256,8 @@ variance gives:
 \end{align}
 where $\tau_{0}^2$ is the prior
 variance on the mean hyper-parameter $\mu$, and $\alpha_0, \beta_0$ are the
-shape and scale parameters for the inverse-gamma distribution used to model the
-variance hyper-parameter, $\sigma^2$.
+shape and scale parameters for the inverse-gamma distributed variance
+hyper-parameter, $\sigma^2$.
 
 This decomposition of the direct prior variance allows us to think of it in
 terms of our uncertainty about the population mean, represented here by
@@ -390,7 +390,7 @@ methods of selecting $\beta$.
 
 \subsection{Model}
 
-I apply the methodology to rank-dependent utility \parencite{quiggin1982theory}
+I apply the methodology to rank-dependent utility \parencite{Quiggin1982}
 with power probability weighting. For a lottery with outcomes $(x_H, x_L)$ and
 probability $p$ of $x_H$, the RDU value is:
 \begin{equation}
@@ -428,7 +428,7 @@ $\log \mu$ & $-2.0$ & 1.0 & Moderate noise ($\mu \approx 0.14$) \\
 These priors reflect the empirical literature on risk preferences: most
 individuals exhibit mild risk aversion ($r \approx 0.3$--$0.8$), probability
 weighting near unity, and substantial stochastic variation in choices
-\parencite{harrison2008risk, wilcox2011stochastic}.
+\parencite{Harrison2008, Wilcox2011}.
 
 \subsection{Derived Hyperpriors}
 
@@ -447,11 +447,11 @@ $\log \mu$ & $-2.00$ & 0.55 & 0.84 & 1.00 \\
 
 \subsection{Data}
 
-I use the risk aversion task from \textcite{andersen2008discounting}, which
+I use the risk aversion task from \textcite{Andersen2008}, which
 elicited lottery choices from 501 subjects in Denmark. Each subject made 40
 binary choices between lotteries with varying prize amounts and probabilities.
 This dataset has been analyzed extensively and provides a benchmark for
-methodological comparisons \parencite{gao2022behavioral}.
+methodological comparisons \parencite{Gao2022}.
 
 \subsection{Estimation}
 

@@ -96,7 +96,7 @@ def uninformative_prior_selection() -> PriorSelectionResult:
     )
 
 
-def rdu_prelec_prior_selection() -> PriorSelectionResult:
+def rdu_prelec_prior_selection(direct_prior: Optional[Dict] = None) -> PriorSelectionResult:
     """
     Prior selection for RDU model with 2-parameter Prelec probability weighting.
 
@@ -105,32 +105,35 @@ def rdu_prelec_prior_selection() -> PriorSelectionResult:
 
     Parameters:
     -----------
+    direct_prior : dict, optional
+        Dictionary specifying the direct prior for each parameter.
+        Expected structure:
+        {
+            'r': {'mu': float, 'sigma2': float},
+            'phi_raw': {'mu': float, 'sigma2': float},
+            'eta_raw': {'mu': float, 'sigma2': float},
+            'lambda_raw': {'mu': float, 'sigma2': float},
+        }
+        If None, uses default values.
+
+    Parameter interpretations:
+    --------------------------
     r : CRRA coefficient (untransformed)
         - r < 0: risk loving
         - r = 0: risk neutral
         - r = 1: log utility
         - r > 1: very risk averse
-        Empirical literature suggests most people are mildly risk averse.
-        Prior: N(0.5, 0.5^2) => 95% CI roughly (-0.5, 1.5)
 
     phi_raw : log(phi) where phi is Prelec curvature parameter
         - phi = 1 (phi_raw = 0): linear in log-odds
         - phi < 1: S-shaped (overweight small, underweight large probs)
-        - phi > 1: inverse S-shaped
-        Empirical: phi typically 0.6-1.0
-        Prior on log scale: N(0, 0.3^2) => phi 95% CI roughly (0.55, 1.8)
 
     eta_raw : log(eta) where eta is Prelec elevation parameter
         - eta = 1 (eta_raw = 0): no elevation shift
         - eta < 1: pessimistic (lower weights overall)
-        - eta > 1: optimistic (higher weights overall)
-        Empirical: eta typically 0.8-1.2
-        Prior on log scale: N(0, 0.3^2) => eta 95% CI roughly (0.55, 1.8)
 
     lambda_raw : log(lambda) where lambda is Fechner noise
         - Higher lambda = more deterministic choices
-        - lambda ~ 0.1-1.0 is typical
-        Prior on log scale: N(-2, 1^2) => lambda 95% CI roughly (0.02, 1.0)
 
     Returns:
     --------
@@ -138,44 +141,48 @@ def rdu_prelec_prior_selection() -> PriorSelectionResult:
     """
     param_names = ('r', 'phi_raw', 'eta_raw', 'lambda_raw')
 
-    # Prior selection means
+    # Use provided direct_prior or defaults
+    if direct_prior is None:
+        direct_prior = {
+            'r': {'mu': 0.5, 'sigma2': 0.25},
+            'phi_raw': {'mu': 0.0, 'sigma2': 0.09},
+            'eta_raw': {'mu': 0.0, 'sigma2': 0.09},
+            'lambda_raw': {'mu': -2.0, 'sigma2': 1.0},
+        }
+
+    # Extract means and variances
     mean = np.array([
-        0.5,   # r: mild risk aversion
-        0.0,   # phi_raw: no curvature distortion (phi=1)
-        0.0,   # eta_raw: no elevation distortion (eta=1)
-        -2.0,  # lambda_raw: moderate noise (lambda ~ 0.14)
+        direct_prior['r']['mu'],
+        direct_prior['phi_raw']['mu'],
+        direct_prior['eta_raw']['mu'],
+        direct_prior['lambda_raw']['mu'],
     ])
 
-    # Prior selection variances (independent structure)
     variance = np.array([
-        0.25,  # r: sd=0.5, allows range from risk loving to very risk averse
-        0.09,  # phi_raw: sd=0.3, phi roughly 0.55 to 1.8
-        0.09,  # eta_raw: sd=0.3, eta roughly 0.55 to 1.8
-        1.0,   # lambda_raw: sd=1.0, wide range of noise levels
+        direct_prior['r']['sigma2'],
+        direct_prior['phi_raw']['sigma2'],
+        direct_prior['eta_raw']['sigma2'],
+        direct_prior['lambda_raw']['sigma2'],
     ])
 
-    description = """
+    description = f"""
     Prior selection for RDU with 2-parameter Prelec probability weighting (4 parameters):
 
     1. r (CRRA coefficient):
-       - Prior: N(0.5, 0.25)
-       - Rationale: Mild risk aversion is modal in the literature
-       - 95% CI: (-0.5, 1.5) covers risk loving to very risk averse
+       - Prior: N({direct_prior['r']['mu']}, {direct_prior['r']['sigma2']})
+       - sd = {np.sqrt(direct_prior['r']['sigma2']):.2f}
 
     2. phi_raw = log(phi) (Prelec curvature):
-       - Prior: N(0, 0.09)
-       - Rationale: phi=1 (linear in log-odds) as center
-       - 95% CI for phi: (0.55, 1.8)
+       - Prior: N({direct_prior['phi_raw']['mu']}, {direct_prior['phi_raw']['sigma2']})
+       - sd = {np.sqrt(direct_prior['phi_raw']['sigma2']):.2f}
 
     3. eta_raw = log(eta) (Prelec elevation):
-       - Prior: N(0, 0.09)
-       - Rationale: eta=1 (no elevation shift) as center
-       - 95% CI for eta: (0.55, 1.8)
+       - Prior: N({direct_prior['eta_raw']['mu']}, {direct_prior['eta_raw']['sigma2']})
+       - sd = {np.sqrt(direct_prior['eta_raw']['sigma2']):.2f}
 
     4. lambda_raw = log(lambda) (Fechner noise):
-       - Prior: N(-2, 1)
-       - Rationale: Moderate noise (lambda~0.14) with wide uncertainty
-       - 95% CI for lambda: (0.02, 1.0)
+       - Prior: N({direct_prior['lambda_raw']['mu']}, {direct_prior['lambda_raw']['sigma2']})
+       - sd = {np.sqrt(direct_prior['lambda_raw']['sigma2']):.2f}
     """
 
     return PriorSelectionResult(
@@ -187,9 +194,9 @@ def rdu_prelec_prior_selection() -> PriorSelectionResult:
 
 
 # Alias for backwards compatibility
-def rdu_power_prior_selection() -> PriorSelectionResult:
+def rdu_power_prior_selection(direct_prior: Optional[Dict] = None) -> PriorSelectionResult:
     """Deprecated: Use rdu_prelec_prior_selection instead."""
-    return rdu_prelec_prior_selection()
+    return rdu_prelec_prior_selection(direct_prior)
 
 
 def derive_hyperpriors(
@@ -327,7 +334,8 @@ def print_hyperprior_summary(hyperpriors: DerivedHyperpriors):
 def get_hyperpriors_for_rdu_bhm(
     rho: float = 0.3,
     alpha_0: float = 6.0,
-    uninformative: bool = False
+    uninformative: bool = False,
+    direct_prior: Optional[Dict] = None
 ) -> Dict:
     """
     Get hyperprior parameters formatted for rdu_bhm.py.
@@ -341,6 +349,9 @@ def get_hyperpriors_for_rdu_bhm(
     uninformative : bool
         If True, use uninformative priors (mean=0, sd=100) instead of
         the principled prior selection approach.
+    direct_prior : dict, optional
+        Dictionary specifying the direct prior for each parameter.
+        If None, uses default values from rdu_prelec_prior_selection().
 
     Returns a dict with the hyperprior values in the format expected by
     the log_posterior function.
@@ -348,7 +359,7 @@ def get_hyperpriors_for_rdu_bhm(
     if uninformative:
         ps = uninformative_prior_selection()
     else:
-        ps = rdu_prelec_prior_selection()
+        ps = rdu_prelec_prior_selection(direct_prior)
     hp = derive_hyperpriors(ps, rho=rho, alpha_0=alpha_0)
 
     return {
@@ -374,7 +385,7 @@ def get_hyperpriors_for_rdu_bhm(
     }
 
 
-def run_prior_selection(rho=0.3, alpha_0=6.0, output_path=None):
+def run_prior_selection(rho=0.3, alpha_0=6.0, output_path=None, direct_prior=None):
     """
     Run prior selection, derive hyperpriors, and save to file.
 
@@ -382,11 +393,12 @@ def run_prior_selection(rho=0.3, alpha_0=6.0, output_path=None):
         rho: Variance partition ratio (default 0.3)
         alpha_0: Concentration parameter (default 6.0)
         output_path: Path to save NPZ file (default: data/output/prior_params.npz)
+        direct_prior: Dict specifying direct prior for each parameter (optional)
     """
     from pathlib import Path
 
     print("Running prior selection for RDU model with Prelec PWF...")
-    ps = rdu_prelec_prior_selection()
+    ps = rdu_prelec_prior_selection(direct_prior)
     print(ps.description)
 
     # Derive hyperpriors
@@ -398,7 +410,7 @@ def run_prior_selection(rho=0.3, alpha_0=6.0, output_path=None):
     verify_hyperpriors(hp)
 
     # Get formatted hyperpriors
-    params = get_hyperpriors_for_rdu_bhm(rho=rho, alpha_0=alpha_0)
+    params = get_hyperpriors_for_rdu_bhm(rho=rho, alpha_0=alpha_0, direct_prior=direct_prior)
 
     # Save to file
     if output_path is None:

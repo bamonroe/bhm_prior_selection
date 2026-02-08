@@ -19,24 +19,25 @@ def run_clean_data(data_dir):
     print("Done.\n")
 
 
-def run_gen_paper_data(data_dir):
-    """Generate paper data summaries."""
+def run_gen_paper_data(data_dir, direct_prior=None, prior_selection=None):
+    """Generate paper data summaries including direct prior specification."""
     print("\n" + "=" * 60)
     print("Running: Generate Paper Data Summaries")
     print("=" * 60)
     from gen_paper_data import gen_paper_data
-    gen_paper_data()
+    gen_paper_data(direct_prior=direct_prior, prior_selection=prior_selection)
     print("Done.\n")
 
 
-def run_prior_selection(data_dir, rho=0.3, alpha_0=6.0):
+def run_prior_selection(data_dir, rho=0.3, alpha_0=6.0, direct_prior=None):
     """Run prior selection and save hyperpriors."""
     print("\n" + "=" * 60)
     print("Running: Prior Selection")
     print("=" * 60)
     from prior_selection import run_prior_selection as _run_prior_selection
     output_path = Path(data_dir) / 'output' / 'prior_params.npz'
-    _run_prior_selection(rho=rho, alpha_0=alpha_0, output_path=output_path)
+    _run_prior_selection(rho=rho, alpha_0=alpha_0, output_path=output_path,
+                         direct_prior=direct_prior)
     print("Done.\n")
 
 

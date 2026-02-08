@@ -67,6 +67,35 @@ from helpers import OUTPUTS, check_dependency, get_mcmc_dir, get_plots_dir
 # Prior Selection Configuration
 # =============================================================================
 
+# Direct Prior for RDU-BHM Model
+# This defines the prior distribution for a single random individual.
+# The hyperprior derivation ensures the unconditional BHM distribution
+# matches this direct prior exactly.
+#
+# Parameters are specified as (mean, variance) pairs:
+# - r: CRRA coefficient (untransformed)
+# - phi_raw: log(phi) where phi is Prelec curvature
+# - eta_raw: log(eta) where eta is Prelec elevation
+# - lambda_raw: log(lambda) where lambda is Fechner noise
+DIRECT_PRIOR = {
+    'r': {
+        'mu': 0.5,       # Mild risk aversion
+        'sigma2': 0.25,  # sd=0.5, 95% CI roughly (-0.5, 1.5)
+    },
+    'phi_raw': {
+        'mu': 0.0,       # phi=1 (no curvature distortion)
+        'sigma2': 0.09,  # sd=0.3, phi 95% CI roughly (0.55, 1.8)
+    },
+    'eta_raw': {
+        'mu': 0.0,       # eta=1 (no elevation distortion)
+        'sigma2': 0.09,  # sd=0.3, eta 95% CI roughly (0.55, 1.8)
+    },
+    'lambda_raw': {
+        'mu': -2.0,      # lambda ~ 0.14 (moderate noise)
+        'sigma2': 1.0,   # sd=1.0, lambda 95% CI roughly (0.02, 1.0)
+    },
+}
+
 # BHM Hyperprior researcher choices:
 # - rho: Variance partition ratio (fraction from mean uncertainty vs population spread)
 #        0.3 means 30% from hyperprior mean uncertainty, 70% from population variance
@@ -157,7 +186,11 @@ if __name__ == '__main__':
 
     if do_gen_paper_data:
         check_dependency('gen_paper_data', ['clean_data'])
-        pipelines.run_gen_paper_data(DATA_DIR)
+        pipelines.run_gen_paper_data(
+            DATA_DIR,
+            direct_prior=DIRECT_PRIOR,
+            prior_selection=PRIOR_SELECTION
+        )
 
     # -------------------------------------------------------------------------
     # Prior Selection
@@ -166,7 +199,8 @@ if __name__ == '__main__':
         pipelines.run_prior_selection(
             DATA_DIR,
             rho=PRIOR_SELECTION['rho'],
-            alpha_0=PRIOR_SELECTION['alpha_0']
+            alpha_0=PRIOR_SELECTION['alpha_0'],
+            direct_prior=DIRECT_PRIOR
         )
 
     # -------------------------------------------------------------------------

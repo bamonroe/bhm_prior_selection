@@ -386,19 +386,19 @@ of the remaining parameters, to have a Normal distribution:
 \begin{align}
 \begin{split}
   r &\sim N(\mu_r, \sigma_r^2) \\
-  \ln{\phi} &\sim N(\mu_{\ln\phi}, \sigma_{\ln\phi}^2) \\
-  \ln{\eta} &\sim N(\mu_{\ln\eta}, \sigma_{\ln\eta}^2) \\
-  \ln{\lambda} &\sim N(\mu_{\ln\lambda}, \sigma_{\ln\lambda}^2)
+  \ln{\phi} &\sim N(\mu_{\phi}, \sigma_{\phi}^2) \\
+  \ln{\eta} &\sim N(\mu_{\eta}, \sigma_{\eta}^2) \\
+  \ln{\lambda} &\sim N(\mu_{\lambda}, \sigma_{\lambda}^2)
 \end{split}
 \end{align}
 \noindent with specific values for these \enquote{direct prior} parameters:
 
 \begin{equation}
 \begin{matrix}
-  \mu_r = \py{dprior["r"]["mu"]} & \quad \sigma_r^2 = \py{dprior["r"]["sigma2"]} \\
-  \mu_{\ln\phi} = \py{dprior["phi_raw"]["mu"]} & \quad \sigma_{\ln\phi}^2 = \py{dprior["phi_raw"]["sigma2"]} \\
-  \mu_{\ln\eta} = \py{dprior["eta_raw"]["mu"]} & \quad \sigma_{\ln\eta}^2 = \py{dprior["eta_raw"]["sigma2"]} \\
-  \mu_{\ln\lambda} = \py{dprior["lambda_raw"]["mu"]} & \quad \sigma_{\ln\lambda}^2 = \py{dprior["lambda_raw"]["sigma2"]}
+  \mu_r = \py{dprior["r"]["mu"]} &  \sigma_r^2 = \py{dprior["r"]["sigma2"]} \\
+  \mu_{\phi} = \py{dprior["phi_raw"]["mu"]} &  \sigma_{\phi}^2 = \py{dprior["phi_raw"]["sigma2"]} \\
+  \mu_{\eta} = \py{dprior["eta_raw"]["mu"]} &  \sigma_{\eta}^2 = \py{dprior["eta_raw"]["sigma2"]} \\
+  \mu_{\lambda} = \py{dprior["lambda_raw"]["mu"]} &  \sigma_{\lambda}^2 = \py{dprior["lambda_raw"]["sigma2"]}
 \end{matrix}
 \end{equation}
 

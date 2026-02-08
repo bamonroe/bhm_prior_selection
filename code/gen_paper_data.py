@@ -11,12 +11,14 @@ from pathlib import Path
 from clean_data import load_raw_data, parse_ra_data
 
 
-def gen_paper_data(output_path=None):
+def gen_paper_data(output_path=None, direct_prior=None, prior_selection=None):
     """
     Generate summary statistics about the experimental data.
 
     Args:
         output_path: Path to save NPZ file (default: data/output/paper_data.npz)
+        direct_prior: Dict with direct prior specification for each parameter
+        prior_selection: Dict with researcher choices (rho, alpha_0)
     """
     print("Loading data...")
     ra_rows = load_raw_data()
@@ -50,16 +52,33 @@ def gen_paper_data(output_path=None):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    np.savez(
-        output_path,
-        n_subjects=n_subjects,
-        n_choices_per_subject=n_choices_per_subject,
-        total_choices=total_choices,
-        prize_min=all_prizes.min(),
-        prize_max=all_prizes.max(),
-        prob_min=all_probs.min(),
-        prob_max=all_probs.max(),
-    )
+    # Build save dict
+    save_dict = {
+        'n_subjects': n_subjects,
+        'n_choices_per_subject': n_choices_per_subject,
+        'total_choices': total_choices,
+        'prize_min': all_prizes.min(),
+        'prize_max': all_prizes.max(),
+        'prob_min': all_probs.min(),
+        'prob_max': all_probs.max(),
+    }
+
+    # Add direct prior if provided
+    if direct_prior is not None:
+        print("\nDirect Prior:")
+        for param, spec in direct_prior.items():
+            print(f"  {param}: mu={spec['mu']}, sigma2={spec['sigma2']}")
+            save_dict[f'dprior_{param}_mu'] = spec['mu']
+            save_dict[f'dprior_{param}_sigma2'] = spec['sigma2']
+
+    # Add prior selection choices if provided
+    if prior_selection is not None:
+        print("\nPrior Selection Choices:")
+        for key, val in prior_selection.items():
+            print(f"  {key}: {val}")
+            save_dict[f'ps_{key}'] = val
+
+    np.savez(output_path, **save_dict)
     print(f"\nSaved to: {output_path}")
 
 

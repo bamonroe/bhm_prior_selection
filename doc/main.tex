@@ -262,41 +262,43 @@ hyper-parameter, $\sigma^2$.
 This decomposition of the direct prior variance allows us to think of it in
 terms of our uncertainty about the population mean, represented here by
 $\tau_0$, and the expectation of the population heterogeneity, here represented
-by $\frac{\beta_0}{\left(\alpha_0 - 1\right)}$.
-
-
-
-Let $V_j$ denote the prior selection variance for parameter $j$. I parameterize
-the decomposition using a variance partition ratio $\rho \in (0,1)$:
+by ${\beta_0}/{\left(\alpha_0 - 1\right)}$. We can re-parameterize this
+relationship as assigning a fraction of the direct prior variance $\sigma^{2*}$
+to each of these components:
 \begin{align}
-    \tau_{0,j}^2 &= \rho \cdot V_j \quad \text{(uncertainty about population mean)} \\
-    \E[\sigma_j^2] &= (1 - \rho) \cdot V_j \quad \text{(expected population heterogeneity)}
+  \sigma^{2*} &= \rho \sigma^{2*} + (1 - \rho) \sigma^{2*} \\
+  %{} &= \frac{\tau_0^2}{\rho} \\
+  %{} &= \frac{\beta}{(\alpha_0 - 1)(1 - \rho)}\\
+  \rho \sigma^{2*} &= \tau_{0}^2 \\ %\quad \text{(uncertainty about population mean)} \\
+  (1 - \rho) \sigma^{2*} &= \frac{\beta_0}{\left(\alpha_0 - 1\right)}  % \quad \text{(expected population heterogeneity)}
 \end{align}
+\noindent where $\rho \in (0,1)$ indicates a variance partition ratio. The
+parameter $\rho$ has a clear interpretation: the fraction of direct prior
+variance attributable to uncertainty about where the population is centered. It
+also means that by specifying $\rho$, and having a known direct prior variance
+$\sigma^{2*}$, we fully define $\tau_0$.
 
-The parameter $\rho$ has a clear interpretation: the fraction of total prior
-variance attributable to not knowing where the population is centered. With
-$\rho = 0.3$ (my default), 30\% of the prior width reflects uncertainty about
-the population mean and 70\% reflects expected heterogeneity across
-individuals.
+The expected population variance $\E{\sigma_j^2} = \beta_{0,j}/(\alpha_{0,j} -
+1)$, however, involves two unknowns. We therefore either need to further
+re-parameterize, or specify one directly. With the $\rho$ parameter in place,
+and interpretable as, in part, managing prior beliefs about the heterogeneity
+of the population, I believe that specifying $\alpha_0$ directly is the best
+course of action. The $\alpha_0$ parameter is the scale of the Inverse-Gamma
+distribution that determines the variance hyper-parameter. In a sense,
+$\alpha_0$ can be thought of as a pseudo-count of the number of observations
+that informs the prior.
 
-\subsection{Concentration Parameter}
-
-The expected population variance $\E[\sigma_j^2] = \beta_{0,j}/(\alpha_{0,j} -
-1)$ involves two unknowns. I fix the concentration parameter $\alpha_{0,j} =
-\alpha_0$ for all parameters, which determines how confident we are that the
-prior selection variance is correct. With $\alpha_0 = 6$ (my default), the
-coefficient of variation of $\sigma_j^2$ is 0.5, reflecting moderate
-uncertainty.
-
-\subsection{Derived Hyperpriors}
-
-Given prior selection results $(\mu_{\text{ps}}, V_{\text{ps}})$, the variance
-partition ratio $\rho$, and concentration $\alpha_0$, all hyperpriors are
-determined:
+With the researcher selection of a direct prior, $\mu^*$ and $\sigma^{2*}$,
+and the selection of the variance partition ratio and scale of population
+variance, $\rho$ and $\alpha_0$, we have 4 specified parameters, matching the
+initial 4 degrees of freedom needed to select hyper-prior parameters. With
+these specifications, the hyper-parameters specified in
+(\ref{eq:simple_bhm_mean}) and (\ref{eq:simple_bhm_sd}) are fully defined:
 \begin{align}
-    \mu_{0,j} &= \mu_{\text{ps},j} \\
-    \tau_{0,j}^2 &= \rho \cdot V_{\text{ps},j} \\
-    \beta_{0,j} &= (1 - \rho) \cdot V_{\text{ps},j} \cdot (\alpha_0 - 1)
+    \mu_{0,j} &= \mu_{\text{ps},j} \label{eq:hp_mu}\\
+    \tau_{0,j}^2 &= \rho \cdot V_{\text{ps},j} \label{eq:hp_tau}\\
+    \alpha_0 &= \alpha_0 \quad \text{(researcher specified)} \label{eq:hp_alpha}\\
+    \beta_{0,j} &= (1 - \rho) \cdot V_{\text{ps},j} \cdot (\alpha_0 - 1) \label{eq:hp_beta}
 \end{align}
 
 One can verify that $\E[\sigma_j^2] + \tau_{0,j}^2 = V_{\text{ps},j}$ for any

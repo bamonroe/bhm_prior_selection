@@ -535,25 +535,129 @@ the prior selection.
 \appendixsetup{}
 % Fix hyperref duplicate destination warnings for appendix equations
 \renewcommand{\theHequation}{A.\arabic{equation}}
+
+\appsection{Full Covariance Derivation}
+\label{app:full_cov}
+\titleformat*{\subsection}{\normalsize\itshape}
+
+This appendix is for the full covariance derivation.
+
+% print references from this section only
+\appendixref{}
+
+\pagebreak
+
+\appsection{Skew-Normal Total Cumulants}
+\label{app:skew_normal}
+\titleformat*{\subsection}{\normalsize\itshape}
+
+This appendix demonstrates the law of total cumulance for a hierarchical model
+where the unconditional distribution is Skew-Normal, requiring matching of
+three cumulants rather than two.
+
+\subsection{Law of Total Cumulance for Skewness}
+
+The law of total cumulance provides a general decomposition for the $n$-th
+cumulant. For the third cumulant $\kappa_3$ (equal to the third central moment,
+related to skewness):
+\begin{equation}
+  \label{eq:total_skewness}
+  \kappa_3(Y) = \E{\kappa_3(Y|X)} + 3\Cov{\E{Y|X}}{\Var{Y|X}} + \kappa_3(\E{Y|X})
+\end{equation}
+\noindent The three terms have intuitive interpretations:
+\begin{enumerate}
+  \item $\E{\kappa_3(Y|X)}$: Expected within-group skewness
+  \item $3\Cov{\E{Y|X}}{\Var{Y|X}}$: Covariance between group means and variances
+  \item $\kappa_3(\E{Y|X})$: Skewness of the group means
+\end{enumerate}
+
+\subsection{The Skew-Normal Distribution}
+
+The Skew-Normal distribution has density:
+\begin{equation}
+  f(x; \xi, \omega, \alpha) = \frac{2}{\omega} \phi\left(\frac{x-\xi}{\omega}\right) \Phi\left(\alpha\frac{x-\xi}{\omega}\right)
+\end{equation}
+where $\xi$ is location, $\omega > 0$ is scale, $\alpha$ is the shape parameter
+controlling skewness, and $\phi$, $\Phi$ are the standard normal PDF and CDF.
+
+The cumulants are:
+\begin{align}
+  \kappa_1 &= \xi + \omega \delta \sqrt{\frac{2}{\pi}}, \quad \text{where } \delta = \frac{\alpha}{\sqrt{1+\alpha^2}} \\
+  \kappa_2 &= \omega^2 \left(1 - \frac{2\delta^2}{\pi}\right) \\
+  \kappa_3 &= \frac{4-\pi}{2} \left(\delta\sqrt{\frac{2}{\pi}}\right)^3 \omega^3
+\end{align}
+
+\subsection{Hierarchical Decomposition}
+
+Suppose we wish to specify hyper-priors such that the unconditional distribution
+of $\theta_i$ is $\text{Skew-Normal}(\xi^*, \omega^*, \alpha^*)$. Following the
+prior selection approach, we must match three cumulants.
+
+Consider a hierarchical structure where $\theta_i \sim
+\text{Skew-Normal}(\mu, \sigma, \alpha)$ with the shape parameter $\alpha$ fixed
+and $\mu$, $\sigma^2$ drawn from hyperpriors.
+Applying (\ref{eq:total_skewness}) by conditioning on $(\mu, \sigma^2)$:
+
+\paragraph{Term 1: Expected conditional skewness.}
+The conditional third cumulant is:
+\begin{equation}
+  \kappa_3(\theta_i | \mu, \sigma^2) = \frac{4-\pi}{2} \left(\delta\sqrt{\frac{2}{\pi}}\right)^3 \sigma^3
+\end{equation}
+Taking expectations: $\E{\kappa_3(\theta_i | \mu, \sigma^2)} = c_\alpha \cdot \E{\sigma^3}$
+where $c_\alpha = \frac{4-\pi}{2}\left(\delta\sqrt{2/\pi}\right)^3$.
+
+\paragraph{Term 2: Covariance term.}
+If $\mu$ and $\sigma^2$ are independent (as in standard hyper-prior specifications),
+$\Cov{\E{\theta_i|X}}{\Var{\theta_i|X}} = 0$.
+
+\paragraph{Term 3: Skewness of conditional means.}
+If $\mu \sim \text{Normal}(\mu_0, \tau_0^2)$, then $\kappa_3(\mu) = 0$.
+
+\paragraph{Matching condition.}
+For the unconditional distribution to have the target skewness:
+\begin{equation}
+  \kappa_3^* = c_\alpha \cdot \E{\sigma^3}
+\end{equation}
+
+This provides a constraint on $\E{\sigma^3}$, which for an Inverse-Gamma
+distribution on $\sigma^2$ requires matching the appropriate moment. Unlike the
+Normal case where two equations suffice, the Skew-Normal requires this additional
+third-cumulant constraint, reducing the degrees of freedom available for
+hyper-prior specification.
+
+% print references from this section only
+\appendixref{}
+
+\pagebreak
+
 \appsection{MCMC Implementation Details}
 \label{app:mcmc}
-
 \titleformat*{\subsection}{\normalsize\itshape}
+
 \subsection{Likelihood Function}
 
-The likelihood for subject $i$'s choice $y_{it} \in \{A, B\}$ between lotteries $A$ and $B$ on trial $t$ uses the Fechner (logistic) error specification:
+The likelihood for subject $i$'s choice $y_{it} \in \{A, B\}$ between lotteries
+$A$ and $B$ on trial $t$ uses the Fechner (logistic) error specification:
 \begin{equation}
     P(y_{it} = A | \theta_i) = \frac{1}{1 + \exp[-\mu_i (V_A - V_B)]}
 \end{equation}
-where $V_A$ and $V_B$ are the RDU values of the two lotteries and $\mu_i = \exp(\log \mu_i)$ is the noise parameter.
+where $V_A$ and $V_B$ are the RDU values of the two lotteries and $\mu_i =
+\exp(\log \mu_i)$ is the noise parameter.
 
 \subsection{Computational Efficiency}
 
-To accelerate likelihood evaluation, I precompute utilities and probability weights for the 13 unique prize amounts and 10 unique probability values in the data, then use index lookups rather than recomputing these values for each of the 20,040 observations. This reduces computation by a factor of approximately 6,000.
+To accelerate likelihood evaluation, I precompute utilities and probability
+weights for the 13 unique prize amounts and 10 unique probability values in the
+data, then use index lookups rather than recomputing these values for each of
+the 20,040 observations. This reduces computation by a factor of approximately
+6,000.
 
 \subsection{Software}
 
-Estimation uses the \texttt{bamcmc} package, a JAX-based MCMC sampler with coupled A/B chains and GPU acceleration. The sampler runs 800 chains in parallel on an NVIDIA RTX 4070 GPU, completing 700 iterations in approximately 2 minutes.
+Estimation uses the \texttt{bamcmc} package, a JAX-based MCMC sampler with
+coupled A/B chains and GPU acceleration. The sampler runs 800 chains in
+parallel on an NVIDIA RTX 4070 GPU, completing 700 iterations in approximately
+2 minutes.
 
 % print references from this section only
 \appendixref{}

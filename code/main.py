@@ -77,6 +77,21 @@ PRIOR_SELECTION = {
     'alpha_0': 6.0,
 }
 
+# Skew-Normal example configuration (for Appendix B)
+# Direct prior: SN(ξ*, ω*, α*) - the target unconditional distribution
+SKEW_NORMAL_DIRECT_PRIOR = {
+    'xi': 0.0,      # location parameter
+    'omega': 1.0,   # scale parameter
+    'alpha': 2.0,   # shape parameter (positive = right skew)
+}
+
+# Researcher choices for Skew-Normal (3 degrees of freedom)
+SKEW_NORMAL_RESEARCHER = {
+    'rho': 0.3,           # variance partition (same interpretation as Normal case)
+    'alpha_omega': 6.0,   # scale concentration (analogous to alpha_0)
+    'tau_alpha_sq': 0.25, # shape uncertainty (new degree of freedom)
+}
+
 # Random seeds for reproducibility
 SEEDS = {
     'sampling': 42,
@@ -104,6 +119,9 @@ do_sampling = False
 do_gen_paper_quantities = True
 do_diagnostic_plots     = True
 do_paper_plots          = True
+
+# --- Appendix Examples ---
+do_skew_normal_example  = False
 
 
 # =============================================================================
@@ -174,6 +192,18 @@ if __name__ == '__main__':
     if do_paper_plots:
         check_dependency('paper_plots', ['paper_quantities'])
         pipelines.run_paper_plots(OUTPUTS['paper_quantities'], PLOTS_DIR / 'paper')
+
+    # -------------------------------------------------------------------------
+    # Appendix Examples
+    # -------------------------------------------------------------------------
+    if do_skew_normal_example:
+        pipelines.run_skew_normal_example(
+            direct_prior=SKEW_NORMAL_DIRECT_PRIOR,
+            researcher_choices=SKEW_NORMAL_RESEARCHER,
+            output_dir=PLOTS_DIR / 'skew_normal',
+            n_mc_samples=50000,
+            seed=SEEDS['sampling'],
+        )
 
     # -------------------------------------------------------------------------
     # Wrap up

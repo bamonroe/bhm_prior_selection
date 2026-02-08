@@ -101,3 +101,15 @@ def run_paper_plots(quantities_path, plots_dir):
     from plotting import paper_plots
     paper_plots(quantities_path, plots_dir)
     print("Done.\n")
+
+
+def run_skew_normal_example(direct_prior, researcher_choices, output_dir,
+                             n_mc_samples=50000, seed=42):
+    """Run Skew-Normal hyperprior selection example for appendix."""
+    print("\n" + "=" * 60)
+    print("Running: Skew-Normal Hyperprior Example")
+    print("=" * 60)
+    from skew_normal_hyperprior import run_skew_normal_example as _run
+    _run(direct_prior, researcher_choices, output_dir,
+         n_mc_samples=n_mc_samples, seed=seed)
+    print("Done.\n")

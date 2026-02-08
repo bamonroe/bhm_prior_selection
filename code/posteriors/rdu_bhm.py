@@ -13,7 +13,7 @@ Model Parameters (per subject, stored as epsilon):
 - r_eps: CRRA risk aversion epsilon
 - phi_eps: Prelec curvature epsilon (log scale)
 - eta_eps: Prelec elevation epsilon (log scale)
-- mu_eps: Fechner noise epsilon (log scale)
+- lambda_eps: Fechner noise epsilon (log scale)
 
 Hyperparameters (8 total):
 - Population mean and log-standard deviation for each parameter
@@ -53,7 +53,7 @@ MODEL_ID = "rdu_bhm"
 # Model Constants
 # =============================================================================
 
-NPARAMS = 4  # r_eps, phi_eps, eta_eps, mu_eps per subject (epsilon values)
+NPARAMS = 4  # r_eps, phi_eps, eta_eps, lambda_eps per subject (epsilon values)
 N_HYPER = 8  # mean and logsd for each of the 4 parameters
 HYPER_BLOCK_SIZE = 2  # (mean, logsd) per hyperparameter block
 
@@ -78,27 +78,27 @@ HYPERPRIOR_SPECS = {
         # phi (curvature): centered at 0 on log scale => median phi ~ 1
         # phi = 1 is linear, phi < 1 gives inverse-S shape (typical)
         'mu_0': 0.0,              # log(1) = 0
-        'tau_0_sq': 0.04,         # tau_0 ~ 0.2 on log scale
+        'tau_0_sq': 0.027,        # tau_0^2 = 0.3 * 0.09
         'alpha_0': 6.0,
-        'beta_0': 0.7,            # E[sigma^2] ~ 0.14
+        'beta_0': 0.315,          # beta_0 = 0.7 * 0.09 * 5
     },
     'eta_raw': {
         # eta (elevation): centered at 0 on log scale => median eta ~ 1
         # eta = 1 is standard, eta < 1 flattens the curve
         'mu_0': 0.0,              # log(1) = 0
-        'tau_0_sq': 0.04,         # tau_0 ~ 0.2 on log scale
+        'tau_0_sq': 0.027,        # tau_0^2 = 0.3 * 0.09
         'alpha_0': 6.0,
-        'beta_0': 0.7,            # E[sigma^2] ~ 0.14
+        'beta_0': 0.315,          # beta_0 = 0.7 * 0.09 * 5
     },
-    'mu_raw': {
-        'mu_0': -2.0,             # Prior selection mean for log(mu)
+    'lambda_raw': {
+        'mu_0': -2.0,             # Prior selection mean for log(lambda)
         'tau_0_sq': 0.3,          # tau_0^2 = 0.3 * 1.0
         'alpha_0': 6.0,
         'beta_0': 3.5,            # beta_0 = 0.7 * 1.0 * 5
     },
 }
 
-PARAM_NAMES = ('r', 'phi_raw', 'eta_raw', 'mu_raw')
+PARAM_NAMES = ('r', 'phi_raw', 'eta_raw', 'lambda_raw')
 
 
 # =============================================================================
@@ -109,18 +109,18 @@ def _get_indices(nids):
     """Compute index offsets for the NCP state vector."""
     first_hyper = nids * NPARAMS
 
-    # Hyperparameter layout: [r_mean, r_logsd, phi_mean, phi_logsd, eta_mean, eta_logsd, mu_mean, mu_logsd]
+    # Hyperparameter layout: [r_mean, r_logsd, phi_mean, phi_logsd, eta_mean, eta_logsd, lambda_mean, lambda_logsd]
     r_hyper_start = first_hyper
     phi_hyper_start = first_hyper + HYPER_BLOCK_SIZE
     eta_hyper_start = first_hyper + 2 * HYPER_BLOCK_SIZE
-    mu_hyper_start = first_hyper + 3 * HYPER_BLOCK_SIZE
+    lambda_hyper_start = first_hyper + 3 * HYPER_BLOCK_SIZE
 
     return {
         'first_hyper': first_hyper,
         'r_hyper_start': r_hyper_start,
         'phi_hyper_start': phi_hyper_start,
         'eta_hyper_start': eta_hyper_start,
-        'mu_hyper_start': mu_hyper_start,
+        'lambda_hyper_start': lambda_hyper_start,
     }
 
 
@@ -136,7 +136,7 @@ def batch_type(mcmc_config, data):
     - r_eps: standardized CRRA coefficient
     - phi_eps: standardized log Prelec curvature
     - eta_eps: standardized log Prelec elevation
-    - mu_eps: standardized log Fechner noise
+    - lambda_eps: standardized log Fechner noise
 
     Hyperparameters (8 total): mean and logsd for each parameter.
     """
@@ -180,7 +180,7 @@ def batch_type(mcmc_config, data):
             sampler_type=SamplerType.COUPLED_TRANSFORM,
             proposal_type=ProposalType.MCOV_SMOOTH,
             settings={'cov_mult': 1.0},
-            label="Hyper_mu",
+            label="Hyper_lambda",
         ),
     ]
 
@@ -221,7 +221,7 @@ def _compute_all_hyperpriors(chain_state, idx):
     for param_name, hyper_key in [('r', 'r_hyper_start'),
                                    ('phi_raw', 'phi_hyper_start'),
                                    ('eta_raw', 'eta_hyper_start'),
-                                   ('mu_raw', 'mu_hyper_start')]:
+                                   ('lambda_raw', 'lambda_hyper_start')]:
         mean_val = chain_state[idx[hyper_key]]
         logsd_val = chain_state[idx[hyper_key] + 1]
         spec = HYPERPRIOR_SPECS[param_name]
@@ -249,7 +249,7 @@ def _transform_eps_to_theta(chain_state, sid, idx):
     r_eps = chain_state[subject_start + 0]
     phi_eps = chain_state[subject_start + 1]
     eta_eps = chain_state[subject_start + 2]
-    mu_eps = chain_state[subject_start + 3]
+    lambda_eps = chain_state[subject_start + 3]
 
     # Get hyperparameters
     r_mean = chain_state[idx['r_hyper_start']]
@@ -261,16 +261,16 @@ def _transform_eps_to_theta(chain_state, sid, idx):
     eta_mean = chain_state[idx['eta_hyper_start']]
     eta_sigma = jnp.exp(chain_state[idx['eta_hyper_start'] + 1])
 
-    mu_mean = chain_state[idx['mu_hyper_start']]
-    mu_sigma = jnp.exp(chain_state[idx['mu_hyper_start'] + 1])
+    lambda_mean = chain_state[idx['lambda_hyper_start']]
+    lambda_sigma = jnp.exp(chain_state[idx['lambda_hyper_start'] + 1])
 
     # Transform: theta = mu + sigma * epsilon
     r_val = r_mean + r_sigma * r_eps
     phi_raw = phi_mean + phi_sigma * phi_eps
     eta_raw = eta_mean + eta_sigma * eta_eps
-    mu_raw = mu_mean + mu_sigma * mu_eps
+    lambda_raw = lambda_mean + lambda_sigma * lambda_eps
 
-    return r_val, phi_raw, eta_raw, mu_raw
+    return r_val, phi_raw, eta_raw, lambda_raw
 
 
 # =============================================================================
@@ -300,16 +300,16 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
         unique_cumprobs = jnp.asarray(dataf[1])
 
         def subject_ll_body(sid, acc):
-            r_val, phi_raw, eta_raw, mu_raw = _transform_eps_to_theta(chain_state, sid, idx)
+            r_val, phi_raw, eta_raw, lambda_raw = _transform_eps_to_theta(chain_state, sid, idx)
 
             phi = jnp.exp(phi_raw)
             eta = jnp.exp(eta_raw)
-            mu = jnp.exp(mu_raw)
+            lam = jnp.exp(lambda_raw)
 
             unique_utils = crra_ufn(unique_outcomes, r_val)
             unique_weighted = prelec_pwf(unique_cumprobs, phi, eta)
 
-            ll = risk_likelihood(unique_weighted, unique_utils, datai_jax, sid, mu)
+            ll = risk_likelihood(unique_weighted, unique_utils, datai_jax, sid, lam)
             return acc + ll
 
         total_ll = jax.lax.fori_loop(0, n_subjects, subject_ll_body, 0.0)
@@ -325,19 +325,19 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
         r_eps = chain_state[subject_start + 0]
         phi_eps = chain_state[subject_start + 1]
         eta_eps = chain_state[subject_start + 2]
-        mu_eps = chain_state[subject_start + 3]
+        lambda_eps = chain_state[subject_start + 3]
 
         lp_eps = (stats.norm.logpdf(r_eps, 0.0, 1.0)
                   + stats.norm.logpdf(phi_eps, 0.0, 1.0)
                   + stats.norm.logpdf(eta_eps, 0.0, 1.0)
-                  + stats.norm.logpdf(mu_eps, 0.0, 1.0))
+                  + stats.norm.logpdf(lambda_eps, 0.0, 1.0))
 
         # Data likelihood using transformed theta
-        r_val, phi_raw, eta_raw, mu_raw = _transform_eps_to_theta(chain_state, sid, idx)
+        r_val, phi_raw, eta_raw, lambda_raw = _transform_eps_to_theta(chain_state, sid, idx)
 
         phi = jnp.exp(phi_raw)
         eta = jnp.exp(eta_raw)
-        mu = jnp.exp(mu_raw)
+        lam = jnp.exp(lambda_raw)
 
         unique_outcomes = jnp.asarray(data["float"][0])
         unique_cumprobs = jnp.asarray(data["float"][1])
@@ -346,7 +346,7 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
         unique_utils = crra_ufn(unique_outcomes, r_val)
         unique_weighted = prelec_pwf(unique_cumprobs, phi, eta)
 
-        log_like = risk_likelihood(unique_weighted, unique_utils, datai_jax, sid, mu)
+        log_like = risk_likelihood(unique_weighted, unique_utils, datai_jax, sid, lam)
 
         return lp_eps + beta * log_like
 
@@ -377,7 +377,7 @@ def coupled_transform_dispatch(key, chain_state, primary_indices, proposed_prima
             jnp.where(
                 first_param == idx['eta_hyper_start'], 2,
                 jnp.where(
-                    first_param == idx['mu_hyper_start'], 3,
+                    first_param == idx['lambda_hyper_start'], 3,
                     4  # default (should never happen)
                 )
             )
@@ -422,7 +422,7 @@ def coupled_transform_dispatch(key, chain_state, primary_indices, proposed_prima
             transform_hyper(0),  # 0: r hyperparameters
             transform_hyper(1),  # 1: phi hyperparameters
             transform_hyper(2),  # 2: eta hyperparameters
-            transform_hyper(3),  # 3: mu hyperparameters
+            transform_hyper(3),  # 3: lambda hyperparameters
             do_default,          # 4: default (should never happen)
         ],
         None
@@ -443,24 +443,24 @@ def generated_quantities(chain_state, data):
     - r for each subject
     - phi (Prelec curvature) for each subject
     - eta (Prelec elevation) for each subject
-    - mu (noise) for each subject
+    - lambda (noise) for each subject
     - Population means and standard deviations
     """
     n_subjects = data["static"][0]
     idx = _get_indices(n_subjects)
 
     def get_subject_theta(sid):
-        r_val, phi_raw, eta_raw, mu_raw = _transform_eps_to_theta(chain_state, sid, idx)
+        r_val, phi_raw, eta_raw, lambda_raw = _transform_eps_to_theta(chain_state, sid, idx)
         phi = jnp.exp(phi_raw)
         eta = jnp.exp(eta_raw)
-        mu = jnp.exp(mu_raw)
-        return jnp.array([r_val, phi, eta, mu])
+        lam = jnp.exp(lambda_raw)
+        return jnp.array([r_val, phi, eta, lam])
 
     subject_params = jax.vmap(get_subject_theta)(jnp.arange(n_subjects))
     r_subjects = subject_params[:, 0]
     phi_subjects = subject_params[:, 1]
     eta_subjects = subject_params[:, 2]
-    mu_subjects = subject_params[:, 3]
+    lambda_subjects = subject_params[:, 3]
 
     # Population parameters
     r_pop_mean = chain_state[idx['r_hyper_start']]
@@ -472,24 +472,24 @@ def generated_quantities(chain_state, data):
     eta_pop_mean = chain_state[idx['eta_hyper_start']]
     eta_pop_sd = jnp.exp(chain_state[idx['eta_hyper_start'] + 1])
 
-    mu_pop_mean = chain_state[idx['mu_hyper_start']]
-    mu_pop_sd = jnp.exp(chain_state[idx['mu_hyper_start'] + 1])
+    lambda_pop_mean = chain_state[idx['lambda_hyper_start']]
+    lambda_pop_sd = jnp.exp(chain_state[idx['lambda_hyper_start'] + 1])
 
     # Transform population means to natural scale
     phi_pop_mean_natural = jnp.exp(phi_pop_mean)
     eta_pop_mean_natural = jnp.exp(eta_pop_mean)
-    mu_pop_mean_natural = jnp.exp(mu_pop_mean)
+    lambda_pop_mean_natural = jnp.exp(lambda_pop_mean)
 
     return jnp.concatenate([
         r_subjects,
         phi_subjects,
         eta_subjects,
-        mu_subjects,
+        lambda_subjects,
         jnp.array([
             r_pop_mean, r_pop_sd,
             phi_pop_mean_natural, phi_pop_sd,
             eta_pop_mean_natural, eta_pop_sd,
-            mu_pop_mean_natural, mu_pop_sd
+            lambda_pop_mean_natural, lambda_pop_sd
         ])
     ])
 
@@ -497,7 +497,7 @@ def generated_quantities(chain_state, data):
 def get_num_gq(mcmc_config, data):
     """Get number of generated quantities."""
     n_subjects = data["static"][0]
-    # r, phi, eta, mu for each subject + 8 population params
+    # r, phi, eta, lambda for each subject + 8 population params
     return 4 * n_subjects + 8
 
 
@@ -524,7 +524,7 @@ def initial_vector(mcmc_config, data):
     init[:, 0:first_hyper:NPARAMS] = rng.normal(0.0, EPS_INIT_STD, (num_chains, n_subjects))  # r_eps
     init[:, 1:first_hyper:NPARAMS] = rng.normal(0.0, EPS_INIT_STD, (num_chains, n_subjects))  # phi_eps
     init[:, 2:first_hyper:NPARAMS] = rng.normal(0.0, EPS_INIT_STD, (num_chains, n_subjects))  # eta_eps
-    init[:, 3:first_hyper:NPARAMS] = rng.normal(0.0, EPS_INIT_STD, (num_chains, n_subjects))  # mu_eps
+    init[:, 3:first_hyper:NPARAMS] = rng.normal(0.0, EPS_INIT_STD, (num_chains, n_subjects))  # lambda_eps
 
     # Hyperparameters: initialize at prior means
     HYPER_INIT_STD = 0.02
@@ -547,11 +547,11 @@ def initial_vector(mcmc_config, data):
     eta_sigma_init = np.sqrt(eta_spec['beta_0'] / (eta_spec['alpha_0'] + 1))
     init[:, first_hyper + 5] = rng.normal(np.log(eta_sigma_init), HYPER_INIT_STD, num_chains)
 
-    # mu hyperparameters
-    mu_spec = HYPERPRIOR_SPECS['mu_raw']
-    init[:, first_hyper + 6] = rng.normal(mu_spec['mu_0'], HYPER_INIT_STD, num_chains)
-    mu_sigma_init = np.sqrt(mu_spec['beta_0'] / (mu_spec['alpha_0'] + 1))
-    init[:, first_hyper + 7] = rng.normal(np.log(mu_sigma_init), HYPER_INIT_STD, num_chains)
+    # lambda hyperparameters
+    lambda_spec = HYPERPRIOR_SPECS['lambda_raw']
+    init[:, first_hyper + 6] = rng.normal(lambda_spec['mu_0'], HYPER_INIT_STD, num_chains)
+    lambda_sigma_init = np.sqrt(lambda_spec['beta_0'] / (lambda_spec['alpha_0'] + 1))
+    init[:, first_hyper + 7] = rng.normal(np.log(lambda_sigma_init), HYPER_INIT_STD, num_chains)
 
     return init.flatten()
 

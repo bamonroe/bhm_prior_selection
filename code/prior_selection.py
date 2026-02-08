@@ -11,10 +11,11 @@ The key insight is that specifying priors for a single random individual is cogn
 tractable - we can visualize utility functions and check if implied preferences are
 reasonable. The BHM then decomposes this into population-level structure.
 
-For RDU with power probability weighting, we have 3 parameters:
+For RDU with 2-parameter Prelec probability weighting, we have 4 parameters:
 - r: CRRA risk aversion coefficient
-- gamma_raw: log of probability weighting parameter (gamma = exp(gamma_raw))
-- mu_raw: log of Fechner noise parameter (mu = exp(mu_raw))
+- phi_raw: log of Prelec curvature parameter (phi = exp(phi_raw))
+- eta_raw: log of Prelec elevation parameter (eta = exp(eta_raw))
+- lambda_raw: log of Fechner noise parameter (lambda = exp(lambda_raw))
 """
 
 import numpy as np
@@ -72,11 +73,11 @@ def uninformative_prior_selection() -> PriorSelectionResult:
     --------
     PriorSelectionResult with diffuse priors (mean=0, variance=10000)
     """
-    param_names = ('r', 'gamma_raw', 'mu_raw')
+    param_names = ('r', 'phi_raw', 'eta_raw', 'lambda_raw')
 
     # Uninformative: mean 0, sd 100 for all
-    mean = np.array([0.0, 0.0, 0.0])
-    variance = np.array([10000.0, 10000.0, 10000.0])  # sd=100 => var=10000
+    mean = np.array([0.0, 0.0, 0.0, 0.0])
+    variance = np.array([10000.0, 10000.0, 10000.0, 10000.0])  # sd=100 => var=10000
 
     description = """
     Uninformative (diffuse) prior selection for all RDU parameters:
@@ -95,9 +96,9 @@ def uninformative_prior_selection() -> PriorSelectionResult:
     )
 
 
-def rdu_power_prior_selection() -> PriorSelectionResult:
+def rdu_prelec_prior_selection() -> PriorSelectionResult:
     """
-    Prior selection for RDU model with power probability weighting.
+    Prior selection for RDU model with 2-parameter Prelec probability weighting.
 
     This answers: "What do reasonable risk preferences look like for a
     single random individual drawn from some population?"
@@ -112,55 +113,69 @@ def rdu_power_prior_selection() -> PriorSelectionResult:
         Empirical literature suggests most people are mildly risk averse.
         Prior: N(0.5, 0.5^2) => 95% CI roughly (-0.5, 1.5)
 
-    gamma_raw : log(gamma) where gamma is power probability weighting
-        - gamma = 1 (gamma_raw = 0): no distortion (EUT)
-        - gamma < 1 (gamma_raw < 0): overweighting small probs (typical finding)
-        - gamma > 1 (gamma_raw > 0): underweighting small probs
-        Empirical: gamma typically 0.6-1.0
-        Prior on log scale: N(0, 0.3^2) => gamma 95% CI roughly (0.55, 1.8)
+    phi_raw : log(phi) where phi is Prelec curvature parameter
+        - phi = 1 (phi_raw = 0): linear in log-odds
+        - phi < 1: S-shaped (overweight small, underweight large probs)
+        - phi > 1: inverse S-shaped
+        Empirical: phi typically 0.6-1.0
+        Prior on log scale: N(0, 0.3^2) => phi 95% CI roughly (0.55, 1.8)
 
-    mu_raw : log(mu) where mu is Fechner noise (inverse temperature)
-        - Higher mu = more deterministic choices
-        - mu ~ 0.1-1.0 is typical
-        Prior on log scale: N(-2, 1^2) => mu 95% CI roughly (0.02, 1.0)
+    eta_raw : log(eta) where eta is Prelec elevation parameter
+        - eta = 1 (eta_raw = 0): no elevation shift
+        - eta < 1: pessimistic (lower weights overall)
+        - eta > 1: optimistic (higher weights overall)
+        Empirical: eta typically 0.8-1.2
+        Prior on log scale: N(0, 0.3^2) => eta 95% CI roughly (0.55, 1.8)
+
+    lambda_raw : log(lambda) where lambda is Fechner noise
+        - Higher lambda = more deterministic choices
+        - lambda ~ 0.1-1.0 is typical
+        Prior on log scale: N(-2, 1^2) => lambda 95% CI roughly (0.02, 1.0)
 
     Returns:
     --------
     PriorSelectionResult with mean and variance for each parameter
     """
-    param_names = ('r', 'gamma_raw', 'mu_raw')
+    param_names = ('r', 'phi_raw', 'eta_raw', 'lambda_raw')
 
     # Prior selection means
     mean = np.array([
         0.5,   # r: mild risk aversion
-        0.0,   # gamma_raw: no distortion on average (gamma=1)
-        -2.0,  # mu_raw: moderate noise (mu ~ 0.14)
+        0.0,   # phi_raw: no curvature distortion (phi=1)
+        0.0,   # eta_raw: no elevation distortion (eta=1)
+        -2.0,  # lambda_raw: moderate noise (lambda ~ 0.14)
     ])
 
     # Prior selection variances (independent structure)
     variance = np.array([
         0.25,  # r: sd=0.5, allows range from risk loving to very risk averse
-        0.09,  # gamma_raw: sd=0.3, gamma roughly 0.55 to 1.8
-        1.0,   # mu_raw: sd=1.0, wide range of noise levels
+        0.09,  # phi_raw: sd=0.3, phi roughly 0.55 to 1.8
+        0.09,  # eta_raw: sd=0.3, eta roughly 0.55 to 1.8
+        1.0,   # lambda_raw: sd=1.0, wide range of noise levels
     ])
 
     description = """
-    Prior selection for RDU with power probability weighting (3 parameters):
+    Prior selection for RDU with 2-parameter Prelec probability weighting (4 parameters):
 
     1. r (CRRA coefficient):
        - Prior: N(0.5, 0.25)
        - Rationale: Mild risk aversion is modal in the literature
        - 95% CI: (-0.5, 1.5) covers risk loving to very risk averse
 
-    2. gamma_raw = log(gamma) (probability weighting):
+    2. phi_raw = log(phi) (Prelec curvature):
        - Prior: N(0, 0.09)
-       - Rationale: gamma=1 (no distortion) as center, allows both under/overweighting
-       - 95% CI for gamma: (0.55, 1.8)
+       - Rationale: phi=1 (linear in log-odds) as center
+       - 95% CI for phi: (0.55, 1.8)
 
-    3. mu_raw = log(mu) (Fechner noise):
+    3. eta_raw = log(eta) (Prelec elevation):
+       - Prior: N(0, 0.09)
+       - Rationale: eta=1 (no elevation shift) as center
+       - 95% CI for eta: (0.55, 1.8)
+
+    4. lambda_raw = log(lambda) (Fechner noise):
        - Prior: N(-2, 1)
-       - Rationale: Moderate noise (mu~0.14) with wide uncertainty
-       - 95% CI for mu: (0.02, 1.0)
+       - Rationale: Moderate noise (lambda~0.14) with wide uncertainty
+       - 95% CI for lambda: (0.02, 1.0)
     """
 
     return PriorSelectionResult(
@@ -169,6 +184,12 @@ def rdu_power_prior_selection() -> PriorSelectionResult:
         variance=variance,
         description=description
     )
+
+
+# Alias for backwards compatibility
+def rdu_power_prior_selection() -> PriorSelectionResult:
+    """Deprecated: Use rdu_prelec_prior_selection instead."""
+    return rdu_prelec_prior_selection()
 
 
 def derive_hyperpriors(
@@ -327,21 +348,25 @@ def get_hyperpriors_for_rdu_bhm(
     if uninformative:
         ps = uninformative_prior_selection()
     else:
-        ps = rdu_power_prior_selection()
+        ps = rdu_prelec_prior_selection()
     hp = derive_hyperpriors(ps, rho=rho, alpha_0=alpha_0)
 
     return {
+        # Population mean hyperpriors (mu_0, tau_0)
         'r_mean': float(hp.mu_0[0]),
         'ln_r_sdev': float(np.log(np.sqrt(hp.tau_0_sq[0]))),  # log of std dev
-        'gamma_mean': float(hp.mu_0[1]),
-        'ln_gamma_sdev': float(np.log(np.sqrt(hp.tau_0_sq[1]))),
-        'mu_mean': float(hp.mu_0[2]),
-        'ln_mu_sdev': float(np.log(np.sqrt(hp.tau_0_sq[2]))),
+        'phi_mean': float(hp.mu_0[1]),
+        'ln_phi_sdev': float(np.log(np.sqrt(hp.tau_0_sq[1]))),
+        'eta_mean': float(hp.mu_0[2]),
+        'ln_eta_sdev': float(np.log(np.sqrt(hp.tau_0_sq[2]))),
+        'lambda_mean': float(hp.mu_0[3]),
+        'ln_lambda_sdev': float(np.log(np.sqrt(hp.tau_0_sq[3]))),
         # Inverse-Gamma parameters for hyperprior on population variance
         'alpha_0': float(alpha_0),
         'beta_0_r': float(hp.beta_0[0]),
-        'beta_0_gamma': float(hp.beta_0[1]),
-        'beta_0_mu': float(hp.beta_0[2]),
+        'beta_0_phi': float(hp.beta_0[1]),
+        'beta_0_eta': float(hp.beta_0[2]),
+        'beta_0_lambda': float(hp.beta_0[3]),
         # Original prior selection for reference
         'ps_mean': hp.ps_mean.tolist(),
         'ps_variance': hp.ps_variance.tolist(),
@@ -360,8 +385,8 @@ def run_prior_selection(rho=0.3, alpha_0=6.0, output_path=None):
     """
     from pathlib import Path
 
-    print("Running prior selection for RDU model...")
-    ps = rdu_power_prior_selection()
+    print("Running prior selection for RDU model with Prelec PWF...")
+    ps = rdu_prelec_prior_selection()
     print(ps.description)
 
     # Derive hyperpriors
@@ -389,10 +414,10 @@ def run_prior_selection(rho=0.3, alpha_0=6.0, output_path=None):
 
 if __name__ == "__main__":
     # Run prior selection and derive hyperpriors
-    print("RDU Power Probability Weighting - Prior Selection")
+    print("RDU with 2-Parameter Prelec PWF - Prior Selection")
     print("=" * 60)
 
-    ps = rdu_power_prior_selection()
+    ps = rdu_prelec_prior_selection()
     print(ps.description)
 
     print("\nPrior Selection Summary:")

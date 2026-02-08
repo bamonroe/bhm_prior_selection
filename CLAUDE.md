@@ -9,7 +9,7 @@ Instructions for Claude Code sessions in this workspace.
 The core methodology is implemented and tested:
 - Prior selection → hyperprior derivation pipeline complete
 - RDU model uses Prelec PWF: w(p) = exp(-η(-ln p)^φ)
-- 4 parameters per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), μ (noise)
+- 4 parameters per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), λ (noise)
 - Test sampling with 500 chains shows excellent convergence (R-hat max 1.007)
 - Paper draft (`doc/main.tex`) with methodology and appendices
 - Skew-Normal example demonstrating 3-parameter extension
@@ -56,12 +56,12 @@ A copy is in the `lit/` directory.
 ### Core Implementation
 
 - **`code/prior_selection.py`** - The paper's core contribution
-  - `rdu_power_prior_selection()`: Define individual-level priors for RDU params
+  - `rdu_prelec_prior_selection()`: Define individual-level priors for RDU params
   - `derive_hyperpriors(ps, rho=0.3, alpha_0=6.0)`: Variance decomposition
   - `verify_hyperpriors()`: Confirm unconditional variance matches target
 
 - **`code/posteriors/rdu_bhm.py`** - BHM log posterior for bamcmc
-  - 4 params per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), μ (noise)
+  - 4 params per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), λ (noise)
   - 8 hyperparameters: population mean + log-sdev for each
   - Uses Prelec PWF: w(p) = exp(-η(-ln p)^φ)
   - Non-Centered Parameterization (NCP) for better mixing
@@ -94,7 +94,7 @@ The RDU-BHM model uses 4 parameters per subject:
 - **r**: CRRA risk aversion coefficient
 - **φ (phi)**: Prelec curvature (log scale internally)
 - **η (eta)**: Prelec elevation (log scale internally)
-- **μ (mu)**: Fechner noise (log scale internally)
+- **λ (lambda)**: Fechner noise (log scale internally)
 
 Prelec probability weighting: `w(p) = exp(-η(-ln p)^φ)`
 - When φ = η = 1: linear PWF (Expected Utility)

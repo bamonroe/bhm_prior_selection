@@ -375,8 +375,9 @@ distribution $p(\theta_i)$.
 \begin{pycode}
 dprior = {
     "r": {"mu": 0.5, "sigma2": 0.25},
-    "gamma_raw": {"mu": 0.0, "sigma2": 0.09},
-    "mu_raw": {"mu": -2.0, "sigma2": 1.0}
+    "phi_raw": {"mu": 0.0, "sigma2": 0.09},
+    "eta_raw": {"mu": 0.0, "sigma2": 0.09},
+    "lambda_raw": {"mu": -2.0, "sigma2": 1.0}
 }
 \end{pycode}
 
@@ -385,18 +386,21 @@ of the remaining parameters, to have a Normal distribution:
 \begin{align}
 \begin{split}
   r &\sim N(\mu_r, \sigma_r^2) \\
-  \ln{\gamma} &\sim N(\mu_{\ln\gamma}, \sigma_{\ln\gamma}^2) \\
-  \ln{\mu} &\sim N(\mu_{\ln\mu}, \sigma_{\ln\mu}^2)
+  \ln{\phi} &\sim N(\mu_{\ln\phi}, \sigma_{\ln\phi}^2) \\
+  \ln{\eta} &\sim N(\mu_{\ln\eta}, \sigma_{\ln\eta}^2) \\
+  \ln{\lambda} &\sim N(\mu_{\ln\lambda}, \sigma_{\ln\lambda}^2)
 \end{split}
 \end{align}
 \noindent with specific values for these \enquote{direct prior} parameters:
-\begin{align}
-\begin{split}
-  \mu_r &= \py{dprior["r"]["mu"]}, \quad \sigma_r^2 = \py{dprior["r"]["sigma2"]} \\
-  \mu_{\ln\gamma} &= \py{dprior["gamma_raw"]["mu"]}, \quad \sigma_{\ln\gamma}^2 = \py{dprior["gamma_raw"]["sigma2"]} \\
-  \mu_{\ln\mu} &= \py{dprior["mu_raw"]["mu"]}, \quad \sigma_{\ln\mu}^2 = \py{dprior["mu_raw"]["sigma2"]}
-\end{split}
-\end{align}
+
+\begin{equation}
+\begin{matrix}
+  \mu_r = \py{dprior["r"]["mu"]} & \quad \sigma_r^2 = \py{dprior["r"]["sigma2"]} \\
+  \mu_{\ln\phi} = \py{dprior["phi_raw"]["mu"]} & \quad \sigma_{\ln\phi}^2 = \py{dprior["phi_raw"]["sigma2"]} \\
+  \mu_{\ln\eta} = \py{dprior["eta_raw"]["mu"]} & \quad \sigma_{\ln\eta}^2 = \py{dprior["eta_raw"]["sigma2"]} \\
+  \mu_{\ln\lambda} = \py{dprior["lambda_raw"]["mu"]} & \quad \sigma_{\ln\lambda}^2 = \py{dprior["lambda_raw"]["sigma2"]}
+\end{matrix}
+\end{equation}
 
 
 
@@ -405,24 +409,18 @@ of the remaining parameters, to have a Normal distribution:
 \subsection{Model}
 
 I apply the methodology to rank-dependent utility \parencite{Quiggin1982}
-with power probability weighting. For a lottery with outcomes $(x_H, x_L)$ and
-probability $p$ of $x_H$, the RDU value is:
-\begin{equation}
-    \text{RDU} = w(p) \cdot u(x_H) + [1 - w(p)] \cdot u(x_L)
-\end{equation}
-where $u(x) = x^{1-r}/(1-r)$ is the CRRA utility function and $w(p) = p^\gamma$
-is the power probability weighting function.
-
-Each subject has three parameters:
+with the 2-parameter \textcite{Prelec1998} probability weighting function
+defined above in (\ref{eq:prelec}). Each subject has four parameters:
 \begin{itemize}
     \item $r$: CRRA coefficient (risk aversion)
-    \item $\gamma$: probability weighting curvature
-    \item $\mu$: Fechner noise parameter
+    \item $\phi$: Prelec curvature parameter
+    \item $\eta$: Prelec elevation parameter
+    \item $\lambda$: Fechner noise parameter
 \end{itemize}
 
-Following standard practice, I parameterize $\gamma$ and $\mu$ on the log scale
-to ensure positivity, giving subject parameters $\theta_i = (r_i, \log
-\gamma_i, \log \mu_i)$.
+Following standard practice, I parameterize $\phi$, $\eta$, and $\lambda$ on the
+log scale to ensure positivity, giving subject parameters $\theta_i = (r_i, \ln
+\phi_i, \ln \eta_i, \ln \lambda_i)$.
 
 \subsection{Prior Selection}
 
@@ -433,16 +431,17 @@ For a single random individual, I specify:
 Parameter & Mean & Std. Dev. & Interpretation \\
 \midrule
 $r$ & 0.5 & 0.5 & Mild risk aversion \\
-$\log \gamma$ & 0.0 & 0.3 & No distortion ($\gamma = 1$) \\
-$\log \mu$ & $-2.0$ & 1.0 & Moderate noise ($\mu \approx 0.14$) \\
+$\ln \phi$ & 0.0 & 0.3 & No curvature distortion ($\phi = 1$) \\
+$\ln \eta$ & 0.0 & 0.3 & No elevation distortion ($\eta = 1$) \\
+$\ln \lambda$ & $-2.0$ & 1.0 & Moderate noise ($\lambda \approx 0.14$) \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 These priors reflect the empirical literature on risk preferences: most
 individuals exhibit mild risk aversion ($r \approx 0.3$--$0.8$), probability
-weighting near unity, and substantial stochastic variation in choices
-\parencite{Harrison2008, Wilcox2011}.
+weighting near linear ($\phi, \eta \approx 1$), and substantial stochastic
+variation in choices \parencite{Harrison2008, Wilcox2011}.
 
 \subsection{Derived Hyperpriors}
 
@@ -453,8 +452,9 @@ With $\rho = 0.3$ and $\alpha_0 = 6$, the derived hyperpriors are:
 Parameter & $\mu_0$ & $\tau_0$ & $\E[\sigma]$ & $V_{\text{ps}}$ \\
 \midrule
 $r$ & 0.50 & 0.27 & 0.42 & 0.25 \\
-$\log \gamma$ & 0.00 & 0.16 & 0.25 & 0.09 \\
-$\log \mu$ & $-2.00$ & 0.55 & 0.84 & 1.00 \\
+$\ln \phi$ & 0.00 & 0.16 & 0.25 & 0.09 \\
+$\ln \eta$ & 0.00 & 0.16 & 0.25 & 0.09 \\
+$\ln \lambda$ & $-2.00$ & 0.55 & 0.84 & 1.00 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -475,7 +475,7 @@ The sampler uses block-wise Metropolis-Hastings with adaptive proposals
 informed by cross-chain covariance estimation.
 
 Convergence diagnostics are excellent: the maximum $\hat{R}$ statistic is 1.03
-across all 1,509 parameters (501 subjects $\times$ 3 parameters + 6
+across all 2,012 parameters (501 subjects $\times$ 4 parameters + 8
 hyperparameters), well below the standard threshold of 1.1. Metropolis-Hastings
 acceptance rates average 26\%, indicating well-tuned proposals.
 

@@ -4,18 +4,21 @@ Instructions for Claude Code sessions in this workspace.
 
 ## Project Status
 
-**Current State:** Test sampling successful, ready for production sampling.
+**Current State:** Full pipeline working with Prelec 2-parameter probability weighting.
 
-The core methodology is implemented and working:
+The core methodology is implemented and tested:
 - Prior selection → hyperprior derivation pipeline complete
-- Test sampling with 800 chains shows excellent convergence (R-hat max 1.03)
-- Paper draft (`doc/main.tex`) written with placeholder results
+- RDU model uses Prelec PWF: w(p) = exp(-η(-ln p)^φ)
+- 4 parameters per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), μ (noise)
+- Test sampling with 500 chains shows excellent convergence (R-hat max 1.007)
+- Paper draft (`doc/main.tex`) with methodology and appendices
+- Skew-Normal example demonstrating 3-parameter extension
 
-**Next Steps:**
-1. Install biber for bibliography (`sudo apt install biber`)
-2. Run production sampling with more iterations
-3. Update results table with actual posterior estimates
-4. Implement remaining `do_*` flags in `code/main.py`
+**Recent Changes:**
+- Switched from power PWF to 2-parameter Prelec PWF
+- Fixed choice encoding bug (raw data: 1=right/B, not 1=A)
+- Two-stage parallel plotting for memory efficiency
+- Added Skew-Normal hyperprior selection example (Appendix B)
 
 See `TODO.md` for detailed task tracking.
 
@@ -54,21 +57,27 @@ A copy is in the `lit/` directory.
 
 - **`code/prior_selection.py`** - The paper's core contribution
   - `rdu_power_prior_selection()`: Define individual-level priors for RDU params
-  - `uninformative_prior_selection()`: Baseline N(0, 100^2) priors for comparison
   - `derive_hyperpriors(ps, rho=0.3, alpha_0=6.0)`: Variance decomposition
   - `verify_hyperpriors()`: Confirm unconditional variance matches target
 
 - **`code/posteriors/rdu_bhm.py`** - BHM log posterior for bamcmc
-  - 3 params per subject: r (CRRA), gamma (prob weighting), mu (Fechner noise)
-  - 6 hyperparameters: population mean + log-sdev for each
-  - Uses indexed data for efficient likelihood (13 outcomes × 10 probabilities)
-  - `set_prior_mode(uninformative=True/False)`: Toggle between prior modes
+  - 4 params per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), μ (noise)
+  - 8 hyperparameters: population mean + log-sdev for each
+  - Uses Prelec PWF: w(p) = exp(-η(-ln p)^φ)
+  - Non-Centered Parameterization (NCP) for better mixing
 
 - **`code/posteriors/common_fns.py`** - Shared utility functions
-  - CRRA utility, power probability weighting, risk likelihood
+  - CRRA utility with normalization, Prelec probability weighting, risk likelihood
 
 - **`code/clean_data.py`** - Data preparation
   - Filters to RA task, creates indexed data structure for GPU efficiency
+  - Flips choice encoding: raw 1=right/B → model 1=A
+
+- **`code/skew_normal_hyperprior.py`** - Appendix B example
+  - Demonstrates methodology for 3-parameter Skew-Normal distribution
+  - Monte Carlo integration for law of total cumulance
+  - Numerical root-finding for hyperprior parameters
+  - Comparison plots: direct prior vs unconditional distribution
 
 ### Running Sampling
 
@@ -79,17 +88,25 @@ python runners/run_rdu_bhm.py --mode test --num-chains 800
 
 Options: `--mode test|full`, `--num-chains N`, `--show-priors`
 
-### Prior Selection Values (rho=0.3, alpha_0=6)
+### Model Parameters
 
-| Parameter  | μ₀    | τ₀    | E[σ]  | Prior Selection Var |
-|------------|-------|-------|-------|---------------------|
-| r          | 0.50  | 0.274 | 0.42  | 0.25                |
-| gamma_raw  | 0.00  | 0.164 | 0.25  | 0.09                |
-| mu_raw     | -2.00 | 0.548 | 0.84  | 1.00                |
+The RDU-BHM model uses 4 parameters per subject:
+- **r**: CRRA risk aversion coefficient
+- **φ (phi)**: Prelec curvature (log scale internally)
+- **η (eta)**: Prelec elevation (log scale internally)
+- **μ (mu)**: Fechner noise (log scale internally)
+
+Prelec probability weighting: `w(p) = exp(-η(-ln p)^φ)`
+- When φ = η = 1: linear PWF (Expected Utility)
+- φ < 1: inverse-S shape (overweight small p, underweight large p)
+
+### Variance Decomposition
 
 Variance decomposition: `V = τ₀² + E[σ²]` where:
 - τ₀² = ρ × V (uncertainty about population mean)
 - E[σ²] = (1-ρ) × V (population heterogeneity)
+
+Default researcher choices: ρ = 0.3, α₀ = 6.0
 
 ## Data
 
@@ -117,7 +134,8 @@ preferences.
 - `vprizea1`, `vprizea2`: Prizes for lottery A (high, low)
 - `vprizeb1`, `vprizeb2`: Prizes for lottery B (high, low)
 - `rowproba`: Probability of high prize
-- `choicea`: Choice (1 = chose lottery A)
+- `choicea`: Right-side indicator (1 = chose right/B, 0 = chose left/A)
+  - Note: clean_data.py flips this to model convention (1 = A, 0 = B)
 
 **Discounting task** (when `RA=0`):
 - `principal`: Principal amount (DKK)
@@ -214,44 +232,25 @@ the previous step has been completed, and throw an error if it hasn't. The
 other python files.
 
 ```python
-# main.py:
+# main.py control flags:
 
-# Take raw data and drop unused variables and shape it into a
-# format that can be loaded by the bamcmc MCMC process
-do_clean_data = True
+# --- Data Pipeline ---
+do_clean_data = False       # Shape raw data for bamcmc
+do_gen_paper_data = False   # Generate data summaries for paper
 
-# Generate npz files to load in the pythontex of the doc/main.tex file - this
-# set of npz files describes the data
-do_gen_paper_data = True
+# --- Prior Selection ---
+do_generate_prior = False   # Run prior selection methodology
 
-# Use the process we will describe in the paper to
-# select a prior distribution
-do_generate_prior = True
+# --- MCMC Sampling ---
+do_sampling = False         # Run bamcmc sampler
 
-# use the bamcmc sampler to sample from the posterior distribution
-# and save per-model output to the output directory
-do_sampling = True
+# --- Post-Processing ---
+do_gen_paper_quantities = True   # Extract posterior summaries
+do_diagnostic_plots = True       # Generate trace/diagnostic plots
+do_paper_plots = True            # Generate publication figures
 
-# Generate npz files with relevant information
-# about the sampling process and results. Should have 1 npz file with everything
-# referenced in the paper and nothing else, and another npz file that is used in
-# subsequent steps
-do_gen_paper_quantities = True
-
-# Load paper quantities and sampling data to generate detailed diagnostic plots
-do_diagnostic_plots = True
-
-# Load paper quantities and sampling data to generate plots used in the paper
-do_paper_plots = True
-
-## actually do the things
-
-if do_clean_data:
-  # do cleaning stuff
-
-if do_generate_prior:
-  # do cleaning stuff
-
+# --- Appendix Examples ---
+do_skew_normal_example = False   # Run Skew-Normal hyperprior example
 ```
 
 ## Technical Notes
@@ -326,13 +325,18 @@ The paper is in `doc/main.tex`. Key sections:
 
 1. **Introduction** - Motivation for principled hyperprior selection
 2. **The Prior Selection Approach** - Core methodology
-   - Variance decomposition
-   - Concentration parameter
+   - Law of total cumulance (iterated expectations, total variance)
+   - Variance decomposition with ρ and α₀
    - Derived hyperpriors formulas
 3. **Application: RDU Estimation** - Model, priors, data, estimation
-4. **Results** - Posterior summaries (Table 1 needs real values)
+4. **Results** - Posterior summaries
 5. **Conclusion**
-6. **Appendix A** - MCMC implementation details
+6. **Appendix A** - Full covariance derivation
+7. **Appendix B** - Skew-Normal example (3-parameter extension)
+   - Law of total cumulance for skewness
+   - 3 degrees of freedom: ρ, α_ω, τ_α²
+   - Numerical solution approach
+8. **Appendix C** - MCMC implementation details
 
 To compile:
 ```bash

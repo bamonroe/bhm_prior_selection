@@ -259,6 +259,13 @@ variance on the mean hyper-parameter $\mu$, and $\alpha_0, \beta_0$ are the
 shape and scale parameters for the inverse-gamma distribution used to model the
 variance hyper-parameter, $\sigma^2$.
 
+This decomposition of the direct prior variance allows us to think of it in
+terms of our uncertainty about the population mean, represented here by
+$\tao_0$, and the expectation of the population heterogeneity, here represented
+by $\frac{\beta_0}{\left(\alpha_0 - 1\right)}$.
+
+
+
 Let $V_j$ denote the prior selection variance for parameter $j$. I parameterize
 the decomposition using a variance partition ratio $\rho \in (0,1)$:
 \begin{align}

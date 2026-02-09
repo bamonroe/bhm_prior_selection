@@ -204,13 +204,16 @@ def batch_type(mcmc_config, data):
     """
     n_subjects = data["static"][0]
 
+    proposal_type = ProposalType.MCOV_SMOOTH
+    settings = {'k_alpha': 4.0, 'k_g': 15}
+
     # Subject epsilon blocks: 4 params per subject using MH
     subject_specs = create_subject_blocks(
         n_subjects=n_subjects,
         params_per_subject=NPARAMS,
         sampler_type=SamplerType.METROPOLIS_HASTINGS,
-        proposal_type=ProposalType.MCOV_SMOOTH,
-        settings={'cov_mult': 1.0},
+        proposal_type=proposal_type,
+        settings=settings,
         label_prefix="Subj"
     )
 
@@ -219,29 +222,29 @@ def batch_type(mcmc_config, data):
         BlockSpec(
             size=HYPER_BLOCK_SIZE,
             sampler_type=SamplerType.COUPLED_TRANSFORM,
-            proposal_type=ProposalType.MCOV_SMOOTH,
-            settings={'cov_mult': 1.0},
+            proposal_type=proposal_type,
+            settings=settings,
             label="Hyper_r",
         ),
         BlockSpec(
             size=HYPER_BLOCK_SIZE,
             sampler_type=SamplerType.COUPLED_TRANSFORM,
-            proposal_type=ProposalType.MCOV_SMOOTH,
-            settings={'cov_mult': 1.0},
+            proposal_type=proposal_type,
+            settings=settings,
             label="Hyper_phi",
         ),
         BlockSpec(
             size=HYPER_BLOCK_SIZE,
             sampler_type=SamplerType.COUPLED_TRANSFORM,
-            proposal_type=ProposalType.MCOV_SMOOTH,
-            settings={'cov_mult': 1.0},
+            proposal_type=proposal_type,
+            settings=settings,
             label="Hyper_eta",
         ),
         BlockSpec(
             size=HYPER_BLOCK_SIZE,
             sampler_type=SamplerType.COUPLED_TRANSFORM,
-            proposal_type=ProposalType.MCOV_SMOOTH,
-            settings={'cov_mult': 1.0},
+            proposal_type=proposal_type,
+            settings=settings,
             label="Hyper_lambda",
         ),
     ]

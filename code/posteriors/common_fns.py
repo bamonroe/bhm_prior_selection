@@ -127,13 +127,19 @@ def rdu_value_indexed(
 # Likelihood Functions
 # =============================================================================
 
-def risk_likelihood(weighted_probs, utilities, datai, sid, mu):
+def risk_likelihood(weighted_probs, utilities, datai, sid, lam):
     """
     Compute log likelihood for a subject's lottery choices.
 
     This is the core likelihood function used by all RDU models.
     It uses precomputed utilities and weighted probabilities with
     index lookups for efficiency.
+
+    Implements the Contextual Utility model (Wilcox, 2011) as in eq:likelihood:
+        Δ = (U(A) - U(B)) / (λ * (u(x̄) - u(x̲)))
+        P(A) = 1 / (1 + exp(-Δ))
+
+    where λ is a noise scaling parameter (larger λ = more noise).
 
     Args:
         weighted_probs: Precomputed w(p) for all unique probabilities
@@ -146,7 +152,7 @@ def risk_likelihood(weighted_probs, utilities, datai, sid, mu):
             [4]: idx_b_low (n_subjects, n_choices) - index of B's low prize
             [5]: idx_prob (n_subjects, n_choices) - index of probability
         sid: Subject index
-        mu: Noise parameter (inverse temperature)
+        lam: Fechner noise parameter (λ > 0, in denominator)
 
     Returns:
         Log likelihood (scalar)
@@ -172,8 +178,22 @@ def risk_likelihood(weighted_probs, utilities, datai, sid, mu):
         v_a = rdu_value_indexed(weighted_probs, utilities, ia_h, ia_l, ip)
         v_b = rdu_value_indexed(weighted_probs, utilities, ib_h, ib_l, ip)
 
-        # Choice probability (logistic/Fechner noise)
-        p_choose_a = jax.nn.sigmoid(mu * (v_a - v_b))
+        # Contextual utility: normalize by range of outcomes (Wilcox, 2011)
+        # u(x̄) - u(x̲) = max utility - min utility across both lotteries
+        u_a_h = utilities[ia_h]
+        u_a_l = utilities[ia_l]
+        u_b_h = utilities[ib_h]
+        u_b_l = utilities[ib_l]
+        u_max = jnp.maximum(jnp.maximum(u_a_h, u_a_l), jnp.maximum(u_b_h, u_b_l))
+        u_min = jnp.minimum(jnp.minimum(u_a_h, u_a_l), jnp.minimum(u_b_h, u_b_l))
+        u_range = jnp.maximum(u_max - u_min, 1e-10)  # Avoid division by zero
+
+        # Fechner model: Δ = (U(A) - U(B)) / (λ * u_range)
+        # λ is noise SCALE (in denominator): larger λ = more noise
+        delta = (v_a - v_b) / (lam * u_range)
+
+        # Choice probability
+        p_choose_a = jax.nn.sigmoid(delta)
         p_choose_a = jnp.clip(p_choose_a, 1e-10, 1 - 1e-10)
 
         # Log likelihood

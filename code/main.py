@@ -33,10 +33,15 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'true' if False else 'false'
 os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 
 # Enable 64-bit precision in JAX (required for int64 indices)
+# Must be set BOTH as environment variable AND via JAX config to ensure it takes effect
 os.environ['JAX_ENABLE_X64'] = 'true'
 
 # JAX compilation cache directory (speeds up subsequent runs)
 os.environ['JAX_COMPILATION_CACHE_DIR'] = os.path.dirname(__file__) + '/jax_cache'
+
+# Import JAX and set config (backup in case env var isn't picked up)
+import jax
+jax.config.update("jax_enable_x64", True)
 
 # =============================================================================
 
@@ -84,11 +89,11 @@ DIRECT_PRIOR = {
     },
     'phi_raw': {
         'mu': 0.0,       # phi=1 (no curvature distortion)
-        'sigma2': 0.09,  # sd=0.3, phi 95% CI roughly (0.55, 1.8)
+        'sigma2': 0.15,  # sd=0.3, phi 95% CI roughly (0.55, 1.8)
     },
     'eta_raw': {
         'mu': 0.0,       # eta=1 (no elevation distortion)
-        'sigma2': 0.09,  # sd=0.3, eta 95% CI roughly (0.55, 1.8)
+        'sigma2': 0.15,  # sd=0.3, eta 95% CI roughly (0.55, 1.8)
     },
     'lambda_raw': {
         'mu': -2.0,      # lambda ~ 0.14 (moderate noise)
@@ -102,17 +107,19 @@ DIRECT_PRIOR = {
 # - alpha_0: InverseGamma shape parameter (higher = tighter variance prior)
 #            CV[sigma^2] = 1/sqrt(alpha_0-2)
 PRIOR_SELECTION = {
-    'rho': 0.3,
-    'alpha_0': 6.0,
+    'rho': 0.2,
+    'alpha_0': 20.0,
 }
 
 # Uninformative (diffuse) prior for comparison
-# Uses N(0, 100^2) = N(0, 10000) for all parameters
+# For r (untransformed): N(0, 100) gives 95% CI of [-20, 20]
+# For log-transformed params: N(0, 25) gives 95% CI of [-10, 10] in log scale
+#   which is [0.00005, 22026] in natural scale - wide but numerically stable
 UNINFORMATIVE_PRIOR = {
-    'r': {'mu': 0.0, 'sigma2': 10000.0},
-    'phi_raw': {'mu': 0.0, 'sigma2': 10000.0},
-    'eta_raw': {'mu': 0.0, 'sigma2': 10000.0},
-    'lambda_raw': {'mu': 0.0, 'sigma2': 10000.0},
+    'r': {'mu': 0.0, 'sigma2': 100.0},
+    'phi_raw': {'mu': 0.0, 'sigma2': 25.0},
+    'eta_raw': {'mu': 0.0, 'sigma2': 25.0},
+    'lambda_raw': {'mu': 0.0, 'sigma2': 25.0},
 }
 
 # Skew-Normal example configuration (for Appendix B)
@@ -125,8 +132,8 @@ SKEW_NORMAL_DIRECT_PRIOR = {
 
 # Researcher choices for Skew-Normal (3 degrees of freedom)
 SKEW_NORMAL_RESEARCHER = {
-    'rho': 0.3,           # variance partition (same interpretation as Normal case)
-    'alpha_omega': 6.0,   # scale concentration (analogous to alpha_0)
+    'rho': 0.2,           # variance partition (same interpretation as Normal case)
+    'alpha_omega': 20.0,   # scale concentration (analogous to alpha_0)
     'tau_alpha_sq': 0.25, # shape uncertainty (new degree of freedom)
 }
 
@@ -136,35 +143,7 @@ SEEDS = {
 }
 
 # Parallel processing
-N_WORKERS = 15  # Number of parallel workers for plotting, etc.
-
-
-# =============================================================================
-# Control Flags
-# =============================================================================
-
-# --- Data Pipeline ---
-do_clean_data     = False
-do_gen_paper_data = False
-
-# --- Prior Selection and Plots ---
-do_generate_prior = False
-do_prior_plots    = False
-
-# --- MCMC Sampling (Informative Prior) ---
-do_sampling = False
-
-# --- MCMC Sampling (Uninformative Prior) ---
-do_sampling_uninformative = False
-
-# --- Post-Processing ---
-do_gen_paper_quantities = False
-do_diagnostic_plots     = False
-do_paper_plots          = False
-
-# --- Appendix Examples ---
-do_skew_normal_example  = False
-
+N_WORKERS = 25  # Number of parallel workers for plotting, etc.
 
 # =============================================================================
 # Sampling Options
@@ -176,12 +155,40 @@ sampling_opts = {
     'plots_dir': PLOTS_DIR / 'rdu_bhm',
     'clean': True,
     'reset_runs': 0,
-    'resume_runs': 1,
+    'resume_runs': 5,
     'num_chains': 500,
     'num_collect': 100,
     'thin_iteration': 1,
+    'chunk_size': 10,  # Iterations per compiled chunk (1-10000)
     'seed': SEEDS['sampling'],
 }
+
+# =============================================================================
+# Control Flags
+# =============================================================================
+
+# --- Data Pipeline ---
+do_clean_data     = True
+do_gen_paper_data = True
+
+# --- Prior Selection and Plots ---
+do_generate_prior = True
+do_prior_plots    = True
+
+# --- MCMC Sampling (Informative Prior) ---
+do_sampling = True
+
+# --- MCMC Sampling (Uninformative Prior) ---
+do_sampling_uninformative = False
+
+# --- Post-Processing ---
+do_gen_paper_quantities = True
+do_diagnostic_plots     = True
+do_paper_plots          = True
+
+# --- Appendix Examples ---
+do_skew_normal_example  = False
+
 
 
 # =============================================================================

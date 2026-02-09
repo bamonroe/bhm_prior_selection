@@ -78,6 +78,7 @@ def run_sampling(sampling_opts, prior_params_path=None):
             'num_chains_a': num_chains,
             'num_chains_b': num_chains,
             'thin_iteration': sampling_opts['thin_iteration'],
+            'chunk_size': sampling_opts.get('chunk_size', 100),
             'rng_seed': sampling_opts['seed'],
         },
     )

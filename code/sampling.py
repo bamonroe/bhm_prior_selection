@@ -17,6 +17,7 @@ DEFAULT_CONFIG = {
     'num_chains_b': 100,
     'num_collect': 1000,
     'thin_iteration': 10,
+    'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
     'num_runs': 5,
     'rng_seed': 42,
 }
@@ -59,6 +60,7 @@ def run_sampling(output_dir, num_runs=None, num_collect=None, config=None):
         'burn_iter': 0,  # Keep full history, drop burn-in post-hoc
         'num_collect': num_collect or cfg['num_collect'],
         'thin_iteration': cfg['thin_iteration'],
+        'chunk_size': cfg.get('chunk_size', 100),
         'rng_seed': cfg['rng_seed'],
     }
 

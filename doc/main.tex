@@ -373,17 +373,60 @@ distribution $p(\theta_i)$.
 \subsection{Prior Specification of a Single RDU Agent}
 
 \begin{pycode}
+import numpy as np
+
+# Load direct prior and prior selection parameters from paper_data.npz
+_paper_data = np.load("../data/output/paper_data.npz")
+
 dprior = {
-    "r": {"mu": 0.5, "sigma2": 0.25},
-    "phi_raw": {"mu": 0.0, "sigma2": 0.09},
-    "eta_raw": {"mu": 0.0, "sigma2": 0.09},
-    "lambda_raw": {"mu": -2.0, "sigma2": 1.0}
+    "r": {"mu": float(_paper_data["dprior_r_mu"]),
+          "sigma2": float(_paper_data["dprior_r_sigma2"])},
+    "phi_raw": {"mu": float(_paper_data["dprior_phi_raw_mu"]),
+                "sigma2": float(_paper_data["dprior_phi_raw_sigma2"])},
+    "eta_raw": {"mu": float(_paper_data["dprior_eta_raw_mu"]),
+                "sigma2": float(_paper_data["dprior_eta_raw_sigma2"])},
+    "lambda_raw": {"mu": float(_paper_data["dprior_lambda_raw_mu"]),
+                   "sigma2": float(_paper_data["dprior_lambda_raw_sigma2"])}
+}
+
+ps_rho = float(_paper_data["ps_rho"])
+ps_alpha_0 = float(_paper_data["ps_alpha_0"])
+
+# Load derived hyperpriors from prior_params.npz
+_prior_params = np.load("../data/output/prior_params.npz")
+
+hyperpriors = {
+    "r": {
+        "mu_0": float(_prior_params["r_mean"]),
+        "tau_0": float(np.exp(_prior_params["ln_r_sdev"])),
+        "alpha_0": float(_prior_params["alpha_0"]),
+        "beta_0": float(_prior_params["beta_0_r"]),
+    },
+    "phi": {
+        "mu_0": float(_prior_params["phi_mean"]),
+        "tau_0": float(np.exp(_prior_params["ln_phi_sdev"])),
+        "alpha_0": float(_prior_params["alpha_0"]),
+        "beta_0": float(_prior_params["beta_0_phi"]),
+    },
+    "eta": {
+        "mu_0": float(_prior_params["eta_mean"]),
+        "tau_0": float(np.exp(_prior_params["ln_eta_sdev"])),
+        "alpha_0": float(_prior_params["alpha_0"]),
+        "beta_0": float(_prior_params["beta_0_eta"]),
+    },
+    "lambda": {
+        "mu_0": float(_prior_params["lambda_mean"]),
+        "tau_0": float(np.exp(_prior_params["ln_lambda_sdev"])),
+        "alpha_0": float(_prior_params["alpha_0"]),
+        "beta_0": float(_prior_params["beta_0_lambda"]),
+    },
 }
 \end{pycode}
 
 Following the example above, we define the $r_i$ parameter, and the natural log
 of the remaining parameters, to have a Normal distribution:
 \begin{align}
+\label{eq:d_prior_sym}
 \begin{split}
   r &\sim N(\mu_r, \sigma_r^2) \\
   \ln{\phi} &\sim N(\mu_{\phi}, \sigma_{\phi}^2) \\
@@ -392,8 +435,8 @@ of the remaining parameters, to have a Normal distribution:
 \end{split}
 \end{align}
 \noindent with specific values for these \enquote{direct prior} parameters:
-
 \begin{equation}
+\label{eq:d_prior}
 \begin{matrix}
   \mu_r = \py{dprior["r"]["mu"]} &  \sigma_r^2 = \py{dprior["r"]["sigma2"]} \\
   \mu_{\phi} = \py{dprior["phi_raw"]["mu"]} &  \sigma_{\phi}^2 = \py{dprior["phi_raw"]["sigma2"]} \\
@@ -402,7 +445,81 @@ of the remaining parameters, to have a Normal distribution:
 \end{matrix}
 \end{equation}
 
+Using the method described above, in addition to the two direct prior
+parameters per parameter in \ref{eq:d_prior}, we need to make two more
+hyper-prior decisions per parameter. This is a situation where the
+re-parameterization done before can benefit us. The first re-parameterization
+we did was to introduce the variance partition parameter $\rho$. Unlike
+specifying $\tau_0$ directly, which would rely on our intuition about the mean
+hyper-parameter directly, the specification of $\rho$ is
+\textit{unit-agnostic}. The $\rho$ parameter can be interpreted as the central
+tendency of our beliefs about the heterogeneity of the sample, with low values
+of $\rho$ indicating a belief in a high degree of heterogeneity, and high
+values of $\rho$ indicating the opposite. The choice of $\alpha$ parameter, can
+likewise be interpreted as expressing our \textit{confidence} in the degree of
+heterogeneity. Low values of $\alpha$ would result in a distribution of the
+$\sigma^2$ hyper-parameter with heavy right tails, while greater values of
+$\alpha$ would reign in those tails, making the distribution of $\sigma^2$ more
+heavily concentrated around its mean.
 
+\textit{Any} choice of $\rho \in [0, 1]$ and $\alpha > 0$ will result in the
+unconditional hyper-prior being equivalent to the direct prior. The choice the
+researcher needs to make, after having specified the direct prior, is an
+expression of their belief about the degree of heterogeneity in the sample.
+While it could be the case that we have different beliefs about this
+heterogeneity composition per-parameter, it is also reasonable to think that we
+set the same hyper-prior parameters for all parameters:
+\begin{align}
+  \rho_j &= \py{ps_rho} \quad \forall j \in [r, \phi, \eta, \lambda] \\
+  \alpha_{0,j} &= \py{ps_alpha_0} \quad \forall j \in [r, \phi, \eta, \lambda]
+\end{align}
+
+These researcher decisions result in the full hyper-prior:
+
+\begin{table}[h]
+\centering
+\caption{Derived Hyperprior Parameters}
+\label{tab:hyperpriors}
+\begin{tabular}{lcccc}
+\toprule
+Parameter & $\mu_0$ & $\tau_0$ & $\alpha_0$ & $\beta_0$ \\
+\midrule
+$r$ & \py{f"{hyperpriors['r']['mu_0']:.2f}"} & \py{f"{hyperpriors['r']['tau_0']:.3f}"} & \py{f"{hyperpriors['r']['alpha_0']:.1f}"} & \py{f"{hyperpriors['r']['beta_0']:.3f}"} \\
+$\ln \phi$ & \py{f"{hyperpriors['phi']['mu_0']:.2f}"} & \py{f"{hyperpriors['phi']['tau_0']:.3f}"} & \py{f"{hyperpriors['phi']['alpha_0']:.1f}"} & \py{f"{hyperpriors['phi']['beta_0']:.3f}"} \\
+$\ln \eta$ & \py{f"{hyperpriors['eta']['mu_0']:.2f}"} & \py{f"{hyperpriors['eta']['tau_0']:.3f}"} & \py{f"{hyperpriors['eta']['alpha_0']:.1f}"} & \py{f"{hyperpriors['eta']['beta_0']:.3f}"} \\
+$\ln \lambda$ & \py{f"{hyperpriors['lambda']['mu_0']:.2f}"} & \py{f"{hyperpriors['lambda']['tau_0']:.3f}"} & \py{f"{hyperpriors['lambda']['alpha_0']:.1f}"} & \py{f"{hyperpriors['lambda']['beta_0']:.3f}"} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent where the hyperpriors are interpreted as:
+\begin{align}
+  \mu_j &\sim N(\mu_{0,j}, \tau_{0,j}^2) \\
+  \sigma_j^2 &\sim \text{Inv-Gamma}(\alpha_0, \beta_{0,j})
+\end{align}
+
+
+
+\begin{figure}
+  \centering
+  \caption{Draws from the Direct Prior}
+  \label{fig:direct_prior}
+  \includegraphics[width=\textwidth]{../plots/priors/direct_prior.pdf}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \caption{Draws from the Derived Hyper-Prior}
+  \label{fig:}
+  \includegraphics[width=\textwidth]{../plots/priors/unconditional_prior.pdf}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \caption{Draws from the Derived Hyper-Prior}
+  \label{fig:}
+  \includegraphics[width=\textwidth]{../plots/priors/prior_comparison.pdf}
+\end{figure}
 
 \section{Application: RDU Estimation}
 

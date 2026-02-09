@@ -25,12 +25,30 @@ import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend for multiprocessing
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib import font_manager
 from scipy import stats
 from pathlib import Path
 from multiprocessing import Pool
 
 from bamcmc import combine_batch_histories
 from posteriors.rdu_bhm import NPARAMS, N_HYPER
+
+# Configure LaTeX fonts (Latin Modern)
+_CODE_DIR = Path(__file__).parent
+_FONT_PATH_ROMAN = _CODE_DIR / 'lmroman12-italic.otf'
+_FONT_PATH_MATH = _CODE_DIR / 'latinmodern-math.otf'
+
+if _FONT_PATH_ROMAN.exists():
+    font_manager.fontManager.addfont(str(_FONT_PATH_ROMAN))
+if _FONT_PATH_MATH.exists():
+    font_manager.fontManager.addfont(str(_FONT_PATH_MATH))
+
+plt.rcParams.update({
+    'font.family': 'serif',
+    'font.serif': ['Latin Modern Roman', 'DejaVu Serif', 'serif'],
+    'mathtext.fontset': 'cm',  # Computer Modern for math
+    'axes.unicode_minus': False,
+})
 
 
 # Hyperparameter display info: (state_name, latex_label)
@@ -41,8 +59,8 @@ HYPERPARAM_INFO = [
     ('phi_logsd', r'$\ln\sigma_{\phi}$'),
     ('eta_mean', r'$\mu_{\eta}$ (log scale)'),
     ('eta_logsd', r'$\ln\sigma_{\eta}$'),
-    ('mu_mean', r'$\mu_{\mu}$ (log scale)'),
-    ('mu_logsd', r'$\ln\sigma_{\mu}$'),
+    ('lambda_mean', r'$\mu_{\lambda}$ (log scale)'),
+    ('lambda_logsd', r'$\ln\sigma_{\lambda}$'),
 ]
 
 # Subject parameter display info: (name, latex_label)
@@ -50,7 +68,7 @@ SUBJECT_PARAM_INFO = [
     ('r', r'$r$ (CRRA)'),
     ('phi', r'$\phi$ (Prelec curvature)'),
     ('eta', r'$\eta$ (Prelec elevation)'),
-    ('mu', r'$\mu$ (noise)'),
+    ('lambda', r'$\lambda$ (noise)'),
 ]
 
 # Color schemes
@@ -151,7 +169,7 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False):
     if n_subjects is None:
         # History contains:
         # - Raw state: N_HYPER hyperparams + n_subjects * NPARAMS subject epsilon params
-        # - Generated quantities: n_subjects * 4 (r, phi, eta, mu) + 8 (population params)
+        # - Generated quantities: n_subjects * 4 (r, phi, eta, lambda) + 8 (population params)
         # Total = N_HYPER + n_subjects * NPARAMS + n_subjects * 4 + 8
         #       = N_HYPER + 8 + n_subjects * (NPARAMS + 4)
         n_subjects = (n_params - N_HYPER - 8) // (NPARAMS + 4)
@@ -174,12 +192,12 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False):
         if (sid + 1) % 100 == 0 or sid == 0:
             print(f"    Subject {sid}...", flush=True)
 
-        # Generated quantities layout: r[0:n], phi[n:2n], eta[2n:3n], mu[3n:4n], then pop params
+        # Generated quantities layout: r[0:n], phi[n:2n], eta[2n:3n], lambda[3n:4n], then pop params
         subject_data = {
             'r': history[:, :, first_gq + sid],
             'phi': history[:, :, first_gq + n_subjects + sid],
             'eta': history[:, :, first_gq + 2 * n_subjects + sid],
-            'mu': history[:, :, first_gq + 3 * n_subjects + sid],
+            'lambda': history[:, :, first_gq + 3 * n_subjects + sid],
         }
 
         out_path = output_dir / f'subject_{sid:03d}_params.npz'
@@ -214,7 +232,7 @@ def _plot_single_subject(args):
     # Load subject data from file
     params_path = params_dir / f'subject_{subject_id:03d}_params.npz'
     data = np.load(params_path)
-    params = {k: data[k] for k in ['r', 'phi', 'eta', 'mu']}
+    params = {k: data[k] for k in ['r', 'phi', 'eta', 'lambda']}
 
     # Generate PDF
     pdf_path = output_dir / f'subject_{subject_id:03d}.pdf'
@@ -413,8 +431,16 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    n_samples, n_chains, _ = history.shape
+    n_samples, n_chains, n_total_params = history.shape
     burn_idx = n_samples // 2
+
+    # Compute hyperparameter offset
+    # History contains raw chain state (2012 params) + generated quantities (2012 params)
+    # Raw chain state: [subject epsilons (n_subjects * NPARAMS), hyperparams (N_HYPER)]
+    # n_subjects = (n_total_params / 2 - N_HYPER) / NPARAMS
+    n_raw_params = n_total_params // 2  # 2012
+    n_subjects = (n_raw_params - N_HYPER) // NPARAMS
+    hyper_start = n_subjects * NPARAMS  # Index where hyperparameters start
 
     # Subsample chains for traces
     n_chains_plot = min(100, n_chains)
@@ -438,7 +464,8 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path):
                 ax_trace = axes[i, 0]
                 ax_density = axes[i, 1]
 
-                param_samples = history[:, :, param_idx]
+                # Use correct index: hyper_start + param_idx
+                param_samples = history[:, :, hyper_start + param_idx]
 
                 # Trace plot
                 for j, chain_idx in enumerate(chain_indices):
@@ -597,12 +624,13 @@ def paper_plots(quantities_path, plots_dir):
 # PRIOR DISTRIBUTION PLOTS
 # =============================================================================
 
-# Parameter display info for prior plots
+# Parameter display info for prior plots: (key, label, transform_exp)
+# transform_exp=True means samples are on log scale and should be exp-transformed for display
 PRIOR_PARAM_INFO = [
-    ('r', r'$r$ (CRRA)', False),           # (key, label, log_scale)
-    ('phi_raw', r'$\ln\phi$', True),
-    ('eta_raw', r'$\ln\eta$', True),
-    ('lambda_raw', r'$\ln\lambda$', True),
+    ('r', r'$r$ (CRRA)', False),
+    ('phi_raw', r'$\phi$ (Prelec curvature)', True),
+    ('eta_raw', r'$\eta$ (Prelec elevation)', True),
+    ('lambda_raw', r'$\lambda$ (noise)', True),
 ]
 
 
@@ -611,6 +639,7 @@ def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
     Generate 4-panel plot of the direct prior distribution.
 
     Samples from N(mu, sigma2) for each parameter and plots the distribution.
+    For log-scale parameters (phi, eta, lambda), displays on natural scale via exp().
 
     Args:
         direct_prior: Dict with {param: {'mu': float, 'sigma2': float}}
@@ -627,13 +656,23 @@ def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
     axes = axes.flatten()
     fig.suptitle('Direct Prior Distribution', fontsize=14, fontweight='bold')
 
-    for i, (key, label, is_log) in enumerate(PRIOR_PARAM_INFO):
+    for i, (key, label, transform_exp) in enumerate(PRIOR_PARAM_INFO):
         ax = axes[i]
         mu = direct_prior[key]['mu']
         sigma = np.sqrt(direct_prior[key]['sigma2'])
 
-        # Sample from direct prior
-        samples = np.random.normal(mu, sigma, n_samples)
+        # Sample from direct prior (on raw/log scale)
+        raw_samples = np.random.normal(mu, sigma, n_samples)
+
+        # Transform to natural scale if needed
+        if transform_exp:
+            samples = np.exp(raw_samples)
+            display_mean = np.exp(mu)  # Approximate - actual mean of lognormal is exp(mu + sigma^2/2)
+            median = np.exp(mu)  # Median of lognormal
+        else:
+            samples = raw_samples
+            display_mean = mu
+            median = mu
 
         # Plot histogram and KDE
         ax.hist(samples, bins=50, density=True, alpha=0.6, color=COLOR_DATA,
@@ -641,28 +680,37 @@ def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
 
         try:
             kde = stats.gaussian_kde(samples)
-            x_range = np.linspace(samples.min(), samples.max(), 200)
+            x_range = np.linspace(np.percentile(samples, 0.5), np.percentile(samples, 99.5), 200)
             ax.plot(x_range, kde(x_range), color=COLOR_DATA, lw=2)
         except Exception:
             pass
 
-        # Mark mean
-        ax.axvline(mu, color=COLOR_MEDIAN, linestyle='--', lw=2,
-                   label=f'Mean: {mu:.2f}')
+        # Mark median (which equals exp(mu) for lognormal)
+        ax.axvline(median, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                   label=f'Median: {median:.2f}')
 
-        # Add ±2σ range
-        ax.axvline(mu - 2*sigma, color='gray', linestyle=':', alpha=0.7)
-        ax.axvline(mu + 2*sigma, color='gray', linestyle=':', alpha=0.7)
+        # Add 95% CI
+        ci_low, ci_high = np.percentile(samples, [2.5, 97.5])
+        ax.axvline(ci_low, color='gray', linestyle=':', alpha=0.7)
+        ax.axvline(ci_high, color='gray', linestyle=':', alpha=0.7)
 
         ax.set_xlabel(label, fontsize=11)
         ax.set_ylabel('Density', fontsize=11)
-        ax.set_title(f'{label.split("$")[1].split("$")[0] if "$" in label else key}', fontsize=12)
         ax.legend(loc='upper right', fontsize=9)
 
-        # Add text annotation
-        ax.text(0.02, 0.98, f'$\\mu={mu:.2f}$, $\\sigma={sigma:.2f}$',
-                transform=ax.transAxes, fontsize=9, verticalalignment='top',
-                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        # Add text annotation with raw scale params and natural scale stats
+        if transform_exp:
+            ax.text(0.02, 0.98,
+                    f'Log scale: $\\mu={mu:.2f}$, $\\sigma={sigma:.2f}$\n'
+                    f'95% CI: [{ci_low:.2f}, {ci_high:.2f}]',
+                    transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        else:
+            ax.text(0.02, 0.98,
+                    f'$\\mu={mu:.2f}$, $\\sigma={sigma:.2f}$\n'
+                    f'95% CI: [{ci_low:.2f}, {ci_high:.2f}]',
+                    transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -678,6 +726,8 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
     Samples from the full BHM structure:
     1. Sample hyperparams: mu ~ N(mu_0, tau_0^2), sigma^2 ~ IG(alpha_0, beta_0)
     2. Sample individual: theta ~ N(mu, sigma^2)
+
+    For log-scale parameters (phi, eta, lambda), displays on natural scale via exp().
 
     Args:
         direct_prior: Dict with {param: {'mu': float, 'sigma2': float}}
@@ -698,20 +748,21 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
     axes = axes.flatten()
     fig.suptitle('Unconditional Prior Distribution (BHM)', fontsize=14, fontweight='bold')
 
-    for i, (key, label, is_log) in enumerate(PRIOR_PARAM_INFO):
+    for i, (key, label, transform_exp) in enumerate(PRIOR_PARAM_INFO):
         ax = axes[i]
 
         # Get direct prior params
         mu_ps = direct_prior[key]['mu']
         var_ps = direct_prior[key]['sigma2']
+        sigma_ps = np.sqrt(var_ps)
 
         # Derive hyperpriors
         tau_0_sq = rho * var_ps
         expected_sigma_sq = (1 - rho) * var_ps
         beta_0 = expected_sigma_sq * (alpha_0 - 1)
 
-        # Sample from BHM
-        samples = np.zeros(n_samples)
+        # Sample from BHM (on raw/log scale)
+        raw_samples = np.zeros(n_samples)
         for j in range(n_samples):
             # Sample population mean
             mu = np.random.normal(mu_ps, np.sqrt(tau_0_sq))
@@ -720,7 +771,15 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
             sigma_sq = 1.0 / np.random.gamma(alpha_0, 1.0 / beta_0)
 
             # Sample individual
-            samples[j] = np.random.normal(mu, np.sqrt(sigma_sq))
+            raw_samples[j] = np.random.normal(mu, np.sqrt(sigma_sq))
+
+        # Transform to natural scale if needed
+        if transform_exp:
+            samples = np.exp(raw_samples)
+            median = np.exp(mu_ps)
+        else:
+            samples = raw_samples
+            median = mu_ps
 
         # Plot histogram and KDE
         ax.hist(samples, bins=50, density=True, alpha=0.6, color=COLOR_DATA,
@@ -728,32 +787,39 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
 
         try:
             kde = stats.gaussian_kde(samples)
-            x_range = np.linspace(samples.min(), samples.max(), 200)
+            x_range = np.linspace(np.percentile(samples, 0.5), np.percentile(samples, 99.5), 200)
             ax.plot(x_range, kde(x_range), color=COLOR_DATA, lw=2)
         except Exception:
             pass
 
-        # Mark direct prior mean
-        ax.axvline(mu_ps, color=COLOR_MEDIAN, linestyle='--', lw=2,
-                   label=f'Prior mean: {mu_ps:.2f}')
+        # Mark median
+        ax.axvline(median, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                   label=f'Median: {median:.2f}')
 
-        # Add ±2σ range from direct prior
-        sigma_ps = np.sqrt(var_ps)
-        ax.axvline(mu_ps - 2*sigma_ps, color='gray', linestyle=':', alpha=0.7)
-        ax.axvline(mu_ps + 2*sigma_ps, color='gray', linestyle=':', alpha=0.7)
+        # Add 95% CI
+        ci_low, ci_high = np.percentile(samples, [2.5, 97.5])
+        ax.axvline(ci_low, color='gray', linestyle=':', alpha=0.7)
+        ax.axvline(ci_high, color='gray', linestyle=':', alpha=0.7)
 
         ax.set_xlabel(label, fontsize=11)
         ax.set_ylabel('Density', fontsize=11)
-        ax.set_title(f'{label.split("$")[1].split("$")[0] if "$" in label else key}', fontsize=12)
         ax.legend(loc='upper right', fontsize=9)
 
         # Add text with sample stats
-        sample_mean = np.mean(samples)
-        sample_std = np.std(samples)
-        ax.text(0.02, 0.98, f'Sample: $\\mu={sample_mean:.2f}$, $\\sigma={sample_std:.2f}$\n'
-                           f'Target: $\\mu={mu_ps:.2f}$, $\\sigma={sigma_ps:.2f}$',
-                transform=ax.transAxes, fontsize=9, verticalalignment='top',
-                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        if transform_exp:
+            ax.text(0.02, 0.98,
+                    f'Log scale: $\\mu={mu_ps:.2f}$, $\\sigma={sigma_ps:.2f}$\n'
+                    f'95% CI: [{ci_low:.2f}, {ci_high:.2f}]',
+                    transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        else:
+            sample_mean = np.mean(samples)
+            sample_std = np.std(samples)
+            ax.text(0.02, 0.98,
+                    f'Sample: $\\mu={sample_mean:.2f}$, $\\sigma={sample_std:.2f}$\n'
+                    f'Target: $\\mu={mu_ps:.2f}$, $\\sigma={sigma_ps:.2f}$',
+                    transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -787,7 +853,7 @@ def plot_prior_comparison(direct_prior, prior_selection, output_path,
     axes = axes.flatten()
     fig.suptitle('Prior Comparison: Direct vs Unconditional BHM', fontsize=14, fontweight='bold')
 
-    for i, (key, label, is_log) in enumerate(PRIOR_PARAM_INFO):
+    for i, (key, label, transform_exp) in enumerate(PRIOR_PARAM_INFO):
         ax = axes[i]
 
         # Get direct prior params
@@ -808,6 +874,11 @@ def plot_prior_comparison(direct_prior, prior_selection, output_path,
             mu = np.random.normal(mu_ps, np.sqrt(tau_0_sq))
             sigma_sq = 1.0 / np.random.gamma(alpha_0, 1.0 / beta_0)
             bhm_samples[j] = np.random.normal(mu, np.sqrt(sigma_sq))
+
+        # Transform to natural scale if needed (exp for log-transformed params)
+        if transform_exp:
+            direct_samples = np.exp(direct_samples)
+            bhm_samples = np.exp(bhm_samples)
 
         # Plot both distributions
         x_min = min(direct_samples.min(), bhm_samples.min())

@@ -15,6 +15,8 @@ def gen_paper_data(output_path=None, direct_prior=None, prior_selection=None):
     """
     Generate summary statistics about the experimental data.
 
+    Saves to NPZ file that can be loaded in LaTeX via pythontex.
+
     Args:
         output_path: Path to save NPZ file (default: data/output/paper_data.npz)
         direct_prior: Dict with direct prior specification for each parameter

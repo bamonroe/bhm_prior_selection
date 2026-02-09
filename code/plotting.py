@@ -75,6 +75,7 @@ SUBJECT_PARAM_INFO = [
 COLOR_DATA = 'steelblue'
 COLOR_MEDIAN = 'red'
 COLOR_REFERENCE = 'black'
+COLOR_PRIOR = 'green'
 COLOR_SPAGHETTI = 'steelblue'
 RUN_COLORS = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628']
 
@@ -84,6 +85,65 @@ N_SPAGHETTI_SAMPLES = 100
 # Dataset outcome range (DKK from Danish experiment)
 X_MIN = 50.0
 X_MAX = 4500.0
+
+
+def compute_hyperprior_quantiles(hyperprior_specs):
+    """
+    Compute median and 95% CI for each hyperparameter's prior distribution.
+
+    Args:
+        hyperprior_specs: Dict with keys 'r', 'phi_raw', 'eta_raw', 'lambda_raw',
+                         each containing 'mu_0', 'tau_0_sq', 'alpha_0', 'beta_0'
+
+    Returns:
+        Dict mapping hyperparameter name to (median, lower_95, upper_95)
+    """
+    quantiles = {}
+
+    for param_name in ['r', 'phi_raw', 'eta_raw', 'lambda_raw']:
+        spec = hyperprior_specs[param_name]
+        mu_0 = spec['mu_0']
+        tau_0 = np.sqrt(spec['tau_0_sq'])
+        alpha_0 = spec['alpha_0']
+        beta_0 = spec['beta_0']
+
+        # Mean parameter: mu ~ N(mu_0, tau_0^2)
+        mean_median = mu_0
+        mean_lower = mu_0 - 1.96 * tau_0
+        mean_upper = mu_0 + 1.96 * tau_0
+
+        # Map to state names used in HYPERPARAM_INFO
+        if param_name == 'r':
+            mean_key = 'r_mean'
+            logsd_key = 'r_logsd'
+        elif param_name == 'phi_raw':
+            mean_key = 'phi_mean'
+            logsd_key = 'phi_logsd'
+        elif param_name == 'eta_raw':
+            mean_key = 'eta_mean'
+            logsd_key = 'eta_logsd'
+        else:  # lambda_raw
+            mean_key = 'lambda_mean'
+            logsd_key = 'lambda_logsd'
+
+        quantiles[mean_key] = (mean_median, mean_lower, mean_upper)
+
+        # Logsd parameter: sigma^2 ~ InvGamma(alpha_0, beta_0)
+        # logsd = log(sigma) = 0.5 * log(sigma^2)
+        # Use scipy to compute quantiles of InvGamma, then transform
+        from scipy.stats import invgamma
+        # InvGamma in scipy uses shape=alpha, scale=beta
+        sigma_sq_median = invgamma.ppf(0.5, alpha_0, scale=beta_0)
+        sigma_sq_lower = invgamma.ppf(0.025, alpha_0, scale=beta_0)
+        sigma_sq_upper = invgamma.ppf(0.975, alpha_0, scale=beta_0)
+
+        logsd_median = 0.5 * np.log(sigma_sq_median)
+        logsd_lower = 0.5 * np.log(sigma_sq_lower)
+        logsd_upper = 0.5 * np.log(sigma_sq_upper)
+
+        quantiles[logsd_key] = (logsd_median, logsd_lower, logsd_upper)
+
+    return quantiles
 
 
 def crra_utility(x, r, x_min=X_MIN, x_max=X_MAX):
@@ -213,6 +273,79 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False):
     return output_dir, iterations, batch_boundaries
 
 
+def preprocess_hyperparams(history_dir, output_dir, force=False):
+    """
+    Load full history and save hyperparameter data to a single file.
+
+    Args:
+        history_dir: Directory with history files
+        output_dir: Directory to save preprocessed hyperparameter file
+        force: If True, overwrite existing data
+
+    Returns:
+        Path to the preprocessed hyperparameter file
+    """
+    history_dir = Path(history_dir)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = output_dir / 'hyperparams_preprocessed.npz'
+
+    # Load history files
+    history_files = sorted(history_dir.glob('history_*.npz'))
+    if not history_files:
+        raise FileNotFoundError(f"No history files in {history_dir}")
+
+    # Check if preprocessed data already exists and is up-to-date
+    if output_path.exists() and not force:
+        newest_history = max(f.stat().st_mtime for f in history_files)
+        preprocessed_time = output_path.stat().st_mtime
+
+        if newest_history <= preprocessed_time:
+            print(f"  Hyperparameter data up-to-date: {output_path}")
+            return output_path
+
+    print(f"  Loading {len(history_files)} history files...")
+    history, iterations, likelihoods, metadata = combine_batch_histories(history_files)
+    print(f"  Combined shape: {history.shape}")
+
+    n_samples, n_chains, n_total_params = history.shape
+
+    # Calculate hyperparameter indices
+    # History contains raw chain state (2012 params) + generated quantities (2012 params)
+    # Raw chain state: [subject epsilons (n_subjects * NPARAMS), hyperparams (N_HYPER)]
+    n_raw_params = n_total_params // 2
+    n_subjects = (n_raw_params - N_HYPER) // NPARAMS
+    hyper_start = n_subjects * NPARAMS
+
+    print(f"  Extracting {N_HYPER} hyperparameters (subjects={n_subjects})...")
+
+    # Extract hyperparameter samples
+    hyper_data = {}
+    for param_idx, (state_name, latex_label) in enumerate(HYPERPARAM_INFO):
+        hyper_data[state_name] = history[:, :, hyper_start + param_idx]
+
+    # Calculate batch boundaries
+    batch_boundaries = [0]
+    if metadata and 'batch_sizes' in metadata:
+        cumsum = 0
+        for size in metadata['batch_sizes']:
+            cumsum += size
+            batch_boundaries.append(cumsum)
+
+    # Save preprocessed data
+    np.savez_compressed(
+        output_path,
+        iterations=iterations,
+        batch_boundaries=np.array(batch_boundaries),
+        n_subjects=n_subjects,
+        **hyper_data
+    )
+
+    print(f"  Saved hyperparameter data to {output_path}")
+    return output_path
+
+
 # =============================================================================
 # STAGE 2: PARALLEL PLOTTING - Workers load from files
 # =============================================================================
@@ -277,8 +410,14 @@ def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf):
                 ax.axvline(iterations[boundary], color='gray',
                            linestyle=':', alpha=0.7, lw=1)
 
-        # Median line
-        median_val = np.median(param_samples)
+        # Median line (from last batch only)
+        if batch_boundaries and len(batch_boundaries) > 1:
+            last_batch_start = batch_boundaries[-2]
+            last_batch_samples = param_samples[last_batch_start:, :]
+        else:
+            n_samples = param_samples.shape[0]
+            last_batch_samples = param_samples[n_samples // 2:, :]
+        median_val = np.median(last_batch_samples)
         ax.axhline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=1.5, alpha=0.8)
 
         ax.set_ylabel(label)
@@ -422,11 +561,19 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
 # HYPERPARAMETER PLOTS (not parallelized - single PDF)
 # =============================================================================
 
-def plot_hyperparameters(history, iterations, batch_boundaries, output_path):
+def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
+                         hyperprior_specs=None):
     """
     Generate hyperparameter diagnostic PDF.
 
     Layout: 2-column (traces left, densities right), up to 5 params per page.
+
+    Args:
+        history: MCMC history array
+        iterations: Iteration numbers
+        batch_boundaries: Run boundaries
+        output_path: Path to save PDF
+        hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -441,6 +588,11 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path):
     n_raw_params = n_total_params // 2  # 2012
     n_subjects = (n_raw_params - N_HYPER) // NPARAMS
     hyper_start = n_subjects * NPARAMS  # Index where hyperparameters start
+
+    # Compute prior quantiles if specs provided
+    prior_quantiles = None
+    if hyperprior_specs is not None:
+        prior_quantiles = compute_hyperprior_quantiles(hyperprior_specs)
 
     # Subsample chains for traces
     n_chains_plot = min(100, n_chains)
@@ -479,11 +631,30 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path):
                         ax_trace.axvline(iterations[boundary], color='gray',
                                          linestyle=':', alpha=0.7, lw=1)
 
-                median_val = np.median(param_samples)
-                ax_trace.axhline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=1.5)
+                # Compute median from last batch only (final converged distribution)
+                if batch_boundaries and len(batch_boundaries) > 1:
+                    last_batch_start = batch_boundaries[-2]
+                    last_batch_samples = param_samples[last_batch_start:, :]
+                else:
+                    last_batch_samples = param_samples[burn_idx:, :]
+                median_val = np.median(last_batch_samples)
+                ax_trace.axhline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=1.5,
+                                label='Posterior median (last run)')
+
+                # Prior reference lines on trace plot
+                if prior_quantiles and state_name in prior_quantiles:
+                    prior_med, prior_lo, prior_hi = prior_quantiles[state_name]
+                    ax_trace.axhline(prior_med, color=COLOR_PRIOR, linestyle='--', lw=1.5,
+                                    label='Prior median')
+                    ax_trace.axhline(prior_lo, color=COLOR_PRIOR, linestyle=':', lw=1.0,
+                                    alpha=0.7)
+                    ax_trace.axhline(prior_hi, color=COLOR_PRIOR, linestyle=':', lw=1.0,
+                                    alpha=0.7, label='Prior 95% CI')
+
                 ax_trace.set_ylabel(latex_label)
                 ax_trace.set_xlabel('Iteration')
                 ax_trace.set_title(f'{state_name} - Trace')
+                ax_trace.legend(loc='upper right', fontsize=7)
 
                 # Density plot (per run)
                 if batch_boundaries and len(batch_boundaries) > 1:
@@ -514,7 +685,18 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path):
                         ax_density.hist(flat_samples, bins=50, density=True,
                                        color=COLOR_DATA, alpha=0.6)
 
-                ax_density.axvline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=2)
+                ax_density.axvline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                                  label='Posterior median (last run)')
+
+                # Prior reference lines on density plot
+                if prior_quantiles and state_name in prior_quantiles:
+                    prior_med, prior_lo, prior_hi = prior_quantiles[state_name]
+                    ax_density.axvline(prior_med, color=COLOR_PRIOR, linestyle='--', lw=2,
+                                      label='Prior median')
+                    ax_density.axvline(prior_lo, color=COLOR_PRIOR, linestyle=':', lw=1.5,
+                                      alpha=0.7)
+                    ax_density.axvline(prior_hi, color=COLOR_PRIOR, linestyle=':', lw=1.5,
+                                      alpha=0.7, label='Prior 95% CI')
                 ax_density.legend(loc='upper right', fontsize=8)
                 ax_density.set_xlabel(latex_label)
                 ax_density.set_ylabel('Density')
@@ -528,7 +710,265 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path):
 
 
 # =============================================================================
-# MAIN ENTRY POINT
+# STANDALONE PLOT FUNCTIONS
+# =============================================================================
+
+def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_specs=None):
+    """
+    Generate hyperparameter plots from preprocessed data file.
+
+    Args:
+        preprocessed_path: Path to hyperparams_preprocessed.npz file
+        plots_dir: Directory to save plots
+        hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+    """
+    preprocessed_path = Path(preprocessed_path)
+    plots_dir = Path(plots_dir)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    if not preprocessed_path.exists():
+        raise FileNotFoundError(f"Preprocessed file not found: {preprocessed_path}")
+
+    print(f"  Loading preprocessed hyperparameters from {preprocessed_path}...")
+    data = np.load(preprocessed_path)
+
+    iterations = data['iterations']
+    batch_boundaries = list(data['batch_boundaries'])
+
+    # Reconstruct hyperparameter array in format expected by plot_hyperparameters
+    # Get sample shape from first hyperparameter
+    first_state = HYPERPARAM_INFO[0][0]
+    n_samples, n_chains = data[first_state].shape
+    n_hyper = len(HYPERPARAM_INFO)
+
+    # Build a "fake" history array with just hyperparameters at the expected indices
+    # plot_hyperparameters expects history[:, :, hyper_start + param_idx]
+    # We'll set hyper_start = 0 and put hyperparams at indices 0, 1, 2, ...
+    hyper_history = np.zeros((n_samples, n_chains, n_hyper), dtype=np.float64)
+    for param_idx, (state_name, _) in enumerate(HYPERPARAM_INFO):
+        hyper_history[:, :, param_idx] = data[state_name]
+
+    print(f"  Shape: ({n_samples}, {n_chains}, {n_hyper})")
+
+    # Plot hyperparameters
+    print("  Generating hyperparameter plots...")
+    hyper_path = plots_dir / 'rdu_bhm_hyperparams.pdf'
+    _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, hyper_path,
+                                  hyperprior_specs=hyperprior_specs)
+    print(f"  Saved: {hyper_path}")
+
+
+def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, output_path,
+                                  hyperprior_specs=None):
+    """
+    Plot hyperparameters from a direct hyperparameter array (no offset calculation needed).
+
+    Args:
+        hyper_history: Array of shape (n_samples, n_chains, n_hyper) with hyperparams at indices 0, 1, ...
+        iterations: Iteration numbers
+        batch_boundaries: Run boundaries
+        output_path: Path to save PDF
+        hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    n_samples, n_chains, n_hyper = hyper_history.shape
+    burn_idx = n_samples // 2
+
+    # Compute prior quantiles if specs provided
+    prior_quantiles = None
+    if hyperprior_specs is not None:
+        prior_quantiles = compute_hyperprior_quantiles(hyperprior_specs)
+
+    # Subsample chains for traces
+    n_chains_plot = min(100, n_chains)
+    chain_indices = np.linspace(0, n_chains - 1, n_chains_plot, dtype=int)
+    chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, n_chains_plot)))
+
+    with PdfPages(output_path) as pdf:
+        n_params = len(HYPERPARAM_INFO)
+        params_per_page = 5
+
+        for page_start in range(0, n_params, params_per_page):
+            page_end = min(page_start + params_per_page, n_params)
+            n_on_page = page_end - page_start
+
+            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, 2.8 * n_on_page))
+            if n_on_page == 1:
+                axes = axes.reshape(1, 2)
+
+            for i, param_idx in enumerate(range(page_start, page_end)):
+                state_name, latex_label = HYPERPARAM_INFO[param_idx]
+                ax_trace = axes[i, 0]
+                ax_density = axes[i, 1]
+
+                # Hyperparams are at indices 0, 1, 2, ... in hyper_history
+                param_samples = hyper_history[:, :, param_idx]
+
+                # Trace plot
+                for j, chain_idx in enumerate(chain_indices):
+                    color = chain_colors[j % len(chain_colors)]
+                    ax_trace.plot(iterations, param_samples[:, chain_idx],
+                                  color=color, alpha=0.4, lw=0.3)
+
+                # Run boundaries
+                for boundary in batch_boundaries[1:]:
+                    if boundary < len(iterations):
+                        ax_trace.axvline(iterations[boundary], color='gray',
+                                         linestyle=':', alpha=0.7, lw=1)
+
+                # Compute median from last batch only (final converged distribution)
+                if batch_boundaries and len(batch_boundaries) > 1:
+                    last_batch_start = batch_boundaries[-2]
+                    last_batch_samples = param_samples[last_batch_start:, :]
+                else:
+                    last_batch_samples = param_samples[burn_idx:, :]
+                median_val = np.median(last_batch_samples)
+                ax_trace.axhline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=1.5,
+                                label='Posterior median (last run)')
+
+                # Prior reference lines on trace plot
+                if prior_quantiles and state_name in prior_quantiles:
+                    prior_med, prior_lo, prior_hi = prior_quantiles[state_name]
+                    ax_trace.axhline(prior_med, color=COLOR_PRIOR, linestyle='--', lw=1.5,
+                                    label='Prior median')
+                    ax_trace.axhline(prior_lo, color=COLOR_PRIOR, linestyle=':', lw=1.0,
+                                    alpha=0.7)
+                    ax_trace.axhline(prior_hi, color=COLOR_PRIOR, linestyle=':', lw=1.0,
+                                    alpha=0.7, label='Prior 95% CI')
+
+                ax_trace.set_ylabel(latex_label)
+                ax_trace.set_xlabel('Iteration')
+                ax_trace.set_title(f'{state_name} - Trace')
+                ax_trace.legend(loc='upper right', fontsize=7)
+
+                # Density plot (per run)
+                if batch_boundaries and len(batch_boundaries) > 1:
+                    for run_idx in range(len(batch_boundaries) - 1):
+                        start = max(batch_boundaries[run_idx], burn_idx)
+                        end = batch_boundaries[run_idx + 1]
+                        if start < end:
+                            run_samples = param_samples[start:end, :].flatten()
+                            try:
+                                kde = stats.gaussian_kde(run_samples)
+                                x_range = np.linspace(run_samples.min(), run_samples.max(), 200)
+                                color = RUN_COLORS[run_idx % len(RUN_COLORS)]
+                                ax_density.fill_between(x_range, kde(x_range),
+                                                       alpha=0.3, color=color,
+                                                       label=f'Run {run_idx + 1}')
+                                ax_density.plot(x_range, kde(x_range), color=color, lw=1)
+                            except Exception:
+                                pass
+                else:
+                    flat_samples = param_samples[burn_idx:, :].flatten()
+                    try:
+                        kde = stats.gaussian_kde(flat_samples)
+                        x_range = np.linspace(flat_samples.min(), flat_samples.max(), 200)
+                        ax_density.fill_between(x_range, kde(x_range),
+                                               color=COLOR_DATA, alpha=0.6)
+                        ax_density.plot(x_range, kde(x_range), color=COLOR_DATA, lw=1.5)
+                    except Exception:
+                        ax_density.hist(flat_samples, bins=50, density=True,
+                                       color=COLOR_DATA, alpha=0.6)
+
+                ax_density.axvline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                                  label='Posterior median (last run)')
+
+                # Prior reference lines on density plot
+                if prior_quantiles and state_name in prior_quantiles:
+                    prior_med, prior_lo, prior_hi = prior_quantiles[state_name]
+                    ax_density.axvline(prior_med, color=COLOR_PRIOR, linestyle='--', lw=2,
+                                      label='Prior median')
+                    ax_density.axvline(prior_lo, color=COLOR_PRIOR, linestyle=':', lw=1.5,
+                                      alpha=0.7)
+                    ax_density.axvline(prior_hi, color=COLOR_PRIOR, linestyle=':', lw=1.5,
+                                      alpha=0.7, label='Prior 95% CI')
+
+                ax_density.set_xlabel(latex_label)
+                ax_density.set_title(f'{state_name} - Density')
+                ax_density.legend(loc='upper right', fontsize=7)
+
+            plt.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+
+def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
+    """
+    Generate hyperparameter plots directly from history files (no preprocessing).
+
+    For large datasets, prefer using preprocess_hyperparams() followed by
+    plot_hyperparams_from_preprocessed() to avoid reloading history.
+
+    Args:
+        history_dir: Directory containing history_*.npz files
+        plots_dir: Directory to save plots
+        hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+    """
+    history_dir = Path(history_dir)
+    plots_dir = Path(plots_dir)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check for history files
+    history_files = sorted(history_dir.glob('history_*.npz'))
+    if not history_files:
+        raise FileNotFoundError(f"No history files found in {history_dir}")
+
+    print(f"  Found {len(history_files)} history files")
+
+    # Load history
+    print("  Loading history for hyperparameters...")
+    history, iterations, likelihoods, metadata = combine_batch_histories(history_files)
+    print(f"  Shape: {history.shape}")
+
+    # Calculate batch boundaries
+    batch_boundaries = [0]
+    if metadata and 'batch_sizes' in metadata:
+        cumsum = 0
+        for size in metadata['batch_sizes']:
+            cumsum += size
+            batch_boundaries.append(cumsum)
+
+    # Plot hyperparameters
+    print("  Generating hyperparameter plots...")
+    hyper_path = plots_dir / 'rdu_bhm_hyperparams.pdf'
+    plot_hyperparameters(history, iterations, batch_boundaries, hyper_path,
+                        hyperprior_specs=hyperprior_specs)
+    print(f"  Saved: {hyper_path}")
+
+
+def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1):
+    """
+    Generate only per-subject diagnostic plots.
+
+    Args:
+        history_dir: Directory containing history_*.npz files
+        plots_dir: Directory to save plots
+        max_subjects: Limit subjects for testing
+        n_workers: Number of parallel workers
+    """
+    history_dir = Path(history_dir)
+    plots_dir = Path(plots_dir)
+    subjects_dir = plots_dir / 'subjects'
+    params_dir = history_dir.parent / 'subject_params'
+
+    # Stage 1: Preprocess
+    print("  Stage 1: Preprocessing subject data...")
+    params_dir, iterations, batch_boundaries = preprocess_subjects(
+        history_dir, params_dir, force=False
+    )
+
+    # Stage 2: Parallel plot
+    print("  Stage 2: Parallel plotting...")
+    parallel_plot_subjects(
+        params_dir, subjects_dir, iterations, batch_boundaries,
+        n_workers=n_workers, max_subjects=max_subjects
+    )
+
+
+# =============================================================================
+# COMBINED ENTRY POINT (legacy)
 # =============================================================================
 
 def diagnostic_plots(history_dir, plots_dir, plot_subjects=True, max_subjects=None, n_workers=1):
@@ -902,7 +1342,7 @@ def plot_prior_comparison(direct_prior, prior_selection, output_path,
 
         ax.set_xlabel(label, fontsize=11)
         ax.set_ylabel('Density', fontsize=11)
-        ax.set_title(f'{label.split("$")[1].split("$")[0] if "$" in label else key}', fontsize=12)
+        ax.set_title(label, fontsize=12)
         ax.legend(loc='upper right', fontsize=9)
 
     plt.tight_layout()

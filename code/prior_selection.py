@@ -385,6 +385,56 @@ def get_hyperpriors_for_rdu_bhm(
     }
 
 
+def get_hyperprior_specs_for_plotting(
+    direct_prior: Dict,
+    rho: float = 0.3,
+    alpha_0: float = 6.0
+) -> Dict:
+    """
+    Get hyperprior specs in the format expected by plotting functions.
+
+    Parameters:
+    -----------
+    direct_prior : dict
+        Dictionary specifying the direct prior for each parameter.
+        Expected structure:
+        {
+            'r': {'mu': float, 'sigma2': float},
+            'phi_raw': {'mu': float, 'sigma2': float},
+            'eta_raw': {'mu': float, 'sigma2': float},
+            'lambda_raw': {'mu': float, 'sigma2': float},
+        }
+    rho : float
+        Variance partition ratio
+    alpha_0 : float
+        Concentration parameter for Inverse-Gamma prior
+
+    Returns:
+    --------
+    Dict with format:
+        {
+            'r': {'mu_0': ..., 'tau_0_sq': ..., 'alpha_0': ..., 'beta_0': ...},
+            'phi_raw': {...},
+            'eta_raw': {...},
+            'lambda_raw': {...},
+        }
+    """
+    ps = rdu_prelec_prior_selection(direct_prior)
+    hp = derive_hyperpriors(ps, rho=rho, alpha_0=alpha_0)
+
+    param_names = ['r', 'phi_raw', 'eta_raw', 'lambda_raw']
+
+    return {
+        param_names[i]: {
+            'mu_0': float(hp.mu_0[i]),
+            'tau_0_sq': float(hp.tau_0_sq[i]),
+            'alpha_0': float(hp.alpha_0),
+            'beta_0': float(hp.beta_0[i]),
+        }
+        for i in range(len(param_names))
+    }
+
+
 def run_prior_selection(rho=0.3, alpha_0=6.0, output_path=None, direct_prior=None):
     """
     Run prior selection, derive hyperpriors, and save to file.
@@ -418,6 +468,71 @@ def run_prior_selection(rho=0.3, alpha_0=6.0, output_path=None, direct_prior=Non
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    np.savez(output_path, **params)
+    print(f"\nSaved hyperpriors to: {output_path}")
+
+    return params
+
+
+def save_direct_hyperprior(hyperprior_specs: Dict, output_path) -> Dict:
+    """
+    Save directly-specified hyperprior parameters to file.
+
+    This bypasses the variance decomposition and saves hyperpriors as-is.
+    Use this for uninformative/diffuse priors where you want to specify
+    the hyperprior parameters directly.
+
+    Args:
+        hyperprior_specs: Dict with format:
+            {
+                'r': {'mu_0': ..., 'tau_0_sq': ..., 'alpha_0': ..., 'beta_0': ...},
+                'phi_raw': {...},
+                'eta_raw': {...},
+                'lambda_raw': {...},
+            }
+        output_path: Path to save NPZ file
+
+    Returns:
+        Dict with the hyperprior values in format expected by rdu_bhm.py
+    """
+    from pathlib import Path
+
+    print("Saving direct hyperprior specification...")
+
+    param_names = ['r', 'phi_raw', 'eta_raw', 'lambda_raw']
+
+    # Convert to format expected by rdu_bhm.py
+    params = {}
+    for name in param_names:
+        spec = hyperprior_specs[name]
+        base = name.replace('_raw', '')
+
+        # Population mean hyperpriors
+        params[f'{base}_mean'] = float(spec['mu_0'])
+        params[f'ln_{base}_sdev'] = float(np.log(np.sqrt(spec['tau_0_sq'])))
+
+        # Inverse-Gamma parameters for population variance
+        params[f'beta_0_{base}'] = float(spec['beta_0'])
+
+    # Use alpha_0 from first parameter (should be same for all in this case)
+    params['alpha_0'] = float(hyperprior_specs['r']['alpha_0'])
+
+    # Add metadata
+    params['rho'] = 0.0  # Not applicable for direct specification
+
+    # Print summary
+    print("\nDirect Hyperprior Specification:")
+    print("=" * 60)
+    print(f"{'Parameter':<12} {'mu_0':>8} {'tau_0':>8} {'alpha_0':>8} {'beta_0':>8}")
+    print("-" * 60)
+    for name in param_names:
+        spec = hyperprior_specs[name]
+        tau_0 = np.sqrt(spec['tau_0_sq'])
+        print(f"{name:<12} {spec['mu_0']:>8.2f} {tau_0:>8.2f} {spec['alpha_0']:>8.2f} {spec['beta_0']:>8.2f}")
+
+    # Save to file
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(output_path, **params)
     print(f"\nSaved hyperpriors to: {output_path}")
 

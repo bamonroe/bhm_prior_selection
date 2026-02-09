@@ -53,6 +53,14 @@ def run_sampling(sampling_opts, prior_params_path=None):
     print("Running: MCMC Sampling")
     print("=" * 60)
 
+    # Clear bamcmc's in-memory kernel cache to ensure fresh compilation with new data
+    # This is necessary because the cache key only uses array shapes, not values
+    from bamcmc.mcmc.compile import get_compiled_kernel_cache
+    cache = get_compiled_kernel_cache()
+    if cache:
+        print(f"Clearing {len(cache)} cached kernel(s)...")
+        cache.clear()
+
     # Load hyperpriors from file if specified
     if prior_params_path is not None:
         from posteriors.rdu_bhm import load_hyperpriors_from_file
@@ -72,7 +80,8 @@ def run_sampling(sampling_opts, prior_params_path=None):
     num_chains = sampling_opts['num_chains']
     _run_sampling(
         output_dir=sampling_opts['output_dir'],
-        num_runs=sampling_opts['resume_runs'],
+        reset_runs=sampling_opts.get('reset_runs', 1),
+        resume_runs=sampling_opts.get('resume_runs', 0),
         num_collect=sampling_opts['num_collect'],
         config={
             'num_chains_a': num_chains,
@@ -97,12 +106,118 @@ def run_gen_paper_quantities(history_dir, data_dir):
 
 
 def run_diagnostic_plots(history_dir, plots_dir, n_workers=1):
-    """Generate diagnostic plots."""
+    """Generate diagnostic plots (both hyperparameters and subjects)."""
     print("\n" + "=" * 60)
     print("Running: Diagnostic Plots")
     print("=" * 60)
     from plotting import diagnostic_plots
     diagnostic_plots(history_dir, plots_dir, n_workers=n_workers)
+    print("Done.\n")
+
+
+def run_preprocess_hyperparams(history_dir, output_dir, force=False):
+    """Preprocess hyperparameter data from history files.
+
+    Args:
+        history_dir: Directory containing history_*.npz files
+        output_dir: Directory to save preprocessed hyperparameter file
+        force: If True, overwrite existing preprocessed data
+
+    Returns:
+        Path to the preprocessed hyperparameter file
+    """
+    print("\n" + "=" * 60)
+    print("Running: Preprocess Hyperparameters")
+    print("=" * 60)
+    from plotting import preprocess_hyperparams
+    result = preprocess_hyperparams(history_dir, output_dir, force=force)
+    print("Done.\n")
+    return result
+
+
+def run_preprocess_subjects(history_dir, output_dir, force=False):
+    """Preprocess subject data from history files.
+
+    Args:
+        history_dir: Directory containing history_*.npz files
+        output_dir: Directory to save per-subject parameter files
+        force: If True, overwrite existing preprocessed data
+
+    Returns:
+        tuple: (output_dir, iterations, batch_boundaries)
+    """
+    print("\n" + "=" * 60)
+    print("Running: Preprocess Subjects")
+    print("=" * 60)
+    from plotting import preprocess_subjects
+    result = preprocess_subjects(history_dir, output_dir, force=force)
+    print("Done.\n")
+    return result
+
+
+def run_hyperparameter_plots(history_dir, plots_dir, hyperprior_specs=None,
+                             preprocessed_path=None):
+    """Generate hyperparameter diagnostic plots.
+
+    Args:
+        history_dir: Directory containing history_*.npz files (used if preprocessed_path is None)
+        plots_dir: Directory to save plots
+        hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        preprocessed_path: Path to preprocessed hyperparameter file. If provided,
+                          loads from this file instead of history_dir.
+    """
+    print("\n" + "=" * 60)
+    print("Running: Hyperparameter Plots")
+    print("=" * 60)
+
+    if preprocessed_path is not None:
+        from plotting import plot_hyperparams_from_preprocessed
+        plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir,
+                                           hyperprior_specs=hyperprior_specs)
+    else:
+        from plotting import plot_hyperparams_only
+        plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=hyperprior_specs)
+    print("Done.\n")
+
+
+def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None):
+    """Generate per-subject diagnostic plots.
+
+    Args:
+        history_dir: Directory containing history_*.npz files (used if preprocessed_dir is None)
+        plots_dir: Directory to save plots
+        n_workers: Number of parallel workers for plotting
+        preprocessed_dir: Directory with preprocessed subject files. If provided,
+                         skips preprocessing step.
+    """
+    print("\n" + "=" * 60)
+    print("Running: Subject Plots")
+    print("=" * 60)
+    from plotting import plot_subjects_only, preprocess_subjects, parallel_plot_subjects
+    from pathlib import Path
+    import numpy as np
+
+    plots_dir = Path(plots_dir)
+    subjects_dir = plots_dir / 'subjects'
+    subjects_dir.mkdir(parents=True, exist_ok=True)
+
+    if preprocessed_dir is not None:
+        # Load metadata and plot from preprocessed data
+        preprocessed_dir = Path(preprocessed_dir)
+        meta_path = preprocessed_dir / 'metadata.npz'
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Metadata not found: {meta_path}")
+
+        meta = np.load(meta_path)
+        iterations = meta['iterations']
+        batch_boundaries = list(meta['batch_boundaries'])
+
+        print(f"  Using preprocessed data from {preprocessed_dir}")
+        parallel_plot_subjects(preprocessed_dir, subjects_dir, iterations,
+                              batch_boundaries, n_workers=n_workers)
+    else:
+        # Use the combined preprocess + plot function
+        plot_subjects_only(history_dir, plots_dir, n_workers=n_workers)
     print("Done.\n")
 
 

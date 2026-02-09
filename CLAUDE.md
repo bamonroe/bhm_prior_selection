@@ -15,10 +15,12 @@ The core methodology is implemented and tested:
 - Skew-Normal example demonstrating 3-parameter extension
 
 **Recent Changes:**
-- Switched from power PWF to 2-parameter Prelec PWF
-- Fixed choice encoding bug (raw data: 1=right/B, not 1=A)
-- Two-stage parallel plotting for memory efficiency
-- Added Skew-Normal hyperprior selection example (Appendix B)
+- Separated preprocessing and plotting into distinct pipeline steps with separate flags
+- Fixed uninformative prior: now directly specifies hyperprior params (not variance-decomposed)
+- Added prior reference lines (green dashed median, dotted 95% CI) to hyperparameter plots
+- Median line in trace plots now uses only the last history file (final converged state)
+- Paper uses pythontex to load data/quantities from NPZ files via `\py{}` calls
+- Fixed JAX/bamcmc kernel caching bug (cache cleared between sampling runs)
 
 See `TODO.md` for detailed task tracking.
 
@@ -236,21 +238,35 @@ other python files.
 
 # --- Data Pipeline ---
 do_clean_data = False       # Shape raw data for bamcmc
-do_gen_paper_data = False   # Generate data summaries for paper
+do_gen_paper_data = False   # Generate data summaries for paper (paper_data.npz)
 
 # --- Prior Selection ---
 do_generate_prior = False   # Run prior selection methodology
+do_prior_plots = False      # Generate prior distribution comparison plots
 
 # --- MCMC Sampling ---
-do_sampling = False         # Run bamcmc sampler
+do_sampling = False               # Run informative prior sampling
+do_sampling_uninformative = False # Run uninformative prior sampling
 
-# --- Post-Processing ---
-do_gen_paper_quantities = True   # Extract posterior summaries
-do_diagnostic_plots = True       # Generate trace/diagnostic plots
-do_paper_plots = True            # Generate publication figures
+# --- Preprocessing (extract from history files) ---
+do_preprocess_hyper_info = False     # Preprocess hyperparameters (informative)
+do_preprocess_subjects_info = False  # Preprocess subjects (informative)
+do_preprocess_hyper_uninf = False    # Preprocess hyperparameters (uninformative)
+do_preprocess_subjects_uninf = False # Preprocess subjects (uninformative)
+
+# --- Plotting ---
+do_gen_paper_quantities = False  # Extract posterior summaries (paper_quantities.npz)
+do_hyper_plots_info = False      # Hyperparameter diagnostic plots (informative)
+do_subject_plots_info = False    # Subject diagnostic plots (informative)
+do_hyper_plots_uninf = False     # Hyperparameter diagnostic plots (uninformative)
+do_subject_plots_uninf = False   # Subject diagnostic plots (uninformative)
+do_paper_plots = False           # Publication figures
 
 # --- Appendix Examples ---
 do_skew_normal_example = False   # Run Skew-Normal hyperprior example
+
+# --- Document ---
+do_compile_doc = False           # Compile LaTeX document
 ```
 
 ## Technical Notes
@@ -338,14 +354,37 @@ The paper is in `doc/main.tex`. Key sections:
    - Numerical solution approach
 8. **Appendix C** - MCMC implementation details
 
-To compile:
+To compile (with pythontex for dynamic data):
 ```bash
 cd /workspace/doc
 pdflatex main.tex
-biber main          # Requires biber installation
+pythontex main.tex   # Processes \py{} calls
+pdflatex main.tex
+biber main           # Processes citations
 pdflatex main.tex
 ```
 
-The bibliography (`library.bib`) has key references but biber is needed to
-process citations.
+The paper uses pythontex to load data from NPZ files:
+- `data/output/paper_data.npz` - Data summary (n_subjects, n_choices, etc.)
+- `data/output/paper_quantities.npz` - Posterior summaries (means, CIs, R-hat)
+
+In LaTeX, access via `\py{D['n_subjects']}` or `\py{fmt(Q.get('r_mean_mean', 0))}`.
+
+
+## Informative vs Uninformative Priors
+
+The project compares two prior specifications:
+
+**Informative Prior** (`DIRECT_PRIOR` in main.py):
+- Specifies a direct prior for a single individual (mu, sigma2 per param)
+- Gets transformed via variance decomposition to derive hyperpriors
+- Uses `rho` and `alpha_0` researcher choices
+
+**Uninformative Prior** (`UNINFORMATIVE_HYPERPRIOR` in main.py):
+- Directly specifies hyperprior parameters (mu_0, tau_0_sq, alpha_0, beta_0)
+- Bypasses variance decomposition entirely
+- Uses diffuse values: tau_0=10 (wide mean prior), alpha_0=beta_0=0.1 (diffuse variance prior)
+
+This distinction is important: the uninformative case should NOT go through
+`derive_hyperpriors()` because that would impose structure on the variance.
 

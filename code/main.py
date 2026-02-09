@@ -111,15 +111,17 @@ PRIOR_SELECTION = {
     'alpha_0': 20.0,
 }
 
-# Uninformative (diffuse) prior for comparison
-# For r (untransformed): N(0, 100) gives 95% CI of [-20, 20]
-# For log-transformed params: N(0, 25) gives 95% CI of [-10, 10] in log scale
-#   which is [0.00005, 22026] in natural scale - wide but numerically stable
-UNINFORMATIVE_PRIOR = {
-    'r': {'mu': 0.0, 'sigma2': 100.0},
-    'phi_raw': {'mu': 0.0, 'sigma2': 25.0},
-    'eta_raw': {'mu': 0.0, 'sigma2': 25.0},
-    'lambda_raw': {'mu': 0.0, 'sigma2': 25.0},
+# Uninformative (diffuse) hyperprior for comparison
+# This directly specifies hyperprior parameters, NOT a direct prior to be transformed.
+# - mu_0: prior mean of population mean (centered at neutral values)
+# - tau_0_sq: prior variance of population mean (very large = uninformative about location)
+# - alpha_0, beta_0: InverseGamma params for population variance
+#   Small values (0.1, 0.1) give diffuse prior on sigma^2
+UNINFORMATIVE_HYPERPRIOR = {
+    'r': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.1, 'beta_0': 0.1},
+    'phi_raw': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.1, 'beta_0': 0.1},
+    'eta_raw': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.1, 'beta_0': 0.1},
+    'lambda_raw': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.1, 'beta_0': 0.1},
 }
 
 # Skew-Normal example configuration (for Appendix B)
@@ -159,7 +161,7 @@ sampling_opts = {
     'num_chains': 500,
     'num_collect': 100,
     'thin_iteration': 1,
-    'chunk_size': 10,  # Iterations per compiled chunk (1-10000)
+    'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
     'seed': SEEDS['sampling'],
 }
 
@@ -168,26 +170,42 @@ sampling_opts = {
 # =============================================================================
 
 # --- Data Pipeline ---
-do_clean_data     = True
+do_clean_data     = False
 do_gen_paper_data = True
 
 # --- Prior Selection and Plots ---
-do_generate_prior = True
-do_prior_plots    = True
+do_generate_prior = False
+do_prior_plots    = False
 
 # --- MCMC Sampling (Informative Prior) ---
-do_sampling = True
+do_sampling = False
 
 # --- MCMC Sampling (Uninformative Prior) ---
 do_sampling_uninformative = False
 
-# --- Post-Processing ---
-do_gen_paper_quantities = True
-do_diagnostic_plots     = True
-do_paper_plots          = True
+# --- Preprocessing (Informative) ---
+do_preprocess_hyper_info    = False
+do_preprocess_subjects_info = False
+
+# --- Preprocessing (Uninformative) ---
+do_preprocess_hyper_uninf    = False
+do_preprocess_subjects_uninf = False
+
+# --- Plotting (Informative) ---
+do_gen_paper_quantities     = True
+do_hyper_plots_info         = False
+do_subject_plots_info       = True
+do_paper_plots              = False
+
+# --- Plotting (Uninformative) ---
+do_hyper_plots_uninf        = False
+do_subject_plots_uninf      = False
 
 # --- Appendix Examples ---
 do_skew_normal_example  = False
+
+# --- Document Compilation ---
+do_compile_doc          = False
 
 
 
@@ -245,15 +263,10 @@ if __name__ == '__main__':
     if do_sampling_uninformative:
         check_dependency('sampling_uninformative', ['clean_data'])
 
-        # Generate uninformative prior params to separate file
+        # Save uninformative hyperprior directly (no variance decomposition)
         uninformative_prior_path = DATA_DIR / 'output' / 'prior_params_uninformative.npz'
-        from prior_selection import run_prior_selection as _run_prior
-        _run_prior(
-            rho=PRIOR_SELECTION['rho'],
-            alpha_0=PRIOR_SELECTION['alpha_0'],
-            output_path=uninformative_prior_path,
-            direct_prior=UNINFORMATIVE_PRIOR
-        )
+        from prior_selection import save_direct_hyperprior
+        save_direct_hyperprior(UNINFORMATIVE_HYPERPRIOR, uninformative_prior_path)
 
         # Run sampling with uninformative prior
         uninformative_opts = sampling_opts.copy()
@@ -263,21 +276,106 @@ if __name__ == '__main__':
         pipelines.run_sampling(uninformative_opts, prior_params_path=uninformative_prior_path)
 
     # -------------------------------------------------------------------------
-    # Post-Processing
+    # Preprocessing (Informative Prior)
     # -------------------------------------------------------------------------
+    history_dir_info = get_mcmc_dir('rdu_bhm') / 'history' / 'full'
+    preprocess_dir_info = get_mcmc_dir('rdu_bhm') / 'preprocessed'
+
+    if do_preprocess_hyper_info:
+        check_dependency('preprocess_hyper', ['clean_data'])
+        pipelines.run_preprocess_hyperparams(history_dir_info, preprocess_dir_info)
+
+    if do_preprocess_subjects_info:
+        check_dependency('preprocess_subjects', ['clean_data'])
+        pipelines.run_preprocess_subjects(history_dir_info, preprocess_dir_info / 'subjects')
+
+    # -------------------------------------------------------------------------
+    # Preprocessing (Uninformative Prior)
+    # -------------------------------------------------------------------------
+    history_dir_uninf = DATA_DIR / 'output_uninformative' / 'rdu_bhm' / 'history' / 'full'
+    preprocess_dir_uninf = DATA_DIR / 'output_uninformative' / 'rdu_bhm' / 'preprocessed'
+
+    if do_preprocess_hyper_uninf:
+        if history_dir_uninf.exists():
+            pipelines.run_preprocess_hyperparams(history_dir_uninf, preprocess_dir_uninf)
+        else:
+            print(f"Skipping uninformative preprocessing: {history_dir_uninf} not found")
+
+    if do_preprocess_subjects_uninf:
+        if history_dir_uninf.exists():
+            pipelines.run_preprocess_subjects(history_dir_uninf, preprocess_dir_uninf / 'subjects')
+        else:
+            print(f"Skipping uninformative subject preprocessing: {history_dir_uninf} not found")
+
+    # -------------------------------------------------------------------------
+    # Plotting (Informative Prior)
+    # -------------------------------------------------------------------------
+    plots_dir_info = get_plots_dir('rdu_bhm')
+
     if do_gen_paper_quantities:
         check_dependency('gen_paper_quantities', ['clean_data'])
-        history_dir = get_mcmc_dir() / 'history' / 'full'
-        pipelines.run_gen_paper_quantities(history_dir, DATA_DIR)
+        pipelines.run_gen_paper_quantities(history_dir_info, DATA_DIR)
 
-    if do_diagnostic_plots:
-        check_dependency('diagnostic_plots', ['clean_data'])
-        history_dir = get_mcmc_dir() / 'history' / 'full'
-        pipelines.run_diagnostic_plots(history_dir, get_plots_dir(), n_workers=N_WORKERS)
+    if do_hyper_plots_info:
+        check_dependency('hyper_plots', ['clean_data'])
+        from prior_selection import get_hyperprior_specs_for_plotting
+        hyperprior_specs = get_hyperprior_specs_for_plotting(
+            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], alpha_0=PRIOR_SELECTION['alpha_0']
+        )
+        # Use preprocessed data if available
+        hyper_preprocessed = preprocess_dir_info / 'hyperparams_preprocessed.npz'
+        if hyper_preprocessed.exists():
+            pipelines.run_hyperparameter_plots(history_dir_info, plots_dir_info,
+                                               hyperprior_specs=hyperprior_specs,
+                                               preprocessed_path=hyper_preprocessed)
+        else:
+            pipelines.run_hyperparameter_plots(history_dir_info, plots_dir_info,
+                                               hyperprior_specs=hyperprior_specs)
+
+    if do_subject_plots_info:
+        check_dependency('subject_plots', ['clean_data'])
+        # Use preprocessed data if available
+        subjects_preprocessed = preprocess_dir_info / 'subjects'
+        if subjects_preprocessed.exists() and (subjects_preprocessed / 'metadata.npz').exists():
+            pipelines.run_subject_plots(history_dir_info, plots_dir_info,
+                                        n_workers=N_WORKERS,
+                                        preprocessed_dir=subjects_preprocessed)
+        else:
+            pipelines.run_subject_plots(history_dir_info, plots_dir_info, n_workers=N_WORKERS)
 
     if do_paper_plots:
         check_dependency('paper_plots', ['paper_quantities'])
         pipelines.run_paper_plots(OUTPUTS['paper_quantities'], PLOTS_DIR / 'paper')
+
+    # -------------------------------------------------------------------------
+    # Plotting (Uninformative Prior)
+    # -------------------------------------------------------------------------
+    plots_dir_uninf = PLOTS_DIR / 'rdu_bhm_uninformative'
+
+    if do_hyper_plots_uninf:
+        if history_dir_uninf.exists():
+            # No prior reference lines for uninformative (diffuse prior not useful to display)
+            hyper_preprocessed_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
+            if hyper_preprocessed_uninf.exists():
+                pipelines.run_hyperparameter_plots(history_dir_uninf, plots_dir_uninf,
+                                                   preprocessed_path=hyper_preprocessed_uninf)
+            else:
+                pipelines.run_hyperparameter_plots(history_dir_uninf, plots_dir_uninf)
+        else:
+            print(f"Skipping uninformative hyper plots: {history_dir_uninf} not found")
+
+    if do_subject_plots_uninf:
+        if history_dir_uninf.exists():
+            # Use preprocessed data if available
+            subjects_preprocessed_uninf = preprocess_dir_uninf / 'subjects'
+            if subjects_preprocessed_uninf.exists() and (subjects_preprocessed_uninf / 'metadata.npz').exists():
+                pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf,
+                                            n_workers=N_WORKERS,
+                                            preprocessed_dir=subjects_preprocessed_uninf)
+            else:
+                pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf, n_workers=N_WORKERS)
+        else:
+            print(f"Skipping uninformative subject plots: {history_dir_uninf} not found")
 
     # -------------------------------------------------------------------------
     # Appendix Examples
@@ -290,6 +388,31 @@ if __name__ == '__main__':
             n_mc_samples=50000,
             seed=SEEDS['sampling'],
         )
+
+    # -------------------------------------------------------------------------
+    # Document Compilation
+    # -------------------------------------------------------------------------
+    if do_compile_doc:
+        print("\n" + "=" * 60)
+        print("Running: Compile LaTeX Document")
+        print("=" * 60)
+        import subprocess
+        doc_dir = PROJECT_ROOT / 'doc'
+        # Run pdflatex -> biber -> pdflatex -> pdflatex for full compilation
+        commands = [
+            ['pdflatex', '-interaction=nonstopmode', 'main.tex'],
+            ['biber', 'main'],
+            ['pdflatex', '-interaction=nonstopmode', 'main.tex'],
+            ['pdflatex', '-interaction=nonstopmode', 'main.tex'],
+        ]
+        for cmd in commands:
+            print(f"  Running: {' '.join(cmd)}")
+            result = subprocess.run(cmd, cwd=doc_dir, capture_output=True, text=True)
+            if result.returncode != 0 and cmd[0] != 'biber':
+                print(f"  Warning: {cmd[0]} returned non-zero exit code")
+                if result.stderr:
+                    print(f"  stderr: {result.stderr[:500]}")
+        print("Done.\n")
 
     # -------------------------------------------------------------------------
     # Wrap up

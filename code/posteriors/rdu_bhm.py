@@ -155,12 +155,32 @@ def load_hyperpriors_from_file(filepath):
 
     HYPERPRIOR_SPECS.update(new_specs)
     print(f"Loaded hyperpriors from {filepath}")
-    print(f"  r: mu_0={new_specs['r']['mu_0']:.4f}, tau_0={np.sqrt(new_specs['r']['tau_0_sq']):.4f}")
-    print(f"  phi_raw: mu_0={new_specs['phi_raw']['mu_0']:.4f}")
-    print(f"  eta_raw: mu_0={new_specs['eta_raw']['mu_0']:.4f}")
-    print(f"  lambda_raw: mu_0={new_specs['lambda_raw']['mu_0']:.4f}")
+    print(f"  r: mu_0={new_specs['r']['mu_0']:.4f}, tau_0={np.sqrt(new_specs['r']['tau_0_sq']):.4f}, beta_0={new_specs['r']['beta_0']:.4f}")
+    print(f"  phi_raw: mu_0={new_specs['phi_raw']['mu_0']:.4f}, beta_0={new_specs['phi_raw']['beta_0']:.4f}")
+    print(f"  eta_raw: mu_0={new_specs['eta_raw']['mu_0']:.4f}, beta_0={new_specs['eta_raw']['beta_0']:.4f}")
+    print(f"  lambda_raw: mu_0={new_specs['lambda_raw']['mu_0']:.4f}, beta_0={new_specs['lambda_raw']['beta_0']:.4f}")
 
     return new_specs
+
+
+def get_hyperprior_array():
+    """
+    Convert HYPERPRIOR_SPECS to a flat numpy array for passing through data.
+
+    Returns array of shape (16,) with layout:
+    [r_mu_0, r_tau_0_sq, r_alpha_0, r_beta_0,
+     phi_mu_0, phi_tau_0_sq, phi_alpha_0, phi_beta_0,
+     eta_mu_0, eta_tau_0_sq, eta_alpha_0, eta_beta_0,
+     lambda_mu_0, lambda_tau_0_sq, lambda_alpha_0, lambda_beta_0]
+    """
+    arr = np.zeros(16, dtype=np.float64)
+    for i, param_name in enumerate(PARAM_NAMES):
+        spec = HYPERPRIOR_SPECS[param_name]
+        arr[i*4 + 0] = spec['mu_0']
+        arr[i*4 + 1] = spec['tau_0_sq']
+        arr[i*4 + 2] = spec['alpha_0']
+        arr[i*4 + 3] = spec['beta_0']
+    return arr
 
 
 # =============================================================================
@@ -279,21 +299,28 @@ def _hyperprior_mean_logsd(mean_val, logsd_val, mu_0, tau_0_sq, alpha_0, beta_0)
     return lp_mean + lp_var + lp_jacobian
 
 
-def _compute_all_hyperpriors(chain_state, idx):
-    """Compute sum of all hyperprior terms."""
+def _compute_all_hyperpriors(chain_state, idx, hyperprior_arr):
+    """
+    Compute sum of all hyperprior terms.
+
+    Args:
+        chain_state: Current chain state vector
+        idx: Index dict from _get_indices
+        hyperprior_arr: Flat array of hyperprior specs from data["float"][2]
+                       Layout: [mu_0, tau_0_sq, alpha_0, beta_0] x 4 params
+    """
     lp = 0.0
 
-    for param_name, hyper_key in [('r', 'r_hyper_start'),
-                                   ('phi_raw', 'phi_hyper_start'),
-                                   ('eta_raw', 'eta_hyper_start'),
-                                   ('lambda_raw', 'lambda_hyper_start')]:
+    hyper_keys = ['r_hyper_start', 'phi_hyper_start', 'eta_hyper_start', 'lambda_hyper_start']
+    for i, hyper_key in enumerate(hyper_keys):
         mean_val = chain_state[idx[hyper_key]]
         logsd_val = chain_state[idx[hyper_key] + 1]
-        spec = HYPERPRIOR_SPECS[param_name]
-        lp += _hyperprior_mean_logsd(
-            mean_val, logsd_val,
-            spec['mu_0'], spec['tau_0_sq'], spec['alpha_0'], spec['beta_0']
-        )
+        # Extract hyperprior specs from array
+        mu_0 = hyperprior_arr[i*4 + 0]
+        tau_0_sq = hyperprior_arr[i*4 + 1]
+        alpha_0 = hyperprior_arr[i*4 + 2]
+        beta_0 = hyperprior_arr[i*4 + 3]
+        lp += _hyperprior_mean_logsd(mean_val, logsd_val, mu_0, tau_0_sq, alpha_0, beta_0)
 
     return lp
 
@@ -355,10 +382,13 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
 
     def compute_hyper_posterior():
         """Log posterior for hyperparameter blocks."""
-        lp_hyper = _compute_all_hyperpriors(chain_state, idx)
-
         datai = data["int"]
         dataf = data["float"]
+
+        # Extract hyperprior specs from data (passed at runtime, not traced)
+        hyperprior_arr = jnp.asarray(dataf[2])
+        lp_hyper = _compute_all_hyperpriors(chain_state, idx, hyperprior_arr)
+
         datai_jax = tuple(jnp.asarray(arr) for arr in datai)
 
         unique_outcomes = jnp.asarray(dataf[0])
@@ -591,32 +621,37 @@ def initial_vector(mcmc_config, data):
     init[:, 2:first_hyper:NPARAMS] = rng.normal(0.0, EPS_INIT_STD, (num_chains, n_subjects))  # eta_eps
     init[:, 3:first_hyper:NPARAMS] = rng.normal(0.0, EPS_INIT_STD, (num_chains, n_subjects))  # lambda_eps
 
-    # Hyperparameters: initialize at prior means
+    # Hyperparameters: initialize at fixed neutral values (same for all prior specs)
+    # This ensures fair comparison between informative and uninformative priors
     HYPER_INIT_STD = 0.02
 
+    # Fixed initial values for hyperparameters
+    HYPER_INIT = {
+        'r_mean': 0.5,
+        'r_lnsd': 0.0,
+        'phi_mean': 0.0,
+        'phi_lnsd': 0.0,
+        'eta_mean': 0.0,
+        'eta_lnsd': 0.0,
+        'lambda_mean': -2.0,
+        'lambda_lnsd': 0.0,
+    }
+
     # r hyperparameters
-    r_spec = HYPERPRIOR_SPECS['r']
-    init[:, first_hyper + 0] = rng.normal(r_spec['mu_0'], HYPER_INIT_STD, num_chains)
-    r_sigma_init = np.sqrt(r_spec['beta_0'] / (r_spec['alpha_0'] + 1))
-    init[:, first_hyper + 1] = rng.normal(np.log(r_sigma_init), HYPER_INIT_STD, num_chains)
+    init[:, first_hyper + 0] = rng.normal(HYPER_INIT['r_mean'], HYPER_INIT_STD, num_chains)
+    init[:, first_hyper + 1] = rng.normal(HYPER_INIT['r_lnsd'], HYPER_INIT_STD, num_chains)
 
     # phi hyperparameters
-    phi_spec = HYPERPRIOR_SPECS['phi_raw']
-    init[:, first_hyper + 2] = rng.normal(phi_spec['mu_0'], HYPER_INIT_STD, num_chains)
-    phi_sigma_init = np.sqrt(phi_spec['beta_0'] / (phi_spec['alpha_0'] + 1))
-    init[:, first_hyper + 3] = rng.normal(np.log(phi_sigma_init), HYPER_INIT_STD, num_chains)
+    init[:, first_hyper + 2] = rng.normal(HYPER_INIT['phi_mean'], HYPER_INIT_STD, num_chains)
+    init[:, first_hyper + 3] = rng.normal(HYPER_INIT['phi_lnsd'], HYPER_INIT_STD, num_chains)
 
     # eta hyperparameters
-    eta_spec = HYPERPRIOR_SPECS['eta_raw']
-    init[:, first_hyper + 4] = rng.normal(eta_spec['mu_0'], HYPER_INIT_STD, num_chains)
-    eta_sigma_init = np.sqrt(eta_spec['beta_0'] / (eta_spec['alpha_0'] + 1))
-    init[:, first_hyper + 5] = rng.normal(np.log(eta_sigma_init), HYPER_INIT_STD, num_chains)
+    init[:, first_hyper + 4] = rng.normal(HYPER_INIT['eta_mean'], HYPER_INIT_STD, num_chains)
+    init[:, first_hyper + 5] = rng.normal(HYPER_INIT['eta_lnsd'], HYPER_INIT_STD, num_chains)
 
     # lambda hyperparameters
-    lambda_spec = HYPERPRIOR_SPECS['lambda_raw']
-    init[:, first_hyper + 6] = rng.normal(lambda_spec['mu_0'], HYPER_INIT_STD, num_chains)
-    lambda_sigma_init = np.sqrt(lambda_spec['beta_0'] / (lambda_spec['alpha_0'] + 1))
-    init[:, first_hyper + 7] = rng.normal(np.log(lambda_sigma_init), HYPER_INIT_STD, num_chains)
+    init[:, first_hyper + 6] = rng.normal(HYPER_INIT['lambda_mean'], HYPER_INIT_STD, num_chains)
+    init[:, first_hyper + 7] = rng.normal(HYPER_INIT['lambda_lnsd'], HYPER_INIT_STD, num_chains)
 
     return init.flatten()
 

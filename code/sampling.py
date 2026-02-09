@@ -8,7 +8,7 @@ from pathlib import Path
 
 from bamcmc import rmcmc
 from clean_data import load_raw_data, parse_ra_data, make_bamcmc_data_indexed
-from posteriors.rdu_bhm import MODEL_ID, NPARAMS, N_HYPER
+from posteriors.rdu_bhm import MODEL_ID, NPARAMS, N_HYPER, get_hyperprior_array
 
 
 # Default configuration
@@ -18,18 +18,18 @@ DEFAULT_CONFIG = {
     'num_collect': 1000,
     'thin_iteration': 10,
     'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
-    'num_runs': 5,
     'rng_seed': 42,
 }
 
 
-def run_sampling(output_dir, num_runs=None, num_collect=None, config=None):
+def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None, config=None):
     """
     Run MCMC sampling with bamcmc.
 
     Args:
         output_dir: Directory for output files
-        num_runs: Number of MCMC runs (overrides config)
+        reset_runs: Number of fresh/reset runs (default 1)
+        resume_runs: Number of resume runs after reset runs (default 0)
         num_collect: Collection iterations per run (overrides config)
         config: Configuration dict (uses DEFAULT_CONFIG if None)
 
@@ -43,6 +43,14 @@ def run_sampling(output_dir, num_runs=None, num_collect=None, config=None):
     ra_rows = load_raw_data()
     data = parse_ra_data(ra_rows)
     indexed_data = make_bamcmc_data_indexed(data)
+
+    # Add hyperprior array to data["float"] so it's passed at runtime (not traced by JAX)
+    # This allows different priors to be used without recompiling
+    hyperprior_arr = get_hyperprior_array()
+    indexed_data['float'] = indexed_data['float'] + (hyperprior_arr,)
+
+    # Debug: print hyperprior values to verify correct prior is loaded
+    print(f"  Hyperprior beta_0 values: r={hyperprior_arr[3]:.1f}, phi={hyperprior_arr[7]:.1f}, eta={hyperprior_arr[11]:.1f}, lambda={hyperprior_arr[15]:.1f}")
 
     n_subjects = indexed_data['static'][0]
     print(f"  Subjects: {n_subjects}")
@@ -64,21 +72,25 @@ def run_sampling(output_dir, num_runs=None, num_collect=None, config=None):
         'rng_seed': cfg['rng_seed'],
     }
 
-    actual_runs = num_runs or cfg['num_runs']
+    # Build run schedule from reset_runs and resume_runs
+    n_reset = reset_runs if reset_runs is not None else 1
+    n_resume = resume_runs if resume_runs is not None else 0
+    total_runs = n_reset + n_resume
 
     print(f"\nSampling Configuration:")
     print(f"  Model: {MODEL_ID}")
     print(f"  Chains: {mcmc_config['num_chains_a']} + {mcmc_config['num_chains_b']}")
     print(f"  Collection iterations: {mcmc_config['num_collect']}")
     print(f"  Thinning: {mcmc_config['thin_iteration']}")
-    print(f"  Number of runs: {actual_runs}")
+    print(f"  Reset runs: {n_reset}, Resume runs: {n_resume}")
     print(f"  Output: {output_dir}")
 
-    # Run schedule: first run resets, subsequent runs resume
-    if actual_runs > 1:
-        run_schedule = [("reset", 1), ("resume", actual_runs - 1)]
-    else:
-        run_schedule = [("reset", 1)]
+    # Build run schedule
+    run_schedule = []
+    if n_reset > 0:
+        run_schedule.append(("reset", n_reset))
+    if n_resume > 0:
+        run_schedule.append(("resume", n_resume))
 
     print(f"\nStarting MCMC with schedule: {run_schedule}")
     summary = rmcmc(
@@ -103,8 +115,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run RDU BHM sampling")
     parser.add_argument('--output-dir', type=str, default='data/output/rdu_bhm')
-    parser.add_argument('--num-runs', type=int, default=5)
+    parser.add_argument('--reset-runs', type=int, default=1)
+    parser.add_argument('--resume-runs', type=int, default=0)
     parser.add_argument('--num-collect', type=int, default=1000)
     args = parser.parse_args()
 
-    run_sampling(args.output_dir, args.num_runs, args.num_collect)
+    run_sampling(args.output_dir, args.reset_runs, args.resume_runs, args.num_collect)

@@ -20,6 +20,7 @@ OUTPUTS = {
     'prior_predictive_ce': DATA_DIR / 'output' / 'prior_predictive_ce.npz',
     'posterior_predictive_ce_info': DATA_DIR / 'output' / 'posterior_predictive_ce_informative.npz',
     'posterior_predictive_ce_uninf': DATA_DIR / 'output' / 'posterior_predictive_ce_uninformative.npz',
+    'posterior_ce_comparison': DATA_DIR / 'output' / 'posterior_ce_comparison.npz',
 }
 
 

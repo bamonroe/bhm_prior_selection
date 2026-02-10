@@ -267,6 +267,16 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
     print("Done.\n")
 
 
+def run_posterior_ce_comparison(data_dir, output_dir):
+    """Compare per-subject posterior predictive CE across prior specifications."""
+    print("\n" + "=" * 60)
+    print("Running: Posterior CE Comparison (Informative vs Uninformative)")
+    print("=" * 60)
+    from prior_predictive_ce import run_posterior_ce_comparison as _run
+    _run(data_dir, output_dir)
+    print("Done.\n")
+
+
 def run_prior_plots(direct_prior, prior_selection, output_dir, seed=42):
     """Generate prior distribution plots."""
     print("\n" + "=" * 60)

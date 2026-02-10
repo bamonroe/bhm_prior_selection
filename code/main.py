@@ -197,6 +197,7 @@ do_gen_paper_quantities         = False
 do_hyper_plots_info             = False
 do_subject_plots_info           = False
 do_posterior_predictive_ce_info = False
+do_posterior_ce_comparison     = False
 do_paper_plots                  = False
 
 # --- Plotting (Uninformative) ---
@@ -365,6 +366,15 @@ if __name__ == '__main__':
             output_dir=plots_dir_info,
             label='informative',
             prior_ce_path=prior_ce_path,
+        )
+
+    if do_posterior_ce_comparison:
+        check_dependency('posterior_ce_comparison',
+                         ['posterior_predictive_ce_info',
+                          'posterior_predictive_ce_uninf'])
+        pipelines.run_posterior_ce_comparison(
+            data_dir=DATA_DIR,
+            output_dir=plots_dir_info,
         )
 
     if do_paper_plots:

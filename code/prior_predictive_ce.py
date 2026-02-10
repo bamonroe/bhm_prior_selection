@@ -515,6 +515,196 @@ def plot_posterior_predictive_ce(ce_flat, prizes_dkk, output_path, label,
     print(f"  Plot saved to: {output_path}")
 
 
+def plot_subject_ce_comparison(ce_info, ce_uninf, prizes_dkk, sid,
+                               output_path):
+    """
+    Plot overlaid histograms comparing informative vs uninformative posterior
+    predictive CE distributions for a single subject.
+
+    Args:
+        ce_info: 1D array of CE draws (informative prior) for one subject
+        ce_uninf: 1D array of CE draws (uninformative prior) for one subject
+        prizes_dkk: Array of 3 prizes [min, mid, max] in DKK
+        sid: Subject index (0-based)
+        output_path: Path to save PDF
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    ce_info = np.asarray(ce_info)
+    ce_uninf = np.asarray(ce_uninf)
+    prizes_dkk = np.asarray(prizes_dkk)
+
+    ev = np.mean(prizes_dkk)
+
+    # Filter non-finite
+    ce_info = ce_info[np.isfinite(ce_info)]
+    ce_uninf = ce_uninf[np.isfinite(ce_uninf)]
+
+    med_info = np.median(ce_info)
+    med_uninf = np.median(ce_uninf)
+    med_diff = abs(med_info - med_uninf)
+
+    # Display range: 1st-99th percentile of combined data
+    combined = np.concatenate([ce_info, ce_uninf])
+    x_lo, x_hi = np.percentile(combined, [1, 99])
+
+    fig, ax = plt.subplots(1, 1, figsize=(8, 5))
+
+    ax.hist(ce_uninf, bins=150, density=True, alpha=0.5, color='steelblue',
+            range=(x_lo, x_hi), label='Uninformative prior')
+    ax.hist(ce_info, bins=150, density=True, alpha=0.5, color='coral',
+            range=(x_lo, x_hi), label='Informative prior')
+
+    # Median lines
+    ax.axvline(med_uninf, color='steelblue', linestyle='-', linewidth=1.5,
+               label=f'Uninf. median = {med_uninf:.0f}')
+    ax.axvline(med_info, color='coral', linestyle='-', linewidth=1.5,
+               label=f'Info. median = {med_info:.0f}')
+
+    # EV reference
+    ax.axvline(ev, color='black', linestyle='-', linewidth=1.5,
+               label=f'EV = {ev:.0f} DKK')
+
+    # Prize lines
+    for p in prizes_dkk:
+        ax.axvline(p, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
+
+    # Text box
+    text = (f'Median diff = {med_diff:.0f} DKK\n'
+            f'Info. median = {med_info:.0f}\n'
+            f'Uninf. median = {med_uninf:.0f}')
+    ax.text(0.97, 0.95, text, transform=ax.transAxes,
+            fontsize=9, verticalalignment='top', horizontalalignment='right',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    ax.set_xlabel('Certainty Equivalent (DKK)')
+    ax.set_ylabel('Density')
+    ax.set_title(f'Subject {sid}: Posterior Predictive CE\n'
+                 '(Informative vs Uninformative Prior)')
+    ax.set_xlim(x_lo, x_hi)
+    ax.legend(loc='upper left', fontsize=8)
+
+    plt.tight_layout()
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"  Plot saved to: {output_path}")
+
+
+def run_posterior_ce_comparison(data_dir, output_dir):
+    """
+    Compare posterior predictive CE distributions per subject between
+    informative and uninformative priors.
+
+    Loads existing NPZ files, computes per-subject divergence (absolute
+    median difference), ranks subjects, and generates overlaid histogram
+    plots for the most- and least-affected subjects.
+
+    Args:
+        data_dir: Path to data directory (contains output/ with NPZ files)
+        output_dir: Path for output plots
+    """
+    data_dir = Path(data_dir)
+    output_dir = Path(output_dir)
+
+    info_path = data_dir / 'output' / 'posterior_predictive_ce_informative.npz'
+    uninf_path = data_dir / 'output' / 'posterior_predictive_ce_uninformative.npz'
+
+    print("  Loading posterior predictive CE files...")
+    info_data = np.load(info_path)
+    uninf_data = np.load(uninf_path)
+
+    ce_info = info_data['ce_samples']    # (n_draws, n_subjects)
+    ce_uninf = uninf_data['ce_samples']  # (n_draws, n_subjects)
+    prizes_dkk = info_data['prizes_dkk']
+    n_subjects = ce_info.shape[1]
+
+    print(f"  Informative:   {ce_info.shape[0]} draws x {n_subjects} subjects")
+    print(f"  Uninformative: {ce_uninf.shape[0]} draws x {n_subjects} subjects")
+
+    # --- Per-subject statistics ---
+    print("  Computing per-subject statistics...")
+
+    med_info = np.nanmedian(ce_info, axis=0)
+    med_uninf = np.nanmedian(ce_uninf, axis=0)
+    mean_info = np.nanmean(ce_info, axis=0)
+    mean_uninf = np.nanmean(ce_uninf, axis=0)
+    std_info = np.nanstd(ce_info, axis=0)
+    std_uninf = np.nanstd(ce_uninf, axis=0)
+    p5_info, p95_info = np.nanpercentile(ce_info, [5, 95], axis=0)
+    p5_uninf, p95_uninf = np.nanpercentile(ce_uninf, [5, 95], axis=0)
+
+    # Divergence: absolute difference in medians
+    divergence = np.abs(med_info - med_uninf)
+
+    # Rank subjects (descending divergence)
+    ranking = np.argsort(-divergence)
+
+    most_affected_sid = int(ranking[0])
+    least_affected_sid = int(ranking[-1])
+
+    # --- Print rankings ---
+    print(f"\n  Top 5 most affected subjects (by |median diff|):")
+    print(f"  {'Rank':>4}  {'SID':>5}  {'Med Info':>10}  {'Med Uninf':>10}  {'|Diff|':>10}")
+    for i in range(5):
+        sid = ranking[i]
+        print(f"  {i+1:>4}  {sid:>5}  {med_info[sid]:>10.1f}  "
+              f"{med_uninf[sid]:>10.1f}  {divergence[sid]:>10.1f}")
+
+    print(f"\n  Top 5 least affected subjects (by |median diff|):")
+    for i in range(5):
+        sid = ranking[-(i+1)]
+        print(f"  {i+1:>4}  {sid:>5}  {med_info[sid]:>10.1f}  "
+              f"{med_uninf[sid]:>10.1f}  {divergence[sid]:>10.1f}")
+
+    print(f"\n  Most affected:  subject {most_affected_sid} "
+          f"(|diff| = {divergence[most_affected_sid]:.1f} DKK)")
+    print(f"  Least affected: subject {least_affected_sid} "
+          f"(|diff| = {divergence[least_affected_sid]:.1f} DKK)")
+
+    # --- Save comparison NPZ ---
+    npz_path = data_dir / 'output' / 'posterior_ce_comparison.npz'
+    np.savez(
+        npz_path,
+        med_info=med_info,
+        med_uninf=med_uninf,
+        mean_info=mean_info,
+        mean_uninf=mean_uninf,
+        std_info=std_info,
+        std_uninf=std_uninf,
+        p5_info=p5_info,
+        p95_info=p95_info,
+        p5_uninf=p5_uninf,
+        p95_uninf=p95_uninf,
+        divergence=divergence,
+        ranking=ranking,
+        most_affected_sid=most_affected_sid,
+        least_affected_sid=least_affected_sid,
+        prizes_dkk=prizes_dkk,
+        n_subjects=n_subjects,
+    )
+    print(f"  Saved comparison NPZ to: {npz_path}")
+
+    # --- Plot most and least affected subjects ---
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_subject_ce_comparison(
+        ce_info[:, most_affected_sid],
+        ce_uninf[:, most_affected_sid],
+        prizes_dkk, most_affected_sid,
+        output_dir / 'subject_ce_most_affected.pdf',
+    )
+    plot_subject_ce_comparison(
+        ce_info[:, least_affected_sid],
+        ce_uninf[:, least_affected_sid],
+        prizes_dkk, least_affected_sid,
+        output_dir / 'subject_ce_least_affected.pdf',
+    )
+
+
 def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
                                  prize_scale=1000.0, prior_ce_path=None):
     """

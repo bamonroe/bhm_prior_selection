@@ -15,6 +15,8 @@ The core methodology is implemented and tested:
 - Skew-Normal example demonstrating 3-parameter extension
 
 **Recent Changes:**
+- Added posterior predictive CE distribution (informative + uninformative), with prior overlay
+- Added prior predictive CE distribution pipeline
 - Separated preprocessing and plotting into distinct pipeline steps with separate flags
 - Fixed uninformative prior: now directly specifies hyperprior params (not variance-decomposed)
 - Added prior reference lines (green dashed median, dotted 95% CI) to hyperparameter plots
@@ -59,7 +61,7 @@ A copy is in the `lit/` directory.
 
 - **`code/prior_selection.py`** - The paper's core contribution
   - `rdu_prelec_prior_selection()`: Define individual-level priors for RDU params
-  - `derive_hyperpriors(ps, rho=0.3, alpha_0=6.0)`: Variance decomposition
+  - `derive_hyperpriors(ps, rho=0.2, alpha_0=20.0)`: Variance decomposition
   - `verify_hyperpriors()`: Confirm unconditional variance matches target
 
 - **`code/posteriors/rdu_bhm.py`** - BHM log posterior for bamcmc
@@ -70,6 +72,11 @@ A copy is in the `lit/` directory.
 
 - **`code/posteriors/common_fns.py`** - Shared utility functions
   - CRRA utility with normalization, Prelec probability weighting, risk likelihood
+
+- **`code/prior_predictive_ce.py`** - CE distribution analysis
+  - Prior predictive: MC draws from hyperprior → subject params → CE
+  - Posterior predictive: loads MCMC history → extracts GQ params → CE
+  - Both informative and uninformative, with prior/posterior overlay plots
 
 - **`code/clean_data.py`** - Data preparation
   - Filters to RA task, creates indexed data structure for GPU efficiency
@@ -108,7 +115,7 @@ Variance decomposition: `V = τ₀² + E[σ²]` where:
 - τ₀² = ρ × V (uncertainty about population mean)
 - E[σ²] = (1-ρ) × V (population heterogeneity)
 
-Default researcher choices: ρ = 0.3, α₀ = 6.0
+Default researcher choices: ρ = 0.2, α₀ = 20.0
 
 ## Data
 
@@ -240,9 +247,10 @@ other python files.
 do_clean_data = False       # Shape raw data for bamcmc
 do_gen_paper_data = False   # Generate data summaries for paper (paper_data.npz)
 
-# --- Prior Selection ---
-do_generate_prior = False   # Run prior selection methodology
-do_prior_plots = False      # Generate prior distribution comparison plots
+# --- Prior Selection and Plots ---
+do_generate_prior = False       # Run prior selection methodology
+do_prior_plots = False          # Generate prior distribution comparison plots
+do_prior_predictive_ce = False  # Prior predictive CE distribution
 
 # --- MCMC Sampling ---
 do_sampling = False               # Run informative prior sampling
@@ -254,13 +262,17 @@ do_preprocess_subjects_info = False  # Preprocess subjects (informative)
 do_preprocess_hyper_uninf = False    # Preprocess hyperparameters (uninformative)
 do_preprocess_subjects_uninf = False # Preprocess subjects (uninformative)
 
-# --- Plotting ---
-do_gen_paper_quantities = False  # Extract posterior summaries (paper_quantities.npz)
-do_hyper_plots_info = False      # Hyperparameter diagnostic plots (informative)
-do_subject_plots_info = False    # Subject diagnostic plots (informative)
-do_hyper_plots_uninf = False     # Hyperparameter diagnostic plots (uninformative)
-do_subject_plots_uninf = False   # Subject diagnostic plots (uninformative)
-do_paper_plots = False           # Publication figures
+# --- Plotting (Informative) ---
+do_gen_paper_quantities = False          # Extract posterior summaries (paper_quantities.npz)
+do_hyper_plots_info = False              # Hyperparameter diagnostic plots (informative)
+do_subject_plots_info = False            # Subject diagnostic plots (informative)
+do_posterior_predictive_ce_info = False   # Posterior predictive CE (informative)
+do_paper_plots = False                   # Publication figures
+
+# --- Plotting (Uninformative) ---
+do_hyper_plots_uninf = False              # Hyperparameter diagnostic plots (uninformative)
+do_subject_plots_uninf = False            # Subject diagnostic plots (uninformative)
+do_posterior_predictive_ce_uninf = False   # Posterior predictive CE (uninformative)
 
 # --- Appendix Examples ---
 do_skew_normal_example = False   # Run Skew-Normal hyperprior example

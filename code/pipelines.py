@@ -243,6 +243,30 @@ def run_skew_normal_example(direct_prior, researcher_choices, output_dir,
     print("Done.\n")
 
 
+def run_prior_predictive_ce(direct_prior, prior_selection, data_dir,
+                             output_dir, n_mc_draws=10000, seed=42):
+    """Run prior predictive CE analysis."""
+    print("\n" + "=" * 60)
+    print("Running: Prior Predictive CE Distribution")
+    print("=" * 60)
+    from prior_predictive_ce import run_prior_predictive_ce as _run
+    _run(direct_prior, prior_selection, data_dir, output_dir,
+         n_mc_draws=n_mc_draws, seed=seed)
+    print("Done.\n")
+
+
+def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
+                                 prize_scale=1000.0, prior_ce_path=None):
+    """Run posterior predictive CE analysis."""
+    print("\n" + "=" * 60)
+    print(f"Running: Posterior Predictive CE Distribution ({label})")
+    print("=" * 60)
+    from prior_predictive_ce import run_posterior_predictive_ce as _run
+    _run(history_dir, data_dir, output_dir, label,
+         prize_scale=prize_scale, prior_ce_path=prior_ce_path)
+    print("Done.\n")
+
+
 def run_prior_plots(direct_prior, prior_selection, output_dir, seed=42):
     """Generate prior distribution plots."""
     print("\n" + "=" * 60)

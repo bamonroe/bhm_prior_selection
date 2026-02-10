@@ -171,11 +171,12 @@ sampling_opts = {
 
 # --- Data Pipeline ---
 do_clean_data     = False
-do_gen_paper_data = True
+do_gen_paper_data = False
 
 # --- Prior Selection and Plots ---
-do_generate_prior = False
-do_prior_plots    = False
+do_generate_prior       = False
+do_prior_plots          = False
+do_prior_predictive_ce  = False
 
 # --- MCMC Sampling (Informative Prior) ---
 do_sampling = False
@@ -192,14 +193,16 @@ do_preprocess_hyper_uninf    = False
 do_preprocess_subjects_uninf = False
 
 # --- Plotting (Informative) ---
-do_gen_paper_quantities     = True
-do_hyper_plots_info         = False
-do_subject_plots_info       = True
-do_paper_plots              = False
+do_gen_paper_quantities         = False
+do_hyper_plots_info             = False
+do_subject_plots_info           = False
+do_posterior_predictive_ce_info = False
+do_paper_plots                  = False
 
 # --- Plotting (Uninformative) ---
-do_hyper_plots_uninf        = False
-do_subject_plots_uninf      = False
+do_hyper_plots_uninf             = False
+do_subject_plots_uninf           = False
+do_posterior_predictive_ce_uninf = False
 
 # --- Appendix Examples ---
 do_skew_normal_example  = False
@@ -245,6 +248,16 @@ if __name__ == '__main__':
         pipelines.run_prior_plots(
             direct_prior=DIRECT_PRIOR,
             prior_selection=PRIOR_SELECTION,
+            output_dir=PLOTS_DIR / 'priors',
+            seed=SEEDS['sampling']
+        )
+
+    if do_prior_predictive_ce:
+        check_dependency('prior_predictive_ce', ['clean_data'])
+        pipelines.run_prior_predictive_ce(
+            direct_prior=DIRECT_PRIOR,
+            prior_selection=PRIOR_SELECTION,
+            data_dir=DATA_DIR,
             output_dir=PLOTS_DIR / 'priors',
             seed=SEEDS['sampling']
         )
@@ -343,6 +356,17 @@ if __name__ == '__main__':
         else:
             pipelines.run_subject_plots(history_dir_info, plots_dir_info, n_workers=N_WORKERS)
 
+    if do_posterior_predictive_ce_info:
+        check_dependency('posterior_predictive_ce_info', ['clean_data'])
+        prior_ce_path = OUTPUTS['prior_predictive_ce']
+        pipelines.run_posterior_predictive_ce(
+            history_dir=history_dir_info,
+            data_dir=DATA_DIR,
+            output_dir=plots_dir_info,
+            label='informative',
+            prior_ce_path=prior_ce_path,
+        )
+
     if do_paper_plots:
         check_dependency('paper_plots', ['paper_quantities'])
         pipelines.run_paper_plots(OUTPUTS['paper_quantities'], PLOTS_DIR / 'paper')
@@ -377,6 +401,17 @@ if __name__ == '__main__':
         else:
             print(f"Skipping uninformative subject plots: {history_dir_uninf} not found")
 
+    if do_posterior_predictive_ce_uninf:
+        if history_dir_uninf.exists():
+            pipelines.run_posterior_predictive_ce(
+                history_dir=history_dir_uninf,
+                data_dir=DATA_DIR,
+                output_dir=plots_dir_uninf,
+                label='uninformative',
+            )
+        else:
+            print(f"Skipping uninformative posterior predictive CE: {history_dir_uninf} not found")
+
     # -------------------------------------------------------------------------
     # Appendix Examples
     # -------------------------------------------------------------------------
@@ -400,10 +435,7 @@ if __name__ == '__main__':
         doc_dir = PROJECT_ROOT / 'doc'
         # Run pdflatex -> biber -> pdflatex -> pdflatex for full compilation
         commands = [
-            ['pdflatex', '-interaction=nonstopmode', 'main.tex'],
-            ['biber', 'main'],
-            ['pdflatex', '-interaction=nonstopmode', 'main.tex'],
-            ['pdflatex', '-interaction=nonstopmode', 'main.tex'],
+            ['latexmk', '-pdf', 'main.tex'],
         ]
         for cmd in commands:
             print(f"  Running: {' '.join(cmd)}")

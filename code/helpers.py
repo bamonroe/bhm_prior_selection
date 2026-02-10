@@ -17,6 +17,9 @@ OUTPUTS = {
     'paper_data': DATA_DIR / 'output' / 'paper_data.npz',
     'prior_params': DATA_DIR / 'output' / 'prior_params.npz',
     'paper_quantities': DATA_DIR / 'output' / 'paper_quantities.npz',
+    'prior_predictive_ce': DATA_DIR / 'output' / 'prior_predictive_ce.npz',
+    'posterior_predictive_ce_info': DATA_DIR / 'output' / 'posterior_predictive_ce_informative.npz',
+    'posterior_predictive_ce_uninf': DATA_DIR / 'output' / 'posterior_predictive_ce_uninformative.npz',
 }
 
 

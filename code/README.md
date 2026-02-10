@@ -16,10 +16,12 @@ code/
 ├── gen_paper_data.py        # Generate data summary statistics
 ├── gen_paper_quantities.py  # Extract posterior summaries
 ├── plotting.py              # Diagnostic and paper plots
+├── prior_predictive_ce.py   # Prior and posterior predictive CE distributions
+├── skew_normal_hyperprior.py # Skew-Normal 3-parameter example (Appendix B)
 └── posteriors/
     ├── __init__.py          # Posterior package initialization
     ├── common_fns.py        # Shared utility functions
-    └── rdu_bhm.py           # RDU with power probability weighting (NCP)
+    └── rdu_bhm.py           # RDU with Prelec 2-parameter PWF (NCP)
 ```
 
 ## Module Overview
@@ -30,7 +32,7 @@ Hub script with the following sections:
 
 1. **JAX Environment Config** - GPU memory, compilation cache (must be before JAX imports)
 2. **Path Configuration** - Imports OUTPUTS and helpers from helpers.py
-3. **Prior Selection Config** - rho, alpha_0, seeds
+3. **Prior Selection Config** - DIRECT_PRIOR, PRIOR_SELECTION (rho, alpha_0), UNINFORMATIVE_HYPERPRIOR
 4. **Control Flags** - Boolean do_* flags grouped by category
 5. **Sampling Options** - sampling_opts dict for MCMC configuration
 6. **Pipeline Dispatch** - Calls pipelines.run_*() functions
@@ -43,30 +45,31 @@ Provides shared path constants and helper functions:
 - `get_mcmc_dir()` - Get MCMC output directory for a model
 - `get_plots_dir()` - Get plots directory for a model
 
-```python
-# Configuration sections
-OUTPUTS = {'clean_data': ..., 'paper_data': ..., ...}
-PRIOR_SELECTION = {'rho': 0.3, 'alpha_0': 6.0}
-SEEDS = {'sampling': 42}
-
-# Sampling options
-sampling_opts = {
-    'model': 'rdu_bhm',
-    'chains_a': 100,
-    'num_collect': 1000,
-    ...
-}
-```
+### Control Flags
 
 | Flag | Purpose | Pipeline Function |
 |------|---------|-------------------|
-| `do_clean_data` | Load raw CSV, filter to RA task | `pipelines.run_clean_data()` |
-| `do_gen_paper_data` | Generate summary statistics | `pipelines.run_gen_paper_data()` |
-| `do_generate_prior` | Derive hyperpriors | `pipelines.run_prior_selection()` |
-| `do_sampling` | Run MCMC with bamcmc | `pipelines.run_sampling()` |
-| `do_gen_paper_quantities` | Extract posterior summaries | `pipelines.run_gen_paper_quantities()` |
-| `do_diagnostic_plots` | Generate diagnostics | `pipelines.run_diagnostic_plots()` |
-| `do_paper_plots` | Create publication plots | `pipelines.run_paper_plots()` |
+| `do_clean_data` | Load raw CSV, filter to RA task | `run_clean_data()` |
+| `do_gen_paper_data` | Generate summary statistics | `run_gen_paper_data()` |
+| `do_generate_prior` | Derive hyperpriors | `run_prior_selection()` |
+| `do_prior_plots` | Prior distribution comparison plots | `run_prior_plots()` |
+| `do_prior_predictive_ce` | Prior predictive CE distribution | `run_prior_predictive_ce()` |
+| `do_sampling` | Run MCMC (informative prior) | `run_sampling()` |
+| `do_sampling_uninformative` | Run MCMC (uninformative prior) | `run_sampling()` |
+| `do_preprocess_hyper_info` | Preprocess hyperparams (informative) | `run_preprocess_hyperparams()` |
+| `do_preprocess_subjects_info` | Preprocess subjects (informative) | `run_preprocess_subjects()` |
+| `do_preprocess_hyper_uninf` | Preprocess hyperparams (uninformative) | `run_preprocess_hyperparams()` |
+| `do_preprocess_subjects_uninf` | Preprocess subjects (uninformative) | `run_preprocess_subjects()` |
+| `do_gen_paper_quantities` | Extract posterior summaries | `run_gen_paper_quantities()` |
+| `do_hyper_plots_info` | Hyperparameter diagnostics (informative) | `run_hyperparameter_plots()` |
+| `do_subject_plots_info` | Subject diagnostics (informative) | `run_subject_plots()` |
+| `do_posterior_predictive_ce_info` | Posterior predictive CE (informative) | `run_posterior_predictive_ce()` |
+| `do_paper_plots` | Publication figures | `run_paper_plots()` |
+| `do_hyper_plots_uninf` | Hyperparameter diagnostics (uninformative) | `run_hyperparameter_plots()` |
+| `do_subject_plots_uninf` | Subject diagnostics (uninformative) | `run_subject_plots()` |
+| `do_posterior_predictive_ce_uninf` | Posterior predictive CE (uninformative) | `run_posterior_predictive_ce()` |
+| `do_skew_normal_example` | Skew-Normal hyperprior example | `run_skew_normal_example()` |
+| `do_compile_doc` | Compile LaTeX document | (inline) |
 
 Each flag checks dependencies via `check_dependency()` before running.
 
@@ -117,11 +120,13 @@ Implements principled hyperprior selection via variance decomposition.
 
 | Function | Purpose |
 |----------|---------|
-| `rdu_power_prior_selection()` | Define informative individual-level priors |
+| `rdu_prelec_prior_selection()` | Define informative individual-level priors (4-param Prelec) |
 | `uninformative_prior_selection()` | Baseline N(0, 100^2) priors for comparison |
 | `derive_hyperpriors(ps, rho, alpha_0)` | Variance decomposition to get hyperpriors |
 | `verify_hyperpriors()` | Validate unconditional variance constraint |
 | `get_hyperpriors_for_rdu_bhm()` | Format hyperpriors for rdu_bhm.py |
+| `get_hyperprior_specs_for_plotting()` | Format hyperprior specs for prior reference lines |
+| `save_direct_hyperprior()` | Save uninformative hyperprior directly (no decomposition) |
 
 **Variance Decomposition:**
 ```
@@ -131,16 +136,39 @@ Var[theta] = E[sigma^2] + tau_0^2
 ```
 
 Where:
-- `rho`: Fraction of variance from uncertainty about population mean (default 0.3)
-- `alpha_0`: Concentration parameter for Inverse-Gamma (default 6.0)
+- `rho`: Fraction of variance from uncertainty about population mean (current: 0.2)
+- `alpha_0`: Concentration parameter for Inverse-Gamma (current: 20.0)
 
-**Example Results (rho=0.3, alpha_0=6):**
+**Current Values (rho=0.2, alpha_0=20.0):**
 
-| Parameter | mu_0 | tau_0 | E[sigma] | Prior Selection Var |
-|-----------|------|-------|----------|---------------------|
-| r | 0.50 | 0.274 | 0.42 | 0.25 |
-| gamma_raw | 0.00 | 0.164 | 0.25 | 0.09 |
-| mu_raw | -2.00 | 0.548 | 0.84 | 1.00 |
+| Parameter | mu_0 | tau_0 | E[sigma] | Prior Var |
+|-----------|------|-------|----------|-----------|
+| r | 0.50 | 0.224 | 0.447 | 0.25 |
+| phi_raw | 0.00 | 0.173 | 0.346 | 0.15 |
+| eta_raw | 0.00 | 0.173 | 0.346 | 0.15 |
+| lambda_raw | -2.00 | 0.447 | 0.894 | 1.00 |
+
+### prior_predictive_ce.py - Certainty Equivalent Analysis
+
+Translates abstract prior/posterior parameter distributions into an economically
+interpretable quantity: the certainty equivalent (CE) of a concrete lottery.
+
+**Prior predictive:** For each MC draw, sample hyperpriors → population params → subject
+params → compute RDU CE of a 3-outcome equally-likely lottery.
+
+**Posterior predictive:** Load MCMC posterior samples from last history file, extract
+generated quantities (r, phi, eta), compute CE for each draw × subject.
+
+**Key Functions:**
+
+| Function | Purpose |
+|----------|---------|
+| `compute_prior_predictive_ce()` | MC sampling from hyperprior → CE |
+| `compute_posterior_predictive_ce()` | Posterior samples → CE (JAX vmap) |
+| `run_prior_predictive_ce()` | Full prior predictive pipeline |
+| `run_posterior_predictive_ce()` | Full posterior predictive pipeline |
+| `plot_prior_predictive_ce()` | Histogram of prior CE distribution |
+| `plot_posterior_predictive_ce()` | Histogram with optional prior overlay |
 
 ### posteriors/common_fns.py - Shared Functions
 
@@ -148,8 +176,7 @@ Reusable functions across RDU model variants.
 
 **Utility Functions:**
 - `crra_ufn(x, r)`: CRRA utility (handles r=1 log case)
-- `power_pwf(p, gamma)`: Power probability weighting w(p) = p^gamma
-- `prelec_pwf(p, alpha, beta)`: Prelec 2-parameter weighting
+- `prelec_pwf(p, phi, eta)`: Prelec 2-parameter weighting w(p) = exp(-eta * (-ln p)^phi)
 
 **Likelihood:**
 - `rdu_value_indexed()`: Binary lottery RDU value via index lookups
@@ -157,7 +184,7 @@ Reusable functions across RDU model variants.
 
 ### posteriors/rdu_bhm.py - Primary Model
 
-Rank-Dependent Utility with power probability weighting, using **Non-Centered Parameterization (NCP)**.
+Rank-Dependent Utility with Prelec 2-parameter probability weighting, using **Non-Centered Parameterization (NCP)**.
 
 **NCP Benefits:**
 - Breaks the "funnel" coupling between hyperparameters and subject parameters
@@ -167,19 +194,20 @@ Rank-Dependent Utility with power probability weighting, using **Non-Centered Pa
 **Parameterization:**
 - Subject parameters store epsilon ~ N(0,1) standardized deviations
 - Actual parameters computed as: theta = mu + sigma * epsilon
-- Transform to positive: gamma = exp(gamma_raw), mu = exp(mu_raw)
+- Transform to positive: phi = exp(phi_raw), eta = exp(eta_raw), lambda = exp(lambda_raw)
 
 **Model Parameters (per subject, stored as epsilon):**
 - `r_eps`: CRRA risk aversion epsilon
-- `gamma_eps`: probability weighting epsilon
-- `mu_eps`: Fechner noise epsilon
+- `phi_eps`: Prelec curvature epsilon (log scale)
+- `eta_eps`: Prelec elevation epsilon (log scale)
+- `lambda_eps`: Fechner noise epsilon (log scale)
 
-**Hyperparameters (6 total):**
-- Population mean and log-std for each of 3 parameters
+**Hyperparameters (8 total):**
+- Population mean and log-std for each of 4 parameters
 - Updated via COUPLED_TRANSFORM sampler for theta-preserving proposals
 
 **Hyperprior Specifications:**
-Derived from `prior_selection.py` with rho=0.3, alpha_0=6.0:
+Derived from `prior_selection.py` with rho=0.2, alpha_0=20.0:
 - mu ~ N(mu_0, tau_0^2)
 - sigma^2 ~ InvGamma(alpha_0, beta_0)
 
@@ -194,6 +222,12 @@ Derived from `prior_selection.py` with rho=0.3, alpha_0=6.0:
 | `initial_vector()` | Generate epsilon near 0, hyperparams at prior means |
 | `generated_quantities()` | Transform epsilon to natural scale parameters |
 
+**Generated Quantities Layout:**
+```
+[r_0..r_N, phi_0..phi_N, eta_0..eta_N, lambda_0..lambda_N, pop_params(8)]
+```
+Where pop_params = [r_mean, r_sd, phi_mean_nat, phi_sd, eta_mean_nat, eta_sd, lambda_mean_nat, lambda_sd]
+
 **COUPLED_TRANSFORM Sampler:**
 When hyperparameters (mu, sigma) are proposed:
 1. Compute new epsilon: eps' = (theta - mu') / sigma'
@@ -202,6 +236,14 @@ When hyperparameters (mu, sigma) are proposed:
    - Jacobian: N * log(sigma_old / sigma_new)
    - Epsilon prior ratio: -0.5 * (sum(eps'^2) - sum(eps^2))
    - Hyperprior ratio
+
+### skew_normal_hyperprior.py - Appendix B Example
+
+Demonstrates the prior selection methodology for a 3-parameter Skew-Normal distribution,
+showing that the approach extends beyond Normal population distributions.
+
+Uses Monte Carlo integration for law of total cumulance and numerical root-finding
+for hyperprior parameters. Generates comparison plots of direct prior vs unconditional distribution.
 
 ## Data Flow
 

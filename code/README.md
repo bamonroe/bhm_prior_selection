@@ -68,6 +68,7 @@ Provides shared path constants and helper functions:
 | `do_hyper_plots_uninf` | Hyperparameter diagnostics (uninformative) | `run_hyperparameter_plots()` |
 | `do_subject_plots_uninf` | Subject diagnostics (uninformative) | `run_subject_plots()` |
 | `do_posterior_predictive_ce_uninf` | Posterior predictive CE (uninformative) | `run_posterior_predictive_ce()` |
+| `do_posterior_ce_comparison` | Compare informative vs uninformative CE | `run_posterior_ce_comparison()` |
 | `do_skew_normal_example` | Skew-Normal hyperprior example | `run_skew_normal_example()` |
 | `do_compile_doc` | Compile LaTeX document | (inline) |
 
@@ -87,24 +88,32 @@ Wrapper functions that main.py calls. Each function:
 
 ### clean_data.py - Data Preparation
 
-Transforms raw experimental data (Andersen et al. 2008) into bamcmc-compatible formats.
+Loads and transforms experimental data into a unified 3-outcome format for bamcmc.
+Supports two datasets:
+- `'hn2019'`: Harrison & Ng (2016), 3-outcome lotteries in USD (default)
+- `'andersen2008'`: Andersen et al. (2008), binary lotteries in DKK (padded to 3-outcome)
 
 **Key Functions:**
 
 | Function | Purpose |
 |----------|---------|
-| `load_raw_data()` | Load CSV, filter to risk aversion task |
-| `parse_ra_data()` | Structure lottery data by subject |
+| `load_raw_data_hn()` | Load H&N CSV, filter to risk task |
+| `parse_hn_data()` | Extract 3-outcome prizes/probs, flip choice encoding |
+| `load_raw_data()` | Load Andersen CSV, filter to RA task |
+| `parse_ra_data()` | Structure binary lotteries, pad to 3-outcome format |
 | `make_bamcmc_data_indexed()` | Create GPU-optimized indexed format |
-| `clean_and_save_data()` | Main pipeline entry point |
+| `clean_and_save_data(dataset)` | Main pipeline entry point |
 | `load_clean_data()` | Load preprocessed data |
 
-**Data Format (indexed):**
-- `"static"`: (n_subjects, n_choices, n_unique_outcomes, n_unique_probs)
-- `"int"`: (choices, idx_a_high, idx_a_low, idx_b_high, idx_b_low, idx_prob)
-- `"float"`: (unique_outcomes, unique_cumprobs)
+**Clean Data Format (unified 3-outcome):**
+- `prizes_L/R`: (n_subjects, n_choices, 3) sorted ascending
+- `probs_L/R`: (n_subjects, n_choices, 3) summing to 1
+- `choices`: (n_subjects, n_choices) 1=Left(A), 0=Right(B)
 
-The indexed format precomputes unique outcomes/probabilities for efficient GPU lookups.
+**Indexed Data Format (bamcmc):**
+- `"static"`: (n_subjects, n_choices, n_unique_outcomes)
+- `"int"`: (choices, idx_L_1, idx_L_2, idx_L_3, idx_R_1, idx_R_2, idx_R_3)
+- `"float"`: (unique_outcomes, prob_L_1..3, prob_R_1..3)
 
 ### prior_selection.py - Core Methodology
 
@@ -121,7 +130,6 @@ Implements principled hyperprior selection via variance decomposition.
 | Function | Purpose |
 |----------|---------|
 | `rdu_prelec_prior_selection()` | Define informative individual-level priors (4-param Prelec) |
-| `uninformative_prior_selection()` | Baseline N(0, 100^2) priors for comparison |
 | `derive_hyperpriors(ps, rho, alpha_0)` | Variance decomposition to get hyperpriors |
 | `verify_hyperpriors()` | Validate unconditional variance constraint |
 | `get_hyperpriors_for_rdu_bhm()` | Format hyperpriors for rdu_bhm.py |
@@ -179,7 +187,7 @@ Reusable functions across RDU model variants.
 - `prelec_pwf(p, phi, eta)`: Prelec 2-parameter weighting w(p) = exp(-eta * (-ln p)^phi)
 
 **Likelihood:**
-- `rdu_value_indexed()`: Binary lottery RDU value via index lookups
+- `rdu_value_3outcome()`: 3-outcome lottery RDU value via index lookups and Prelec PWF
 - `risk_likelihood()`: Log-likelihood for subject's choices (JAX-vectorized)
 
 ### posteriors/rdu_bhm.py - Primary Model
@@ -248,22 +256,24 @@ for hyperprior parameters. Generates comparison plots of direct prior vs uncondi
 ## Data Flow
 
 ```
-data/input/dbar.csv (raw Andersen et al. 2008)
-    |
-    v
-load_raw_data() --> filter to RA==1
-    |
-    v
-parse_ra_data() --> structure by subject
-    |
-    v
-make_bamcmc_data_indexed() --> precompute unique values
-    |
-    v
-data/input/dbar_clean.npz
-    |
-    v
-rdu_bhm.log_posterior() --> likelihood computation
+data/input/hn2016.csv (Harrison & Ng 2016)     data/input/dbar.csv (Andersen et al. 2008)
+    |                                               |
+    v                                               v
+load_raw_data_hn() --> filter risk==1           load_raw_data() --> filter RA==1
+    |                                               |
+    v                                               v
+parse_hn_data() --> 3-outcome format            parse_ra_data() --> pad to 3-outcome
+    |                                               |
+    +-------------------+---------------------------+
+                        |
+                        v
+              data/input/dbar_clean.npz (unified 3-outcome format)
+                        |
+                        v
+              make_bamcmc_data_indexed() --> precompute unique values
+                        |
+                        v
+              rdu_bhm.log_posterior() --> likelihood computation
 ```
 
 ## Dependencies

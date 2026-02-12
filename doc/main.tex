@@ -74,7 +74,7 @@ def fmt(x, decimals=2):
   this individual-level specification. For a model with $p$ parameters, this
   reduces $4p$ hyperprior choices to just 2: a variance partition ratio and a
   concentration parameter. I demonstrate the approach using rank-dependent
-  utility estimation with data from \textcite{Andersen2008}, showing
+  utility estimation with data from \textcite{Harrison2016}, showing
   that the methodology produces well-identified posteriors with excellent
   convergence properties.
   \end{justify}
@@ -131,7 +131,7 @@ substage knowledge about the target domain.
 
 I begin by outlining the process for selecting a hyper-prior for an arbitrary
 model. I then demonstrate the approach using rank-dependent utility (RDU)
-estimation with lottery choice data from \textcite{Andersen2008}. I show that
+estimation with lottery choice data from \textcite{Harrison2016}. I show that
 these informed priors can lead to substantive differences in the posterior
 predictive distributions for certain agents.
 
@@ -530,11 +530,10 @@ These researcher decisions result in the full hyper-prior:
 
 \subsection{Data and Estimation}
 
-I use the risk aversion task from \textcite{Andersen2008}, which elicited
-lottery choices from \py{D['n_subjects']} subjects in Denmark. Each subject made
-\py{D['n_choices_per_subject']} binary choices between lotteries with varying prize
-amounts and probabilities. This dataset has been analyzed extensively and
-provides a benchmark for methodological comparisons \parencite{Gao2022}.
+I use the risk preference task from \textcite{Harrison2016}, which elicited
+lottery choices from \py{D['n_subjects']} subjects in a laboratory experiment.
+Each subject made \py{D['n_choices_per_subject']} binary choices between
+three-outcome lotteries with prize amounts of \$10, \$30, and \$50.
 
 I estimate the model using Markov chain Monte Carlo with \py{Q.get('n_chains', 'N/A')}
 parallel chains. The sampler uses block-wise Metropolis-Hastings with adaptive
@@ -811,18 +810,16 @@ where $V_A$ and $V_B$ are the RDU values of the two lotteries and $\mu_i =
 
 \subsection{Computational Efficiency}
 
-To accelerate likelihood evaluation, I precompute utilities and probability
-weights for the 13 unique prize amounts and 10 unique probability values in the
-data, then use index lookups rather than recomputing these values for each of
-the 20,040 observations. This reduces computation by a factor of approximately
-6,000.
+To accelerate likelihood evaluation, I precompute utilities for the 3 unique
+prize amounts in the data, then use index lookups rather than recomputing these
+values for each of the \py{D['n_subjects'] * D['n_choices_per_subject']}
+observations.
 
 \subsection{Software}
 
 Estimation uses the \texttt{bamcmc} package, a JAX-based MCMC sampler with
-coupled A/B chains and GPU acceleration. The sampler runs 800 chains in
-parallel on an NVIDIA RTX 4070 GPU, completing 700 iterations in approximately
-2 minutes.
+coupled A/B chains and GPU acceleration. The sampler runs
+\py{Q.get('n_chains', 'N/A')} chains in parallel on an NVIDIA RTX 4070 GPU.
 
 % print references from this section only
 \appendixref{}

@@ -8,7 +8,7 @@ Usage: Set desired do_* flags to True, then run `python code/main.py`
 
 Pipeline dependency chain:
   clean_data -> gen_paper_data -> generate_prior -> sampling
-             -> gen_paper_quantities -> diagnostic_plots / paper_plots
+             -> gen_paper_quantities -> hyper_plots / subject_plots / paper_plots
 
 Each step requires previous steps to have produced their outputs.
 """
@@ -139,6 +139,19 @@ SKEW_NORMAL_RESEARCHER = {
     'tau_alpha_sq': 0.25, # shape uncertainty (new degree of freedom)
 }
 
+# =============================================================================
+# Dataset Configuration
+# =============================================================================
+
+# Which dataset to use: 'hn2019' (Harrison & Ng) or 'andersen2008' (Andersen et al.)
+DATASET = 'hn2019'
+
+# Prize normalization scale by dataset
+PRIZE_SCALE = {
+    'hn2019': 100.0,        # USD prizes 0-70
+    'andersen2008': 1000.0,  # DKK prizes 50-4500
+}
+
 # Random seeds for reproducibility
 SEEDS = {
     'sampling': 42,
@@ -163,6 +176,7 @@ sampling_opts = {
     'thin_iteration': 1,
     'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
     'seed': SEEDS['sampling'],
+    'prize_scale': PRIZE_SCALE[DATASET],
 }
 
 # =============================================================================
@@ -170,43 +184,45 @@ sampling_opts = {
 # =============================================================================
 
 # --- Data Pipeline ---
-do_clean_data     = False
-do_gen_paper_data = False
+do_clean_data     = True
+do_gen_paper_data = True
 
 # --- Prior Selection and Plots ---
-do_generate_prior       = False
-do_prior_plots          = False
-do_prior_predictive_ce  = False
+do_generate_prior       = True
+do_prior_plots          = True
+do_prior_predictive_ce  = True
 
 # --- MCMC Sampling (Informative Prior) ---
-do_sampling = False
+do_sampling = True
 
 # --- MCMC Sampling (Uninformative Prior) ---
-do_sampling_uninformative = False
+do_sampling_uninformative = True
 
 # --- Preprocessing (Informative) ---
-do_preprocess_hyper_info    = False
-do_preprocess_subjects_info = False
+do_preprocess_hyper_info    = True
+do_preprocess_subjects_info = True
 
 # --- Preprocessing (Uninformative) ---
-do_preprocess_hyper_uninf    = False
-do_preprocess_subjects_uninf = False
+do_preprocess_hyper_uninf    = True
+do_preprocess_subjects_uninf = True
 
 # --- Plotting (Informative) ---
-do_gen_paper_quantities         = False
-do_hyper_plots_info             = False
-do_subject_plots_info           = False
-do_posterior_predictive_ce_info = False
-do_posterior_ce_comparison     = False
-do_paper_plots                  = False
+do_gen_paper_quantities         = True
+do_hyper_plots_info             = True
+do_subject_plots_info           = True
+do_posterior_predictive_ce_info = True
+do_paper_plots                  = True
 
 # --- Plotting (Uninformative) ---
-do_hyper_plots_uninf             = False
-do_subject_plots_uninf           = False
-do_posterior_predictive_ce_uninf = False
+do_hyper_plots_uninf             = True
+do_subject_plots_uninf           = True
+do_posterior_predictive_ce_uninf = True
+
+# --- Cross-Prior Comparison ---
+do_posterior_ce_comparison       = True
 
 # --- Appendix Examples ---
-do_skew_normal_example  = False
+do_skew_normal_example  = True
 
 # --- Document Compilation ---
 do_compile_doc          = False
@@ -224,7 +240,7 @@ if __name__ == '__main__':
     # Data Pipeline
     # -------------------------------------------------------------------------
     if do_clean_data:
-        pipelines.run_clean_data(DATA_DIR)
+        pipelines.run_clean_data(DATA_DIR, dataset=DATASET)
 
     if do_gen_paper_data:
         check_dependency('gen_paper_data', ['clean_data'])
@@ -260,6 +276,7 @@ if __name__ == '__main__':
             prior_selection=PRIOR_SELECTION,
             data_dir=DATA_DIR,
             output_dir=PLOTS_DIR / 'priors',
+            prize_scale=PRIZE_SCALE[DATASET],
             seed=SEEDS['sampling']
         )
 
@@ -365,16 +382,8 @@ if __name__ == '__main__':
             data_dir=DATA_DIR,
             output_dir=plots_dir_info,
             label='informative',
+            prize_scale=PRIZE_SCALE[DATASET],
             prior_ce_path=prior_ce_path,
-        )
-
-    if do_posterior_ce_comparison:
-        check_dependency('posterior_ce_comparison',
-                         ['posterior_predictive_ce_info',
-                          'posterior_predictive_ce_uninf'])
-        pipelines.run_posterior_ce_comparison(
-            data_dir=DATA_DIR,
-            output_dir=plots_dir_info,
         )
 
     if do_paper_plots:
@@ -418,9 +427,22 @@ if __name__ == '__main__':
                 data_dir=DATA_DIR,
                 output_dir=plots_dir_uninf,
                 label='uninformative',
+                prize_scale=PRIZE_SCALE[DATASET],
             )
         else:
             print(f"Skipping uninformative posterior predictive CE: {history_dir_uninf} not found")
+
+    # -------------------------------------------------------------------------
+    # Cross-Prior Comparison
+    # -------------------------------------------------------------------------
+    if do_posterior_ce_comparison:
+        check_dependency('posterior_ce_comparison',
+                         ['posterior_predictive_ce_info',
+                          'posterior_predictive_ce_uninf'])
+        pipelines.run_posterior_ce_comparison(
+            data_dir=DATA_DIR,
+            output_dir=plots_dir_info,
+        )
 
     # -------------------------------------------------------------------------
     # Appendix Examples

@@ -19,12 +19,15 @@ Hyperparameters (8 total):
 - Population mean and log-standard deviation for each parameter
 - Updated via COUPLED_TRANSFORM for theta-preserving proposals
 
-Data Format (indexed):
-- float[0]: unique_outcomes (normalized prizes)
-- float[1]: unique_probs (unique probability values)
+Data Format (3-outcome indexed):
+- static: (n_subjects, n_choices, n_unique_outcomes)
 - int[0]: choices (n_subjects, n_choices)
-- int[1-4]: outcome indices for A_high, A_low, B_high, B_low
-- int[5]: probability indices
+- int[1-3]: idx_L_1, idx_L_2, idx_L_3 (Left lottery outcome indices)
+- int[4-6]: idx_R_1, idx_R_2, idx_R_3 (Right lottery outcome indices)
+- float[0]: unique_outcomes (normalized prizes)
+- float[1-3]: prob_L_1, prob_L_2, prob_L_3
+- float[4-6]: prob_R_1, prob_R_2, prob_R_3
+- float[7]: hyperprior_arr (16 values)
 """
 
 import numpy as np
@@ -45,7 +48,7 @@ except ImportError:
     BAMCMC_AVAILABLE = False
     print("Warning: bamcmc not available. Posterior registration skipped.")
 
-from .common_fns import crra_ufn, prelec_pwf, risk_likelihood
+from .common_fns import crra_ufn, risk_likelihood
 
 MODEL_ID = "rdu_bhm"
 
@@ -386,13 +389,13 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
         dataf = data["float"]
 
         # Extract hyperprior specs from data (passed at runtime, not traced)
-        hyperprior_arr = jnp.asarray(dataf[2])
+        hyperprior_arr = jnp.asarray(dataf[7])
         lp_hyper = _compute_all_hyperpriors(chain_state, idx, hyperprior_arr)
 
         datai_jax = tuple(jnp.asarray(arr) for arr in datai)
+        dataf_jax = tuple(jnp.asarray(arr) for arr in dataf)
 
-        unique_outcomes = jnp.asarray(dataf[0])
-        unique_cumprobs = jnp.asarray(dataf[1])
+        unique_outcomes = dataf_jax[0]
 
         def subject_ll_body(sid, acc):
             r_val, phi_raw, eta_raw, lambda_raw = _transform_eps_to_theta(chain_state, sid, idx)
@@ -402,9 +405,8 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
             lam = jnp.exp(lambda_raw)
 
             unique_utils = crra_ufn(unique_outcomes, r_val)
-            unique_weighted = prelec_pwf(unique_cumprobs, phi, eta)
 
-            ll = risk_likelihood(unique_weighted, unique_utils, datai_jax, sid, lam)
+            ll = risk_likelihood(unique_utils, phi, eta, datai_jax, dataf_jax, sid, lam)
             return acc + ll
 
         total_ll = jax.lax.fori_loop(0, n_subjects, subject_ll_body, 0.0)
@@ -434,14 +436,13 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
         eta = jnp.exp(eta_raw)
         lam = jnp.exp(lambda_raw)
 
-        unique_outcomes = jnp.asarray(data["float"][0])
-        unique_cumprobs = jnp.asarray(data["float"][1])
         datai_jax = tuple(jnp.asarray(arr) for arr in data["int"])
+        dataf_jax = tuple(jnp.asarray(arr) for arr in data["float"])
 
+        unique_outcomes = dataf_jax[0]
         unique_utils = crra_ufn(unique_outcomes, r_val)
-        unique_weighted = prelec_pwf(unique_cumprobs, phi, eta)
 
-        log_like = risk_likelihood(unique_weighted, unique_utils, datai_jax, sid, lam)
+        log_like = risk_likelihood(unique_utils, phi, eta, datai_jax, dataf_jax, sid, lam)
 
         return lp_eps + beta * log_like
 

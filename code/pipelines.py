@@ -9,13 +9,13 @@ the underlying implementation modules.
 from pathlib import Path
 
 
-def run_clean_data(data_dir):
+def run_clean_data(data_dir, dataset='hn2019'):
     """Run data cleaning pipeline."""
     print("\n" + "=" * 60)
-    print("Running: Data Cleaning")
+    print(f"Running: Data Cleaning (dataset={dataset})")
     print("=" * 60)
     from clean_data import clean_and_save_data
-    clean_and_save_data()
+    clean_and_save_data(dataset=dataset)
     print("Done.\n")
 
 
@@ -90,6 +90,7 @@ def run_sampling(sampling_opts, prior_params_path=None):
             'chunk_size': sampling_opts.get('chunk_size', 100),
             'rng_seed': sampling_opts['seed'],
         },
+        prize_scale=sampling_opts.get('prize_scale', 1000.0),
     )
     print("Done.\n")
 
@@ -102,16 +103,6 @@ def run_gen_paper_quantities(history_dir, data_dir):
     from gen_paper_quantities import gen_paper_quantities
     output_path = Path(data_dir) / 'output' / 'paper_quantities.npz'
     gen_paper_quantities(history_dir, output_path)
-    print("Done.\n")
-
-
-def run_diagnostic_plots(history_dir, plots_dir, n_workers=1):
-    """Generate diagnostic plots (both hyperparameters and subjects)."""
-    print("\n" + "=" * 60)
-    print("Running: Diagnostic Plots")
-    print("=" * 60)
-    from plotting import diagnostic_plots
-    diagnostic_plots(history_dir, plots_dir, n_workers=n_workers)
     print("Done.\n")
 
 
@@ -244,14 +235,15 @@ def run_skew_normal_example(direct_prior, researcher_choices, output_dir,
 
 
 def run_prior_predictive_ce(direct_prior, prior_selection, data_dir,
-                             output_dir, n_mc_draws=10000, seed=42):
+                             output_dir, n_mc_draws=10000, prize_scale=1000.0,
+                             seed=42):
     """Run prior predictive CE analysis."""
     print("\n" + "=" * 60)
     print("Running: Prior Predictive CE Distribution")
     print("=" * 60)
     from prior_predictive_ce import run_prior_predictive_ce as _run
     _run(direct_prior, prior_selection, data_dir, output_dir,
-         n_mc_draws=n_mc_draws, seed=seed)
+         n_mc_draws=n_mc_draws, prize_scale=prize_scale, seed=seed)
     print("Done.\n")
 
 

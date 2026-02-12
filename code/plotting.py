@@ -220,7 +220,7 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"  Loading {len(history_files)} history files...")
-    history, iterations, likelihoods, metadata = combine_batch_histories(history_files)
+    history, iterations, _, metadata = combine_batch_histories(history_files)
     print(f"  Combined shape: {history.shape}")
 
     n_samples, n_chains, n_params = history.shape
@@ -306,7 +306,7 @@ def preprocess_hyperparams(history_dir, output_dir, force=False):
             return output_path
 
     print(f"  Loading {len(history_files)} history files...")
-    history, iterations, likelihoods, metadata = combine_batch_histories(history_files)
+    history, iterations, _, metadata = combine_batch_histories(history_files)
     print(f"  Combined shape: {history.shape}")
 
     n_samples, n_chains, n_total_params = history.shape
@@ -919,7 +919,7 @@ def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
 
     # Load history
     print("  Loading history for hyperparameters...")
-    history, iterations, likelihoods, metadata = combine_batch_histories(history_files)
+    history, iterations, _, metadata = combine_batch_histories(history_files)
     print(f"  Shape: {history.shape}")
 
     # Calculate batch boundaries
@@ -967,73 +967,6 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1):
     )
 
 
-# =============================================================================
-# COMBINED ENTRY POINT (legacy)
-# =============================================================================
-
-def diagnostic_plots(history_dir, plots_dir, plot_subjects=True, max_subjects=None, n_workers=1):
-    """
-    Generate diagnostic plots from MCMC output.
-
-    Two-stage approach for memory efficiency:
-    1. Preprocess: Extract per-subject data to individual files
-    2. Plot: Workers load individual files (not full history)
-
-    Args:
-        history_dir: Directory containing history_*.npz files
-        plots_dir: Directory to save plots
-        plot_subjects: Whether to generate per-subject PDFs
-        max_subjects: Limit subjects for testing
-        n_workers: Number of parallel workers for subject plots
-    """
-    history_dir = Path(history_dir)
-    plots_dir = Path(plots_dir)
-    plots_dir.mkdir(parents=True, exist_ok=True)
-
-    # Check for history files
-    history_files = sorted(history_dir.glob('history_*.npz'))
-    if not history_files:
-        raise FileNotFoundError(f"No history files found in {history_dir}")
-
-    print(f"  Found {len(history_files)} history files")
-
-    # Load history for hyperparameter plots
-    print("  Loading history for hyperparameters...")
-    history, iterations, likelihoods, metadata = combine_batch_histories(history_files)
-    print(f"  Shape: {history.shape}")
-
-    # Calculate batch boundaries
-    batch_boundaries = [0]
-    if metadata and 'batch_sizes' in metadata:
-        cumsum = 0
-        for size in metadata['batch_sizes']:
-            cumsum += size
-            batch_boundaries.append(cumsum)
-
-    # Plot hyperparameters
-    print("  Generating hyperparameter plots...")
-    hyper_path = plots_dir / 'rdu_bhm_hyperparams.pdf'
-    plot_hyperparameters(history, iterations, batch_boundaries, hyper_path)
-
-    # Subject plots (two-stage)
-    if plot_subjects:
-        subjects_dir = plots_dir / 'subjects'
-        params_dir = history_dir.parent / 'subject_params'
-
-        # Stage 1: Preprocess
-        print("  Stage 1: Preprocessing subject data...")
-        params_dir, iterations, batch_boundaries = preprocess_subjects(
-            history_dir, params_dir, force=False
-        )
-
-        # Stage 2: Parallel plot
-        print("  Stage 2: Parallel plotting...")
-        parallel_plot_subjects(
-            params_dir, subjects_dir, iterations, batch_boundaries,
-            n_workers=n_workers, max_subjects=max_subjects
-        )
-
-
 def paper_plots(quantities_path, plots_dir):
     """
     Generate publication-ready plots for the paper.
@@ -1053,7 +986,7 @@ def paper_plots(quantities_path, plots_dir):
 
     print("Paper quantities loaded:")
     print(f"  n_subjects: {data['n_subjects']}")
-    print(f"  n_samples: {data['n_samples']}")
+    print(f"  n_samples (post burn-in): {data['n_samples_post_burnin']}")
     print(f"  R-hat max: {data['rhat_max']:.4f}")
 
     # TODO: Add specific paper plots as needed
@@ -1107,11 +1040,9 @@ def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
         # Transform to natural scale if needed
         if transform_exp:
             samples = np.exp(raw_samples)
-            display_mean = np.exp(mu)  # Approximate - actual mean of lognormal is exp(mu + sigma^2/2)
             median = np.exp(mu)  # Median of lognormal
         else:
             samples = raw_samples
-            display_mean = mu
             median = mu
 
         # Plot histogram and KDE

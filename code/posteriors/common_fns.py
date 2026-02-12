@@ -1,16 +1,13 @@
 """
 Common functions for RDU risk preference models.
 
-These functions are shared across different RDU model specifications
-(power weighting, Prelec weighting, etc.).
-
-The key optimization is precomputing utilities and probability weights
-for unique values, then using index lookups in the likelihood calculation.
+The key optimization is precomputing utilities for unique outcome values,
+then using index lookups in the likelihood calculation. Probability
+weighting is computed per-choice from the 3-outcome probability arrays.
 """
 
 import jax
 import jax.numpy as jnp
-import jax.random as random
 
 
 # =============================================================================
@@ -49,24 +46,6 @@ def crra_ufn(x, r):
 # Probability Weighting Functions
 # =============================================================================
 
-def power_pwf(p, gamma):
-    """
-    Power probability weighting function.
-
-    w(p) = p^gamma
-
-    Args:
-        p: Probabilities (scalar or array)
-        gamma: Curvature parameter (scalar, positive)
-
-    Returns:
-        Weighted probabilities (same shape as p)
-    """
-    gamma = jnp.maximum(gamma, 0.01)
-    p = jnp.clip(p, 1e-10, 1 - 1e-10)
-    return jnp.power(p, gamma)
-
-
 def prelec_pwf(p, alpha, beta):
     """
     Prelec's 2-parameter probability weighting function.
@@ -90,265 +69,168 @@ def prelec_pwf(p, alpha, beta):
 
 
 # =============================================================================
-# RDU Value Calculation
+# RDU Value Calculation (3-outcome)
 # =============================================================================
 
-def rdu_value_indexed(
-    weighted_probs,  # Precomputed w(p) for unique probs
-    utilities,       # Precomputed u(x) for unique outcomes
-    idx_high,        # Index of high outcome in utilities
-    idx_low,         # Index of low outcome in utilities
-    idx_prob,        # Index of probability in weighted_probs
-):
+def rdu_value_3outcome(utilities, phi, eta, idx_1, idx_2, idx_3, p1, p2, p3):
     """
-    Compute RDU value for a binary lottery using precomputed values.
+    Compute RDU value for a 3-outcome lottery using precomputed utilities.
 
-    For lottery (x_high, x_low) with prob p of x_high:
-        RDU = w(p) * u(x_high) + (1 - w(p)) * u(x_low)
+    Outcomes x1 <= x2 <= x3 with probs p1, p2, p3 (sum=1), sorted ascending.
+
+    Cumulative probabilities (at least as good as):
+        C3 = p3                     (best outcome)
+        C2 = p2 + p3               (middle or better)
+        C1 = 1                     (always)
+
+    Decision weights:
+        pi3 = w(C3)               (best)
+        pi2 = w(C2) - w(C3)       (middle)
+        pi1 = 1 - w(C2)           (worst)
+
+    RDU = pi1*u(x1) + pi2*u(x2) + pi3*u(x3)
+
+    When a slot has prob=0, its cumulative probability contribution vanishes
+    and the decision weight naturally reduces, correctly handling binary and
+    degenerate lotteries.
 
     Args:
-        weighted_probs: Array of precomputed w(p) values
-        utilities: Array of precomputed u(x) values
-        idx_high: Index into utilities for high outcome
-        idx_low: Index into utilities for low outcome
-        idx_prob: Index into weighted_probs for probability
+        utilities: Array of precomputed u(x) for unique outcomes
+        phi: Prelec curvature (natural scale, positive)
+        eta: Prelec elevation (natural scale, positive)
+        idx_1: Index into utilities for worst outcome (x1)
+        idx_2: Index into utilities for middle outcome (x2)
+        idx_3: Index into utilities for best outcome (x3)
+        p1: Probability of worst outcome
+        p2: Probability of middle outcome
+        p3: Probability of best outcome
 
     Returns:
         RDU value (scalar)
     """
-    u_high = utilities[idx_high]
-    u_low = utilities[idx_low]
-    w_p = weighted_probs[idx_prob]
+    u1 = utilities[idx_1]
+    u2 = utilities[idx_2]
+    u3 = utilities[idx_3]
 
-    return w_p * u_high + (1 - w_p) * u_low
+    # Cumulative probabilities
+    C3 = p3
+    C2 = p2 + p3
+
+    # Prelec-weighted cumulative probabilities
+    w_C3 = prelec_pwf(C3, phi, eta)
+    w_C2 = prelec_pwf(C2, phi, eta)
+
+    # Decision weights
+    pi3 = w_C3
+    pi2 = w_C2 - w_C3
+    pi1 = 1.0 - w_C2
+
+    return pi1 * u1 + pi2 * u2 + pi3 * u3
 
 
 # =============================================================================
 # Likelihood Functions
 # =============================================================================
 
-def risk_likelihood(weighted_probs, utilities, datai, sid, lam):
+def risk_likelihood(utilities, phi, eta, datai, dataf, sid, lam):
     """
-    Compute log likelihood for a subject's lottery choices.
+    Compute log likelihood for a subject's lottery choices (3-outcome format).
 
-    This is the core likelihood function used by all RDU models.
-    It uses precomputed utilities and weighted probabilities with
-    index lookups for efficiency.
+    Implements the Contextual Utility model (Wilcox, 2011):
+        Delta = (U(L) - U(R)) / (lam * (u_max - u_min))
+        P(L) = 1 / (1 + exp(-Delta))
 
-    Implements the Contextual Utility model (Wilcox, 2011) as in eq:likelihood:
-        Δ = (U(A) - U(B)) / (λ * (u(x̄) - u(x̲)))
-        P(A) = 1 / (1 + exp(-Δ))
-
-    where λ is a noise scaling parameter (larger λ = more noise).
+    where lam is a noise scaling parameter (larger = more noise).
 
     Args:
-        weighted_probs: Precomputed w(p) for all unique probabilities
         utilities: Precomputed u(x) for all unique outcomes
-        datai: Tuple of integer arrays containing:
-            [0]: choices (n_subjects, n_choices) - 1=A, 0=B
-            [1]: idx_a_high (n_subjects, n_choices) - index of A's high prize
-            [2]: idx_a_low (n_subjects, n_choices) - index of A's low prize
-            [3]: idx_b_high (n_subjects, n_choices) - index of B's high prize
-            [4]: idx_b_low (n_subjects, n_choices) - index of B's low prize
-            [5]: idx_prob (n_subjects, n_choices) - index of probability
+        phi: Prelec curvature (natural scale, positive)
+        eta: Prelec elevation (natural scale, positive)
+        datai: Tuple of integer arrays:
+            [0]: choices (n_subjects, n_choices) - 1=Left, 0=Right
+            [1-3]: idx_L_1, idx_L_2, idx_L_3
+            [4-6]: idx_R_1, idx_R_2, idx_R_3
+        dataf: Tuple of float arrays:
+            [0]: unique_outcomes (not used here, but present)
+            [1-3]: prob_L_1, prob_L_2, prob_L_3
+            [4-6]: prob_R_1, prob_R_2, prob_R_3
         sid: Subject index
-        lam: Fechner noise parameter (λ > 0, in denominator)
+        lam: Fechner noise parameter (> 0, in denominator)
 
     Returns:
         Log likelihood (scalar)
     """
     choices = datai[0]
-    idx_a_high = datai[1]
-    idx_a_low = datai[2]
-    idx_b_high = datai[3]
-    idx_b_low = datai[4]
-    idx_prob = datai[5]
+    idx_L_1 = datai[1]
+    idx_L_2 = datai[2]
+    idx_L_3 = datai[3]
+    idx_R_1 = datai[4]
+    idx_R_2 = datai[5]
+    idx_R_3 = datai[6]
+
+    prob_L_1 = dataf[1]
+    prob_L_2 = dataf[2]
+    prob_L_3 = dataf[3]
+    prob_R_1 = dataf[4]
+    prob_R_2 = dataf[5]
+    prob_R_3 = dataf[6]
 
     # Get this subject's data
     n_choices = choices.shape[1]
     subj_choices = jax.lax.dynamic_slice(choices, (sid, 0), (1, n_choices))[0]
-    subj_idx_a_high = jax.lax.dynamic_slice(idx_a_high, (sid, 0), (1, n_choices))[0]
-    subj_idx_a_low = jax.lax.dynamic_slice(idx_a_low, (sid, 0), (1, n_choices))[0]
-    subj_idx_b_high = jax.lax.dynamic_slice(idx_b_high, (sid, 0), (1, n_choices))[0]
-    subj_idx_b_low = jax.lax.dynamic_slice(idx_b_low, (sid, 0), (1, n_choices))[0]
-    subj_idx_prob = jax.lax.dynamic_slice(idx_prob, (sid, 0), (1, n_choices))[0]
+    subj_idx_L_1 = jax.lax.dynamic_slice(idx_L_1, (sid, 0), (1, n_choices))[0]
+    subj_idx_L_2 = jax.lax.dynamic_slice(idx_L_2, (sid, 0), (1, n_choices))[0]
+    subj_idx_L_3 = jax.lax.dynamic_slice(idx_L_3, (sid, 0), (1, n_choices))[0]
+    subj_idx_R_1 = jax.lax.dynamic_slice(idx_R_1, (sid, 0), (1, n_choices))[0]
+    subj_idx_R_2 = jax.lax.dynamic_slice(idx_R_2, (sid, 0), (1, n_choices))[0]
+    subj_idx_R_3 = jax.lax.dynamic_slice(idx_R_3, (sid, 0), (1, n_choices))[0]
 
-    def choice_log_lik(choice, ia_h, ia_l, ib_h, ib_l, ip):
-        # RDU values using indexed lookups
-        v_a = rdu_value_indexed(weighted_probs, utilities, ia_h, ia_l, ip)
-        v_b = rdu_value_indexed(weighted_probs, utilities, ib_h, ib_l, ip)
+    subj_pL1 = jax.lax.dynamic_slice(prob_L_1, (sid, 0), (1, n_choices))[0]
+    subj_pL2 = jax.lax.dynamic_slice(prob_L_2, (sid, 0), (1, n_choices))[0]
+    subj_pL3 = jax.lax.dynamic_slice(prob_L_3, (sid, 0), (1, n_choices))[0]
+    subj_pR1 = jax.lax.dynamic_slice(prob_R_1, (sid, 0), (1, n_choices))[0]
+    subj_pR2 = jax.lax.dynamic_slice(prob_R_2, (sid, 0), (1, n_choices))[0]
+    subj_pR3 = jax.lax.dynamic_slice(prob_R_3, (sid, 0), (1, n_choices))[0]
+
+    def choice_log_lik(choice, iL1, iL2, iL3, iR1, iR2, iR3,
+                       pL1, pL2, pL3, pR1, pR2, pR3):
+        # RDU values using 3-outcome formula
+        v_L = rdu_value_3outcome(utilities, phi, eta, iL1, iL2, iL3, pL1, pL2, pL3)
+        v_R = rdu_value_3outcome(utilities, phi, eta, iR1, iR2, iR3, pR1, pR2, pR3)
 
         # Contextual utility: normalize by range of outcomes (Wilcox, 2011)
-        # u(x̄) - u(x̲) = max utility - min utility across both lotteries
-        u_a_h = utilities[ia_h]
-        u_a_l = utilities[ia_l]
-        u_b_h = utilities[ib_h]
-        u_b_l = utilities[ib_l]
-        u_max = jnp.maximum(jnp.maximum(u_a_h, u_a_l), jnp.maximum(u_b_h, u_b_l))
-        u_min = jnp.minimum(jnp.minimum(u_a_h, u_a_l), jnp.minimum(u_b_h, u_b_l))
-        u_range = jnp.maximum(u_max - u_min, 1e-10)  # Avoid division by zero
+        u_L1 = utilities[iL1]
+        u_L2 = utilities[iL2]
+        u_L3 = utilities[iL3]
+        u_R1 = utilities[iR1]
+        u_R2 = utilities[iR2]
+        u_R3 = utilities[iR3]
+        u_max = jnp.maximum(
+            jnp.maximum(u_L1, jnp.maximum(u_L2, u_L3)),
+            jnp.maximum(u_R1, jnp.maximum(u_R2, u_R3)),
+        )
+        u_min = jnp.minimum(
+            jnp.minimum(u_L1, jnp.minimum(u_L2, u_L3)),
+            jnp.minimum(u_R1, jnp.minimum(u_R2, u_R3)),
+        )
+        u_range = jnp.maximum(u_max - u_min, 1e-10)
 
-        # Fechner model: Δ = (U(A) - U(B)) / (λ * u_range)
-        # λ is noise SCALE (in denominator): larger λ = more noise
-        delta = (v_a - v_b) / (lam * u_range)
+        # Fechner model: Delta = (U(L) - U(R)) / (lam * u_range)
+        delta = (v_L - v_R) / (lam * u_range)
 
         # Choice probability
-        p_choose_a = jax.nn.sigmoid(delta)
-        p_choose_a = jnp.clip(p_choose_a, 1e-10, 1 - 1e-10)
+        p_choose_L = jax.nn.sigmoid(delta)
+        p_choose_L = jnp.clip(p_choose_L, 1e-10, 1 - 1e-10)
 
         # Log likelihood
-        return choice * jnp.log(p_choose_a) + (1 - choice) * jnp.log(1 - p_choose_a)
+        return choice * jnp.log(p_choose_L) + (1 - choice) * jnp.log(1 - p_choose_L)
 
     log_liks = jax.vmap(choice_log_lik)(
         subj_choices,
-        subj_idx_a_high,
-        subj_idx_a_low,
-        subj_idx_b_high,
-        subj_idx_b_low,
-        subj_idx_prob,
+        subj_idx_L_1, subj_idx_L_2, subj_idx_L_3,
+        subj_idx_R_1, subj_idx_R_2, subj_idx_R_3,
+        subj_pL1, subj_pL2, subj_pL3,
+        subj_pR1, subj_pR2, subj_pR3,
     )
 
     return jnp.sum(log_liks)
-
-
-# =============================================================================
-# Direct Sampler Factories (for hierarchical hyperparameters)
-# =============================================================================
-
-def make_direct_sampler_mean(nparams):
-    """
-    Factory for hierarchical mean direct samplers.
-
-    Uses conjugate Normal-Normal update for population means.
-
-    Args:
-        nparams: Number of parameters per subject
-
-    Returns:
-        A direct sampler function for population means
-    """
-    def sampler(key, chain_state, hyper_idx, data):
-        nids = data["static"][0]
-        first_hyper = nids * nparams
-
-        hyper_offset = hyper_idx - first_hyper
-        param_type = hyper_offset // 2  # Which parameter (0, 1, 2, ...)
-
-        # Hyper-Prior: Normal(mu_0, tau_0)
-        mu_0 = 0.0
-        tau_0_sq = 100.0
-
-        ln_sigma = chain_state[hyper_idx + 1]
-        sigma_sq = jnp.exp(ln_sigma)**2
-
-        # Pre-extract all subject parameter arrays using STATIC start indices
-        all_subjects = [chain_state[i:first_hyper:nparams] for i in range(nparams)]
-
-        # Use jax.lax.switch to select the appropriate array based on param_type
-        subjects = jax.lax.switch(
-            param_type,
-            [lambda arr=arr: arr for arr in all_subjects]
-        )
-
-        n = nids
-        sum_theta = jnp.sum(subjects)
-
-        # Conjugate posterior
-        post_prec = (1.0 / tau_0_sq) + (n / sigma_sq)
-        post_var = 1.0 / post_prec
-        post_mean = post_var * ((mu_0 / tau_0_sq) + (sum_theta / sigma_sq))
-
-        new_key, sample_key = random.split(key)
-        sample = random.normal(sample_key) * jnp.sqrt(post_var) + post_mean
-        return chain_state.at[hyper_idx].set(sample), new_key
-
-    return sampler
-
-
-def make_direct_sampler_variance(nparams):
-    """
-    Factory for hierarchical variance direct samplers.
-
-    Uses conjugate Normal-InverseGamma update for population variances.
-
-    Args:
-        nparams: Number of parameters per subject
-
-    Returns:
-        A direct sampler function for population log-standard-deviations
-    """
-    def sampler(key, chain_state, hyper_idx, data):
-        nids = data["static"][0]
-        first_hyper = nids * nparams
-
-        hyper_offset = hyper_idx - first_hyper
-        param_type = hyper_offset // 2  # Which parameter (0, 1, 2, ...)
-
-        pop_mean = chain_state[hyper_idx - 1]
-
-        # Pre-extract all subject parameter arrays using STATIC start indices
-        all_subjects = [chain_state[i:first_hyper:nparams] for i in range(nparams)]
-
-        # Use jax.lax.switch to select the appropriate array based on param_type
-        subjects = jax.lax.switch(
-            param_type,
-            [lambda arr=arr: arr for arr in all_subjects]
-        )
-
-        n = nids
-
-        # Hyper-Prior: InverseGamma(alpha_0, beta_0)
-        alpha_0 = 2.0
-        beta_0 = 2.0
-
-        alpha_n = alpha_0 + n / 2.0
-        sse = jnp.sum((subjects - pop_mean)**2)
-        beta_n = beta_0 + 0.5 * sse
-
-        new_key, sample_key = random.split(key)
-        gamma_sample = random.gamma(sample_key, alpha_n)
-        gamma_sample = jnp.maximum(gamma_sample, 1e-10)
-
-        sigma_sq_new = beta_n / gamma_sample
-        ln_sigma_new = 0.5 * jnp.log(sigma_sq_new)
-
-        return chain_state.at[hyper_idx].set(ln_sigma_new), new_key
-
-    return sampler
-
-
-def make_direct_dispatch(nparams):
-    """
-    Factory for direct sampler dispatch functions.
-
-    Routes to mean sampler (even offsets) or variance sampler (odd offsets).
-
-    Args:
-        nparams: Number of parameters per subject
-
-    Returns:
-        A dispatch function that routes to mean or variance sampler
-    """
-    from functools import partial
-
-    mean_sampler = make_direct_sampler_mean(nparams)
-    variance_sampler = make_direct_sampler_variance(nparams)
-
-    def dispatch(key, chain_state, param_indices, data):
-        hyper_idx = param_indices[0]
-        nids = data["static"][0]
-        first_hyper = nids * nparams
-        offset = hyper_idx - first_hyper
-        is_mean = (offset % 2 == 0)
-
-        true_branch = partial(mean_sampler, data=data)
-        false_branch = partial(variance_sampler, data=data)
-        return jax.lax.cond(is_mean, true_branch, false_branch, key, chain_state, hyper_idx)
-
-    return dispatch
-
-
-# Pre-create dispatch functions for common parameter counts
-direct_dispatch_2params = make_direct_dispatch(2)
-direct_dispatch_3params = make_direct_dispatch(3)
-direct_dispatch_4params = make_direct_dispatch(4)

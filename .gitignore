@@ -32,6 +32,7 @@ pythontex-files-*/
 
 # Output data (large files, regeneratable)
 data/output/
+data/output_uninformative/
 plots/
 posterior_benchmarks/
 

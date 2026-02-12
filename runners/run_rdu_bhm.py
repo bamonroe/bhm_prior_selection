@@ -4,7 +4,6 @@ Runner script for RDU BHM sampling.
 This script runs the RDU Bayesian Hierarchical Model sampler using bamcmc.
 """
 
-import os
 import sys
 import argparse
 from pathlib import Path
@@ -16,35 +15,25 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import numpy as np
 
 from code.clean_data import (
-    load_raw_data,
-    parse_ra_data,
+    load_clean_data,
     make_bamcmc_data_indexed,
 )
 from code.posteriors.rdu_bhm import MODEL_ID, NPARAMS, N_HYPER
-from code.prior_selection import (
-    rdu_power_prior_selection,
-    derive_hyperpriors,
-    print_hyperprior_summary,
-    verify_hyperpriors,
-)
 
 
-def load_data():
+def load_data(prize_scale=100.0):
     """Load and prepare data for sampling."""
     print("Loading data...")
-    ra_rows = load_raw_data()
-    data = parse_ra_data(ra_rows)
-    indexed_data = make_bamcmc_data_indexed(data)
+    clean_data = load_clean_data()
+    indexed_data = make_bamcmc_data_indexed(clean_data, prize_scale=prize_scale)
 
     n_subjects = indexed_data['static'][0]
     n_choices = indexed_data['static'][1]
     n_outcomes = indexed_data['static'][2]
-    n_probs = indexed_data['static'][3]
 
     print(f"  Subjects: {n_subjects}")
     print(f"  Choices per subject: {n_choices}")
     print(f"  Unique outcomes: {n_outcomes}")
-    print(f"  Unique cumulative probs: {n_probs}")
     print(f"  Total parameters: {n_subjects * NPARAMS + N_HYPER}")
 
     return indexed_data
@@ -114,11 +103,6 @@ def run_full_sampling(indexed_data, output_dir, num_runs=5, num_collect=1000):
 
     n_subjects = indexed_data['static'][0]
 
-    # Full sampling configuration following CLAUDE.md guidelines
-    # Chains should be at least n*(n+1)/2 for block of size n
-    # Largest block is 6 (hyperparameters), so minimum is 21
-    # Using 100 chains per group for good mixing
-
     mcmc_config = {
         'posterior_id': MODEL_ID,
         'num_chains_a': 100,
@@ -177,25 +161,22 @@ def main():
         help='Collection iterations per run'
     )
     parser.add_argument(
-        '--show-priors', action='store_true',
-        help='Show prior selection and derived hyperpriors'
+        '--num-chains', type=int, default=100,
+        help='Number of chains per A/B group'
+    )
+    parser.add_argument(
+        '--prize-scale', type=float, default=100.0,
+        help='Prize normalization scale (100 for H&N USD, 1000 for Andersen DKK)'
     )
     args = parser.parse_args()
 
-    # Show prior selection if requested
-    if args.show_priors:
-        print("\n" + "=" * 60)
-        print("Prior Selection and Hyperprior Derivation")
-        print("=" * 60)
-        ps = rdu_power_prior_selection()
-        print(ps.description)
-        hp = derive_hyperpriors(ps, rho=0.3, alpha_0=6.0)
-        print_hyperprior_summary(hp)
-        verify_hyperpriors(hp)
-        print()
-
     # Load data
-    indexed_data = load_data()
+    indexed_data = load_data(prize_scale=args.prize_scale)
+
+    # Add hyperprior array
+    from code.posteriors.rdu_bhm import get_hyperprior_array
+    hyperprior_arr = get_hyperprior_array()
+    indexed_data['float'] = indexed_data['float'] + (hyperprior_arr,)
 
     if args.mode == 'test':
         results, checkpoint = run_test_sampling(indexed_data)

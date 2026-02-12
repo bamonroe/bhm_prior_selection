@@ -8,7 +8,7 @@ in the paper's LaTeX (via pythontex or similar).
 import numpy as np
 from pathlib import Path
 
-from clean_data import load_raw_data, parse_ra_data
+from clean_data import load_clean_data
 
 
 def gen_paper_data(output_path=None, direct_prior=None, prior_selection=None):
@@ -23,30 +23,31 @@ def gen_paper_data(output_path=None, direct_prior=None, prior_selection=None):
         prior_selection: Dict with researcher choices (rho, alpha_0)
     """
     print("Loading data...")
-    ra_rows = load_raw_data()
-    data = parse_ra_data(ra_rows)
+    clean = load_clean_data()
 
     # Summary statistics
-    n_subjects = len(data['subject_ids'])
-    n_choices_per_subject = len(data['choices'][0])
+    n_subjects = int(clean['n_subjects'])
+    n_choices_per_subject = int(clean['n_choices'])
     total_choices = n_subjects * n_choices_per_subject
 
-    # Prize statistics
-    all_prizes = []
-    for prizes in [data['prize_a_high'], data['prize_a_low'],
-                   data['prize_b_high'], data['prize_b_low']]:
-        all_prizes.extend([p for subj in prizes for p in subj])
-    all_prizes = np.array(all_prizes)
+    # Prize statistics (from unified 3-outcome format)
+    prizes_L = np.asarray(clean['prizes_L'])
+    prizes_R = np.asarray(clean['prizes_R'])
+    all_prizes = np.concatenate([prizes_L.ravel(), prizes_R.ravel()])
 
     # Probability statistics
-    all_probs = np.array([p for subj in data['prob_high'] for p in subj])
+    probs_L = np.asarray(clean['probs_L'])
+    probs_R = np.asarray(clean['probs_R'])
+    # Non-zero probabilities for summary
+    all_probs = np.concatenate([probs_L.ravel(), probs_R.ravel()])
+    nonzero_probs = all_probs[all_probs > 0]
 
     print(f"\nData Summary:")
     print(f"  Subjects: {n_subjects}")
     print(f"  Choices per subject: {n_choices_per_subject}")
     print(f"  Total choices: {total_choices}")
-    print(f"  Prize range: [{all_prizes.min():.0f}, {all_prizes.max():.0f}] DKK")
-    print(f"  Probability range: [{all_probs.min():.2f}, {all_probs.max():.2f}]")
+    print(f"  Prize range: [{all_prizes.min():.0f}, {all_prizes.max():.0f}]")
+    print(f"  Probability range (nonzero): [{nonzero_probs.min():.2f}, {nonzero_probs.max():.2f}]")
 
     # Default output path
     if output_path is None:
@@ -61,8 +62,8 @@ def gen_paper_data(output_path=None, direct_prior=None, prior_selection=None):
         'total_choices': total_choices,
         'prize_min': all_prizes.min(),
         'prize_max': all_prizes.max(),
-        'prob_min': all_probs.min(),
-        'prob_max': all_probs.max(),
+        'prob_min': nonzero_probs.min(),
+        'prob_max': nonzero_probs.max(),
     }
 
     # Add direct prior if provided

@@ -308,20 +308,18 @@ def run_prior_predictive_ce(
     clean = load_clean_data()
 
     all_prizes = np.concatenate([
-        np.asarray(clean['prize_a_high']).ravel(),
-        np.asarray(clean['prize_a_low']).ravel(),
-        np.asarray(clean['prize_b_high']).ravel(),
-        np.asarray(clean['prize_b_low']).ravel(),
+        np.asarray(clean['prizes_L']).ravel(),
+        np.asarray(clean['prizes_R']).ravel(),
     ])
     prize_min = float(np.min(all_prizes))
     prize_max = float(np.max(all_prizes))
     prize_mid = (prize_min + prize_max) / 2.0
-    prizes_dkk = np.array([prize_min, prize_mid, prize_max])
+    prizes_ref = np.array([prize_min, prize_mid, prize_max])
 
     n_subjects = int(clean['n_subjects'])
 
-    print(f"  Prizes (DKK): min={prize_min:.0f}, mid={prize_mid:.0f}, max={prize_max:.0f}")
-    print(f"  EV = {np.mean(prizes_dkk):.0f} DKK")
+    print(f"  Prizes: min={prize_min:.0f}, mid={prize_mid:.0f}, max={prize_max:.0f}")
+    print(f"  EV = {np.mean(prizes_ref):.0f}")
     print(f"  N subjects: {n_subjects}")
 
     # --- Derive hyperpriors ---
@@ -341,7 +339,7 @@ def run_prior_predictive_ce(
     print(f"  Computing prior predictive CEs ({n_mc_draws} MC draws x {n_subjects} subjects)...")
     all_ces = compute_prior_predictive_ce(
         hyperprior_params=hyperprior_params,
-        prizes_dkk=prizes_dkk,
+        prizes_dkk=prizes_ref,
         n_subjects=n_subjects,
         n_mc_draws=n_mc_draws,
         prize_scale=prize_scale,
@@ -359,11 +357,11 @@ def run_prior_predictive_ce(
 
     # --- Summary statistics ---
     print(f"\n  Prior Predictive CE Summary:")
-    print(f"    Mean   = {np.mean(ce_flat):.1f} DKK")
-    print(f"    Median = {np.median(ce_flat):.1f} DKK")
-    print(f"    Std    = {np.std(ce_flat):.1f} DKK")
-    print(f"    95% CI = [{np.percentile(ce_flat, 2.5):.1f}, {np.percentile(ce_flat, 97.5):.1f}] DKK")
-    print(f"    EV     = {np.mean(prizes_dkk):.1f} DKK (risk-neutral reference)")
+    print(f"    Mean   = {np.mean(ce_flat):.1f}")
+    print(f"    Median = {np.median(ce_flat):.1f}")
+    print(f"    Std    = {np.std(ce_flat):.1f}")
+    print(f"    95% CI = [{np.percentile(ce_flat, 2.5):.1f}, {np.percentile(ce_flat, 97.5):.1f}]")
+    print(f"    EV     = {np.mean(prizes_ref):.1f} (risk-neutral reference)")
 
     # --- Save NPZ ---
     output_dir = Path(output_dir)
@@ -374,7 +372,7 @@ def run_prior_predictive_ce(
     np.savez(
         npz_path,
         ce_samples=all_ces_np,
-        prizes_dkk=prizes_dkk,
+        prizes_dkk=prizes_ref,
         n_mc_draws=n_mc_draws,
         n_subjects=n_subjects,
         prize_scale=prize_scale,
@@ -383,13 +381,13 @@ def run_prior_predictive_ce(
         std=np.std(ce_flat),
         ci_low=np.percentile(ce_flat, 2.5),
         ci_high=np.percentile(ce_flat, 97.5),
-        ev=np.mean(prizes_dkk),
+        ev=np.mean(prizes_ref),
     )
     print(f"  Saved NPZ to: {npz_path}")
 
     # --- Plot ---
     plot_path = output_dir / 'prior_predictive_ce.pdf'
-    plot_prior_predictive_ce(ce_flat, prizes_dkk, plot_path)
+    plot_prior_predictive_ce(ce_flat, prizes_ref, plot_path)
 
 
 # =============================================================================
@@ -729,10 +727,8 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
     clean = load_clean_data()
 
     all_prizes = np.concatenate([
-        np.asarray(clean['prize_a_high']).ravel(),
-        np.asarray(clean['prize_a_low']).ravel(),
-        np.asarray(clean['prize_b_high']).ravel(),
-        np.asarray(clean['prize_b_low']).ravel(),
+        np.asarray(clean['prizes_L']).ravel(),
+        np.asarray(clean['prizes_R']).ravel(),
     ])
     prize_min = float(np.min(all_prizes))
     prize_max = float(np.max(all_prizes))
@@ -740,8 +736,8 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
     prizes_dkk = np.array([prize_min, prize_mid, prize_max])
     n_subjects = int(clean['n_subjects'])
 
-    print(f"  Prizes (DKK): min={prize_min:.0f}, mid={prize_mid:.0f}, max={prize_max:.0f}")
-    print(f"  EV = {np.mean(prizes_dkk):.0f} DKK")
+    print(f"  Prizes: min={prize_min:.0f}, mid={prize_mid:.0f}, max={prize_max:.0f}")
+    print(f"  EV = {np.mean(prizes_dkk):.0f}")
     print(f"  N subjects: {n_subjects}")
 
     # --- Load last history file ---
@@ -751,7 +747,7 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
 
     last_file = history_files[-1:]
     print(f"  Loading last history file: {last_file[0].name}")
-    history, iterations, likelihoods, metadata = combine_batch_histories(last_file)
+    history, iterations, _, metadata = combine_batch_histories(last_file)
     print(f"  History shape: {history.shape}")
 
     # --- Apply burn-in (drop first half) ---

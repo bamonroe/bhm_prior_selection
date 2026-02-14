@@ -117,11 +117,16 @@ PRIOR_SELECTION = {
 # - tau_0_sq: prior variance of population mean (very large = uninformative about location)
 # - alpha_0, beta_0: InverseGamma params for population variance
 #   Small values (0.1, 0.1) give diffuse prior on sigma^2
+base_mu0 = 0
+base_tau0 = 100
+base_alpha0 = 0.001
+base_beta0 = 0.001
+
 UNINFORMATIVE_HYPERPRIOR = {
-    'r': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.1, 'beta_0': 0.1},
-    'phi_raw': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.1, 'beta_0': 0.1},
-    'eta_raw': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.1, 'beta_0': 0.1},
-    'lambda_raw': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.1, 'beta_0': 0.1},
+    'r':          {'mu_0': base_mu0, 'tau_0_sq': base_tau0, 'alpha_0': base_alpha0, 'beta_0': base_beta0},
+    'phi_raw':    {'mu_0': base_mu0, 'tau_0_sq': base_tau0, 'alpha_0': base_alpha0, 'beta_0': base_beta0},
+    'eta_raw':    {'mu_0': base_mu0, 'tau_0_sq': base_tau0, 'alpha_0': base_alpha0, 'beta_0': base_beta0},
+    'lambda_raw': {'mu_0': base_mu0, 'tau_0_sq': base_tau0, 'alpha_0': base_alpha0, 'beta_0': base_beta0},
 }
 
 # Skew-Normal example configuration (for Appendix B)
@@ -171,7 +176,7 @@ sampling_opts = {
     'clean': True,
     'reset_runs': 0,
     'resume_runs': 5,
-    'num_chains': 500,
+    'num_chains': 1000,
     'num_collect': 100,
     'thin_iteration': 1,
     'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
@@ -232,6 +237,21 @@ do_compile_doc          = False
 # =============================================================================
 # Run Selected Pipelines
 # =============================================================================
+
+def _load_reference_prizes():
+    """Load min/mid/max prizes from clean data for CE plots."""
+    import numpy as np
+    from clean_data import load_clean_data
+    clean = load_clean_data()
+    all_prizes = np.concatenate([
+        np.asarray(clean['prizes_L']).ravel(),
+        np.asarray(clean['prizes_R']).ravel(),
+    ])
+    p_min = float(np.min(all_prizes))
+    p_max = float(np.max(all_prizes))
+    p_mid = (p_min + p_max) / 2.0
+    return np.array([p_min, p_mid, p_max])
+
 
 if __name__ == '__main__':
     import pipelines
@@ -365,14 +385,19 @@ if __name__ == '__main__':
 
     if do_subject_plots_info:
         check_dependency('subject_plots', ['clean_data'])
+        ref_prizes = _load_reference_prizes()
         # Use preprocessed data if available
         subjects_preprocessed = preprocess_dir_info / 'subjects'
         if subjects_preprocessed.exists() and (subjects_preprocessed / 'metadata.npz').exists():
             pipelines.run_subject_plots(history_dir_info, plots_dir_info,
                                         n_workers=N_WORKERS,
-                                        preprocessed_dir=subjects_preprocessed)
+                                        preprocessed_dir=subjects_preprocessed,
+                                        prizes=ref_prizes,
+                                        prize_scale=PRIZE_SCALE[DATASET])
         else:
-            pipelines.run_subject_plots(history_dir_info, plots_dir_info, n_workers=N_WORKERS)
+            pipelines.run_subject_plots(history_dir_info, plots_dir_info, n_workers=N_WORKERS,
+                                        prizes=ref_prizes,
+                                        prize_scale=PRIZE_SCALE[DATASET])
 
     if do_posterior_predictive_ce_info:
         check_dependency('posterior_predictive_ce_info', ['clean_data'])
@@ -409,14 +434,19 @@ if __name__ == '__main__':
 
     if do_subject_plots_uninf:
         if history_dir_uninf.exists():
+            ref_prizes_uninf = _load_reference_prizes()
             # Use preprocessed data if available
             subjects_preprocessed_uninf = preprocess_dir_uninf / 'subjects'
             if subjects_preprocessed_uninf.exists() and (subjects_preprocessed_uninf / 'metadata.npz').exists():
                 pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf,
                                             n_workers=N_WORKERS,
-                                            preprocessed_dir=subjects_preprocessed_uninf)
+                                            preprocessed_dir=subjects_preprocessed_uninf,
+                                            prizes=ref_prizes_uninf,
+                                            prize_scale=PRIZE_SCALE[DATASET])
             else:
-                pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf, n_workers=N_WORKERS)
+                pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf, n_workers=N_WORKERS,
+                                            prizes=ref_prizes_uninf,
+                                            prize_scale=PRIZE_SCALE[DATASET])
         else:
             print(f"Skipping uninformative subject plots: {history_dir_uninf} not found")
 

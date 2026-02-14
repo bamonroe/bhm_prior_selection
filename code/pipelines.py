@@ -171,7 +171,8 @@ def run_hyperparameter_plots(history_dir, plots_dir, hyperprior_specs=None,
     print("Done.\n")
 
 
-def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None):
+def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None,
+                      prizes=None, prize_scale=None):
     """Generate per-subject diagnostic plots.
 
     Args:
@@ -180,6 +181,8 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
         n_workers: Number of parallel workers for plotting
         preprocessed_dir: Directory with preprocessed subject files. If provided,
                          skips preprocessing step.
+        prizes: Array of 3 reference prizes [min, mid, max] for CE page (None to skip)
+        prize_scale: Prize normalization for CE page (None to skip)
     """
     print("\n" + "=" * 60)
     print("Running: Subject Plots")
@@ -205,10 +208,12 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
 
         print(f"  Using preprocessed data from {preprocessed_dir}")
         parallel_plot_subjects(preprocessed_dir, subjects_dir, iterations,
-                              batch_boundaries, n_workers=n_workers)
+                              batch_boundaries, n_workers=n_workers,
+                              prizes=prizes, prize_scale=prize_scale)
     else:
         # Use the combined preprocess + plot function
-        plot_subjects_only(history_dir, plots_dir, n_workers=n_workers)
+        plot_subjects_only(history_dir, plots_dir, n_workers=n_workers,
+                           prizes=prizes, prize_scale=prize_scale)
     print("Done.\n")
 
 

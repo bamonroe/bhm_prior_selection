@@ -86,6 +86,9 @@ N_SPAGHETTI_SAMPLES = 100
 X_MIN = 50.0
 X_MAX = 4500.0
 
+# CE plot constants
+CE_HIST_BINS = 100
+
 
 def compute_hyperprior_quantiles(hyperprior_specs):
     """
@@ -355,9 +358,12 @@ def _plot_single_subject(args):
     Worker function to plot a single subject.
 
     Args:
-        args: tuple of (subject_id, params_dir, output_dir, iterations, batch_boundaries)
+        args: tuple of (subject_id, params_dir, output_dir, iterations,
+              batch_boundaries, prizes, prize_scale)
+              prizes and prize_scale may be None (CE page skipped).
     """
-    subject_id, params_dir, output_dir, iterations, batch_boundaries = args
+    subject_id, params_dir, output_dir, iterations, batch_boundaries, \
+        prizes, prize_scale = args
 
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
@@ -380,7 +386,136 @@ def _plot_single_subject(args):
         # Page 3: Utility spaghetti (last half)
         _plot_subject_utility(params, subject_id, pdf)
 
+        # Page 4: CE distribution (last half)
+        if prizes is not None and prize_scale is not None:
+            _plot_subject_ce(params, subject_id, pdf,
+                             np.asarray(prizes), prize_scale)
+
     return subject_id
+
+
+def _compute_subject_ces(r_samples, phi_samples, eta_samples, prizes_norm,
+                          prize_scale):
+    """
+    Compute CE of a 3-outcome equally-likely reference lottery for each
+    posterior draw.  Pure numpy (no JAX) for multiprocessing compatibility.
+
+    Args:
+        r_samples: 1D array of CRRA coefficients
+        phi_samples: 1D array of Prelec curvature (natural scale)
+        eta_samples: 1D array of Prelec elevation (natural scale)
+        prizes_norm: Array [x1, x2, x3] normalized by prize_scale, sorted ascending
+        prize_scale: Denominator used for normalization
+
+    Returns:
+        1D array of CEs in original currency units
+    """
+    x1, x2, x3 = prizes_norm
+
+    # CRRA utility (vectorized, with log-utility branch)
+    use_log = np.abs(r_samples - 1.0) < 0.01
+    onemr = 1.0 - r_samples
+    # Guard against division by zero in non-log branch
+    onemr_safe = np.where(use_log, 1.0, onemr)
+
+    def _crra(x):
+        return np.where(use_log, np.log(x), np.power(x, onemr) / onemr_safe)
+
+    u1, u2, u3 = _crra(x1), _crra(x2), _crra(x3)
+
+    # Prelec PWF: w(p) = exp(-eta * (-ln p)^phi)
+    neg_ln_one_third = -np.log(1.0 / 3.0)   # scalar
+    neg_ln_two_thirds = -np.log(2.0 / 3.0)   # scalar
+    w13 = np.exp(-eta_samples * np.power(neg_ln_one_third, phi_samples))
+    w23 = np.exp(-eta_samples * np.power(neg_ln_two_thirds, phi_samples))
+
+    # Decision weights
+    pi3 = w13
+    pi2 = w23 - w13
+    pi1 = 1.0 - w23
+
+    # RDU value
+    rdu = pi1 * u1 + pi2 * u2 + pi3 * u3
+
+    # Inverse CRRA
+    inner = np.maximum(onemr_safe * rdu, 1e-30)
+    ce_norm = np.where(use_log, np.exp(rdu),
+                       np.power(inner, 1.0 / onemr_safe))
+
+    return ce_norm * prize_scale
+
+
+def _plot_subject_ce(params, subject_id, pdf, prizes, prize_scale):
+    """
+    Plot posterior predictive CE distribution for a single subject.
+
+    Uses the last half of samples (same burn-in as density/utility pages).
+
+    Args:
+        params: dict with 'r', 'phi', 'eta' arrays of shape (n_samples, n_chains)
+        subject_id: subject index
+        pdf: PdfPages object
+        prizes: array of 3 reference prizes in original currency [min, mid, max]
+        prize_scale: normalization denominator
+    """
+    n_samples = params['r'].shape[0]
+    burn_idx = n_samples // 2
+
+    r_flat = params['r'][burn_idx:, :].flatten()
+    phi_flat = params['phi'][burn_idx:, :].flatten()
+    eta_flat = params['eta'][burn_idx:, :].flatten()
+
+    prizes_norm = np.asarray(prizes) / prize_scale
+
+    ces = _compute_subject_ces(r_flat, phi_flat, eta_flat, prizes_norm,
+                               prize_scale)
+
+    # Filter non-finite
+    finite = np.isfinite(ces)
+    ces = ces[finite]
+    if len(ces) == 0:
+        return
+
+    ev = np.mean(prizes)
+    median_ce = np.median(ces)
+    ci_low, ci_high = np.percentile(ces, [2.5, 97.5])
+    x_lo = float(prizes[0])
+    x_hi = float(prizes[-1])
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+    fig.suptitle(f'Subject {subject_id} - Posterior Predictive CE', fontsize=14)
+
+    ax.hist(ces, bins=CE_HIST_BINS, density=True, alpha=0.6, color=COLOR_DATA,
+            range=(x_lo, x_hi))
+
+    # Reference lines
+    ax.axvline(ev, color=COLOR_REFERENCE, linestyle='-', linewidth=1.5,
+               label=f'EV = {ev:.1f}')
+    for p in prizes:
+        ax.axvline(p, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
+    ax.axvline(median_ce, color=COLOR_MEDIAN, linestyle='--', linewidth=1.5,
+               label=f'Median CE = {median_ce:.1f}')
+    ax.axvline(ci_low, color=COLOR_MEDIAN, linestyle=':', linewidth=1.0, alpha=0.7)
+    ax.axvline(ci_high, color=COLOR_MEDIAN, linestyle=':', linewidth=1.0, alpha=0.7)
+
+    text = (f'Median = {median_ce:.1f}\n'
+            f'95% CI = [{ci_low:.1f}, {ci_high:.1f}]\n'
+            f'N draws = {len(ces)}')
+    ax.text(0.97, 0.95, text, transform=ax.transAxes,
+            fontsize=9, verticalalignment='top', horizontalalignment='right',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    ax.set_xlabel('Certainty Equivalent')
+    ax.set_ylabel('Density')
+    ax.set_title('3 equally-likely prizes: '
+                 f'{prizes[0]:.0f}, {prizes[1]:.0f}, {prizes[2]:.0f}')
+    ax.set_xlim(x_lo, x_hi)
+    ax.legend(loc='upper left', fontsize=9)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    pdf.savefig(fig)
+    plt.close(fig)
 
 
 def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf):
@@ -512,7 +647,8 @@ def _plot_subject_utility(params, subject_id, pdf):
 
 
 def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
-                           n_workers=1, max_subjects=None):
+                           n_workers=1, max_subjects=None,
+                           prizes=None, prize_scale=None):
     """
     Run parallel plotting with a pool of workers.
 
@@ -523,6 +659,8 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
         batch_boundaries: MCMC run boundary indices
         n_workers: Number of parallel workers
         max_subjects: Limit number of subjects (for testing)
+        prizes: Array of 3 reference prizes [min, mid, max] for CE page (None to skip)
+        prize_scale: Prize normalization denominator for CE page (None to skip)
     """
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
@@ -540,10 +678,12 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
     # Convert to lists for pickling
     iterations_list = iterations.tolist() if hasattr(iterations, 'tolist') else list(iterations)
     boundaries_list = list(batch_boundaries)
+    prizes_list = prizes.tolist() if hasattr(prizes, 'tolist') else prizes
 
     # Build task list - workers receive paths, not data
     tasks = [
-        (sid, str(params_dir), str(output_dir), iterations_list, boundaries_list)
+        (sid, str(params_dir), str(output_dir), iterations_list, boundaries_list,
+         prizes_list, prize_scale)
         for sid in range(n_subjects)
     ]
 
@@ -938,7 +1078,8 @@ def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
     print(f"  Saved: {hyper_path}")
 
 
-def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1):
+def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
+                       prizes=None, prize_scale=None):
     """
     Generate only per-subject diagnostic plots.
 
@@ -947,6 +1088,8 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1):
         plots_dir: Directory to save plots
         max_subjects: Limit subjects for testing
         n_workers: Number of parallel workers
+        prizes: Array of 3 reference prizes for CE page (None to skip)
+        prize_scale: Prize normalization for CE page (None to skip)
     """
     history_dir = Path(history_dir)
     plots_dir = Path(plots_dir)
@@ -963,7 +1106,8 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1):
     print("  Stage 2: Parallel plotting...")
     parallel_plot_subjects(
         params_dir, subjects_dir, iterations, batch_boundaries,
-        n_workers=n_workers, max_subjects=max_subjects
+        n_workers=n_workers, max_subjects=max_subjects,
+        prizes=prizes, prize_scale=prize_scale
     )
 
 

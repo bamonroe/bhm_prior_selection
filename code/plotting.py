@@ -377,19 +377,20 @@ def _plot_single_subject(args):
     pdf_path = output_dir / f'subject_{subject_id:03d}.pdf'
 
     with PdfPages(pdf_path) as pdf:
-        # Page 1: Trace plots
+        # Page 1: Trace plots (all history files)
         _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf)
 
-        # Page 2: Density plots (last half)
-        _plot_subject_densities(params, subject_id, pdf)
+        # Page 2: Density plots (last history file)
+        _plot_subject_densities(params, subject_id, pdf, batch_boundaries)
 
-        # Page 3: Utility spaghetti (last half)
-        _plot_subject_utility(params, subject_id, pdf)
+        # Page 3: Utility spaghetti (last history file)
+        _plot_subject_utility(params, subject_id, pdf, batch_boundaries)
 
-        # Page 4: CE distribution (last half)
+        # Page 4: CE distribution (last history file)
         if prizes is not None and prize_scale is not None:
             _plot_subject_ce(params, subject_id, pdf,
-                             np.asarray(prizes), prize_scale)
+                             np.asarray(prizes), prize_scale,
+                             batch_boundaries)
 
     return subject_id
 
@@ -445,11 +446,12 @@ def _compute_subject_ces(r_samples, phi_samples, eta_samples, prizes_norm,
     return ce_norm * prize_scale
 
 
-def _plot_subject_ce(params, subject_id, pdf, prizes, prize_scale):
+def _plot_subject_ce(params, subject_id, pdf, prizes, prize_scale,
+                     batch_boundaries):
     """
     Plot posterior predictive CE distribution for a single subject.
 
-    Uses the last half of samples (same burn-in as density/utility pages).
+    Uses last history file samples (same window as density/utility pages).
 
     Args:
         params: dict with 'r', 'phi', 'eta' arrays of shape (n_samples, n_chains)
@@ -457,9 +459,10 @@ def _plot_subject_ce(params, subject_id, pdf, prizes, prize_scale):
         pdf: PdfPages object
         prizes: array of 3 reference prizes in original currency [min, mid, max]
         prize_scale: normalization denominator
+        batch_boundaries: list of batch boundary indices
     """
     n_samples = params['r'].shape[0]
-    burn_idx = n_samples // 2
+    burn_idx = _last_batch_start(batch_boundaries, n_samples)
 
     r_flat = params['r'][burn_idx:, :].flatten()
     phi_flat = params['phi'][burn_idx:, :].flatten()
@@ -518,6 +521,13 @@ def _plot_subject_ce(params, subject_id, pdf, prizes, prize_scale):
     plt.close(fig)
 
 
+def _last_batch_start(batch_boundaries, n_samples):
+    """Return the sample index where the last history file begins."""
+    if batch_boundaries and len(batch_boundaries) > 1:
+        return batch_boundaries[-2]
+    return n_samples // 2
+
+
 def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf):
     """Plot trace plots for a subject."""
     fig, axes = plt.subplots(4, 1, figsize=(12, 12))
@@ -546,13 +556,8 @@ def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf):
                            linestyle=':', alpha=0.7, lw=1)
 
         # Median line (from last batch only)
-        if batch_boundaries and len(batch_boundaries) > 1:
-            last_batch_start = batch_boundaries[-2]
-            last_batch_samples = param_samples[last_batch_start:, :]
-        else:
-            n_samples = param_samples.shape[0]
-            last_batch_samples = param_samples[n_samples // 2:, :]
-        median_val = np.median(last_batch_samples)
+        lb = _last_batch_start(batch_boundaries, param_samples.shape[0])
+        median_val = np.median(param_samples[lb:, :])
         ax.axhline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=1.5, alpha=0.8)
 
         ax.set_ylabel(label)
@@ -564,13 +569,13 @@ def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf):
     plt.close(fig)
 
 
-def _plot_subject_densities(params, subject_id, pdf):
-    """Plot density plots for a subject (using last half of samples)."""
+def _plot_subject_densities(params, subject_id, pdf, batch_boundaries):
+    """Plot density plots for a subject (using last history file)."""
     fig, axes = plt.subplots(4, 1, figsize=(12, 12))
     fig.suptitle(f'Subject {subject_id} - Posterior Densities', fontsize=14)
 
     n_samples = params['r'].shape[0]
-    burn_idx = n_samples // 2
+    burn_idx = _last_batch_start(batch_boundaries, n_samples)
 
     for i, (name, label) in enumerate(SUBJECT_PARAM_INFO):
         ax = axes[i]
@@ -599,13 +604,13 @@ def _plot_subject_densities(params, subject_id, pdf):
     plt.close(fig)
 
 
-def _plot_subject_utility(params, subject_id, pdf):
-    """Plot utility function spaghetti plot (using last half of samples)."""
+def _plot_subject_utility(params, subject_id, pdf, batch_boundaries):
+    """Plot utility function spaghetti plot (using last history file)."""
     fig, ax = plt.subplots(figsize=(10, 7))
     fig.suptitle(f'Subject {subject_id} - CRRA Utility Function', fontsize=14)
 
     n_samples = params['r'].shape[0]
-    burn_idx = n_samples // 2
+    burn_idx = _last_batch_start(batch_boundaries, n_samples)
 
     r_samples = params['r'][burn_idx:, :].flatten()
 

@@ -299,7 +299,7 @@ def load_clean_data():
 # bamcmc Indexed Format
 # =============================================================================
 
-def make_bamcmc_data_indexed(clean_data, prize_scale=1000.0):
+def make_bamcmc_data_indexed(clean_data):
     """
     Convert cleaned data to bamcmc format with indexed lookups (optimized).
 
@@ -307,9 +307,12 @@ def make_bamcmc_data_indexed(clean_data, prize_scale=1000.0):
     of the 6 outcome slots (3 per side). Probabilities are passed as float
     arrays per choice (not indexed, since they vary per choice).
 
+    Prize amounts are stored in original currency units (no normalization).
+    The contextual utility model in the likelihood normalizes utility
+    differences by the outcome range, making the scale irrelevant.
+
     Args:
         clean_data: Dict from load_clean_data()
-        prize_scale: Normalization factor for prizes
 
     Returns:
         data dict for bamcmc with:
@@ -327,16 +330,15 @@ def make_bamcmc_data_indexed(clean_data, prize_scale=1000.0):
     probs_R = np.asarray(clean_data['probs_R'])
     choices = np.asarray(clean_data['choices'])
 
-    # Find unique outcomes (normalized by prize_scale)
+    # Find unique outcomes (in original currency units)
     all_prizes = np.concatenate([prizes_L.ravel(), prizes_R.ravel()])
-    unique_outcomes_raw = np.unique(all_prizes)
-    unique_outcomes = unique_outcomes_raw / prize_scale
+    unique_outcomes = np.unique(all_prizes)
 
     print(f"  Indexed data:")
     print(f"    Unique outcomes: {len(unique_outcomes)} (from {len(all_prizes)} total)")
 
     # Create lookup dictionary
-    outcome_to_idx = {v: i for i, v in enumerate(unique_outcomes_raw)}
+    outcome_to_idx = {v: i for i, v in enumerate(unique_outcomes)}
 
     # Create index arrays: (n_subjects, n_choices) for each of 6 outcome slots
     idx_L_1 = np.zeros((n_subjects, n_choices), dtype=np.int32)

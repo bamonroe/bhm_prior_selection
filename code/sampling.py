@@ -23,7 +23,7 @@ DEFAULT_CONFIG = {
 
 
 def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None,
-                 config=None, prize_scale=1000.0):
+                 config=None):
     """
     Run MCMC sampling with bamcmc.
 
@@ -33,7 +33,6 @@ def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None
         resume_runs: Number of resume runs after reset runs (default 0)
         num_collect: Collection iterations per run (overrides config)
         config: Configuration dict (uses DEFAULT_CONFIG if None)
-        prize_scale: Normalization factor for prizes
 
     Returns:
         Summary dict from rmcmc
@@ -43,7 +42,7 @@ def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None
     # Load data
     print("Loading data...")
     clean_data = load_clean_data()
-    indexed_data = make_bamcmc_data_indexed(clean_data, prize_scale=prize_scale)
+    indexed_data = make_bamcmc_data_indexed(clean_data)
 
     # Add hyperprior array to data["float"] so it's passed at runtime (not traced by JAX)
     # This allows different priors to be used without recompiling

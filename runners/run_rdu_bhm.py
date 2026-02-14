@@ -21,11 +21,11 @@ from code.clean_data import (
 from code.posteriors.rdu_bhm import MODEL_ID, NPARAMS, N_HYPER
 
 
-def load_data(prize_scale=100.0):
+def load_data():
     """Load and prepare data for sampling."""
     print("Loading data...")
     clean_data = load_clean_data()
-    indexed_data = make_bamcmc_data_indexed(clean_data, prize_scale=prize_scale)
+    indexed_data = make_bamcmc_data_indexed(clean_data)
 
     n_subjects = indexed_data['static'][0]
     n_choices = indexed_data['static'][1]
@@ -164,14 +164,10 @@ def main():
         '--num-chains', type=int, default=100,
         help='Number of chains per A/B group'
     )
-    parser.add_argument(
-        '--prize-scale', type=float, default=100.0,
-        help='Prize normalization scale (100 for H&N USD, 1000 for Andersen DKK)'
-    )
     args = parser.parse_args()
 
     # Load data
-    indexed_data = load_data(prize_scale=args.prize_scale)
+    indexed_data = load_data()
 
     # Add hyperprior array
     from code.posteriors.rdu_bhm import get_hyperprior_array

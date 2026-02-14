@@ -90,7 +90,6 @@ def run_sampling(sampling_opts, prior_params_path=None):
             'chunk_size': sampling_opts.get('chunk_size', 100),
             'rng_seed': sampling_opts['seed'],
         },
-        prize_scale=sampling_opts.get('prize_scale', 1000.0),
     )
     print("Done.\n")
 

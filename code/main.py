@@ -178,10 +178,9 @@ sampling_opts = {
     'resume_runs': 5,
     'num_chains': 1000,
     'num_collect': 100,
-    'thin_iteration': 1,
+    'thin_iteration': 10,
     'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
     'seed': SEEDS['sampling'],
-    'prize_scale': PRIZE_SCALE[DATASET],
 }
 
 # =============================================================================
@@ -192,38 +191,30 @@ sampling_opts = {
 do_clean_data     = True
 do_gen_paper_data = True
 
-# --- Prior Selection and Plots ---
+# --- Prior Selection ---
 do_generate_prior       = True
 do_prior_plots          = True
 do_prior_predictive_ce  = True
 
-# --- MCMC Sampling (Informative Prior) ---
-do_sampling = True
-
-# --- MCMC Sampling (Uninformative Prior) ---
+# --- MCMC Sampling ---
+do_sampling               = True
 do_sampling_uninformative = True
 
-# --- Preprocessing (Informative) ---
-do_preprocess_hyper_info    = True
-do_preprocess_subjects_info = True
-
-# --- Preprocessing (Uninformative) ---
+# --- Preprocessing ---
+do_preprocess_hyper_info     = True
+do_preprocess_subjects_info  = True
 do_preprocess_hyper_uninf    = True
 do_preprocess_subjects_uninf = True
+do_gen_paper_quantities      = True
 
-# --- Plotting (Informative) ---
-do_gen_paper_quantities         = True
-do_hyper_plots_info             = True
-do_subject_plots_info           = True
-do_posterior_predictive_ce_info = True
-do_paper_plots                  = True
-
-# --- Plotting (Uninformative) ---
+# --- Posterior Analysis and Plots ---
+do_hyper_plots_info              = True
+do_subject_plots_info            = True
+do_posterior_predictive_ce_info  = True
+do_paper_plots                   = True
 do_hyper_plots_uninf             = True
 do_subject_plots_uninf           = True
 do_posterior_predictive_ce_uninf = True
-
-# --- Cross-Prior Comparison ---
 do_posterior_ce_comparison       = True
 
 # --- Appendix Examples ---

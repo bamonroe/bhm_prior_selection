@@ -154,7 +154,7 @@ $\theta_i$ conditional on the observed data:
   \end{split}
 \end{align}
 \noindent where $p(\theta_i | y,x)$ is the posterior of the parameter of
-interest, $p(y | \theta_i, x)$ the likelihood of the modelled quantity
+interest, $p(y | \theta_i, x)$ the likelihood of the modeled quantity
 conditional on $\theta_i$ and the observed data $x$, and $p(\theta_i)$ is the
 prior distribution of $\theta_i$.
 
@@ -174,7 +174,7 @@ $\theta_i$ parameters that describe an individual.
 If we have data from multiple individuals, it is reasonable to think that
 different posterior distributions of $\theta_i$ across subjects may influence
 our beliefs about the population they were drawn from. This influence is
-directly modelled with a Bayesian Hierarchical Model (BHM), whereby the
+directly modeled with a Bayesian Hierarchical Model (BHM), whereby the
 prior parameters are themselves said to be distributed according to some
 \textit{hyper-prior} distribution.
 \begin{align}
@@ -216,7 +216,7 @@ Let us designate this \enquote{direct prior} as:
   p^*(\theta_i | \mu^*, \sigma^{2*}) = \text{Normal}(\mu^*, \sigma^{2*}) \\
 \end{equation}
 \noindent Note here that we use the superscript ${}^*$ to designate our direct prior
-parameters. When omitted, the parameter is modelled rather than specified.
+parameters. When omitted, the parameter is modeled rather than specified.
 
 While the question posed asks about an individual, not a population, the answer
 implicitly integrates over population heterogeneity introduced in
@@ -528,7 +528,9 @@ These researcher decisions result in the full hyper-prior:
 %\end{figure}
 
 
-\subsection{Data and Estimation}
+
+\section{Results}
+
 
 I use the risk preference task from \textcite{Harrison2016}, which elicited
 lottery choices from \py{D['n_subjects']} subjects in a laboratory experiment.
@@ -538,15 +540,40 @@ three-outcome lotteries with prize amounts of \$10, \$30, and \$50.
 I estimate the model using Markov chain Monte Carlo with \py{Q.get('n_chains', 'N/A')}
 parallel chains. The sampler uses block-wise Metropolis-Hastings with adaptive
 proposals informed by cross-chain covariance estimation. Further details of the
-sampling procedure are provided in Appendix \ref{app:mcmc}.
+sampling procedure are provided in Appendix \ref{app:mcmc}. \footnote{
+  The maximum $\hat{R}$ statistic is \py{fmt(Q.get('rhat_max', 0), 2)} across
+  all \py{Q.get('n_total_params', 'N/A')} parameters (\py{Q.get('n_subjects',
+  'N/A')} subjects $\times$ 4 parameters + 8 hyperparameters), suggesting
+  excellent convergence. Trace plots are provided in Appendix \ref{app:mcmc}.
+}
 
-Convergence diagnostics are excellent: the maximum $\hat{R}$ statistic is
-\py{fmt(Q.get('rhat_max', 0), 2)} across all \py{Q.get('n_total_params', 'N/A')}
-parameters (\py{Q.get('n_subjects', 'N/A')} subjects $\times$ 4 parameters + 8
-hyperparameters), well below the standard threshold of 1.1.
+To assess the impact of an informative prior, we estimate the model once using
+the informative hyper-prior in (\ref{eq:hyperprior-values}), and again using
+the uninformative hyper-prior used by \textcite[279-281]{Harrison2016}:
+\begin{align}
+  \label{eq:ght_prior}
+\begin{matrix}
+\mu^r \sim N\left(\mu_0^r             = 0, \tau_0^r = 100\right), & \sigma^{2, r} \sim IG\left(\alpha_0^r = 0.001, \beta_0^r = 0.001\right) \\[4pt]
+\mu^\phi \sim N\left(\mu_0^\phi       = 0, \tau_0^\phi =100\right), & \sigma^{2, \phi} \sim IG\left(\alpha_0^\phi = 0.001, \beta_0^\phi = 0.001\right) \\[4pt]
+\mu^\eta \sim N\left(\mu_0^\eta       = 0, \tau_0^\eta =100\right), & \sigma^{2, \eta} \sim IG\left(\alpha_0^\eta = 0.001, \beta_0^\eta = 0.001\right) \\[4pt]
+\mu^\lambda \sim N\left(\mu_0^\lambda = 0, \tau_0^\lambda =100\right), & \sigma^{2, \lambda} \sim IG\left(\alpha_0^\lambda = 0.001, \beta_0^\lambda = 0.001\right) \\[4pt]
+\end{matrix}
+\end{align}
+
+We assess the impact of these priors by looking at the posterior predictive
+distribution of the certainty equivalent (CE) of a lottery with outcomes $x \in
+[10, 40, 70]$ and $p(x) = 1/3$ for all $x$:
+\begin{align}
+\label{eq:CE}
+  \begin{split}
+  \frac{\text{CE}^{1 - r}}{1 - r} &= \sum_x d_i(x) \frac{x^{1 - r}}{1 - r} \\
+    \text{CE} &= \left(\sum_x d_i(x) \frac{x^{1 - r}}{1 - r}\right)^\frac{1}{1 - r}
+  \end{split}
+\end{align}
+\noindent There will be a posterior predictive distribution of the CE defined
+in (\ref{eq:CE}) for each subject.
 
 
-\section{Results}
 
 Table~\ref{tab:results} reports posterior summaries for the population-level
 parameters. Note that the Prelec probability weighting parameters $\phi$ and

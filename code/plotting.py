@@ -82,9 +82,9 @@ RUN_COLORS = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', 
 # Number of posterior draws for spaghetti plots
 N_SPAGHETTI_SAMPLES = 100
 
-# Dataset outcome range (DKK from Danish experiment)
-X_MIN = 50.0
-X_MAX = 4500.0
+# Default outcome range (used if prizes not provided)
+X_MIN = 0.0
+X_MAX = 70.0
 
 # CE plot constants
 CE_HIST_BINS = 100
@@ -359,11 +359,11 @@ def _plot_single_subject(args):
 
     Args:
         args: tuple of (subject_id, params_dir, output_dir, iterations,
-              batch_boundaries, prizes, prize_scale)
-              prizes and prize_scale may be None (CE page skipped).
+              batch_boundaries, prizes)
+              prizes may be None (CE page skipped).
     """
     subject_id, params_dir, output_dir, iterations, batch_boundaries, \
-        prizes, prize_scale = args
+        prizes = args
 
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
@@ -384,19 +384,19 @@ def _plot_single_subject(args):
         _plot_subject_densities(params, subject_id, pdf, batch_boundaries)
 
         # Page 3: Utility spaghetti (last history file)
-        _plot_subject_utility(params, subject_id, pdf, batch_boundaries)
+        _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
+                              prizes=np.asarray(prizes) if prizes is not None else None)
 
         # Page 4: CE distribution (last history file)
-        if prizes is not None and prize_scale is not None:
+        if prizes is not None:
             _plot_subject_ce(params, subject_id, pdf,
-                             np.asarray(prizes), prize_scale,
+                             np.asarray(prizes),
                              batch_boundaries)
 
     return subject_id
 
 
-def _compute_subject_ces(r_samples, phi_samples, eta_samples, prizes_norm,
-                          prize_scale):
+def _compute_subject_ces(r_samples, phi_samples, eta_samples, prizes):
     """
     Compute CE of a 3-outcome equally-likely reference lottery for each
     posterior draw.  Pure numpy (no JAX) for multiprocessing compatibility.
@@ -405,13 +405,12 @@ def _compute_subject_ces(r_samples, phi_samples, eta_samples, prizes_norm,
         r_samples: 1D array of CRRA coefficients
         phi_samples: 1D array of Prelec curvature (natural scale)
         eta_samples: 1D array of Prelec elevation (natural scale)
-        prizes_norm: Array [x1, x2, x3] normalized by prize_scale, sorted ascending
-        prize_scale: Denominator used for normalization
+        prizes: Array [x1, x2, x3] sorted ascending
 
     Returns:
-        1D array of CEs in original currency units
+        1D array of CEs
     """
-    x1, x2, x3 = prizes_norm
+    x1, x2, x3 = prizes
 
     # CRRA utility (vectorized, with log-utility branch)
     use_log = np.abs(r_samples - 1.0) < 0.01
@@ -440,13 +439,13 @@ def _compute_subject_ces(r_samples, phi_samples, eta_samples, prizes_norm,
 
     # Inverse CRRA
     inner = np.maximum(onemr_safe * rdu, 1e-30)
-    ce_norm = np.where(use_log, np.exp(rdu),
-                       np.power(inner, 1.0 / onemr_safe))
+    ce = np.where(use_log, np.exp(rdu),
+                  np.power(inner, 1.0 / onemr_safe))
 
-    return ce_norm * prize_scale
+    return ce
 
 
-def _plot_subject_ce(params, subject_id, pdf, prizes, prize_scale,
+def _plot_subject_ce(params, subject_id, pdf, prizes,
                      batch_boundaries):
     """
     Plot posterior predictive CE distribution for a single subject.
@@ -457,8 +456,7 @@ def _plot_subject_ce(params, subject_id, pdf, prizes, prize_scale,
         params: dict with 'r', 'phi', 'eta' arrays of shape (n_samples, n_chains)
         subject_id: subject index
         pdf: PdfPages object
-        prizes: array of 3 reference prizes in original currency [min, mid, max]
-        prize_scale: normalization denominator
+        prizes: array of 3 reference prizes [min, mid, max]
         batch_boundaries: list of batch boundary indices
     """
     n_samples = params['r'].shape[0]
@@ -468,10 +466,7 @@ def _plot_subject_ce(params, subject_id, pdf, prizes, prize_scale,
     phi_flat = params['phi'][burn_idx:, :].flatten()
     eta_flat = params['eta'][burn_idx:, :].flatten()
 
-    prizes_norm = np.asarray(prizes) / prize_scale
-
-    ces = _compute_subject_ces(r_flat, phi_flat, eta_flat, prizes_norm,
-                               prize_scale)
+    ces = _compute_subject_ces(r_flat, phi_flat, eta_flat, np.asarray(prizes))
 
     # Filter non-finite
     finite = np.isfinite(ces)
@@ -604,7 +599,8 @@ def _plot_subject_densities(params, subject_id, pdf, batch_boundaries):
     plt.close(fig)
 
 
-def _plot_subject_utility(params, subject_id, pdf, batch_boundaries):
+def _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
+                          prizes=None):
     """Plot utility function spaghetti plot (using last history file)."""
     fig, ax = plt.subplots(figsize=(10, 7))
     fig.suptitle(f'Subject {subject_id} - CRRA Utility Function', fontsize=14)
@@ -619,29 +615,31 @@ def _plot_subject_utility(params, subject_id, pdf, batch_boundaries):
     np.random.seed(subject_id)  # Reproducible
     draw_indices = np.random.choice(len(r_samples), n_draws, replace=False)
 
-    # Domain for utility function
-    x = np.linspace(X_MIN, X_MAX, 200)
+    # Domain for utility function from prize range
+    x_min = float(prizes[0]) if prizes is not None else X_MIN
+    x_max = float(prizes[-1]) if prizes is not None else X_MAX
+    x = np.linspace(x_min, x_max, 200)
 
     # Plot spaghetti (posterior draws)
     for idx in draw_indices:
         r = r_samples[idx]
-        u = crra_utility(x, r)
+        u = crra_utility(x, r, x_min=x_min, x_max=x_max)
         ax.plot(x, u, color=COLOR_SPAGHETTI, alpha=0.15, lw=0.8)
 
     # Median utility curve
     r_median = np.median(r_samples)
-    u_median = crra_utility(x, r_median)
+    u_median = crra_utility(x, r_median, x_min=x_min, x_max=x_max)
     ax.plot(x, u_median, color=COLOR_MEDIAN, lw=2.5, zorder=10,
             label=f'Median (r={r_median:.2f})')
 
     # Risk-neutral reference
-    u_neutral = crra_utility(x, 0.0)
+    u_neutral = crra_utility(x, 0.0, x_min=x_min, x_max=x_max)
     ax.plot(x, u_neutral, color=COLOR_REFERENCE, linestyle='--', lw=1.5,
             label='Risk neutral (r=0)')
 
-    ax.set_xlabel('Outcome (DKK)')
+    ax.set_xlabel('Outcome')
     ax.set_ylabel('Normalized Utility')
-    ax.set_xlim(X_MIN, X_MAX)
+    ax.set_xlim(x_min, x_max)
     ax.set_ylim(0, 1)
     ax.legend(loc='lower right')
     ax.grid(True, alpha=0.3)
@@ -653,7 +651,7 @@ def _plot_subject_utility(params, subject_id, pdf, batch_boundaries):
 
 def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
                            n_workers=1, max_subjects=None,
-                           prizes=None, prize_scale=None):
+                           prizes=None):
     """
     Run parallel plotting with a pool of workers.
 
@@ -665,7 +663,6 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
         n_workers: Number of parallel workers
         max_subjects: Limit number of subjects (for testing)
         prizes: Array of 3 reference prizes [min, mid, max] for CE page (None to skip)
-        prize_scale: Prize normalization denominator for CE page (None to skip)
     """
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
@@ -688,7 +685,7 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
     # Build task list - workers receive paths, not data
     tasks = [
         (sid, str(params_dir), str(output_dir), iterations_list, boundaries_list,
-         prizes_list, prize_scale)
+         prizes_list)
         for sid in range(n_subjects)
     ]
 
@@ -1084,7 +1081,7 @@ def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
 
 
 def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
-                       prizes=None, prize_scale=None):
+                       prizes=None):
     """
     Generate only per-subject diagnostic plots.
 
@@ -1094,7 +1091,6 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
         max_subjects: Limit subjects for testing
         n_workers: Number of parallel workers
         prizes: Array of 3 reference prizes for CE page (None to skip)
-        prize_scale: Prize normalization for CE page (None to skip)
     """
     history_dir = Path(history_dir)
     plots_dir = Path(plots_dir)
@@ -1112,7 +1108,7 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
     parallel_plot_subjects(
         params_dir, subjects_dir, iterations, batch_boundaries,
         n_workers=n_workers, max_subjects=max_subjects,
-        prizes=prizes, prize_scale=prize_scale
+        prizes=prizes
     )
 
 

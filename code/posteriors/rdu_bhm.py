@@ -228,7 +228,7 @@ def batch_type(mcmc_config, data):
     n_subjects = data["static"][0]
 
     proposal_type = ProposalType.MCOV_SMOOTH
-    settings = {'k_alpha': 4.0, 'k_g': 15}
+    settings = {'k_alpha': 3.0, 'k_g': 12}
 
     # Subject epsilon blocks: 4 params per subject using MH
     subject_specs = create_subject_blocks(

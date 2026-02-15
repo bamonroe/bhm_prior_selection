@@ -151,12 +151,6 @@ SKEW_NORMAL_RESEARCHER = {
 # Which dataset to use: 'hn2019' (Harrison & Ng) or 'andersen2008' (Andersen et al.)
 DATASET = 'hn2019'
 
-# Prize normalization scale by dataset
-PRIZE_SCALE = {
-    'hn2019': 100.0,        # USD prizes 0-70
-    'andersen2008': 1000.0,  # DKK prizes 50-4500
-}
-
 # Random seeds for reproducibility
 SEEDS = {
     'sampling': 42,
@@ -287,7 +281,6 @@ if __name__ == '__main__':
             prior_selection=PRIOR_SELECTION,
             data_dir=DATA_DIR,
             output_dir=PLOTS_DIR / 'priors',
-            prize_scale=PRIZE_SCALE[DATASET],
             seed=SEEDS['sampling']
         )
 
@@ -383,12 +376,10 @@ if __name__ == '__main__':
             pipelines.run_subject_plots(history_dir_info, plots_dir_info,
                                         n_workers=N_WORKERS,
                                         preprocessed_dir=subjects_preprocessed,
-                                        prizes=ref_prizes,
-                                        prize_scale=PRIZE_SCALE[DATASET])
+                                        prizes=ref_prizes)
         else:
             pipelines.run_subject_plots(history_dir_info, plots_dir_info, n_workers=N_WORKERS,
-                                        prizes=ref_prizes,
-                                        prize_scale=PRIZE_SCALE[DATASET])
+                                        prizes=ref_prizes)
 
     if do_posterior_predictive_ce_info:
         check_dependency('posterior_predictive_ce_info', ['clean_data'])
@@ -398,7 +389,6 @@ if __name__ == '__main__':
             data_dir=DATA_DIR,
             output_dir=plots_dir_info,
             label='informative',
-            prize_scale=PRIZE_SCALE[DATASET],
             prior_ce_path=prior_ce_path,
         )
 
@@ -432,12 +422,10 @@ if __name__ == '__main__':
                 pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf,
                                             n_workers=N_WORKERS,
                                             preprocessed_dir=subjects_preprocessed_uninf,
-                                            prizes=ref_prizes_uninf,
-                                            prize_scale=PRIZE_SCALE[DATASET])
+                                            prizes=ref_prizes_uninf)
             else:
                 pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf, n_workers=N_WORKERS,
-                                            prizes=ref_prizes_uninf,
-                                            prize_scale=PRIZE_SCALE[DATASET])
+                                            prizes=ref_prizes_uninf)
         else:
             print(f"Skipping uninformative subject plots: {history_dir_uninf} not found")
 
@@ -448,7 +436,6 @@ if __name__ == '__main__':
                 data_dir=DATA_DIR,
                 output_dir=plots_dir_uninf,
                 label='uninformative',
-                prize_scale=PRIZE_SCALE[DATASET],
             )
         else:
             print(f"Skipping uninformative posterior predictive CE: {history_dir_uninf} not found")

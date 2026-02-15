@@ -171,7 +171,7 @@ def run_hyperparameter_plots(history_dir, plots_dir, hyperprior_specs=None,
 
 
 def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None,
-                      prizes=None, prize_scale=None):
+                      prizes=None):
     """Generate per-subject diagnostic plots.
 
     Args:
@@ -181,7 +181,6 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
         preprocessed_dir: Directory with preprocessed subject files. If provided,
                          skips preprocessing step.
         prizes: Array of 3 reference prizes [min, mid, max] for CE page (None to skip)
-        prize_scale: Prize normalization for CE page (None to skip)
     """
     print("\n" + "=" * 60)
     print("Running: Subject Plots")
@@ -208,11 +207,11 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
         print(f"  Using preprocessed data from {preprocessed_dir}")
         parallel_plot_subjects(preprocessed_dir, subjects_dir, iterations,
                               batch_boundaries, n_workers=n_workers,
-                              prizes=prizes, prize_scale=prize_scale)
+                              prizes=prizes)
     else:
         # Use the combined preprocess + plot function
         plot_subjects_only(history_dir, plots_dir, n_workers=n_workers,
-                           prizes=prizes, prize_scale=prize_scale)
+                           prizes=prizes)
     print("Done.\n")
 
 
@@ -239,27 +238,26 @@ def run_skew_normal_example(direct_prior, researcher_choices, output_dir,
 
 
 def run_prior_predictive_ce(direct_prior, prior_selection, data_dir,
-                             output_dir, n_mc_draws=10000, prize_scale=1000.0,
-                             seed=42):
+                             output_dir, n_mc_draws=10000, seed=42):
     """Run prior predictive CE analysis."""
     print("\n" + "=" * 60)
     print("Running: Prior Predictive CE Distribution")
     print("=" * 60)
     from prior_predictive_ce import run_prior_predictive_ce as _run
     _run(direct_prior, prior_selection, data_dir, output_dir,
-         n_mc_draws=n_mc_draws, prize_scale=prize_scale, seed=seed)
+         n_mc_draws=n_mc_draws, seed=seed)
     print("Done.\n")
 
 
 def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
-                                 prize_scale=1000.0, prior_ce_path=None):
+                                 prior_ce_path=None):
     """Run posterior predictive CE analysis."""
     print("\n" + "=" * 60)
     print(f"Running: Posterior Predictive CE Distribution ({label})")
     print("=" * 60)
     from prior_predictive_ce import run_posterior_predictive_ce as _run
     _run(history_dir, data_dir, output_dir, label,
-         prize_scale=prize_scale, prior_ce_path=prior_ce_path)
+         prior_ce_path=prior_ce_path)
     print("Done.\n")
 
 

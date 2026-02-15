@@ -67,7 +67,7 @@ def _crra_inverse(v, r):
 # RDU for 3-Outcome Lottery
 # =============================================================================
 
-def _rdu_3outcome(r, phi, eta, prizes_norm):
+def _rdu_3outcome(r, phi, eta, prizes):
     """
     Compute RDU value for a 3-outcome equally-likely lottery.
 
@@ -86,13 +86,12 @@ def _rdu_3outcome(r, phi, eta, prizes_norm):
         r: CRRA coefficient
         phi: Prelec curvature (natural scale, positive)
         eta: Prelec elevation (natural scale, positive)
-        prizes_norm: Array of 3 prizes [x1, x2, x3] sorted ascending,
-                     already normalized by prize_scale
+        prizes: Array of 3 prizes [x1, x2, x3] sorted ascending
 
     Returns:
         RDU utility value (scalar)
     """
-    x1, x2, x3 = prizes_norm[0], prizes_norm[1], prizes_norm[2]
+    x1, x2, x3 = prizes[0], prizes[1], prizes[2]
 
     # Utilities
     u1 = crra_ufn(x1, r)
@@ -120,10 +119,9 @@ def _rdu_3outcome(r, phi, eta, prizes_norm):
 
 def compute_prior_predictive_ce(
     hyperprior_params,
-    prizes_dkk,
+    prizes,
     n_subjects,
     n_mc_draws,
-    prize_scale=1000.0,
     seed=42,
 ):
     """
@@ -139,21 +137,20 @@ def compute_prior_predictive_ce(
     Args:
         hyperprior_params: Dict with keys mu_0, tau_0_sq, alpha_0, beta_0
                            (each except alpha_0 is array of length 4)
-        prizes_dkk: Array of 3 prizes in DKK [min, mid, max], sorted ascending
+        prizes: Array of 3 prizes [min, mid, max], sorted ascending
         n_subjects: Number of subjects per MC draw
         n_mc_draws: Number of MC draws
-        prize_scale: Normalization for prizes (default 1000.0)
         seed: Random seed
 
     Returns:
-        Array of shape (n_mc_draws, n_subjects) with CEs in DKK
+        Array of shape (n_mc_draws, n_subjects) with CEs
     """
     mu_0 = jnp.array(hyperprior_params['mu_0'])          # (4,)
     tau_0_sq = jnp.array(hyperprior_params['tau_0_sq'])   # (4,)
     alpha_0 = hyperprior_params['alpha_0']                # scalar
     beta_0 = jnp.array(hyperprior_params['beta_0'])       # (4,)
 
-    prizes_norm = jnp.array(prizes_dkk) / prize_scale     # (3,)
+    prizes_jax = jnp.array(prizes)
 
     key = random.PRNGKey(seed)
 
@@ -184,9 +181,8 @@ def compute_prior_predictive_ce(
 
         def single_subject_ce(r, phi, eta):
             """Compute CE for one subject."""
-            rdu_val = _rdu_3outcome(r, phi, eta, prizes_norm)
-            ce_norm = _crra_inverse(rdu_val, r)
-            return ce_norm * prize_scale
+            rdu_val = _rdu_3outcome(r, phi, eta, prizes_jax)
+            return _crra_inverse(rdu_val, r)
 
         # Vectorize over subjects
         ces = jax.vmap(single_subject_ce)(r_vals, phi_vals, eta_vals)
@@ -203,13 +199,13 @@ def compute_prior_predictive_ce(
 # Plotting
 # =============================================================================
 
-def plot_prior_predictive_ce(ce_flat, prizes_dkk, output_path):
+def plot_prior_predictive_ce(ce_flat, prizes, output_path):
     """
     Plot histogram of prior predictive CE distribution.
 
     Args:
-        ce_flat: 1D array of CE values in DKK
-        prizes_dkk: Array of 3 prizes [min, mid, max] in DKK
+        ce_flat: 1D array of CE values
+        prizes: Array of 3 prizes [min, mid, max]
         output_path: Path to save PDF
     """
     import matplotlib
@@ -217,10 +213,10 @@ def plot_prior_predictive_ce(ce_flat, prizes_dkk, output_path):
     import matplotlib.pyplot as plt
 
     ce_flat = np.asarray(ce_flat)
-    prizes_dkk = np.asarray(prizes_dkk)
+    prizes = np.asarray(prizes)
 
     # Expected value under risk neutrality
-    ev = np.mean(prizes_dkk)
+    ev = np.mean(prizes)
 
     # Summary statistics
     median_ce = np.median(ce_flat)
@@ -237,11 +233,11 @@ def plot_prior_predictive_ce(ce_flat, prizes_dkk, output_path):
 
     # Reference lines
     ax.axvline(ev, color='black', linestyle='-', linewidth=1.5,
-               label=f'EV = {ev:.0f} DKK')
-    for p in prizes_dkk:
+               label=f'EV = {ev:.0f}')
+    for p in prizes:
         ax.axvline(p, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
     ax.axvline(median_ce, color='red', linestyle='--', linewidth=1.5,
-               label=f'Median CE = {median_ce:.0f} DKK')
+               label=f'Median CE = {median_ce:.0f}')
     ax.axvline(ci_low, color='red', linestyle=':', linewidth=1.0, alpha=0.7)
     ax.axvline(ci_high, color='red', linestyle=':', linewidth=1.0, alpha=0.7)
 
@@ -255,12 +251,12 @@ def plot_prior_predictive_ce(ce_flat, prizes_dkk, output_path):
 
     # Prize labels
     prize_labels = ['Min', 'Mid', 'Max']
-    for i, p in enumerate(prizes_dkk):
+    for i, p in enumerate(prizes):
         if x_lo <= p <= x_hi:
             ax.text(p, ax.get_ylim()[1] * 0.02, f'{prize_labels[i]}\n{p:.0f}',
                     ha='center', va='bottom', fontsize=7, color='gray')
 
-    ax.set_xlabel('Certainty Equivalent (DKK)')
+    ax.set_xlabel('Certainty Equivalent')
     ax.set_ylabel('Density')
     ax.set_title('Prior Predictive CE Distribution\n'
                  '(3 equally-likely prizes: min, mid, max)')
@@ -285,7 +281,6 @@ def run_prior_predictive_ce(
     data_dir,
     output_dir,
     n_mc_draws=10000,
-    prize_scale=1000.0,
     seed=42,
 ):
     """
@@ -297,7 +292,6 @@ def run_prior_predictive_ce(
         data_dir: Path to data directory (to load clean data for prize range)
         output_dir: Path for output plot
         n_mc_draws: Number of Monte Carlo draws (default 10000)
-        prize_scale: Normalization factor for prizes (default 1000.0)
         seed: Random seed
     """
     from clean_data import load_clean_data
@@ -339,10 +333,9 @@ def run_prior_predictive_ce(
     print(f"  Computing prior predictive CEs ({n_mc_draws} MC draws x {n_subjects} subjects)...")
     all_ces = compute_prior_predictive_ce(
         hyperprior_params=hyperprior_params,
-        prizes_dkk=prizes_ref,
+        prizes=prizes_ref,
         n_subjects=n_subjects,
         n_mc_draws=n_mc_draws,
-        prize_scale=prize_scale,
         seed=seed,
     )
     all_ces_np = np.asarray(all_ces)
@@ -372,10 +365,9 @@ def run_prior_predictive_ce(
     np.savez(
         npz_path,
         ce_samples=all_ces_np,
-        prizes_dkk=prizes_ref,
+        prizes=prizes_ref,
         n_mc_draws=n_mc_draws,
         n_subjects=n_subjects,
-        prize_scale=prize_scale,
         mean=np.mean(ce_flat),
         median=np.median(ce_flat),
         std=np.std(ce_flat),
@@ -394,8 +386,7 @@ def run_prior_predictive_ce(
 # Posterior Predictive CE
 # =============================================================================
 
-def compute_posterior_predictive_ce(r_all, phi_all, eta_all, prizes_dkk,
-                                     prize_scale=1000.0):
+def compute_posterior_predictive_ce(r_all, phi_all, eta_all, prizes):
     """
     Compute posterior predictive CE from MCMC posterior samples.
 
@@ -403,18 +394,16 @@ def compute_posterior_predictive_ce(r_all, phi_all, eta_all, prizes_dkk,
         r_all: Array of shape (n_draws, n_subjects) - CRRA coefficients
         phi_all: Array of shape (n_draws, n_subjects) - Prelec curvature (natural)
         eta_all: Array of shape (n_draws, n_subjects) - Prelec elevation (natural)
-        prizes_dkk: Array of 3 prizes [min, mid, max] in DKK
-        prize_scale: Normalization factor (default 1000.0)
+        prizes: Array of 3 prizes [min, mid, max]
 
     Returns:
-        Array of shape (n_draws, n_subjects) with CEs in DKK
+        Array of shape (n_draws, n_subjects) with CEs
     """
-    prizes_norm = jnp.array(prizes_dkk) / prize_scale
+    prizes_jax = jnp.array(prizes)
 
     def single_ce(r, phi, eta):
-        rdu_val = _rdu_3outcome(r, phi, eta, prizes_norm)
-        ce_norm = _crra_inverse(rdu_val, r)
-        return ce_norm * prize_scale
+        rdu_val = _rdu_3outcome(r, phi, eta, prizes_jax)
+        return _crra_inverse(rdu_val, r)
 
     # vmap over (draw, subject) — flatten then reshape
     r_flat = r_all.ravel()
@@ -425,14 +414,14 @@ def compute_posterior_predictive_ce(r_all, phi_all, eta_all, prizes_dkk,
     return ces_flat.reshape(r_all.shape)
 
 
-def plot_posterior_predictive_ce(ce_flat, prizes_dkk, output_path, label,
+def plot_posterior_predictive_ce(ce_flat, prizes, output_path, label,
                                   prior_ce_flat=None):
     """
     Plot histogram of posterior predictive CE distribution.
 
     Args:
-        ce_flat: 1D array of posterior CE values in DKK
-        prizes_dkk: Array of 3 prizes [min, mid, max] in DKK
+        ce_flat: 1D array of posterior CE values
+        prizes: Array of 3 prizes [min, mid, max]
         output_path: Path to save PDF
         label: String label ('informative' or 'uninformative')
         prior_ce_flat: Optional 1D array of prior predictive CEs for overlay
@@ -442,9 +431,9 @@ def plot_posterior_predictive_ce(ce_flat, prizes_dkk, output_path, label,
     import matplotlib.pyplot as plt
 
     ce_flat = np.asarray(ce_flat)
-    prizes_dkk = np.asarray(prizes_dkk)
+    prizes = np.asarray(prizes)
 
-    ev = np.mean(prizes_dkk)
+    ev = np.mean(prizes)
 
     median_ce = np.median(ce_flat)
     ci_low, ci_high = np.percentile(ce_flat, [2.5, 97.5])
@@ -474,11 +463,11 @@ def plot_posterior_predictive_ce(ce_flat, prizes_dkk, output_path, label,
 
     # Reference lines
     ax.axvline(ev, color='black', linestyle='-', linewidth=1.5,
-               label=f'EV = {ev:.0f} DKK')
-    for p in prizes_dkk:
+               label=f'EV = {ev:.0f}')
+    for p in prizes:
         ax.axvline(p, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
     ax.axvline(median_ce, color='darkred', linestyle='--', linewidth=1.5,
-               label=f'Posterior median = {median_ce:.0f} DKK')
+               label=f'Posterior median = {median_ce:.0f}')
     ax.axvline(ci_low, color='darkred', linestyle=':', linewidth=1.0, alpha=0.7)
     ax.axvline(ci_high, color='darkred', linestyle=':', linewidth=1.0, alpha=0.7)
 
@@ -492,12 +481,12 @@ def plot_posterior_predictive_ce(ce_flat, prizes_dkk, output_path, label,
 
     # Prize labels
     prize_labels = ['Min', 'Mid', 'Max']
-    for i, p in enumerate(prizes_dkk):
+    for i, p in enumerate(prizes):
         if x_lo <= p <= x_hi:
             ax.text(p, ax.get_ylim()[1] * 0.02, f'{prize_labels[i]}\n{p:.0f}',
                     ha='center', va='bottom', fontsize=7, color='gray')
 
-    ax.set_xlabel('Certainty Equivalent (DKK)')
+    ax.set_xlabel('Certainty Equivalent')
     ax.set_ylabel('Density')
     label_title = label.capitalize()
     ax.set_title(f'Posterior Predictive CE Distribution ({label_title} Prior)\n'
@@ -513,7 +502,7 @@ def plot_posterior_predictive_ce(ce_flat, prizes_dkk, output_path, label,
     print(f"  Plot saved to: {output_path}")
 
 
-def plot_subject_ce_comparison(ce_info, ce_uninf, prizes_dkk, sid,
+def plot_subject_ce_comparison(ce_info, ce_uninf, prizes, sid,
                                output_path):
     """
     Plot overlaid histograms comparing informative vs uninformative posterior
@@ -522,7 +511,7 @@ def plot_subject_ce_comparison(ce_info, ce_uninf, prizes_dkk, sid,
     Args:
         ce_info: 1D array of CE draws (informative prior) for one subject
         ce_uninf: 1D array of CE draws (uninformative prior) for one subject
-        prizes_dkk: Array of 3 prizes [min, mid, max] in DKK
+        prizes: Array of 3 prizes [min, mid, max]
         sid: Subject index (0-based)
         output_path: Path to save PDF
     """
@@ -532,9 +521,9 @@ def plot_subject_ce_comparison(ce_info, ce_uninf, prizes_dkk, sid,
 
     ce_info = np.asarray(ce_info)
     ce_uninf = np.asarray(ce_uninf)
-    prizes_dkk = np.asarray(prizes_dkk)
+    prizes = np.asarray(prizes)
 
-    ev = np.mean(prizes_dkk)
+    ev = np.mean(prizes)
 
     # Filter non-finite
     ce_info = ce_info[np.isfinite(ce_info)]
@@ -563,21 +552,21 @@ def plot_subject_ce_comparison(ce_info, ce_uninf, prizes_dkk, sid,
 
     # EV reference
     ax.axvline(ev, color='black', linestyle='-', linewidth=1.5,
-               label=f'EV = {ev:.0f} DKK')
+               label=f'EV = {ev:.0f}')
 
     # Prize lines
-    for p in prizes_dkk:
+    for p in prizes:
         ax.axvline(p, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
 
     # Text box
-    text = (f'Median diff = {med_diff:.0f} DKK\n'
+    text = (f'Median diff = {med_diff:.0f}\n'
             f'Info. median = {med_info:.0f}\n'
             f'Uninf. median = {med_uninf:.0f}')
     ax.text(0.97, 0.95, text, transform=ax.transAxes,
             fontsize=9, verticalalignment='top', horizontalalignment='right',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
-    ax.set_xlabel('Certainty Equivalent (DKK)')
+    ax.set_xlabel('Certainty Equivalent')
     ax.set_ylabel('Density')
     ax.set_title(f'Subject {sid}: Posterior Predictive CE\n'
                  '(Informative vs Uninformative Prior)')
@@ -617,7 +606,7 @@ def run_posterior_ce_comparison(data_dir, output_dir):
 
     ce_info = info_data['ce_samples']    # (n_draws, n_subjects)
     ce_uninf = uninf_data['ce_samples']  # (n_draws, n_subjects)
-    prizes_dkk = info_data['prizes_dkk']
+    prizes = info_data['prizes']
     n_subjects = ce_info.shape[1]
 
     print(f"  Informative:   {ce_info.shape[0]} draws x {n_subjects} subjects")
@@ -659,9 +648,9 @@ def run_posterior_ce_comparison(data_dir, output_dir):
               f"{med_uninf[sid]:>10.1f}  {divergence[sid]:>10.1f}")
 
     print(f"\n  Most affected:  subject {most_affected_sid} "
-          f"(|diff| = {divergence[most_affected_sid]:.1f} DKK)")
+          f"(|diff| = {divergence[most_affected_sid]:.1f} )")
     print(f"  Least affected: subject {least_affected_sid} "
-          f"(|diff| = {divergence[least_affected_sid]:.1f} DKK)")
+          f"(|diff| = {divergence[least_affected_sid]:.1f} )")
 
     # --- Save comparison NPZ ---
     npz_path = data_dir / 'output' / 'posterior_ce_comparison.npz'
@@ -681,7 +670,7 @@ def run_posterior_ce_comparison(data_dir, output_dir):
         ranking=ranking,
         most_affected_sid=most_affected_sid,
         least_affected_sid=least_affected_sid,
-        prizes_dkk=prizes_dkk,
+        prizes=prizes,
         n_subjects=n_subjects,
     )
     print(f"  Saved comparison NPZ to: {npz_path}")
@@ -692,19 +681,19 @@ def run_posterior_ce_comparison(data_dir, output_dir):
     plot_subject_ce_comparison(
         ce_info[:, most_affected_sid],
         ce_uninf[:, most_affected_sid],
-        prizes_dkk, most_affected_sid,
+        prizes, most_affected_sid,
         output_dir / 'subject_ce_most_affected.pdf',
     )
     plot_subject_ce_comparison(
         ce_info[:, least_affected_sid],
         ce_uninf[:, least_affected_sid],
-        prizes_dkk, least_affected_sid,
+        prizes, least_affected_sid,
         output_dir / 'subject_ce_least_affected.pdf',
     )
 
 
 def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
-                                 prize_scale=1000.0, prior_ce_path=None):
+                                 prior_ce_path=None):
     """
     Run posterior predictive CE analysis from MCMC history files.
 
@@ -713,7 +702,6 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
         data_dir: Path to data directory (to load clean data for prize range)
         output_dir: Path for output plot
         label: String label ('informative' or 'uninformative')
-        prize_scale: Normalization factor for prizes (default 1000.0)
         prior_ce_path: Optional path to prior predictive CE NPZ for overlay
     """
     from clean_data import load_clean_data
@@ -733,11 +721,11 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
     prize_min = float(np.min(all_prizes))
     prize_max = float(np.max(all_prizes))
     prize_mid = (prize_min + prize_max) / 2.0
-    prizes_dkk = np.array([prize_min, prize_mid, prize_max])
+    prizes_ref = np.array([prize_min, prize_mid, prize_max])
     n_subjects = int(clean['n_subjects'])
 
     print(f"  Prizes: min={prize_min:.0f}, mid={prize_mid:.0f}, max={prize_max:.0f}")
-    print(f"  EV = {np.mean(prizes_dkk):.0f}")
+    print(f"  EV = {np.mean(prizes_ref):.0f}")
     print(f"  N subjects: {n_subjects}")
 
     # --- Load last history file ---
@@ -782,7 +770,7 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
     # --- Compute CEs ---
     ce_all = compute_posterior_predictive_ce(
         jnp.array(r_2d), jnp.array(phi_2d), jnp.array(eta_2d),
-        prizes_dkk, prize_scale=prize_scale,
+        prizes_ref,
     )
     ce_all_np = np.asarray(ce_all)
     ce_flat = ce_all_np.ravel()
@@ -797,12 +785,12 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
 
     # --- Summary statistics ---
     print(f"\n  Posterior Predictive CE Summary ({label}):")
-    print(f"    Mean   = {np.mean(ce_flat):.1f} DKK")
-    print(f"    Median = {np.median(ce_flat):.1f} DKK")
-    print(f"    Std    = {np.std(ce_flat):.1f} DKK")
+    print(f"    Mean   = {np.mean(ce_flat):.1f}")
+    print(f"    Median = {np.median(ce_flat):.1f}")
+    print(f"    Std    = {np.std(ce_flat):.1f}")
     print(f"    95% CI = [{np.percentile(ce_flat, 2.5):.1f}, "
-          f"{np.percentile(ce_flat, 97.5):.1f}] DKK")
-    print(f"    EV     = {np.mean(prizes_dkk):.1f} DKK (risk-neutral reference)")
+          f"{np.percentile(ce_flat, 97.5):.1f}]")
+    print(f"    EV     = {np.mean(prizes_ref):.1f} (risk-neutral reference)")
 
     # --- Save NPZ ---
     npz_path = Path(data_dir) / 'output' / f'posterior_predictive_ce_{label}.npz'
@@ -810,16 +798,15 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
     np.savez(
         npz_path,
         ce_samples=ce_all_np,
-        prizes_dkk=prizes_dkk,
+        prizes=prizes_ref,
         n_draws=n_draws,
         n_subjects=n_subjects,
-        prize_scale=prize_scale,
         mean=np.mean(ce_flat),
         median=np.median(ce_flat),
         std=np.std(ce_flat),
         ci_low=np.percentile(ce_flat, 2.5),
         ci_high=np.percentile(ce_flat, 97.5),
-        ev=np.mean(prizes_dkk),
+        ev=np.mean(prizes_ref),
     )
     print(f"  Saved NPZ to: {npz_path}")
 
@@ -838,5 +825,5 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
     # --- Plot ---
     output_dir.mkdir(parents=True, exist_ok=True)
     plot_path = output_dir / f'posterior_predictive_ce_{label}.pdf'
-    plot_posterior_predictive_ce(ce_flat, prizes_dkk, plot_path, label,
+    plot_posterior_predictive_ce(ce_flat, prizes_ref, plot_path, label,
                                  prior_ce_flat=prior_ce_flat)

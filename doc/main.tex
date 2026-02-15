@@ -282,7 +282,7 @@ variance gives:
     \sigma^{2*} &= \frac{\beta_0}{\left(\alpha_0 - 1\right)} + \tau_{0}^2 \\
     \end{split}
 \end{align}
-where $\tau_{0}^2$ is the prior
+where $\tau_{0}^2$ is the hyper-prior
 variance on the mean hyper-parameter $\mu$, and $\alpha_0, \beta_0$ are the
 shape and scale parameters for the inverse-gamma distributed variance
 hyper-parameter, $\sigma^2$.
@@ -309,8 +309,8 @@ $\sigma^{2*}$, we fully define $\tau_0$.
 The expected population variance $\E{\sigma_j^2} = \beta_{0,j}/(\alpha_{0,j} -
 1)$, however, involves two unknowns. We therefore either need to further
 re-parameterize, or specify one directly. With the $\rho$ parameter in place,
-and interpretable as, in part, managing prior beliefs about the heterogeneity
-of the population, I believe that specifying $\alpha_0$ directly is the best
+and interpretable in part as managing prior beliefs about the heterogeneity
+of the population, specifying $\alpha_0$ directly is a reasonable
 course of action. The $\alpha_0$ parameter is the scale of the Inverse-Gamma
 distribution that determines the variance hyper-parameter. In a sense,
 $\alpha_0$ can be thought of as a pseudo-count of the number of observations
@@ -329,10 +329,10 @@ these specifications, the hyper-parameters specified in
     \beta_{0} &= (1 - \rho) \sigma^{2*} (\alpha_0 - 1) \label{eq:hp_beta}
 \end{align}
 
-It is worth noting that there is no \enquote{free lunch} here, with 4
-hyper-prior parameters, there are still 4 research decisions to make to satisfy
-the 4 degrees of freedom. The primary advantage of this approach is when it is
-easier to specify the prior for a given individual $\theta_i$ through a simpler
+It is worth noting that there is no \enquote{free lunch} here; with 4
+hyper-prior parameters, there are still 4 decisions needed to satisfy the 4
+degrees of freedom. The primary advantage of this approach is when it is easier
+to specify the prior for a given individual $\theta_i$ through a simpler
 distribution, and then re-parameterize such that the researcher decision then
 becomes about the degree of heterogeneity in the population.
 
@@ -458,10 +458,10 @@ for these \enquote{direct prior} parameters:
 \begin{equation}
 \label{eq:d_prior}
 \begin{matrix}
-  r \sim N\left(\mu^{r} = \py{dprior["r"]["mu"]}\right. ,& \left. \sigma^{2, r} = \py{dprior["r"]["sigma2"]}\right) \\
-  \ln\phi \sim N\left(\mu^{\phi} = \py{dprior["phi_raw"]["mu"]}\right. ,& \left. \sigma^{2, \phi} = \py{dprior["phi_raw"]["sigma2"]}\right) \\
-  \ln\eta \sim N\left(\mu^{\eta} = \py{dprior["eta_raw"]["mu"]}\right. ,& \left. \sigma^{2, \eta} = \py{dprior["eta_raw"]["sigma2"]}\right) \\
-  \ln\lambda \sim N\left(\mu^{\lambda} = \py{dprior["lambda_raw"]["mu"]}\right. ,& \left. \sigma^{2, \lambda} = \py{dprior["lambda_raw"]["sigma2"]}\right) \\
+  r \sim N\left(\mu^{r} = \py{dprior["r"]["mu"]},\right.& \left.\sigma^{2, r} = \py{dprior["r"]["sigma2"]}\right) \\
+  \ln\phi \sim N\left(\mu^{\phi} = \py{dprior["phi_raw"]["mu"]},\right.& \left.\sigma^{2, \phi} = \py{dprior["phi_raw"]["sigma2"]}\right) \\
+  \ln\eta \sim N\left(\mu^{\eta} = \py{dprior["eta_raw"]["mu"]},\right.& \left.\sigma^{2, \eta} = \py{dprior["eta_raw"]["sigma2"]}\right) \\
+  \ln\lambda \sim N\left(\mu^{\lambda} = \py{dprior["lambda_raw"]["mu"]},\right.& \left.\sigma^{2, \lambda} = \py{dprior["lambda_raw"]["sigma2"]}\right) \\
 \end{matrix}
 \end{equation}
 
@@ -549,7 +549,7 @@ sampling procedure are provided in Appendix \ref{app:mcmc}. \footnote{
 
 To assess the impact of an informative prior, we estimate the model once using
 the informative hyper-prior in (\ref{eq:hyperprior-values}), and again using
-the uninformative hyper-prior used by \textcite[279-281]{Harrison2016}:
+the uninformative hyper-prior used by \textcite[279-281]{Gao2022}:
 \begin{align}
   \label{eq:ght_prior}
 \begin{matrix}
@@ -560,9 +560,9 @@ the uninformative hyper-prior used by \textcite[279-281]{Harrison2016}:
 \end{matrix}
 \end{align}
 
-We assess the impact of these priors by looking at the posterior predictive
-distribution of the certainty equivalent (CE) of a lottery with outcomes $x \in
-[10, 40, 70]$ and $p(x) = 1/3$ for all $x$:
+I assess the impact of these priors by examining at the posterior predictive
+distributions for each subject of the certainty equivalent (CE) of a lottery
+with outcomes $x \in [10, 30, 50]$ and $p(x) = 1/3$ for all $x$:
 \begin{align}
 \label{eq:CE}
   \begin{split}
@@ -570,78 +570,17 @@ distribution of the certainty equivalent (CE) of a lottery with outcomes $x \in
     \text{CE} &= \left(\sum_x d_i(x) \frac{x^{1 - r}}{1 - r}\right)^\frac{1}{1 - r}
   \end{split}
 \end{align}
-\noindent There will be a posterior predictive distribution of the CE defined
-in (\ref{eq:CE}) for each subject.
+\noindent The CE in (\ref{eq:CE}) is calculated for each sample vector
+$\theta_i = [r_i, \phi_i, \eta_i, \lambda_i]$, resulting in a posterior
+predictive distribution of CE values for each subject.
 
 
 
-Table~\ref{tab:results} reports posterior summaries for the population-level
-parameters. Note that the Prelec probability weighting parameters $\phi$ and
-$\eta$ are estimated in log scale, as are the noise parameter $\lambda$ and
-all population standard deviations.
 
-\begin{table}[H]
-\centering
-\begin{tabular}{lcccc}
-\toprule
-Parameter & Mean & Std. Dev. & 95\% CI \\
-\midrule
-\multicolumn{4}{l}{\textit{Population Means}} \\
-$\mu_r$ & \py{fmt(Q.get('r_mean_mean', 0))} & \py{fmt(Q.get('r_mean_std', 0))} & [\py{fmt(Q.get('r_mean_ci_lo', 0))}, \py{fmt(Q.get('r_mean_ci_hi', 0))}] \\
-$\mu_{\log \phi}$ & \py{fmt(Q.get('phi_mean_mean', 0))} & \py{fmt(Q.get('phi_mean_std', 0))} & [\py{fmt(Q.get('phi_mean_ci_lo', 0))}, \py{fmt(Q.get('phi_mean_ci_hi', 0))}] \\
-$\mu_{\log \eta}$ & \py{fmt(Q.get('eta_mean_mean', 0))} & \py{fmt(Q.get('eta_mean_std', 0))} & [\py{fmt(Q.get('eta_mean_ci_lo', 0))}, \py{fmt(Q.get('eta_mean_ci_hi', 0))}] \\
-$\mu_{\log \lambda}$ & \py{fmt(Q.get('lambda_mean_mean', 0))} & \py{fmt(Q.get('lambda_mean_std', 0))} & [\py{fmt(Q.get('lambda_mean_ci_lo', 0))}, \py{fmt(Q.get('lambda_mean_ci_hi', 0))}] \\
-\midrule
-\multicolumn{4}{l}{\textit{Population Log Std. Deviations}} \\
-$\log \sigma_r$ & \py{fmt(Q.get('r_logsd_mean', 0))} & \py{fmt(Q.get('r_logsd_std', 0))} & [\py{fmt(Q.get('r_logsd_ci_lo', 0))}, \py{fmt(Q.get('r_logsd_ci_hi', 0))}] \\
-$\log \sigma_{\phi}$ & \py{fmt(Q.get('phi_logsd_mean', 0))} & \py{fmt(Q.get('phi_logsd_std', 0))} & [\py{fmt(Q.get('phi_logsd_ci_lo', 0))}, \py{fmt(Q.get('phi_logsd_ci_hi', 0))}] \\
-$\log \sigma_{\eta}$ & \py{fmt(Q.get('eta_logsd_mean', 0))} & \py{fmt(Q.get('eta_logsd_std', 0))} & [\py{fmt(Q.get('eta_logsd_ci_lo', 0))}, \py{fmt(Q.get('eta_logsd_ci_hi', 0))}] \\
-$\log \sigma_{\lambda}$ & \py{fmt(Q.get('lambda_logsd_mean', 0))} & \py{fmt(Q.get('lambda_logsd_std', 0))} & [\py{fmt(Q.get('lambda_logsd_ci_lo', 0))}, \py{fmt(Q.get('lambda_logsd_ci_hi', 0))}] \\
-\bottomrule
-\end{tabular}
-\caption{Posterior summaries for population parameters. CI = credible interval.}
-\label{tab:results}
-\end{table}
-
-The results indicate mild average risk aversion ($\mu_r \approx \py{fmt(Q.get('r_mean_mean', 0))}$),
-and substantial heterogeneity across subjects in all parameters. The Prelec
-probability weighting parameters suggest population-average values near $\phi =
-\exp(\py{fmt(Q.get('phi_mean_mean', 0))}) \approx 1$ and $\eta =
-\exp(\py{fmt(Q.get('eta_mean_mean', 0))}) \approx 1$, consistent with modest
-probability distortion. These findings are consistent with the broader
-literature on risk preferences.
-
-Importantly, the data are informative: posterior distributions are substantially
-narrower than the priors, confirming that the methodology produces well-identified
-posteriors that are not dominated by prior specifications.
 
 
 \section{Conclusion}
 
-This paper proposes a principled approach to hyperprior selection for Bayesian
-hierarchical models of risk preferences. By constraining the unconditional BHM
-prior to match a directly-specified individual-level prior, researchers can
-reduce $4p$ hyperprior choices to just 2 interpretable parameters: a variance
-partition ratio and a concentration parameter.
-
-The approach has several advantages. First, specifying priors for a single
-individual is cognitively tractable---we can simulate prior predictive
-distributions and check whether implied preferences are sensible. Second, the
-variance decomposition has a clear interpretation in terms of uncertainty about
-the population center versus expected heterogeneity. Third, the methodology
-produces well-identified posteriors with excellent convergence properties.
-
-The key limitation is that the independent hyperprior structure ignores
-correlations between parameters. For applications where such correlations
-encode important constraints, a correlated (Normal-Inverse-Wishart) structure
-may be preferable, though it introduces additional complexity including the
-well-known skewness of the Inverse-Wishart distribution at low degrees of
-freedom.
-
-Future work could extend this approach to other preference models (e.g.,
-cumulative prospect theory), investigate sensitivity to the choice of $\rho$
-and $\alpha_0$, and develop simulation-based calibration methods for validating
-the prior selection.
 
 
 % The References for the main text

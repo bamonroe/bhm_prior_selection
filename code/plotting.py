@@ -31,6 +31,7 @@ from pathlib import Path
 from multiprocessing import Pool
 
 from bamcmc import combine_batch_histories
+from helpers import load_and_filter_history
 from posteriors.rdu_bhm import NPARAMS, N_HYPER
 
 # Configure LaTeX fonts (Latin Modern)
@@ -223,7 +224,7 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"  Loading {len(history_files)} history files...")
-    history, iterations, _, metadata = combine_batch_histories(history_files)
+    history, iterations, _, metadata = load_and_filter_history(history_files)
     print(f"  Combined shape: {history.shape}")
 
     n_samples, n_chains, n_params = history.shape
@@ -309,7 +310,7 @@ def preprocess_hyperparams(history_dir, output_dir, force=False):
             return output_path
 
     print(f"  Loading {len(history_files)} history files...")
-    history, iterations, _, metadata = combine_batch_histories(history_files)
+    history, iterations, _, metadata = load_and_filter_history(history_files)
     print(f"  Combined shape: {history.shape}")
 
     n_samples, n_chains, n_total_params = history.shape
@@ -1061,7 +1062,7 @@ def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
 
     # Load history
     print("  Loading history for hyperparameters...")
-    history, iterations, _, metadata = combine_batch_histories(history_files)
+    history, iterations, _, metadata = load_and_filter_history(history_files)
     print(f"  Shape: {history.shape}")
 
     # Calculate batch boundaries
@@ -1112,22 +1113,101 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
     )
 
 
+def _hyperprior_pdf(x, state_name, hyperprior_specs):
+    """
+    Compute the hyperprior PDF evaluated on x for a given hyperparameter.
+
+    For mean params: mu ~ N(mu_0, tau_0_sq) — normal PDF.
+    For logsd params: sigma^2 ~ IG(alpha_0, beta_0) with logsd = 0.5*log(sigma^2),
+        so PDF is computed via change of variables.
+
+    Args:
+        x: Array of points to evaluate
+        state_name: e.g. 'r_mean', 'r_logsd', 'phi_mean', etc.
+        hyperprior_specs: Dict with keys 'r', 'phi_raw', 'eta_raw', 'lambda_raw'
+
+    Returns:
+        Array of PDF values (same shape as x), or None if specs unavailable
+    """
+    if hyperprior_specs is None:
+        return None
+
+    # Map state_name to param key
+    prefix = state_name.split('_')[0]  # r, phi, eta, lambda
+    param_key = {'r': 'r', 'phi': 'phi_raw', 'eta': 'eta_raw', 'lambda': 'lambda_raw'}[prefix]
+
+    if param_key not in hyperprior_specs:
+        return None
+
+    spec = hyperprior_specs[param_key]
+    mu_0 = spec['mu_0']
+    tau_0_sq = spec['tau_0_sq']
+    alpha_0 = spec['alpha_0']
+    beta_0 = spec['beta_0']
+
+    is_logsd = state_name.endswith('_logsd')
+
+    if not is_logsd:
+        # Mean: mu ~ N(mu_0, tau_0_sq)
+        return stats.norm.pdf(x, loc=mu_0, scale=np.sqrt(tau_0_sq))
+    else:
+        # logsd = 0.5 * log(sigma^2), sigma^2 ~ IG(alpha_0, beta_0)
+        # Change of variables: sigma^2 = exp(2 * logsd)
+        # f(logsd) = f_IG(exp(2*logsd)) * |d(sigma^2)/d(logsd)| = f_IG(exp(2*logsd)) * 2*exp(2*logsd)
+        sigma_sq = np.exp(2.0 * x)
+        pdf_ig = stats.invgamma.pdf(sigma_sq, alpha_0, scale=beta_0)
+        jacobian = 2.0 * sigma_sq
+        return pdf_ig * jacobian
+
+
+def _hyperprior_range(state_name, hyperprior_specs, tail=0.005):
+    """Return (lo, hi) covering the central 1-2*tail mass of the hyperprior."""
+    if hyperprior_specs is None:
+        return None
+
+    prefix = state_name.split('_')[0]
+    param_key = {'r': 'r', 'phi': 'phi_raw', 'eta': 'eta_raw', 'lambda': 'lambda_raw'}[prefix]
+    if param_key not in hyperprior_specs:
+        return None
+
+    spec = hyperprior_specs[param_key]
+    is_logsd = state_name.endswith('_logsd')
+
+    if not is_logsd:
+        dist = stats.norm(loc=spec['mu_0'], scale=np.sqrt(spec['tau_0_sq']))
+        return (dist.ppf(tail), dist.ppf(1 - tail))
+    else:
+        # logsd = 0.5 * log(sigma^2), sigma^2 ~ IG(alpha_0, beta_0)
+        ig = stats.invgamma(spec['alpha_0'], scale=spec['beta_0'])
+        sq_lo, sq_hi = ig.ppf(tail), ig.ppf(1 - tail)
+        return (0.5 * np.log(sq_lo), 0.5 * np.log(sq_hi))
+
+
 def plot_hyper_comparison(info_path, uninf_path, output_path,
                          hyperprior_specs_info=None,
-                         hyperprior_specs_uninf=None):
+                         hyperprior_specs_uninf=None,
+                         config=None):
     """
     Plot posterior density comparison for each hyperparameter.
 
     Produces a single PDF with one row per hyperparameter, showing overlaid
-    KDE densities from informative and uninformative posteriors.
+    KDE densities from informative and uninformative posteriors, with the
+    informative hyperprior density for reference.
 
     Args:
         info_path: Path to informative hyperparams_preprocessed.npz
         uninf_path: Path to uninformative hyperparams_preprocessed.npz
         output_path: Path to save the output PDF
-        hyperprior_specs_info: Informative hyperprior specs (for prior overlay)
-        hyperprior_specs_uninf: Uninformative hyperprior specs (for prior overlay)
+        hyperprior_specs_info: Informative hyperprior specs (for prior density)
+        hyperprior_specs_uninf: Uninformative hyperprior specs (unused currently)
+        config: Optional dict with keys:
+            figsize (tuple): Plot dimensions (width, height) in inches
+            tail (float): Tail probability for x-axis range (default 0.005)
     """
+    if config is None:
+        config = {}
+    figsize = tuple(config.get('figsize', (6.3, 7.2)))
+    tail = config.get('tail', 0.005)
     info_path = Path(info_path)
     uninf_path = Path(uninf_path)
     output_path = Path(output_path)
@@ -1142,12 +1222,9 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
         n = samples.shape[0]
         return samples[n // 2:, :].flatten()
 
-    # Compute prior densities if specs provided
-    prior_info_q = compute_hyperprior_quantiles(hyperprior_specs_info) if hyperprior_specs_info else None
-    prior_uninf_q = compute_hyperprior_quantiles(hyperprior_specs_uninf) if hyperprior_specs_uninf else None
-
     COLOR_INFO = '#377eb8'     # blue
     COLOR_UNINF = '#e41a1c'    # red
+    COLOR_PRIOR = '0.5'        # gray
 
     # 2-column layout: means (left), log-sdevs (right), 4 rows (r, phi, eta, lambda)
     PARAM_PAIRS = [
@@ -1158,8 +1235,7 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
     ]
 
     n_rows = len(PARAM_PAIRS)
-    # Size to match LaTeX \textwidth (a4paper + geometry defaults ≈ 6.3in)
-    fig, axes = plt.subplots(n_rows, 2, figsize=(6.3, 1.8 * n_rows))
+    fig, axes = plt.subplots(n_rows, 2, figsize=figsize)
 
     for row, (mean_name, mean_label, logsd_name, logsd_label) in enumerate(PARAM_PAIRS):
         for col, (state_name, latex_label) in enumerate(
@@ -1170,19 +1246,25 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
             flat_info = _get_post_burnin(info_data, state_name)
             flat_uninf = _get_post_burnin(uninf_data, state_name)
 
-            # Common x range using percentiles, expanded to include prior quantiles
-            lo = min(np.percentile(flat_info, 0.5), np.percentile(flat_uninf, 0.5))
-            hi = max(np.percentile(flat_info, 99.5), np.percentile(flat_uninf, 99.5))
-            data_span = hi - lo
-            # Expand range to include informative prior quantiles
-            if prior_info_q and state_name in prior_info_q:
-                med, ci_lo, ci_hi = prior_info_q[state_name]
-                for v in [med, ci_lo, ci_hi]:
-                    if np.isfinite(v):
-                        lo = min(lo, v)
-                        hi = max(hi, v)
-            margin = 0.15 * (hi - lo)
-            x = np.linspace(lo - margin, hi + margin, 300)
+            # Common x range using percentiles from posteriors AND prior
+            pct_lo = tail * 100
+            pct_hi = (1 - tail) * 100
+            lo = min(np.percentile(flat_info, pct_lo), np.percentile(flat_uninf, pct_lo))
+            hi = max(np.percentile(flat_info, pct_hi), np.percentile(flat_uninf, pct_hi))
+
+            # Expand range to include prior support
+            prior_range = _hyperprior_range(state_name, hyperprior_specs_info, tail=tail)
+            if prior_range is not None:
+                lo = min(lo, prior_range[0])
+                hi = max(hi, prior_range[1])
+
+            x = np.linspace(lo, hi, 300)
+
+            # Prior density (informative hyperprior)
+            prior_pdf = _hyperprior_pdf(x, state_name, hyperprior_specs_info)
+            if prior_pdf is not None:
+                ax.plot(x, prior_pdf, color=COLOR_PRIOR, lw=1.5, label='Prior')
+                ax.fill_between(x, prior_pdf, alpha=0.15, color=COLOR_PRIOR)
 
             # KDE for informative
             try:
@@ -1202,24 +1284,9 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
                 ax.hist(flat_uninf, bins=80, density=True, alpha=0.3, color=COLOR_UNINF,
                         label='Uninformative')
 
-            # Informative prior reference lines: green dashed=mean, green dotted=95% CI
-            COLOR_PRIOR = '#2ca02c'  # green
-            if prior_info_q and state_name in prior_info_q:
-                med, ci_lo, ci_hi = prior_info_q[state_name]
-                if np.isfinite(med):
-                    ax.axvline(med, color=COLOR_PRIOR, linestyle='--',
-                               lw=1.0, alpha=0.7)
-                if np.isfinite(ci_lo):
-                    ax.axvline(ci_lo, color=COLOR_PRIOR, linestyle=':',
-                               lw=1.5, alpha=0.6)
-                if np.isfinite(ci_hi):
-                    ax.axvline(ci_hi, color=COLOR_PRIOR, linestyle=':',
-                               lw=1.5, alpha=0.6)
-
             ax.set_xlabel(latex_label)
             ax.set_ylabel('Density')
-            if row == 0 and col == 0:
-                ax.legend(loc='upper right', fontsize=9)
+            pass  # no legend
             ax.grid(True, alpha=0.2)
             ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, min_n_ticks=5))
             ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, min_n_ticks=4))
@@ -1232,7 +1299,8 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
 
 def paper_plots(quantities_path, plots_dir,
                 info_hyper_path=None, uninf_hyper_path=None,
-                hyperprior_specs_info=None, hyperprior_specs_uninf=None):
+                hyperprior_specs_info=None, hyperprior_specs_uninf=None,
+                hyper_comparison_config=None):
     """
     Generate publication-ready plots for the paper.
 
@@ -1243,6 +1311,7 @@ def paper_plots(quantities_path, plots_dir,
         uninf_hyper_path: Path to uninformative hyperparams_preprocessed.npz
         hyperprior_specs_info: Informative hyperprior specs (for prior overlay)
         hyperprior_specs_uninf: Uninformative hyperprior specs (for prior overlay)
+        hyper_comparison_config: Config dict for hyper comparison plot
     """
     quantities_path = Path(quantities_path)
     plots_dir = Path(plots_dir)
@@ -1265,6 +1334,7 @@ def paper_plots(quantities_path, plots_dir,
             plots_dir / 'hyper_comparison.pdf',
             hyperprior_specs_info=hyperprior_specs_info,
             hyperprior_specs_uninf=hyperprior_specs_uninf,
+            config=hyper_comparison_config,
         )
 
 

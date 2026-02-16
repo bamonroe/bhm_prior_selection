@@ -220,7 +220,8 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
 
 def run_paper_plots(quantities_path, plots_dir,
                     info_hyper_path=None, uninf_hyper_path=None,
-                    hyperprior_specs_info=None, hyperprior_specs_uninf=None):
+                    hyperprior_specs_info=None, hyperprior_specs_uninf=None,
+                    hyper_comparison_config=None):
     """Generate paper plots."""
     print("\n" + "=" * 60)
     print("Running: Paper Plots")
@@ -230,7 +231,8 @@ def run_paper_plots(quantities_path, plots_dir,
                 info_hyper_path=info_hyper_path,
                 uninf_hyper_path=uninf_hyper_path,
                 hyperprior_specs_info=hyperprior_specs_info,
-                hyperprior_specs_uninf=hyperprior_specs_uninf)
+                hyperprior_specs_uninf=hyperprior_specs_uninf,
+                hyper_comparison_config=hyper_comparison_config)
     print("Done.\n")
 
 

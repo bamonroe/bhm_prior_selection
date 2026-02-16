@@ -1060,8 +1060,7 @@ def plot_predictive_params_overlay(prior_params, info_params, uninf_params,
         ax.set_ylabel('Density')
         ax.set_xlim(x_lo, x_hi)
 
-    # Single legend at top
-    axes[0].legend(loc='upper right', fontsize=9, framealpha=0.9)
+    pass  # no legend
 
     plt.tight_layout()
     output_path = Path(output_path)
@@ -1075,8 +1074,8 @@ def extract_hyper_posterior(preprocessed_path, max_draws=2000, seed=0):
     """
     Extract posterior draws of the 8 hyperparameters from preprocessed file.
 
-    Uses only the last batch (final converged state) and subsamples to
-    max_draws for efficient KDE computation.
+    Uses second half as burn-in (consistent with standard practice) and
+    subsamples to max_draws for efficient KDE computation.
 
     Args:
         preprocessed_path: Path to hyperparams_preprocessed.npz
@@ -1098,16 +1097,17 @@ def extract_hyper_posterior(preprocessed_path, max_draws=2000, seed=0):
     print(f"  Loading preprocessed hyperparameters from {preprocessed_path.name}...")
     d = np.load(preprocessed_path)
 
-    # Use only the last batch (final history file = converged state)
-    batch_boundaries = d['batch_boundaries']
-    last_start = int(batch_boundaries[-2]) if len(batch_boundaries) > 1 else 0
+    # Use second half as burn-in (batch_boundaries are in iteration space,
+    # not row-index space, so unreliable after beta=1 filtering)
+    n_samples = d['r_mean'].shape[0]
     n_chains = d['r_mean'].shape[1]
+    burn_start = n_samples // 2
 
     param_names = ['r_mean', 'r_logsd', 'phi_mean', 'phi_logsd',
                    'eta_mean', 'eta_logsd', 'lambda_mean', 'lambda_logsd']
-    hyper = np.stack([d[name][last_start:] for name in param_names], axis=-1)
+    hyper = np.stack([d[name][burn_start:] for name in param_names], axis=-1)
     hyper_flat = hyper.reshape(-1, 8)
-    print(f"  Last batch: {hyper.shape[0]} samples x {n_chains} chains "
+    print(f"  After burn-in: {hyper.shape[0]} samples x {n_chains} chains "
           f"= {hyper_flat.shape[0]} draws")
 
     # Subsample if needed
@@ -1200,8 +1200,6 @@ def plot_predictive_ce_overlay(prior_ce, post_info_ce, post_uninf_ce, prizes,
     ax.set_xlabel('Certainty Equivalent')
     ax.set_ylabel('Density')
     ax.set_xlim(prize_min, prize_max)
-    ax.legend(loc='upper right', fontsize=9, framealpha=0.9)
-
     plt.tight_layout()
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)

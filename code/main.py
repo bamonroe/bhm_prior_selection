@@ -170,7 +170,13 @@ PREDICTIVE_OVERLAY_CONFIG = {
     'n_mc_prior': 2000,        # MC draws from hyperprior for prior predictive
     'subsample_seed': 99,      # Seed for subsampling hyper draws
     'ce_figsize': (6.3, 3.5),          # CE overlay plot dimensions (inches)
-    'params_figsize': (6.3, 7.2),      # Parameter overlay plot dimensions (inches)
+    'params_figsize': (4.75, 7.2),      # Parameter overlay plot dimensions (inches)
+}
+
+# Hyperparameter comparison plot (prior vs informative vs uninformative posteriors)
+HYPER_COMPARISON_CONFIG = {
+    'figsize': (6.3, 7.2),    # Plot dimensions (width, height) in inches
+    'tail': 0.005,            # Tail probability for x-axis range (0.005 = 99% coverage)
 }
 
 # =============================================================================
@@ -223,13 +229,14 @@ do_posterior_predictive_ce_uninf = False
 do_posterior_ce_comparison       = False
 
 # --- Plots ---
-do_prior_plots               = False
+do_prior_plots               = True
 do_hyper_plots_info          = False
 do_subject_plots_info        = False
 do_hyper_plots_uninf         = False
 do_subject_plots_uninf       = False
-do_predictive_ce_overlay     = False
-do_paper_plots               = False
+do_predictive_ce_overlay     = True
+
+do_paper_plots               = True
 
 # --- Appendix Examples ---
 do_skew_normal_example  = False
@@ -426,6 +433,7 @@ if __name__ == '__main__':
             uninf_hyper_path=uninf_hyper_path if uninf_hyper_path.exists() else None,
             hyperprior_specs_info=hp_specs_info,
             hyperprior_specs_uninf=UNINFORMATIVE_HYPERPRIOR,
+            hyper_comparison_config=HYPER_COMPARISON_CONFIG,
         )
 
     # -------------------------------------------------------------------------

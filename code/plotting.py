@@ -1112,13 +1112,137 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
     )
 
 
-def paper_plots(quantities_path, plots_dir):
+def plot_hyper_comparison(info_path, uninf_path, output_path,
+                         hyperprior_specs_info=None,
+                         hyperprior_specs_uninf=None):
+    """
+    Plot posterior density comparison for each hyperparameter.
+
+    Produces a single PDF with one row per hyperparameter, showing overlaid
+    KDE densities from informative and uninformative posteriors.
+
+    Args:
+        info_path: Path to informative hyperparams_preprocessed.npz
+        uninf_path: Path to uninformative hyperparams_preprocessed.npz
+        output_path: Path to save the output PDF
+        hyperprior_specs_info: Informative hyperprior specs (for prior overlay)
+        hyperprior_specs_uninf: Uninformative hyperprior specs (for prior overlay)
+    """
+    info_path = Path(info_path)
+    uninf_path = Path(uninf_path)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    info_data = np.load(info_path)
+    uninf_data = np.load(uninf_path)
+
+    # Use second half as post burn-in
+    def _get_post_burnin(data, state_name):
+        samples = data[state_name]  # (n_samples, n_chains)
+        n = samples.shape[0]
+        return samples[n // 2:, :].flatten()
+
+    # Compute prior densities if specs provided
+    prior_info_q = compute_hyperprior_quantiles(hyperprior_specs_info) if hyperprior_specs_info else None
+    prior_uninf_q = compute_hyperprior_quantiles(hyperprior_specs_uninf) if hyperprior_specs_uninf else None
+
+    COLOR_INFO = '#377eb8'     # blue
+    COLOR_UNINF = '#e41a1c'    # red
+
+    # 2-column layout: means (left), log-sdevs (right), 4 rows (r, phi, eta, lambda)
+    PARAM_PAIRS = [
+        ('r_mean', r'$\mu_r$', 'r_logsd', r'$\ln\sigma_r$'),
+        ('phi_mean', r'$\mu_{\phi}$ (log scale)', 'phi_logsd', r'$\ln\sigma_{\phi}$'),
+        ('eta_mean', r'$\mu_{\eta}$ (log scale)', 'eta_logsd', r'$\ln\sigma_{\eta}$'),
+        ('lambda_mean', r'$\mu_{\lambda}$ (log scale)', 'lambda_logsd', r'$\ln\sigma_{\lambda}$'),
+    ]
+
+    n_rows = len(PARAM_PAIRS)
+    # Size to match LaTeX \textwidth (a4paper + geometry defaults ≈ 6.3in)
+    fig, axes = plt.subplots(n_rows, 2, figsize=(6.3, 1.8 * n_rows))
+
+    for row, (mean_name, mean_label, logsd_name, logsd_label) in enumerate(PARAM_PAIRS):
+        for col, (state_name, latex_label) in enumerate(
+            [(mean_name, mean_label), (logsd_name, logsd_label)]
+        ):
+            ax = axes[row, col]
+
+            flat_info = _get_post_burnin(info_data, state_name)
+            flat_uninf = _get_post_burnin(uninf_data, state_name)
+
+            # Common x range using percentiles, expanded to include prior quantiles
+            lo = min(np.percentile(flat_info, 0.5), np.percentile(flat_uninf, 0.5))
+            hi = max(np.percentile(flat_info, 99.5), np.percentile(flat_uninf, 99.5))
+            data_span = hi - lo
+            # Expand range to include informative prior quantiles
+            if prior_info_q and state_name in prior_info_q:
+                med, ci_lo, ci_hi = prior_info_q[state_name]
+                for v in [med, ci_lo, ci_hi]:
+                    if np.isfinite(v):
+                        lo = min(lo, v)
+                        hi = max(hi, v)
+            margin = 0.15 * (hi - lo)
+            x = np.linspace(lo - margin, hi + margin, 300)
+
+            # KDE for informative
+            try:
+                kde_info = stats.gaussian_kde(flat_info)
+                ax.fill_between(x, kde_info(x), alpha=0.3, color=COLOR_INFO)
+                ax.plot(x, kde_info(x), color=COLOR_INFO, lw=1.5, label='Informative')
+            except Exception:
+                ax.hist(flat_info, bins=80, density=True, alpha=0.3, color=COLOR_INFO,
+                        label='Informative')
+
+            # KDE for uninformative
+            try:
+                kde_uninf = stats.gaussian_kde(flat_uninf)
+                ax.fill_between(x, kde_uninf(x), alpha=0.3, color=COLOR_UNINF)
+                ax.plot(x, kde_uninf(x), color=COLOR_UNINF, lw=1.5, label='Uninformative')
+            except Exception:
+                ax.hist(flat_uninf, bins=80, density=True, alpha=0.3, color=COLOR_UNINF,
+                        label='Uninformative')
+
+            # Informative prior reference lines: green dashed=mean, green dotted=95% CI
+            COLOR_PRIOR = '#2ca02c'  # green
+            if prior_info_q and state_name in prior_info_q:
+                med, ci_lo, ci_hi = prior_info_q[state_name]
+                if np.isfinite(med):
+                    ax.axvline(med, color=COLOR_PRIOR, linestyle='--',
+                               lw=1.0, alpha=0.7)
+                if np.isfinite(ci_lo):
+                    ax.axvline(ci_lo, color=COLOR_PRIOR, linestyle=':',
+                               lw=1.5, alpha=0.6)
+                if np.isfinite(ci_hi):
+                    ax.axvline(ci_hi, color=COLOR_PRIOR, linestyle=':',
+                               lw=1.5, alpha=0.6)
+
+            ax.set_xlabel(latex_label)
+            ax.set_ylabel('Density')
+            if row == 0 and col == 0:
+                ax.legend(loc='upper right', fontsize=9)
+            ax.grid(True, alpha=0.2)
+            ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, min_n_ticks=5))
+            ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, min_n_ticks=4))
+
+    plt.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+    print(f"  Saved hyperparameter comparison: {output_path}")
+
+
+def paper_plots(quantities_path, plots_dir,
+                info_hyper_path=None, uninf_hyper_path=None,
+                hyperprior_specs_info=None, hyperprior_specs_uninf=None):
     """
     Generate publication-ready plots for the paper.
 
     Args:
         quantities_path: Path to paper_quantities.npz
         plots_dir: Directory to save plots
+        info_hyper_path: Path to informative hyperparams_preprocessed.npz
+        uninf_hyper_path: Path to uninformative hyperparams_preprocessed.npz
+        hyperprior_specs_info: Informative hyperprior specs (for prior overlay)
+        hyperprior_specs_uninf: Uninformative hyperprior specs (for prior overlay)
     """
     quantities_path = Path(quantities_path)
     plots_dir = Path(plots_dir)
@@ -1134,8 +1258,14 @@ def paper_plots(quantities_path, plots_dir):
     print(f"  n_samples (post burn-in): {data['n_samples_post_burnin']}")
     print(f"  R-hat max: {data['rhat_max']:.4f}")
 
-    # TODO: Add specific paper plots as needed
-    print("  Paper plots not yet implemented")
+    # Hyperparameter posterior comparison
+    if info_hyper_path and uninf_hyper_path:
+        plot_hyper_comparison(
+            info_hyper_path, uninf_hyper_path,
+            plots_dir / 'hyper_comparison.pdf',
+            hyperprior_specs_info=hyperprior_specs_info,
+            hyperprior_specs_uninf=hyperprior_specs_uninf,
+        )
 
 
 # =============================================================================

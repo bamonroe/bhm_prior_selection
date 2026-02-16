@@ -490,76 +490,120 @@ def plot_posterior_predictive_ce(ce_flat, prizes, output_path, label,
     print(f"  Plot saved to: {output_path}")
 
 
-def plot_subject_ce_comparison(ce_info, ce_uninf, prizes, sid,
-                               output_path):
-    """
-    Plot overlaid histograms comparing informative vs uninformative posterior
-    predictive CE distributions for a single subject.
+def _parse_overlay_style(style):
+    """Extract labels and colors from overlay style dict.
 
     Args:
+        style: Dict with 'prior'/'info'/'uninf' keys, each containing
+               'label' and 'color' subkeys. None uses defaults.
+
+    Returns:
+        (labels, colors) tuple of dicts keyed by 'prior', 'info', 'uninf'.
+    """
+    defaults = {
+        'prior': {'label': 'Prior',   'color': '0.5'},
+        'info':  {'label': 'Info',    'color': 'steelblue'},
+        'uninf': {'label': 'No Info', 'color': 'orange'},
+    }
+    if style is None:
+        style = {}
+    labels, colors = {}, {}
+    for key in ('prior', 'info', 'uninf'):
+        entry = style.get(key, {})
+        labels[key] = entry.get('label', defaults[key]['label'])
+        colors[key] = entry.get('color', defaults[key]['color'])
+    return labels, colors
+
+
+def plot_subject_ce_comparison(ce_prior, ce_info, ce_uninf, prizes, sid,
+                               output_path, figsize=(6.3, 3.5), style=None):
+    """
+    Plot overlaid KDE curves comparing prior, informative, and uninformative
+    posterior predictive CE distributions for a single subject.
+
+    Args:
+        ce_prior: 1D array of prior predictive CE draws (population-level)
         ce_info: 1D array of CE draws (informative prior) for one subject
         ce_uninf: 1D array of CE draws (uninformative prior) for one subject
         prizes: Array of 3 prizes [min, mid, max]
         sid: Subject index (0-based)
         output_path: Path to save PDF
+        figsize: Figure dimensions in inches
+        style: Dict with 'prior'/'info'/'uninf' keys, each containing
+               'label' and 'color' subkeys
     """
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
+    from matplotlib import font_manager
+    from scipy.stats import gaussian_kde
 
+    # Configure LaTeX fonts (Latin Modern)
+    code_dir = Path(__file__).parent
+    for fname in ('lmroman12-italic.otf', 'latinmodern-math.otf'):
+        fpath = code_dir / fname
+        if fpath.exists():
+            font_manager.fontManager.addfont(str(fpath))
+    plt.rcParams.update({
+        'font.family': 'serif',
+        'font.serif': ['Latin Modern Roman', 'DejaVu Serif', 'serif'],
+        'mathtext.fontset': 'cm',
+        'axes.unicode_minus': False,
+    })
+
+    lbl, clr = _parse_overlay_style(style)
+
+    has_prior = ce_prior is not None and len(np.asarray(ce_prior)) > 0
+    if has_prior:
+        ce_prior = np.asarray(ce_prior)
     ce_info = np.asarray(ce_info)
     ce_uninf = np.asarray(ce_uninf)
     prizes = np.asarray(prizes)
 
-    ev = np.mean(prizes)
+    prize_min = float(prizes[0])
+    prize_max = float(prizes[-1])
+    x_grid = np.linspace(prize_min, prize_max, 500)
 
-    # Filter non-finite
-    ce_info = ce_info[np.isfinite(ce_info)]
-    ce_uninf = ce_uninf[np.isfinite(ce_uninf)]
+    def compute_kde(data, x):
+        d = data[(data >= prize_min) & (data <= prize_max) & np.isfinite(data)]
+        if len(d) < 10:
+            return np.zeros_like(x)
+        return gaussian_kde(d, bw_method='scott')(x)
 
-    med_info = np.median(ce_info)
-    med_uninf = np.median(ce_uninf)
-    med_diff = abs(med_info - med_uninf)
+    kde_info = compute_kde(ce_info, x_grid)
+    kde_uninf = compute_kde(ce_uninf, x_grid)
 
-    # Display range: 1st-99th percentile of combined data
-    combined = np.concatenate([ce_info, ce_uninf])
-    x_lo, x_hi = np.percentile(combined, [1, 99])
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
 
-    fig, ax = plt.subplots(1, 1, figsize=(8, 5))
+    if has_prior:
+        kde_prior = compute_kde(ce_prior, x_grid)
+        ax.plot(x_grid, kde_prior, color=clr['prior'], linewidth=1.5, label=lbl['prior'])
+        ax.fill_between(x_grid, kde_prior, alpha=0.15, color=clr['prior'])
+        ax.axvline(np.median(ce_prior[np.isfinite(ce_prior)]),
+                   color=clr['prior'], linestyle=':', linewidth=1.2)
 
-    ax.hist(ce_uninf, bins=150, density=True, alpha=0.5, color='steelblue',
-            range=(x_lo, x_hi), label='Uninformative prior')
-    ax.hist(ce_info, bins=150, density=True, alpha=0.5, color='coral',
-            range=(x_lo, x_hi), label='Informative prior')
+    ax.plot(x_grid, kde_info, color=clr['info'], linewidth=1.8, label=lbl['info'])
+    ax.fill_between(x_grid, kde_info, alpha=0.2, color=clr['info'])
 
-    # Median lines
-    ax.axvline(med_uninf, color='steelblue', linestyle='-', linewidth=1.5,
-               label=f'Uninf. median = {med_uninf:.0f}')
-    ax.axvline(med_info, color='coral', linestyle='-', linewidth=1.5,
-               label=f'Info. median = {med_info:.0f}')
+    ax.plot(x_grid, kde_uninf, color=clr['uninf'], linewidth=1.8, label=lbl['uninf'])
+    ax.fill_between(x_grid, kde_uninf, alpha=0.2, color=clr['uninf'])
 
-    # EV reference
-    ax.axvline(ev, color='black', linestyle='-', linewidth=1.5,
-               label=f'EV = {ev:.0f}')
+    # Risk-neutral EV line
+    ev = float(np.mean(prizes))
+    ax.axvline(ev, color='red', linestyle='-', linewidth=1.2, label='Risk Neutral')
 
-    # Prize lines
-    for p in prizes:
-        ax.axvline(p, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
-
-    # Text box
-    text = (f'Median diff = {med_diff:.0f}\n'
-            f'Info. median = {med_info:.0f}\n'
-            f'Uninf. median = {med_uninf:.0f}')
-    ax.text(0.97, 0.95, text, transform=ax.transAxes,
-            fontsize=9, verticalalignment='top', horizontalalignment='right',
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    # Median dotted lines
+    ax.axvline(np.median(ce_info[np.isfinite(ce_info)]),
+               color=clr['info'], linestyle=':', linewidth=1.2)
+    ax.axvline(np.median(ce_uninf[np.isfinite(ce_uninf)]),
+               color=clr['uninf'], linestyle=':', linewidth=1.2)
 
     ax.set_xlabel('Certainty Equivalent')
     ax.set_ylabel('Density')
-    ax.set_title(f'Subject {sid}: Posterior Predictive CE\n'
-                 '(Informative vs Uninformative Prior)')
-    ax.set_xlim(x_lo, x_hi)
-    ax.legend(loc='upper left', fontsize=8)
+    ax.set_xlim(prize_min, prize_max)
+    ax.legend(loc='upper right', fontsize=8)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
     output_path = Path(output_path)
@@ -569,7 +613,8 @@ def plot_subject_ce_comparison(ce_info, ce_uninf, prizes, sid,
     print(f"  Plot saved to: {output_path}")
 
 
-def run_posterior_ce_comparison(data_dir, output_dir):
+def run_posterior_ce_comparison(data_dir, output_dir, prior_ce_path=None,
+                                figsize=(6.3, 3.5), style=None):
     """
     Compare posterior predictive CE distributions per subject between
     informative and uninformative priors.
@@ -581,6 +626,10 @@ def run_posterior_ce_comparison(data_dir, output_dir):
     Args:
         data_dir: Path to data directory (contains output/ with NPZ files)
         output_dir: Path for output plots
+        prior_ce_path: Optional path to prior predictive CE NPZ for overlay
+        figsize: Figure dimensions for subject CE plots
+        style: Dict with 'prior'/'info'/'uninf' keys, each containing
+               'label' and 'color' subkeys
     """
     data_dir = Path(data_dir)
     output_dir = Path(output_dir)
@@ -663,20 +712,39 @@ def run_posterior_ce_comparison(data_dir, output_dir):
     )
     print(f"  Saved comparison NPZ to: {npz_path}")
 
+    # --- Load prior predictive CE for overlay ---
+    ce_prior_flat = None
+    if prior_ce_path is not None:
+        prior_ce_path = Path(prior_ce_path)
+        if prior_ce_path.exists():
+            print(f"  Loading prior predictive CE from: {prior_ce_path}")
+            prior_data = np.load(prior_ce_path)
+            ce_prior_flat = prior_data['ce_samples'].ravel()
+            ce_prior_flat = ce_prior_flat[np.isfinite(ce_prior_flat)]
+            print(f"  Prior predictive CE: {len(ce_prior_flat)} draws")
+        else:
+            print(f"  Warning: prior CE file not found: {prior_ce_path}")
+
     # --- Plot most and least affected subjects ---
     output_dir.mkdir(parents=True, exist_ok=True)
 
     plot_subject_ce_comparison(
+        ce_prior_flat,
         ce_info[:, most_affected_sid],
         ce_uninf[:, most_affected_sid],
         prizes, most_affected_sid,
         output_dir / 'subject_ce_most_affected.pdf',
+        figsize=figsize,
+        style=style,
     )
     plot_subject_ce_comparison(
+        ce_prior_flat,
         ce_info[:, least_affected_sid],
         ce_uninf[:, least_affected_sid],
         prizes, least_affected_sid,
         output_dir / 'subject_ce_least_affected.pdf',
+        figsize=figsize,
+        style=style,
     )
 
 
@@ -983,7 +1051,7 @@ def draw_params_from_hyperprior(hyperprior_params, n_mc_draws, n_new, seed=42):
 
 
 def plot_predictive_params_overlay(prior_params, info_params, uninf_params,
-                                    output_path, figsize=(6.3, 7.2)):
+                                    output_path, figsize=(6.3, 7.2), style=None):
     """
     Plot 4-panel overlay of predictive parameter distributions.
 
@@ -996,6 +1064,7 @@ def plot_predictive_params_overlay(prior_params, info_params, uninf_params,
         uninf_params: dict (uninformative posterior)
         output_path: Path to save PDF
         figsize: Figure dimensions in inches (width, height)
+        style: Overlay style dict
     """
     import matplotlib
     matplotlib.use('Agg')
@@ -1015,6 +1084,8 @@ def plot_predictive_params_overlay(prior_params, info_params, uninf_params,
         'mathtext.fontset': 'cm',
         'axes.unicode_minus': False,
     })
+
+    lbl, clr = _parse_overlay_style(style)
 
     param_keys = ['r', 'phi', 'eta', 'lambda']
     param_labels = [r'$r$ (CRRA)', r'$\phi$ (Prelec curvature)',
@@ -1044,24 +1115,28 @@ def plot_predictive_params_overlay(prior_params, info_params, uninf_params,
         kde_info = compute_kde(info)
         kde_uninf = compute_kde(uninf)
 
-        ax.plot(x_grid, kde_prior, color='0.5', linewidth=1.5,
-                label='Prior predictive')
-        ax.fill_between(x_grid, kde_prior, alpha=0.15, color='0.5')
+        ax.plot(x_grid, kde_prior, color=clr['prior'], linewidth=1.5, label=lbl['prior'])
+        ax.fill_between(x_grid, kde_prior, alpha=0.15, color=clr['prior'])
 
-        ax.plot(x_grid, kde_info, color='steelblue', linewidth=1.8,
-                label='Posterior (informative)')
-        ax.fill_between(x_grid, kde_info, alpha=0.2, color='steelblue')
+        ax.plot(x_grid, kde_info, color=clr['info'], linewidth=1.8, label=lbl['info'])
+        ax.fill_between(x_grid, kde_info, alpha=0.2, color=clr['info'])
 
-        ax.plot(x_grid, kde_uninf, color='coral', linewidth=1.8,
-                label='Posterior (uninformative)')
-        ax.fill_between(x_grid, kde_uninf, alpha=0.2, color='coral')
+        ax.plot(x_grid, kde_uninf, color=clr['uninf'], linewidth=1.8, label=lbl['uninf'])
+        ax.fill_between(x_grid, kde_uninf, alpha=0.2, color=clr['uninf'])
+
+        # Median dotted lines (in matching colors)
+        ax.axvline(np.median(prior), color=clr['prior'], linestyle=':', linewidth=1.2)
+        ax.axvline(np.median(info), color=clr['info'], linestyle=':', linewidth=1.2)
+        ax.axvline(np.median(uninf), color=clr['uninf'], linestyle=':', linewidth=1.2)
 
         ax.set_xlabel(label)
         ax.set_ylabel('Density')
         ax.set_xlim(x_lo, x_hi)
 
-    pass  # no legend
-
+    axes[0].legend(loc='upper right', fontsize=8)
+    for ax in axes:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
     plt.tight_layout()
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1121,7 +1196,7 @@ def extract_hyper_posterior(preprocessed_path, max_draws=2000, seed=0):
 
 
 def plot_predictive_ce_overlay(prior_ce, post_info_ce, post_uninf_ce, prizes,
-                                output_path, figsize=(6.3, 3.5)):
+                                output_path, figsize=(6.3, 3.5), style=None):
     """
     Plot three overlaid KDE curves of predictive CE distributions.
 
@@ -1135,6 +1210,7 @@ def plot_predictive_ce_overlay(prior_ce, post_info_ce, post_uninf_ce, prizes,
         prizes: Array of 3 prizes [min, mid, max]
         output_path: Path to save PDF
         figsize: Figure dimensions in inches (width, height)
+        style: Overlay style dict
     """
     import matplotlib
     matplotlib.use('Agg')
@@ -1154,6 +1230,8 @@ def plot_predictive_ce_overlay(prior_ce, post_info_ce, post_uninf_ce, prizes,
         'mathtext.fontset': 'cm',
         'axes.unicode_minus': False,
     })
+
+    lbl, clr = _parse_overlay_style(style)
 
     prior_ce = np.asarray(prior_ce)
     post_info_ce = np.asarray(post_info_ce)
@@ -1181,25 +1259,30 @@ def plot_predictive_ce_overlay(prior_ce, post_info_ce, post_uninf_ce, prizes,
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     # KDE curves
-    ax.plot(x_grid, kde_prior, color='0.5', linewidth=1.5, label='Prior predictive')
-    ax.fill_between(x_grid, kde_prior, alpha=0.15, color='0.5')
+    ax.plot(x_grid, kde_prior, color=clr['prior'], linewidth=1.5, label=lbl['prior'])
+    ax.fill_between(x_grid, kde_prior, alpha=0.15, color=clr['prior'])
 
-    ax.plot(x_grid, kde_info, color='steelblue', linewidth=1.8,
-            label='Posterior (informative)')
-    ax.fill_between(x_grid, kde_info, alpha=0.2, color='steelblue')
+    ax.plot(x_grid, kde_info, color=clr['info'], linewidth=1.8, label=lbl['info'])
+    ax.fill_between(x_grid, kde_info, alpha=0.2, color=clr['info'])
 
-    ax.plot(x_grid, kde_uninf, color='coral', linewidth=1.8,
-            label='Posterior (uninformative)')
-    ax.fill_between(x_grid, kde_uninf, alpha=0.2, color='coral')
+    ax.plot(x_grid, kde_uninf, color=clr['uninf'], linewidth=1.8, label=lbl['uninf'])
+    ax.fill_between(x_grid, kde_uninf, alpha=0.2, color=clr['uninf'])
 
-    # Reference lines
-    ax.axvline(ev, color='black', linestyle=':', linewidth=1.5)
-    for p in prizes:
-        ax.axvline(p, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
+    # Risk-neutral EV line
+    ev = float(np.mean(prizes))
+    ax.axvline(ev, color='red', linestyle='-', linewidth=1.2, label='Risk Neutral')
+
+    # Median dotted lines (in matching colors)
+    ax.axvline(np.median(prior_ce), color=clr['prior'], linestyle=':', linewidth=1.2)
+    ax.axvline(np.median(post_info_ce), color=clr['info'], linestyle=':', linewidth=1.2)
+    ax.axvline(np.median(post_uninf_ce), color=clr['uninf'], linestyle=':', linewidth=1.2)
 
     ax.set_xlabel('Certainty Equivalent')
     ax.set_ylabel('Density')
     ax.set_xlim(prize_min, prize_max)
+    ax.legend(loc='upper right', fontsize=8)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.tight_layout()
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1249,6 +1332,7 @@ def run_predictive_ce_overlay(
     subsample_seed = config.get('subsample_seed', 99)
     ce_figsize = tuple(config.get('ce_figsize', (6.3, 3.5)))
     params_figsize = tuple(config.get('params_figsize', (6.3, 7.2)))
+    plot_style = config.get('style', None)
 
     data_dir = Path(data_dir)
     output_dir = Path(output_dir)
@@ -1339,11 +1423,11 @@ def run_predictive_ce_overlay(
     plot_path = output_dir / 'predictive_ce_overlay.pdf'
     plot_predictive_ce_overlay(
         prior_ce_flat, post_info_ce, post_uninf_ce, prizes, plot_path,
-        figsize=ce_figsize,
+        figsize=ce_figsize, style=plot_style,
     )
 
     params_plot_path = output_dir / 'predictive_params_overlay.pdf'
     plot_predictive_params_overlay(
         prior_params, info_params, uninf_params, params_plot_path,
-        figsize=params_figsize,
+        figsize=params_figsize, style=plot_style,
     )

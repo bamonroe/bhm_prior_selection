@@ -624,8 +624,11 @@ posterior.
 \subsection{Posterior Predictive Distribution of Certainty Equivalent}
 
 \begin{pycode}
-subject_max_ce = 11
-subject_min = 12
+_ce_comp = np.load("../data/output/posterior_ce_comparison.npz")
+subject_most_affected = int(_ce_comp['most_affected_sid'])
+subject_least_affected = int(_ce_comp['least_affected_sid'])
+subject_max_ce = subject_most_affected
+subject_min_ce = subject_least_affected
 \end{pycode}
 
 The Certainty Equivalent (CE) a lottery is the amount of money that provides an
@@ -647,11 +650,16 @@ all $x$, is defined as:
 The CE in (\ref{eq:CE}) can be calculated for any vector $\theta_i = [r_i,
 \phi_i, \eta_i, \lambda_i]$. Using the sampled draws of $\theta_i$ from the
 posterior distribution results in a posterior predictive distribution of CEs. I
-report 3 results relating to the CE of this reference lottery: First, I show
-the hyper-prior predictive distribution using our informed hyper-prior, second,
-I show the hyper-posterior predictive of the CE which uses draws from the
-hyper-parameters from which parameters, and finally, I examine two individual
-subjects predictive posterior distributions.
+focus on two results with respect to the CE. Figure \ref{fig:hyper_post_ce}
+shows the hyper-prior predictive distribution of the CE using our informed
+hyper-prior, and the hyper-posterior predictive of the CE for both informative
+and uninformative priors. Figures \ref{fig:post_ce_min} and
+\ref{fig:post_ce_max} examine two individual subjects predictive posterior
+distributions. Figure \ref{fig:post_ce_min} shows the posterior predictive
+distribution of the subject who has the smallest difference in the median CE
+between the informative and uninformative models, while Figure
+\ref{fig:post_ce_max} shows the subject with the largest difference in median
+CE.
 
 \begin{figure}[hp]
   \centering
@@ -660,20 +668,20 @@ subjects predictive posterior distributions.
   \includegraphics[width=\textwidth]{../plots/paper/predictive_ce_overlay.pdf}
 \end{figure}
 
-%\begin{figure}[hp]
-%  \centering
-%  \caption{Posterior predictive CE distribution: Subject \py{subject_min_ce}}
-%  \label{fig:hyper_post_comp}
-%  \includegraphics[width=\textwidth]{../plots/paper/hyper_posterior.pdf}
-%\end{figure}
-%
-%\begin{figure}[hp]
-%  \centering
-%  \caption{Posterior predictive CE distribution: Subject \py{subject_max_ce}}
-%  \label{fig:hyper_post_comp}
-%  \includegraphics[width=\textwidth]{../plots/paper/hyper_posterior.pdf}
-%\end{figure}
-%
+\begin{figure}[hp]
+  \centering
+  \caption{Posterior predictive CE: Least Affected (Subject \py{subject_min_ce})}
+  \label{fig:post_ce_min}
+  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_least_affected.pdf}
+\end{figure}
+
+\begin{figure}[hp]
+  \centering
+  \caption{Posterior predictive CE: Most Affected (Subject \py{subject_max_ce})}
+  \label{fig:post_ce_max}
+  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_affected.pdf}
+\end{figure}
+
 
 
 

@@ -1160,6 +1160,26 @@ def _hyperprior_pdf(x, state_name, hyperprior_specs):
         return pdf_ig * jacobian
 
 
+def _hyperprior_median(state_name, hyperprior_specs):
+    """Return the median of the hyperprior distribution for a given state."""
+    if hyperprior_specs is None:
+        return None
+
+    prefix = state_name.split('_')[0]
+    param_key = {'r': 'r', 'phi': 'phi_raw', 'eta': 'eta_raw', 'lambda': 'lambda_raw'}[prefix]
+    if param_key not in hyperprior_specs:
+        return None
+
+    spec = hyperprior_specs[param_key]
+    is_logsd = state_name.endswith('_logsd')
+
+    if not is_logsd:
+        return spec['mu_0']  # Normal median = mean
+    else:
+        ig_median = stats.invgamma.median(spec['alpha_0'], scale=spec['beta_0'])
+        return 0.5 * np.log(ig_median)
+
+
 def _hyperprior_range(state_name, hyperprior_specs, tail=0.005):
     """Return (lo, hi) covering the central 1-2*tail mass of the hyperprior."""
     if hyperprior_specs is None:
@@ -1208,6 +1228,8 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
         config = {}
     figsize = tuple(config.get('figsize', (6.3, 7.2)))
     tail = config.get('tail', 0.005)
+    from prior_predictive_ce import _parse_overlay_style
+    lbl, clr = _parse_overlay_style(config.get('style', None))
     info_path = Path(info_path)
     uninf_path = Path(uninf_path)
     output_path = Path(output_path)
@@ -1222,9 +1244,9 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
         n = samples.shape[0]
         return samples[n // 2:, :].flatten()
 
-    COLOR_INFO = '#377eb8'     # blue
-    COLOR_UNINF = '#e41a1c'    # red
-    COLOR_PRIOR = '0.5'        # gray
+    COLOR_PRIOR = clr['prior']
+    COLOR_INFO = clr['info']
+    COLOR_UNINF = clr['uninf']
 
     # 2-column layout: means (left), log-sdevs (right), 4 rows (r, phi, eta, lambda)
     PARAM_PAIRS = [
@@ -1263,33 +1285,45 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
             # Prior density (informative hyperprior)
             prior_pdf = _hyperprior_pdf(x, state_name, hyperprior_specs_info)
             if prior_pdf is not None:
-                ax.plot(x, prior_pdf, color=COLOR_PRIOR, lw=1.5, label='Prior')
+                ax.plot(x, prior_pdf, color=COLOR_PRIOR, lw=1.5, label=lbl['prior'])
                 ax.fill_between(x, prior_pdf, alpha=0.15, color=COLOR_PRIOR)
 
             # KDE for informative
             try:
                 kde_info = stats.gaussian_kde(flat_info)
                 ax.fill_between(x, kde_info(x), alpha=0.3, color=COLOR_INFO)
-                ax.plot(x, kde_info(x), color=COLOR_INFO, lw=1.5, label='Informative')
+                ax.plot(x, kde_info(x), color=COLOR_INFO, lw=1.5, label=lbl['info'])
             except Exception:
                 ax.hist(flat_info, bins=80, density=True, alpha=0.3, color=COLOR_INFO,
-                        label='Informative')
+                        label=lbl['info'])
 
             # KDE for uninformative
             try:
                 kde_uninf = stats.gaussian_kde(flat_uninf)
                 ax.fill_between(x, kde_uninf(x), alpha=0.3, color=COLOR_UNINF)
-                ax.plot(x, kde_uninf(x), color=COLOR_UNINF, lw=1.5, label='Uninformative')
+                ax.plot(x, kde_uninf(x), color=COLOR_UNINF, lw=1.5, label=lbl['uninf'])
             except Exception:
                 ax.hist(flat_uninf, bins=80, density=True, alpha=0.3, color=COLOR_UNINF,
-                        label='Uninformative')
+                        label=lbl['uninf'])
+
+            # Median dotted lines
+            if prior_pdf is not None:
+                # Prior median from hyperprior specs
+                prior_med = _hyperprior_median(state_name, hyperprior_specs_info)
+                if prior_med is not None:
+                    ax.axvline(prior_med, color=COLOR_PRIOR, linestyle=':', lw=1.2)
+            ax.axvline(np.median(flat_info), color=COLOR_INFO, linestyle=':', lw=1.2)
+            ax.axvline(np.median(flat_uninf), color=COLOR_UNINF, linestyle=':', lw=1.2)
 
             ax.set_xlabel(latex_label)
             ax.set_ylabel('Density')
-            pass  # no legend
+            if row == 0 and col == 0:
+                ax.legend(loc='upper right', fontsize=8)
             ax.grid(True, alpha=0.2)
             ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, min_n_ticks=5))
             ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, min_n_ticks=4))
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
     fig.savefig(output_path)

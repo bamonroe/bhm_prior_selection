@@ -272,13 +272,15 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
     print("Done.\n")
 
 
-def run_posterior_ce_comparison(data_dir, output_dir):
+def run_posterior_ce_comparison(data_dir, output_dir, prior_ce_path=None,
+                                figsize=(6.3, 3.5), style=None):
     """Compare per-subject posterior predictive CE across prior specifications."""
     print("\n" + "=" * 60)
     print("Running: Posterior CE Comparison (Informative vs Uninformative)")
     print("=" * 60)
     from prior_predictive_ce import run_posterior_ce_comparison as _run
-    _run(data_dir, output_dir)
+    _run(data_dir, output_dir, prior_ce_path=prior_ce_path,
+         figsize=figsize, style=style)
     print("Done.\n")
 
 

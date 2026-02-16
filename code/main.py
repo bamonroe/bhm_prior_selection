@@ -163,20 +163,35 @@ N_WORKERS = 25  # Number of parallel workers for plotting, etc.
 # Paper Plot Configuration
 # =============================================================================
 
+# Style for overlay plots (shared across all paper overlay plots)
+OVERLAY_STYLE = {
+    'prior': {'label': 'Prior',   'color': '0.5'},        # gray
+    'info':  {'label': 'Info',    'color': 'steelblue'},
+    'uninf': {'label': 'No Info', 'color': 'orange'},
+}
+
 # Predictive overlay plots (CE and parameter densities)
 PREDICTIVE_OVERLAY_CONFIG = {
-    'max_hyper_draws': 2000,   # Posterior hyper draws to use (subsampled if more)
+    'max_hyper_draws': 5000,   # Posterior hyper draws to use (subsampled if more)
     'n_new': 50,               # New individuals per hyper draw
-    'n_mc_prior': 2000,        # MC draws from hyperprior for prior predictive
+    'n_mc_prior': 5000,        # MC draws from hyperprior for prior predictive
     'subsample_seed': 99,      # Seed for subsampling hyper draws
     'ce_figsize': (6.3, 3.5),          # CE overlay plot dimensions (inches)
     'params_figsize': (4.75, 7.2),      # Parameter overlay plot dimensions (inches)
+    'style': OVERLAY_STYLE,
+}
+
+# Subject CE comparison plots (most/least affected)
+SUBJECT_CE_CONFIG = {
+    'figsize': (6.3, 3.5),    # Plot dimensions (width, height) in inches
+    'style': OVERLAY_STYLE,
 }
 
 # Hyperparameter comparison plot (prior vs informative vs uninformative posteriors)
 HYPER_COMPARISON_CONFIG = {
     'figsize': (6.3, 7.2),    # Plot dimensions (width, height) in inches
     'tail': 0.005,            # Tail probability for x-axis range (0.005 = 99% coverage)
+    'style': OVERLAY_STYLE,
 }
 
 # =============================================================================
@@ -489,7 +504,10 @@ if __name__ == '__main__':
                           'posterior_predictive_ce_uninf'])
         pipelines.run_posterior_ce_comparison(
             data_dir=DATA_DIR,
-            output_dir=plots_dir_info,
+            output_dir=PLOTS_DIR / 'paper',
+            prior_ce_path=OUTPUTS['prior_predictive_ce'],
+            figsize=SUBJECT_CE_CONFIG['figsize'],
+            style=SUBJECT_CE_CONFIG['style'],
         )
 
     if do_predictive_ce_overlay:

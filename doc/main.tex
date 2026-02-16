@@ -563,8 +563,77 @@ the uninformative hyper-prior used by \textcite[279-281]{Gao2022}:
 I assess the impact of these priors in two ways. First, I directly compare the
 posterior distributions of the hyper-parameters for each of the informed and
 uninformed hyper-priors. The second way I assess is by examining the posterior
-predictive distributions for each subject of the certainty equivalent (CE) of a
-lottery with outcomes $x \in [10, 30, 50]$ and $p(x) = 1/3$ for all $x$:
+predictive distributions for each subject of the certainty equivalent (CE) of
+
+\subsection{Hyper-parameter Comparison}
+
+\begin{figure}[hp]
+  \centering
+  \caption{Hyper-parameter comparison}
+  \label{fig:hyper_par_comp}
+  \includegraphics[width=\textwidth]{../plots/paper/hyper_comparison.pdf}
+\end{figure}
+\begin{figure}[hp]
+  \centering
+  \caption{Hyper-posterior distribution}
+  \label{fig:hyper_post_comp}
+  %\includegraphics[width=\textwidth]{../plots/paper/predictive_params_overlay.pdf}
+  \includegraphics[]{../plots/paper/predictive_params_overlay.pdf}
+\end{figure}
+
+I begin with the hyper-parameter comparison in Figure \ref{fig:hyper_par_comp}.
+In this figure, the blue density curve shows the posterior density of the
+hyper-parameters for the informative prior, and the red density curve shos the
+posterior density for the uninformative prior. The vertical dashed green line
+shows the mean of the hyper-prior for that parameter, and the vertical dotted
+green lines show the 90\% confidence interval of the hyper-prior distribution
+for that hyper-parameter.
+
+There are substantial differences in the posterior distributions of the hyper
+parameters between the informative and uninformative posteriors, as might be
+expected. We can see that for all hyper-parameters, the posterior distributions
+are narrower (except for $\mu_\lambda$), indicating greater posterior
+confidence in the potential values of the parameters. We also see that the
+posterior distributions with informative hyper-priors are all closer to the
+mean of the hyper-prior distribution than the uninformative posterior
+distributions (except for $\mu_\phi$).
+
+These results are, in general, totally intuitive. With informative hyper-prior
+distributions, we ought in general, see movement of the posterior distributions
+toward the high-density regions of the hyper-prior distributions, which is
+exactly what we see. The exception to this rule is the posterior distribution
+of the $\mu_\phi$ parameter, which is somewhat farther from the mean of the
+hyper-prior for the informative case compared to the uninformative case. These
+parameters cannot be interpreted fully independently, however, the posterior
+distribution of the $\sigma_\phi$ term is much closer to the hyper-prior mean,
+which may compensate. The difficulty in determining \enquote{how much} it
+matters is the primary motivation of the proposed decomposition of the
+hyper-prior distribution.
+
+In Figure \ref{fig:hyper_post_comp}, we show the draws for the unconditional
+$\theta_i = [r_i, \phi_i, \eta_i, \lambda_i]$ vector from the informative
+hyper-prior distribution (which is equivalent to our direct prior distribution
+by construction), the posterior of the informative hyper-parameter
+distribution, and the uninformative hyper-parameter distribution. We can see
+from this figure a similar story as in Figure \ref{fig:hyper_par_comp}, but
+interpretable in parameter terms that are more interpretable; the informed
+posterior is closer to the hyper-prior distribution than the uninformative
+posterior.
+
+
+\subsection{Posterior Predictive Distribution of Certainty Equivalent}
+
+\begin{pycode}
+subject_max_ce = 11
+subject_min = 12
+\end{pycode}
+
+The Certainty Equivalent (CE) a lottery is the amount of money that provides an
+equivalent utility as a given lottery. The CE can be used as a normalized
+utility function \parencite{King1983}, but is also very useful in terms of
+assessing risk preference models with many interrelated preference parameters.
+The CE for a lottery with outcomes $x \in [10, 30, 50]$ and $p(x) = 1/3$ for
+all $x$, is defined as:
 \begin{align}
 \label{eq:CE}
   \begin{split}
@@ -572,20 +641,43 @@ lottery with outcomes $x \in [10, 30, 50]$ and $p(x) = 1/3$ for all $x$:
     \text{CE} &= \left(\sum_x d_i(x) \frac{x^{1 - r}}{1 - r}\right)^\frac{1}{1 - r}
   \end{split}
 \end{align}
-\noindent The CE in (\ref{eq:CE}) is calculated for each sample vector
-$\theta_i = [r_i, \phi_i, \eta_i, \lambda_i]$, resulting in a posterior
-predictive distribution of CE values for each subject.
+\noindent These outcomes represent the 3 outcomes in the dataset of
+\textcite{Harrison2016}.
 
+The CE in (\ref{eq:CE}) can be calculated for any vector $\theta_i = [r_i,
+\phi_i, \eta_i, \lambda_i]$. Using the sampled draws of $\theta_i$ from the
+posterior distribution results in a posterior predictive distribution of CEs. I
+report 3 results relating to the CE of this reference lottery: First, I show
+the hyper-prior predictive distribution using our informed hyper-prior, second,
+I show the hyper-posterior predictive of the CE which uses draws from the
+hyper-parameters from which parameters, and finally, I examine two individual
+subjects predictive posterior distributions.
 
-\subsection{Hyper-parameter Comparison}
-
-
-\begin{figure}
+\begin{figure}[hp]
   \centering
-  \caption{Hyper-parameter comparison}
-  \label{fig:hyper_par_comp}
-  \includegraphics[width=\textwidth]{../plots/paper/hyper_comparison.pdf}
+  \caption{Hyper-posterior predictive CE distributions}
+  \label{fig:hyper_post_ce}
+  \includegraphics[width=\textwidth]{../plots/paper/predictive_ce_overlay.pdf}
 \end{figure}
+
+%\begin{figure}[hp]
+%  \centering
+%  \caption{Posterior predictive CE distribution: Subject \py{subject_min_ce}}
+%  \label{fig:hyper_post_comp}
+%  \includegraphics[width=\textwidth]{../plots/paper/hyper_posterior.pdf}
+%\end{figure}
+%
+%\begin{figure}[hp]
+%  \centering
+%  \caption{Posterior predictive CE distribution: Subject \py{subject_max_ce}}
+%  \label{fig:hyper_post_comp}
+%  \includegraphics[width=\textwidth]{../plots/paper/hyper_posterior.pdf}
+%\end{figure}
+%
+
+
+
+
 
 
 
@@ -600,8 +692,6 @@ predictive distribution of CE values for each subject.
 
 % Appendices
 \appendixsetup{}
-% Fix hyperref duplicate destination warnings for appendix equations
-\renewcommand{\theHequation}{A.\arabic{equation}}
 
 \appsection{Full Covariance Derivation}
 \label{app:full_cov}

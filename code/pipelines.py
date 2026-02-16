@@ -89,6 +89,9 @@ def run_sampling(sampling_opts, prior_params_path=None):
             'thin_iteration': sampling_opts['thin_iteration'],
             'chunk_size': sampling_opts.get('chunk_size', 100),
             'rng_seed': sampling_opts['seed'],
+            # Parallel tempering
+            'n_temperatures': sampling_opts.get('n_temperatures', 1),
+            'beta_min': sampling_opts.get('beta_min', 0.1),
         },
     )
     print("Done.\n")
@@ -274,6 +277,20 @@ def run_posterior_ce_comparison(data_dir, output_dir):
     print("=" * 60)
     from prior_predictive_ce import run_posterior_ce_comparison as _run
     _run(data_dir, output_dir)
+    print("Done.\n")
+
+
+def run_predictive_ce_overlay(hyper_preprocessed_info, hyper_preprocessed_uninf,
+                               data_dir, direct_prior, prior_selection,
+                               output_dir, seed=123, config=None):
+    """Run population-level predictive CE and parameter overlay plots."""
+    print("\n" + "=" * 60)
+    print("Running: Predictive CE & Parameter Overlay (Prior + Both Posteriors)")
+    print("=" * 60)
+    from prior_predictive_ce import run_predictive_ce_overlay as _run
+    _run(hyper_preprocessed_info, hyper_preprocessed_uninf, data_dir,
+         direct_prior, prior_selection, output_dir,
+         seed=seed, config=config or {})
     print("Done.\n")
 
 

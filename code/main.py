@@ -27,7 +27,7 @@ builtins.print = functools.partial(builtins.print, flush=True)
 # GPU memory preallocation:
 #   'true'  = Preallocate ~90% GPU memory (faster, exclusive GPU use)
 #   'false' = Allocate on-demand (allows GPU sharing, slightly slower)
-os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'true' if False else 'false'
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'true' if True else 'false'
 
 # GPU memory allocator (recommended for large models)
 os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
@@ -160,6 +160,20 @@ SEEDS = {
 N_WORKERS = 25  # Number of parallel workers for plotting, etc.
 
 # =============================================================================
+# Paper Plot Configuration
+# =============================================================================
+
+# Predictive overlay plots (CE and parameter densities)
+PREDICTIVE_OVERLAY_CONFIG = {
+    'max_hyper_draws': 2000,   # Posterior hyper draws to use (subsampled if more)
+    'n_new': 50,               # New individuals per hyper draw
+    'n_mc_prior': 2000,        # MC draws from hyperprior for prior predictive
+    'subsample_seed': 99,      # Seed for subsampling hyper draws
+    'ce_figsize': (6.3, 3.5),          # CE overlay plot dimensions (inches)
+    'params_figsize': (6.3, 7.2),      # Parameter overlay plot dimensions (inches)
+}
+
+# =============================================================================
 # Sampling Options
 # =============================================================================
 
@@ -170,11 +184,14 @@ sampling_opts = {
     'clean': True,
     'reset_runs': 1,
     'resume_runs': 4,
-    'num_chains': 1000,
+    'num_chains': 1000,  # Must be divisible by 16 (n_temperatures * 2) for PT
     'num_collect': 100,
     'thin_iteration': 10,
     'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
     'seed': SEEDS['sampling'],
+    # Parallel tempering (index process with DEO swaps)
+    'n_temperatures': 10,
+    'beta_min': 0.1,
 }
 
 # =============================================================================
@@ -185,31 +202,34 @@ sampling_opts = {
 do_clean_data     = False
 do_gen_paper_data = False
 
-# --- Prior Selection ---
-do_generate_prior       = True
-do_prior_plots          = True
-do_prior_predictive_ce  = True
+# --- Prior Selection & Analysis ---
+do_generate_prior       = False
+do_prior_predictive_ce  = False
 
 # --- MCMC Sampling ---
-do_sampling               = True
+do_sampling               = False
 do_sampling_uninformative = False
 
-# --- Preprocessing ---
-do_preprocess_hyper_info     = True
-do_preprocess_subjects_info  = True
+# --- Preprocessing (extract from history files) ---
+do_preprocess_hyper_info     = False
+do_preprocess_subjects_info  = False
 do_preprocess_hyper_uninf    = False
 do_preprocess_subjects_uninf = False
-do_gen_paper_quantities      = True
 
-# --- Posterior Analysis and Plots ---
-do_hyper_plots_info              = True
-do_subject_plots_info            = True
-do_posterior_predictive_ce_info  = True
-do_paper_plots                   = True
-do_hyper_plots_uninf             = False
-do_subject_plots_uninf           = False
+# --- Posterior Analysis (compute summaries from preprocessed data) ---
+do_gen_paper_quantities          = False
+do_posterior_predictive_ce_info  = False
 do_posterior_predictive_ce_uninf = False
-do_posterior_ce_comparison       = True
+do_posterior_ce_comparison       = False
+
+# --- Plots ---
+do_prior_plots               = False
+do_hyper_plots_info          = False
+do_subject_plots_info        = False
+do_hyper_plots_uninf         = False
+do_subject_plots_uninf       = False
+do_predictive_ce_overlay     = False
+do_paper_plots               = False
 
 # --- Appendix Examples ---
 do_skew_normal_example  = False
@@ -462,6 +482,22 @@ if __name__ == '__main__':
         pipelines.run_posterior_ce_comparison(
             data_dir=DATA_DIR,
             output_dir=plots_dir_info,
+        )
+
+    if do_predictive_ce_overlay:
+        check_dependency('predictive_ce_overlay',
+                         ['prior_predictive_ce'])
+        hyper_pp_info = preprocess_dir_info / 'hyperparams_preprocessed.npz'
+        hyper_pp_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
+        pipelines.run_predictive_ce_overlay(
+            hyper_preprocessed_info=hyper_pp_info,
+            hyper_preprocessed_uninf=hyper_pp_uninf,
+            data_dir=DATA_DIR,
+            direct_prior=DIRECT_PRIOR,
+            prior_selection=PRIOR_SELECTION,
+            output_dir=PLOTS_DIR / 'paper',
+            seed=SEEDS['sampling'],
+            config=PREDICTIVE_OVERLAY_CONFIG,
         )
 
     # -------------------------------------------------------------------------

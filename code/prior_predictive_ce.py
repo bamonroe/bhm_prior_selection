@@ -229,15 +229,13 @@ def plot_prior_predictive_ce(ce_flat, prizes, output_path):
     fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 
     ax.hist(ce_flat, bins=150, density=True, alpha=0.6, color='steelblue',
-            range=(x_lo, x_hi), label='Prior predictive CE')
+            range=(0, 50))
 
     # Reference lines
-    ax.axvline(ev, color='black', linestyle='-', linewidth=1.5,
-               label=f'EV = {ev:.0f}')
+    ax.axvline(ev, color='black', linestyle=':', linewidth=1.5)
     for p in prizes:
         ax.axvline(p, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
-    ax.axvline(median_ce, color='red', linestyle='--', linewidth=1.5,
-               label=f'Median CE = {median_ce:.0f}')
+    ax.axvline(median_ce, color='red', linestyle='--', linewidth=1.5)
     ax.axvline(ci_low, color='red', linestyle=':', linewidth=1.0, alpha=0.7)
     ax.axvline(ci_high, color='red', linestyle=':', linewidth=1.0, alpha=0.7)
 
@@ -249,19 +247,9 @@ def plot_prior_predictive_ce(ce_flat, prizes, output_path):
             fontsize=9, verticalalignment='top', horizontalalignment='right',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
-    # Prize labels
-    prize_labels = ['Min', 'Mid', 'Max']
-    for i, p in enumerate(prizes):
-        if x_lo <= p <= x_hi:
-            ax.text(p, ax.get_ylim()[1] * 0.02, f'{prize_labels[i]}\n{p:.0f}',
-                    ha='center', va='bottom', fontsize=7, color='gray')
-
     ax.set_xlabel('Certainty Equivalent')
     ax.set_ylabel('Density')
-    ax.set_title('Prior Predictive CE Distribution\n'
-                 '(3 equally-likely prizes: min, mid, max)')
-    ax.set_xlim(x_lo, x_hi)
-    ax.legend(loc='upper left', fontsize=8)
+    ax.set_xlim(0, 50)
 
     plt.tight_layout()
     output_path = Path(output_path)
@@ -705,7 +693,7 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
         prior_ce_path: Optional path to prior predictive CE NPZ for overlay
     """
     from clean_data import load_clean_data
-    from bamcmc import combine_batch_histories
+    from helpers import load_and_filter_history
 
     history_dir = Path(history_dir)
     output_dir = Path(output_dir)
@@ -735,7 +723,7 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
 
     last_file = history_files[-1:]
     print(f"  Loading last history file: {last_file[0].name}")
-    history, iterations, _, metadata = combine_batch_histories(last_file)
+    history, iterations, _, metadata = load_and_filter_history(last_file)
     print(f"  History shape: {history.shape}")
 
     # --- Apply burn-in (drop first half) ---
@@ -827,3 +815,537 @@ def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
     plot_path = output_dir / f'posterior_predictive_ce_{label}.pdf'
     plot_posterior_predictive_ce(ce_flat, prizes_ref, plot_path, label,
                                  prior_ce_flat=prior_ce_flat)
+
+
+# =============================================================================
+# Population-Level Posterior Predictive CE (from hyperparameter draws)
+# =============================================================================
+
+def compute_posterior_predictive_ce_from_hyperparams(
+    hyper_samples,
+    prizes,
+    n_new,
+    seed=123,
+):
+    """
+    Compute posterior predictive CE for *new* individuals from hyperparameter draws.
+
+    For each posterior draw of the 8 hyperparameters:
+        1. Extract mu_j (4 population means) and sigma_j = exp(logsd_j)
+        2. Draw n_new individuals: theta ~ N(mu_j, sigma_j^2)
+        3. Transform phi, eta via exp; compute CE
+
+    This integrates over posterior uncertainty in population parameters to give
+    the predictive CE distribution for a random new individual.
+
+    Args:
+        hyper_samples: Array of shape (n_draws, 8) — posterior draws of
+            (mu_r, logsd_r, mu_phi, logsd_phi, mu_eta, logsd_eta,
+             mu_lambda, logsd_lambda)
+        prizes: Array of 3 prizes [min, mid, max], sorted ascending
+        n_new: Number of new individuals to draw per posterior sample
+        seed: Random seed
+
+    Returns:
+        1D array of CEs (flattened over draws × new individuals)
+    """
+    hyper_samples = jnp.array(hyper_samples)
+    prizes_jax = jnp.array(prizes)
+    key = random.PRNGKey(seed)
+
+    def single_draw(carry):
+        """Draw n_new individuals from one posterior hyperparameter sample."""
+        hyper, rng = carry
+
+        # Extract population means and SDs
+        mu_r, logsd_r = hyper[0], hyper[1]
+        mu_phi, logsd_phi = hyper[2], hyper[3]
+        mu_eta, logsd_eta = hyper[4], hyper[5]
+        # mu_lambda, logsd_lambda = hyper[6], hyper[7]  # not needed for CE
+
+        sd_r = jnp.exp(logsd_r)
+        sd_phi = jnp.exp(logsd_phi)
+        sd_eta = jnp.exp(logsd_eta)
+
+        # Draw individual parameters
+        k1, k2, k3 = random.split(rng, 3)
+        r_vals = mu_r + sd_r * random.normal(k1, shape=(n_new,))
+        phi_raw = mu_phi + sd_phi * random.normal(k2, shape=(n_new,))
+        eta_raw = mu_eta + sd_eta * random.normal(k3, shape=(n_new,))
+
+        phi_vals = jnp.exp(phi_raw)
+        eta_vals = jnp.exp(eta_raw)
+
+        def single_ce(r, phi, eta):
+            rdu_val = _rdu_3outcome(r, phi, eta, prizes_jax)
+            return _crra_inverse(rdu_val, r)
+
+        return jax.vmap(single_ce)(r_vals, phi_vals, eta_vals)
+
+    # Generate per-draw RNG keys
+    keys = random.split(key, hyper_samples.shape[0])
+
+    def draw_with_key(hyper_key_pair):
+        hyper, rng = hyper_key_pair
+        return single_draw((hyper, rng))
+
+    all_ces = jax.vmap(draw_with_key)((hyper_samples, keys))  # (n_draws, n_new)
+    return jnp.ravel(all_ces)
+
+
+def draw_params_from_hyper_samples(hyper_samples, n_new, seed=123):
+    """
+    Draw individual-level parameters from posterior hyperparameter samples.
+
+    For each posterior draw of (mu_j, logsd_j), draw n_new individuals on the
+    natural scale: r untransformed, phi/eta/lambda via exp.
+
+    Args:
+        hyper_samples: Array of shape (n_draws, 8)
+        n_new: Number of new individuals per draw
+        seed: Random seed
+
+    Returns:
+        dict with keys 'r', 'phi', 'eta', 'lambda', each a 1D numpy array
+    """
+    hyper_samples = jnp.array(hyper_samples)
+    key = random.PRNGKey(seed)
+
+    def single_draw(hyper, rng):
+        k1, k2, k3, k4 = random.split(rng, 4)
+        r = hyper[0] + jnp.exp(hyper[1]) * random.normal(k1, (n_new,))
+        phi = jnp.exp(hyper[2] + jnp.exp(hyper[3]) * random.normal(k2, (n_new,)))
+        eta = jnp.exp(hyper[4] + jnp.exp(hyper[5]) * random.normal(k3, (n_new,)))
+        lam = jnp.exp(hyper[6] + jnp.exp(hyper[7]) * random.normal(k4, (n_new,)))
+        return r, phi, eta, lam
+
+    keys = random.split(key, hyper_samples.shape[0])
+    r, phi, eta, lam = jax.vmap(single_draw)(hyper_samples, keys)
+
+    return {
+        'r': np.asarray(r.ravel()),
+        'phi': np.asarray(phi.ravel()),
+        'eta': np.asarray(eta.ravel()),
+        'lambda': np.asarray(lam.ravel()),
+    }
+
+
+def draw_params_from_hyperprior(hyperprior_params, n_mc_draws, n_new, seed=42):
+    """
+    Draw individual-level parameters from the hyperprior.
+
+    For each MC draw: sample population params from hyperprior, then draw
+    n_new individuals. Returns natural-scale parameters.
+
+    Args:
+        hyperprior_params: Dict with keys mu_0, tau_0_sq, alpha_0, beta_0
+        n_mc_draws: Number of MC draws from hyperprior
+        n_new: Number of individuals per draw
+        seed: Random seed
+
+    Returns:
+        dict with keys 'r', 'phi', 'eta', 'lambda', each a 1D numpy array
+    """
+    mu_0 = jnp.array(hyperprior_params['mu_0'])
+    tau_0_sq = jnp.array(hyperprior_params['tau_0_sq'])
+    alpha_0 = hyperprior_params['alpha_0']
+    beta_0 = jnp.array(hyperprior_params['beta_0'])
+
+    key = random.PRNGKey(seed)
+
+    def single_draw(rng):
+        k1, k2, k3 = random.split(rng, 3)
+
+        # Draw population params from hyperprior
+        mu_j = mu_0 + jnp.sqrt(tau_0_sq) * random.normal(k1, (4,))
+        gamma_draws = jnp.maximum(random.gamma(k2, alpha_0, (4,)), 1e-10)
+        sigma_j = jnp.sqrt(beta_0 / gamma_draws)
+
+        # Draw individuals
+        z = random.normal(k3, (n_new, 4))
+        theta = mu_j + sigma_j * z
+
+        r = theta[:, 0]
+        phi = jnp.exp(theta[:, 1])
+        eta = jnp.exp(theta[:, 2])
+        lam = jnp.exp(theta[:, 3])
+        return r, phi, eta, lam
+
+    keys = random.split(key, n_mc_draws)
+    r, phi, eta, lam = jax.vmap(single_draw)(keys)
+
+    return {
+        'r': np.asarray(r.ravel()),
+        'phi': np.asarray(phi.ravel()),
+        'eta': np.asarray(eta.ravel()),
+        'lambda': np.asarray(lam.ravel()),
+    }
+
+
+def plot_predictive_params_overlay(prior_params, info_params, uninf_params,
+                                    output_path, figsize=(6.3, 7.2)):
+    """
+    Plot 4-panel overlay of predictive parameter distributions.
+
+    Each panel shows three KDE curves (prior, informative posterior,
+    uninformative posterior) for one parameter on its natural scale.
+
+    Args:
+        prior_params: dict with 'r', 'phi', 'eta', 'lambda' arrays
+        info_params: dict (informative posterior)
+        uninf_params: dict (uninformative posterior)
+        output_path: Path to save PDF
+        figsize: Figure dimensions in inches (width, height)
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib import font_manager
+    from scipy.stats import gaussian_kde
+
+    # Configure LaTeX fonts
+    code_dir = Path(__file__).parent
+    for fname in ('lmroman12-italic.otf', 'latinmodern-math.otf'):
+        fpath = code_dir / fname
+        if fpath.exists():
+            font_manager.fontManager.addfont(str(fpath))
+    plt.rcParams.update({
+        'font.family': 'serif',
+        'font.serif': ['Latin Modern Roman', 'DejaVu Serif', 'serif'],
+        'mathtext.fontset': 'cm',
+        'axes.unicode_minus': False,
+    })
+
+    param_keys = ['r', 'phi', 'eta', 'lambda']
+    param_labels = [r'$r$ (CRRA)', r'$\phi$ (Prelec curvature)',
+                    r'$\eta$ (Prelec elevation)', r'$\lambda$ (noise)']
+
+    fig, axes = plt.subplots(4, 1, figsize=figsize, sharex=False)
+
+    for ax, key, label in zip(axes, param_keys, param_labels):
+        prior = prior_params[key]
+        info = info_params[key]
+        uninf = uninf_params[key]
+
+        # Determine x range from combined data (1st-99th percentile)
+        combined = np.concatenate([prior, info, uninf])
+        combined = combined[np.isfinite(combined)]
+        x_lo, x_hi = np.percentile(combined, [1, 99])
+
+        x_grid = np.linspace(x_lo, x_hi, 500)
+
+        def compute_kde(data):
+            d = data[(data >= x_lo) & (data <= x_hi) & np.isfinite(data)]
+            if len(d) < 10:
+                return np.zeros_like(x_grid)
+            return gaussian_kde(d, bw_method='scott')(x_grid)
+
+        kde_prior = compute_kde(prior)
+        kde_info = compute_kde(info)
+        kde_uninf = compute_kde(uninf)
+
+        ax.plot(x_grid, kde_prior, color='0.5', linewidth=1.5,
+                label='Prior predictive')
+        ax.fill_between(x_grid, kde_prior, alpha=0.15, color='0.5')
+
+        ax.plot(x_grid, kde_info, color='steelblue', linewidth=1.8,
+                label='Posterior (informative)')
+        ax.fill_between(x_grid, kde_info, alpha=0.2, color='steelblue')
+
+        ax.plot(x_grid, kde_uninf, color='coral', linewidth=1.8,
+                label='Posterior (uninformative)')
+        ax.fill_between(x_grid, kde_uninf, alpha=0.2, color='coral')
+
+        ax.set_xlabel(label)
+        ax.set_ylabel('Density')
+        ax.set_xlim(x_lo, x_hi)
+
+    # Single legend at top
+    axes[0].legend(loc='upper right', fontsize=9, framealpha=0.9)
+
+    plt.tight_layout()
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"  Plot saved to: {output_path}")
+
+
+def extract_hyper_posterior(preprocessed_path, max_draws=2000, seed=0):
+    """
+    Extract posterior draws of the 8 hyperparameters from preprocessed file.
+
+    Uses only the last batch (final converged state) and subsamples to
+    max_draws for efficient KDE computation.
+
+    Args:
+        preprocessed_path: Path to hyperparams_preprocessed.npz
+        max_draws: Maximum number of draws to return (default 2000)
+        seed: RNG seed for subsampling
+
+    Returns:
+        Array of shape (n_draws, 8) with posterior hyperparameter draws.
+        Order: (mu_r, logsd_r, mu_phi, logsd_phi, mu_eta, logsd_eta,
+                mu_lambda, logsd_lambda)
+    """
+    preprocessed_path = Path(preprocessed_path)
+    if not preprocessed_path.exists():
+        raise FileNotFoundError(
+            f"Preprocessed hyperparameters not found: {preprocessed_path}\n"
+            "Run the preprocess_hyper step first."
+        )
+
+    print(f"  Loading preprocessed hyperparameters from {preprocessed_path.name}...")
+    d = np.load(preprocessed_path)
+
+    # Use only the last batch (final history file = converged state)
+    batch_boundaries = d['batch_boundaries']
+    last_start = int(batch_boundaries[-2]) if len(batch_boundaries) > 1 else 0
+    n_chains = d['r_mean'].shape[1]
+
+    param_names = ['r_mean', 'r_logsd', 'phi_mean', 'phi_logsd',
+                   'eta_mean', 'eta_logsd', 'lambda_mean', 'lambda_logsd']
+    hyper = np.stack([d[name][last_start:] for name in param_names], axis=-1)
+    hyper_flat = hyper.reshape(-1, 8)
+    print(f"  Last batch: {hyper.shape[0]} samples x {n_chains} chains "
+          f"= {hyper_flat.shape[0]} draws")
+
+    # Subsample if needed
+    if hyper_flat.shape[0] > max_draws:
+        rng = np.random.default_rng(seed)
+        idx = rng.choice(hyper_flat.shape[0], max_draws, replace=False)
+        hyper_flat = hyper_flat[idx]
+        print(f"  Subsampled to {max_draws} draws")
+
+    return hyper_flat
+
+
+def plot_predictive_ce_overlay(prior_ce, post_info_ce, post_uninf_ce, prizes,
+                                output_path, figsize=(6.3, 3.5)):
+    """
+    Plot three overlaid KDE curves of predictive CE distributions.
+
+    Shows how data updates beliefs about the CE distribution for a new
+    random individual under both prior specifications.
+
+    Args:
+        prior_ce: 1D array of prior predictive CEs
+        post_info_ce: 1D array of posterior predictive CEs (informative prior)
+        post_uninf_ce: 1D array of posterior predictive CEs (uninformative prior)
+        prizes: Array of 3 prizes [min, mid, max]
+        output_path: Path to save PDF
+        figsize: Figure dimensions in inches (width, height)
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib import font_manager
+    from scipy.stats import gaussian_kde
+
+    # Configure LaTeX fonts (Latin Modern)
+    code_dir = Path(__file__).parent
+    for fname in ('lmroman12-italic.otf', 'latinmodern-math.otf'):
+        fpath = code_dir / fname
+        if fpath.exists():
+            font_manager.fontManager.addfont(str(fpath))
+    plt.rcParams.update({
+        'font.family': 'serif',
+        'font.serif': ['Latin Modern Roman', 'DejaVu Serif', 'serif'],
+        'mathtext.fontset': 'cm',
+        'axes.unicode_minus': False,
+    })
+
+    prior_ce = np.asarray(prior_ce)
+    post_info_ce = np.asarray(post_info_ce)
+    post_uninf_ce = np.asarray(post_uninf_ce)
+    prizes = np.asarray(prizes)
+
+    ev = np.mean(prizes)
+
+    prize_min = float(prizes[0])
+    prize_max = float(prizes[-1])
+    x_grid = np.linspace(prize_min, prize_max, 500)
+
+    def compute_kde(data, x):
+        """Compute KDE on data clipped to display range."""
+        d = data[(data >= prize_min) & (data <= prize_max) & np.isfinite(data)]
+        if len(d) < 10:
+            return np.zeros_like(x)
+        kde = gaussian_kde(d, bw_method='scott')
+        return kde(x)
+
+    kde_prior = compute_kde(prior_ce, x_grid)
+    kde_info = compute_kde(post_info_ce, x_grid)
+    kde_uninf = compute_kde(post_uninf_ce, x_grid)
+
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+    # KDE curves
+    ax.plot(x_grid, kde_prior, color='0.5', linewidth=1.5, label='Prior predictive')
+    ax.fill_between(x_grid, kde_prior, alpha=0.15, color='0.5')
+
+    ax.plot(x_grid, kde_info, color='steelblue', linewidth=1.8,
+            label='Posterior (informative)')
+    ax.fill_between(x_grid, kde_info, alpha=0.2, color='steelblue')
+
+    ax.plot(x_grid, kde_uninf, color='coral', linewidth=1.8,
+            label='Posterior (uninformative)')
+    ax.fill_between(x_grid, kde_uninf, alpha=0.2, color='coral')
+
+    # Reference lines
+    ax.axvline(ev, color='black', linestyle=':', linewidth=1.5)
+    for p in prizes:
+        ax.axvline(p, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
+
+    ax.set_xlabel('Certainty Equivalent')
+    ax.set_ylabel('Density')
+    ax.set_xlim(prize_min, prize_max)
+    ax.legend(loc='upper right', fontsize=9, framealpha=0.9)
+
+    plt.tight_layout()
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"  Plot saved to: {output_path}")
+
+
+def run_predictive_ce_overlay(
+    hyper_preprocessed_info,
+    hyper_preprocessed_uninf,
+    data_dir,
+    direct_prior,
+    prior_selection,
+    output_dir,
+    seed=123,
+    config=None,
+):
+    """
+    Run the population-level predictive CE and parameter overlay analysis.
+
+    Loads prior predictive CE from existing NPZ, extracts hyperparameter
+    posteriors from preprocessed files, draws new individuals, computes CEs,
+    and generates overlay plots for both CE and individual parameters.
+
+    Args:
+        hyper_preprocessed_info: Path to preprocessed hyperparams (informative)
+        hyper_preprocessed_uninf: Path to preprocessed hyperparams (uninformative)
+        data_dir: Path to data directory (to find prior_predictive_ce.npz)
+        direct_prior: Direct prior dict (for drawing prior predictive params)
+        prior_selection: Prior selection dict with rho, alpha_0
+        output_dir: Path for output plots and NPZ
+        seed: Random seed
+        config: Dict with optional keys:
+            max_hyper_draws (int): Max posterior hyper draws (default 2000)
+            n_new (int): New individuals per hyper draw (default 50)
+            n_mc_prior (int): MC draws from hyperprior (default 2000)
+            subsample_seed (int): Seed for subsampling (default 99)
+            ce_figsize (tuple): CE overlay figure size (default (6.3, 3.5))
+            params_figsize (tuple): Param overlay figure size (default (6.3, 7.2))
+    """
+    if config is None:
+        config = {}
+    max_hyper_draws = config.get('max_hyper_draws', 2000)
+    n_new = config.get('n_new', 50)
+    n_mc_prior = config.get('n_mc_prior', 2000)
+    subsample_seed = config.get('subsample_seed', 99)
+    ce_figsize = tuple(config.get('ce_figsize', (6.3, 3.5)))
+    params_figsize = tuple(config.get('params_figsize', (6.3, 7.2)))
+
+    data_dir = Path(data_dir)
+    output_dir = Path(output_dir)
+
+    # --- Load prior predictive CE ---
+    prior_ce_path = data_dir / 'output' / 'prior_predictive_ce.npz'
+    if not prior_ce_path.exists():
+        raise FileNotFoundError(
+            f"Prior predictive CE not found: {prior_ce_path}\n"
+            "Run do_prior_predictive_ce first."
+        )
+    print("  Loading prior predictive CE...")
+    prior_data = np.load(prior_ce_path)
+    prior_ce_flat = prior_data['ce_samples'].ravel()
+    prior_ce_flat = prior_ce_flat[np.isfinite(prior_ce_flat)]
+    prizes = prior_data['prizes']
+    print(f"  Prior CE: {len(prior_ce_flat)} samples, "
+          f"median={np.median(prior_ce_flat):.1f}")
+
+    # --- Extract hyperparameter posteriors from preprocessed files ---
+    print("\n  Loading informative hyperparameter posterior...")
+    hyper_info = extract_hyper_posterior(
+        hyper_preprocessed_info, max_draws=max_hyper_draws, seed=subsample_seed)
+
+    print("\n  Loading uninformative hyperparameter posterior...")
+    hyper_uninf = extract_hyper_posterior(
+        hyper_preprocessed_uninf, max_draws=max_hyper_draws, seed=subsample_seed + 1)
+
+    # --- Draw individual parameters from posterior hyperparameters ---
+    print(f"\n  Drawing individual parameters (informative, "
+          f"{hyper_info.shape[0]} draws x {n_new} new)...")
+    info_params = draw_params_from_hyper_samples(hyper_info, n_new, seed=seed)
+    print(f"  Drawing individual parameters (uninformative, "
+          f"{hyper_uninf.shape[0]} draws x {n_new} new)...")
+    uninf_params = draw_params_from_hyper_samples(hyper_uninf, n_new, seed=seed + 1)
+
+    # --- Draw prior predictive parameters from hyperprior ---
+    print("  Drawing prior predictive parameters from hyperprior...")
+    from prior_selection import rdu_prelec_prior_selection, derive_hyperpriors
+    ps = rdu_prelec_prior_selection(direct_prior)
+    hp = derive_hyperpriors(ps, rho=prior_selection['rho'],
+                            alpha_0=prior_selection['alpha_0'])
+    hyperprior_params = {
+        'mu_0': hp.mu_0, 'tau_0_sq': hp.tau_0_sq,
+        'alpha_0': hp.alpha_0, 'beta_0': hp.beta_0,
+    }
+    prior_params = draw_params_from_hyperprior(
+        hyperprior_params, n_mc_draws=n_mc_prior, n_new=n_new, seed=seed + 2,
+    )
+
+    # --- Compute posterior predictive CEs for new individuals ---
+    print(f"\n  Computing posterior predictive CEs (informative)...")
+    post_info_ce = np.asarray(
+        compute_posterior_predictive_ce_from_hyperparams(
+            hyper_info, prizes, n_new, seed=seed,
+        )
+    )
+    post_info_ce = post_info_ce[np.isfinite(post_info_ce)]
+    print(f"  Informative posterior CE: {len(post_info_ce)} samples, "
+          f"median={np.median(post_info_ce):.1f}")
+
+    print(f"  Computing posterior predictive CEs (uninformative)...")
+    post_uninf_ce = np.asarray(
+        compute_posterior_predictive_ce_from_hyperparams(
+            hyper_uninf, prizes, n_new, seed=seed + 1,
+        )
+    )
+    post_uninf_ce = post_uninf_ce[np.isfinite(post_uninf_ce)]
+    print(f"  Uninformative posterior CE: {len(post_uninf_ce)} samples, "
+          f"median={np.median(post_uninf_ce):.1f}")
+
+    # --- Save combined NPZ ---
+    npz_path = data_dir / 'output' / 'predictive_ce_overlay.npz'
+    npz_path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(
+        npz_path,
+        prior_ce=prior_ce_flat,
+        post_info_ce=post_info_ce,
+        post_uninf_ce=post_uninf_ce,
+        prizes=prizes,
+        n_new=n_new,
+    )
+    print(f"  Saved NPZ to: {npz_path}")
+
+    # --- Plots ---
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_path = output_dir / 'predictive_ce_overlay.pdf'
+    plot_predictive_ce_overlay(
+        prior_ce_flat, post_info_ce, post_uninf_ce, prizes, plot_path,
+        figsize=ce_figsize,
+    )
+
+    params_plot_path = output_dir / 'predictive_params_overlay.pdf'
+    plot_predictive_params_overlay(
+        prior_params, info_params, uninf_params, params_plot_path,
+        figsize=params_figsize,
+    )

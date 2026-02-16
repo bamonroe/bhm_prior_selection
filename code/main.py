@@ -96,7 +96,7 @@ DIRECT_PRIOR = {
         'sigma2': 0.15,  # sd=0.3, eta 95% CI roughly (0.55, 1.8)
     },
     'lambda_raw': {
-        'mu': -2.0,      # lambda ~ 0.14 (moderate noise)
+        'mu': -2.4,      # lambda ~ 0.14 (moderate noise)
         'sigma2': 1.0,   # sd=1.0, lambda 95% CI roughly (0.02, 1.0)
     },
 }
@@ -168,8 +168,8 @@ sampling_opts = {
     'output_dir': DATA_DIR / 'output',  # bamcmc creates {model}/ subdirectory
     'plots_dir': PLOTS_DIR / 'rdu_bhm',
     'clean': True,
-    'reset_runs': 0,
-    'resume_runs': 5,
+    'reset_runs': 1,
+    'resume_runs': 4,
     'num_chains': 1000,
     'num_collect': 100,
     'thin_iteration': 10,
@@ -182,8 +182,8 @@ sampling_opts = {
 # =============================================================================
 
 # --- Data Pipeline ---
-do_clean_data     = True
-do_gen_paper_data = True
+do_clean_data     = False
+do_gen_paper_data = False
 
 # --- Prior Selection ---
 do_generate_prior       = True
@@ -192,13 +192,13 @@ do_prior_predictive_ce  = True
 
 # --- MCMC Sampling ---
 do_sampling               = True
-do_sampling_uninformative = True
+do_sampling_uninformative = False
 
 # --- Preprocessing ---
 do_preprocess_hyper_info     = True
 do_preprocess_subjects_info  = True
-do_preprocess_hyper_uninf    = True
-do_preprocess_subjects_uninf = True
+do_preprocess_hyper_uninf    = False
+do_preprocess_subjects_uninf = False
 do_gen_paper_quantities      = True
 
 # --- Posterior Analysis and Plots ---
@@ -206,13 +206,13 @@ do_hyper_plots_info              = True
 do_subject_plots_info            = True
 do_posterior_predictive_ce_info  = True
 do_paper_plots                   = True
-do_hyper_plots_uninf             = True
-do_subject_plots_uninf           = True
-do_posterior_predictive_ce_uninf = True
+do_hyper_plots_uninf             = False
+do_subject_plots_uninf           = False
+do_posterior_predictive_ce_uninf = False
 do_posterior_ce_comparison       = True
 
 # --- Appendix Examples ---
-do_skew_normal_example  = True
+do_skew_normal_example  = False
 
 # --- Document Compilation ---
 do_compile_doc          = False
@@ -394,7 +394,19 @@ if __name__ == '__main__':
 
     if do_paper_plots:
         check_dependency('paper_plots', ['paper_quantities'])
-        pipelines.run_paper_plots(OUTPUTS['paper_quantities'], PLOTS_DIR / 'paper')
+        from prior_selection import get_hyperprior_specs_for_plotting
+        info_hyper_path = preprocess_dir_info / 'hyperparams_preprocessed.npz'
+        uninf_hyper_path = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
+        hp_specs_info = get_hyperprior_specs_for_plotting(
+            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], alpha_0=PRIOR_SELECTION['alpha_0']
+        )
+        pipelines.run_paper_plots(
+            OUTPUTS['paper_quantities'], PLOTS_DIR / 'paper',
+            info_hyper_path=info_hyper_path if info_hyper_path.exists() else None,
+            uninf_hyper_path=uninf_hyper_path if uninf_hyper_path.exists() else None,
+            hyperprior_specs_info=hp_specs_info,
+            hyperprior_specs_uninf=UNINFORMATIVE_HYPERPRIOR,
+        )
 
     # -------------------------------------------------------------------------
     # Plotting (Uninformative Prior)

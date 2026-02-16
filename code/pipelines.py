@@ -215,13 +215,19 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
     print("Done.\n")
 
 
-def run_paper_plots(quantities_path, plots_dir):
+def run_paper_plots(quantities_path, plots_dir,
+                    info_hyper_path=None, uninf_hyper_path=None,
+                    hyperprior_specs_info=None, hyperprior_specs_uninf=None):
     """Generate paper plots."""
     print("\n" + "=" * 60)
     print("Running: Paper Plots")
     print("=" * 60)
     from plotting import paper_plots
-    paper_plots(quantities_path, plots_dir)
+    paper_plots(quantities_path, plots_dir,
+                info_hyper_path=info_hyper_path,
+                uninf_hyper_path=uninf_hyper_path,
+                hyperprior_specs_info=hyperprior_specs_info,
+                hyperprior_specs_uninf=hyperprior_specs_uninf)
     print("Done.\n")
 
 

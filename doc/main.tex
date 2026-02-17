@@ -629,7 +629,12 @@ subject_most_affected = int(_ce_comp['most_affected_sid'])
 subject_least_affected = int(_ce_comp['least_affected_sid'])
 subject_max_ce = subject_most_affected
 subject_min_ce = subject_least_affected
-hprior_pred_rs = 10
+_ce_overlay = np.load("../data/output/predictive_ce_overlay.npz")
+hprior_pred_rs = fmt(float(_ce_overlay['prior_pct_above_ev']), 1)
+uninf_ce_rs = fmt(float(_ce_overlay['uninf_pct_above_45']), 1)
+uninf_ce_ra = fmt(float(_ce_overlay['uninf_pct_below_15']), 1)
+info_ce_rs = fmt(float(_ce_overlay['info_pct_above_45']), 1)
+info_ce_ra = fmt(float(_ce_overlay['info_pct_below_15']), 1)
 \end{pycode}
 
 
@@ -690,15 +695,17 @@ Looking first at Figure \ref{fig:hyper_post_ce}, we can see a more general
 picture of the effect of an informed hyper-prior distribution on posterior
 inferences about risk preferences. In this figure, we see that the hyper-prior
 we selected world result in \py{hprior_pred_rs}\% of possible CE values to be
-greater than the expected value of the lottery, suggesting some mild prior
-belief that a random subject might be somewhat risk seeking. Of greater
+greater than the expected value of the lottery, suggesting a not insignificant
+prior belief that a random subject might be risk seeking. Of greater
 interest, however, are the posterior predictive distributions.
-
-
 
 The uniformed posterior predictive distribution, shown in orange, displays a
 wide distribution of possible CEs, with substantial density at extreme values
-of risk aversion, where the CE is very close to the minimum
+of risk aversion. The mode of the uninformative posterior is less than \$15,
+indicating extreme risk aversion. Likewise, \py{uninf_ce_rs}\% of the density
+is above \$45, indicating extreme risk \textit{seeking}. In contrast, only
+\py{info_ce_ra}\% of the CE density is below \$15 for the informative posterior
+and \py{info_ce_rs}\% above \$45.
 
 
 

@@ -1130,7 +1130,6 @@ def plot_predictive_params_overlay(prior_params, info_params, uninf_params,
         ax.axvline(np.median(uninf), color=clr['uninf'], linestyle=':', linewidth=1.2)
 
         ax.set_xlabel(label)
-        ax.set_ylabel('Density')
         ax.set_xlim(x_lo, x_hi)
 
     axes[0].legend(loc='upper right', fontsize=8)
@@ -1404,6 +1403,21 @@ def run_predictive_ce_overlay(
     print(f"  Uninformative posterior CE: {len(post_uninf_ce)} samples, "
           f"median={np.median(post_uninf_ce):.1f}")
 
+    # --- Compute paper quantities ---
+    ev = float(np.mean(prizes))
+    prior_pct_above_ev = 100 * np.mean(prior_ce_flat > ev)
+    info_pct_below_15 = 100 * np.mean(post_info_ce < 15)
+    info_pct_above_45 = 100 * np.mean(post_info_ce > 45)
+    uninf_pct_below_15 = 100 * np.mean(post_uninf_ce < 15)
+    uninf_pct_above_45 = 100 * np.mean(post_uninf_ce > 45)
+
+    print(f"\n  Paper quantities:")
+    print(f"    Prior % > EV ({ev:.0f}):       {prior_pct_above_ev:.1f}%")
+    print(f"    Info % < 15:              {info_pct_below_15:.1f}%")
+    print(f"    Info % > 45:              {info_pct_above_45:.1f}%")
+    print(f"    Uninf % < 15:             {uninf_pct_below_15:.1f}%")
+    print(f"    Uninf % > 45:             {uninf_pct_above_45:.1f}%")
+
     # --- Save combined NPZ ---
     npz_path = data_dir / 'output' / 'predictive_ce_overlay.npz'
     npz_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1414,6 +1428,11 @@ def run_predictive_ce_overlay(
         post_uninf_ce=post_uninf_ce,
         prizes=prizes,
         n_new=n_new,
+        prior_pct_above_ev=prior_pct_above_ev,
+        info_pct_below_15=info_pct_below_15,
+        info_pct_above_45=info_pct_above_45,
+        uninf_pct_below_15=uninf_pct_below_15,
+        uninf_pct_above_45=uninf_pct_above_45,
     )
     print(f"  Saved NPZ to: {npz_path}")
 

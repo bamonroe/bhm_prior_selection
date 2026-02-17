@@ -71,7 +71,7 @@ def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None
         'chunk_size': cfg.get('chunk_size', 100),
         'rng_seed': cfg['rng_seed'],
         # Parallel tempering
-        'n_temperatures': cfg.get('n_temperatures', 1),
+        'n_temperatures': max(cfg.get('n_temperatures', 1), 1),
         'beta_min': cfg.get('beta_min', 0.1),
         'per_temp_proposals': cfg.get('per_temp_proposals', True),
         'use_deo': cfg.get('use_deo', True),

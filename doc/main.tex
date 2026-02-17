@@ -629,7 +629,9 @@ subject_most_affected = int(_ce_comp['most_affected_sid'])
 subject_least_affected = int(_ce_comp['least_affected_sid'])
 subject_max_ce = subject_most_affected
 subject_min_ce = subject_least_affected
+hprior_pred_rs = 10
 \end{pycode}
+
 
 The Certainty Equivalent (CE) a lottery is the amount of money that provides an
 equivalent utility as a given lottery. The CE can be used as a normalized
@@ -647,6 +649,14 @@ all $x$, is defined as:
 \noindent These outcomes represent the 3 outcomes in the dataset of
 \textcite{Harrison2016}.
 
+\begin{figure}[h]
+  \centering
+  \caption{Hyper-posterior predictive CE distributions}
+  \label{fig:hyper_post_ce}
+  \includegraphics[width=\textwidth]{../plots/paper/predictive_ce_overlay.pdf}
+\end{figure}
+
+
 The CE in (\ref{eq:CE}) can be calculated for any vector $\theta_i = [r_i,
 \phi_i, \eta_i, \lambda_i]$. Using the sampled draws of $\theta_i$ from the
 posterior distribution results in a posterior predictive distribution of CEs. I
@@ -663,13 +673,6 @@ CE.
 
 \begin{figure}[hp]
   \centering
-  \caption{Hyper-posterior predictive CE distributions}
-  \label{fig:hyper_post_ce}
-  \includegraphics[width=\textwidth]{../plots/paper/predictive_ce_overlay.pdf}
-\end{figure}
-
-\begin{figure}[hp]
-  \centering
   \caption{Posterior predictive CE: Least Affected (Subject \py{subject_min_ce})}
   \label{fig:post_ce_min}
   \includegraphics[width=\textwidth]{../plots/paper/subject_ce_least_affected.pdf}
@@ -682,6 +685,20 @@ CE.
   \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_affected.pdf}
 \end{figure}
 
+
+Looking first at Figure \ref{fig:hyper_post_ce}, we can see a more general
+picture of the effect of an informed hyper-prior distribution on posterior
+inferences about risk preferences. In this figure, we see that the hyper-prior
+we selected world result in \py{hprior_pred_rs}\% of possible CE values to be
+greater than the expected value of the lottery, suggesting some mild prior
+belief that a random subject might be somewhat risk seeking. Of greater
+interest, however, are the posterior predictive distributions.
+
+
+
+The uniformed posterior predictive distribution, shown in orange, displays a
+wide distribution of possible CEs, with substantial density at extreme values
+of risk aversion, where the CE is very close to the minimum
 
 
 

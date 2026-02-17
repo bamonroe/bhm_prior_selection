@@ -592,7 +592,6 @@ def _plot_subject_densities(params, subject_id, pdf, batch_boundaries):
         ax.legend(loc='upper right', fontsize=9)
 
         ax.set_xlabel(label)
-        ax.set_ylabel('Density')
         ax.set_title(f'{name}')
 
     plt.tight_layout()
@@ -842,7 +841,6 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
                                       alpha=0.7, label='Prior 95% CI')
                 ax_density.legend(loc='upper right', fontsize=8)
                 ax_density.set_xlabel(latex_label)
-                ax_density.set_ylabel('Density')
                 ax_density.set_title(f'{state_name} - Posterior')
 
             plt.tight_layout()
@@ -1316,7 +1314,6 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
             ax.axvline(np.median(flat_uninf), color=COLOR_UNINF, linestyle=':', lw=1.2)
 
             ax.set_xlabel(latex_label)
-            ax.set_ylabel('Density')
             if row == 0 and col == 0:
                 ax.legend(loc='upper right', fontsize=8)
             ax.grid(True, alpha=0.2)

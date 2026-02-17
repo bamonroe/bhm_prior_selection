@@ -137,7 +137,7 @@ SKEW_NORMAL_DIRECT_PRIOR = {
     'alpha': 2.0,   # shape parameter (positive = right skew)
 }
 
-# Researcher choices for Skew-Normal (3 degrees of freedom)
+# Researcher choices for Skew-Normal (3 degrees of free#dom)
 SKEW_NORMAL_RESEARCHER = {
     'rho': 0.2,           # variance partition (same interpretation as Normal case)
     'alpha_omega': 20.0,   # scale concentration (analogous to alpha_0)
@@ -165,9 +165,9 @@ N_WORKERS = 25  # Number of parallel workers for plotting, etc.
 
 # Style for overlay plots (shared across all paper overlay plots)
 OVERLAY_STYLE = {
-    'prior': {'label': 'Prior',   'color': '0.5'},        # gray
-    'info':  {'label': 'Info',    'color': 'steelblue'},
-    'uninf': {'label': 'No Info', 'color': 'orange'},
+    'prior': {'label': 'Prior',   'color': '#999999'},        # gray
+    'info':  {'label': 'Info',    'color': '#A6B6F6'}, # blue
+    'uninf': {'label': 'No Info', 'color': '#FAB03B'}, #orange
 }
 
 # Predictive overlay plots (CE and parameter densities)
@@ -204,14 +204,14 @@ sampling_opts = {
     'plots_dir': PLOTS_DIR / 'rdu_bhm',
     'clean': True,
     'reset_runs': 1,
-    'resume_runs': 4,
+    'resume_runs': 2,
     'num_chains': 1000,  # Must be divisible by 16 (n_temperatures * 2) for PT
     'num_collect': 100,
     'thin_iteration': 10,
     'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
     'seed': SEEDS['sampling'],
     # Parallel tempering (index process with DEO swaps)
-    'n_temperatures': 10,
+    'n_temperatures': 0,
     'beta_min': 0.1,
 }
 
@@ -238,27 +238,27 @@ do_preprocess_hyper_uninf    = False
 do_preprocess_subjects_uninf = False
 
 # --- Posterior Analysis (compute summaries from preprocessed data) ---
-do_gen_paper_quantities          = False
-do_posterior_predictive_ce_info  = False
-do_posterior_predictive_ce_uninf = False
-do_posterior_ce_comparison       = False
+do_gen_paper_quantities          = True
+do_posterior_predictive_ce_info  = True
+do_posterior_predictive_ce_uninf = True
 
-# --- Plots ---
-do_prior_plots               = True
-do_hyper_plots_info          = False
-do_subject_plots_info        = False
-do_hyper_plots_uninf         = False
-do_subject_plots_uninf       = False
-do_predictive_ce_overlay     = True
+# --- Diagnostic Plots ---
+do_hyper_plots_info          = True
+do_subject_plots_info        = True
+do_hyper_plots_uninf         = True
+do_subject_plots_uninf       = True
 
-do_paper_plots               = True
+# --- Paper Plots ---
+do_paper_prior_comparison    = True   # Prior distribution comparison
+do_paper_hyper_comparison    = True   # Hyperparameter prior vs posterior (8-panel)
+do_paper_predictive_overlay  = True   # Predictive CE and parameter overlay
+do_paper_subject_ce          = True   # Subject most/least affected CE
 
 # --- Appendix Examples ---
 do_skew_normal_example  = False
 
 # --- Document Compilation ---
 do_compile_doc          = False
-
 
 
 # =============================================================================
@@ -306,14 +306,6 @@ if __name__ == '__main__':
             rho=PRIOR_SELECTION['rho'],
             alpha_0=PRIOR_SELECTION['alpha_0'],
             direct_prior=DIRECT_PRIOR
-        )
-
-    if do_prior_plots:
-        pipelines.run_prior_plots(
-            direct_prior=DIRECT_PRIOR,
-            prior_selection=PRIOR_SELECTION,
-            output_dir=PLOTS_DIR / 'priors',
-            seed=SEEDS['sampling']
         )
 
     if do_prior_predictive_ce:
@@ -434,23 +426,6 @@ if __name__ == '__main__':
             prior_ce_path=prior_ce_path,
         )
 
-    if do_paper_plots:
-        check_dependency('paper_plots', ['paper_quantities'])
-        from prior_selection import get_hyperprior_specs_for_plotting
-        info_hyper_path = preprocess_dir_info / 'hyperparams_preprocessed.npz'
-        uninf_hyper_path = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
-        hp_specs_info = get_hyperprior_specs_for_plotting(
-            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], alpha_0=PRIOR_SELECTION['alpha_0']
-        )
-        pipelines.run_paper_plots(
-            OUTPUTS['paper_quantities'], PLOTS_DIR / 'paper',
-            info_hyper_path=info_hyper_path if info_hyper_path.exists() else None,
-            uninf_hyper_path=uninf_hyper_path if uninf_hyper_path.exists() else None,
-            hyperprior_specs_info=hp_specs_info,
-            hyperprior_specs_uninf=UNINFORMATIVE_HYPERPRIOR,
-            hyper_comparison_config=HYPER_COMPARISON_CONFIG,
-        )
-
     # -------------------------------------------------------------------------
     # Plotting (Uninformative Prior)
     # -------------------------------------------------------------------------
@@ -496,22 +471,35 @@ if __name__ == '__main__':
             print(f"Skipping uninformative posterior predictive CE: {history_dir_uninf} not found")
 
     # -------------------------------------------------------------------------
-    # Cross-Prior Comparison
+    # Paper Plots
     # -------------------------------------------------------------------------
-    if do_posterior_ce_comparison:
-        check_dependency('posterior_ce_comparison',
-                         ['posterior_predictive_ce_info',
-                          'posterior_predictive_ce_uninf'])
-        pipelines.run_posterior_ce_comparison(
-            data_dir=DATA_DIR,
-            output_dir=PLOTS_DIR / 'paper',
-            prior_ce_path=OUTPUTS['prior_predictive_ce'],
-            figsize=SUBJECT_CE_CONFIG['figsize'],
-            style=SUBJECT_CE_CONFIG['style'],
+    if do_paper_prior_comparison:
+        pipelines.run_prior_plots(
+            direct_prior=DIRECT_PRIOR,
+            prior_selection=PRIOR_SELECTION,
+            output_dir=PLOTS_DIR / 'priors',
+            seed=SEEDS['sampling']
         )
 
-    if do_predictive_ce_overlay:
-        check_dependency('predictive_ce_overlay',
+    if do_paper_hyper_comparison:
+        check_dependency('paper_hyper_comparison', ['paper_quantities'])
+        from prior_selection import get_hyperprior_specs_for_plotting
+        info_hyper_path = preprocess_dir_info / 'hyperparams_preprocessed.npz'
+        uninf_hyper_path = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
+        hp_specs_info = get_hyperprior_specs_for_plotting(
+            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], alpha_0=PRIOR_SELECTION['alpha_0']
+        )
+        pipelines.run_paper_plots(
+            OUTPUTS['paper_quantities'], PLOTS_DIR / 'paper',
+            info_hyper_path=info_hyper_path if info_hyper_path.exists() else None,
+            uninf_hyper_path=uninf_hyper_path if uninf_hyper_path.exists() else None,
+            hyperprior_specs_info=hp_specs_info,
+            hyperprior_specs_uninf=UNINFORMATIVE_HYPERPRIOR,
+            hyper_comparison_config=HYPER_COMPARISON_CONFIG,
+        )
+
+    if do_paper_predictive_overlay:
+        check_dependency('paper_predictive_overlay',
                          ['prior_predictive_ce'])
         hyper_pp_info = preprocess_dir_info / 'hyperparams_preprocessed.npz'
         hyper_pp_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
@@ -524,6 +512,18 @@ if __name__ == '__main__':
             output_dir=PLOTS_DIR / 'paper',
             seed=SEEDS['sampling'],
             config=PREDICTIVE_OVERLAY_CONFIG,
+        )
+
+    if do_paper_subject_ce:
+        check_dependency('paper_subject_ce',
+                         ['posterior_predictive_ce_info',
+                          'posterior_predictive_ce_uninf'])
+        pipelines.run_posterior_ce_comparison(
+            data_dir=DATA_DIR,
+            output_dir=PLOTS_DIR / 'paper',
+            prior_ce_path=OUTPUTS['prior_predictive_ce'],
+            figsize=SUBJECT_CE_CONFIG['figsize'],
+            style=SUBJECT_CE_CONFIG['style'],
         )
 
     # -------------------------------------------------------------------------

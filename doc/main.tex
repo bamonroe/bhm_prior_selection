@@ -644,7 +644,9 @@ equivalent utility as a given lottery. The CE can be used as a normalized
 utility function \parencite{King1983}, but is also very useful in terms of
 assessing risk preference models with many interrelated preference parameters.
 The CE for a lottery with outcomes $x \in [10, 30, 50]$ and $p(x) = 1/3$ for
-all $x$, is defined as:
+all $x$,\footnote{
+  These outcomes represent the 3 outcomes in the dataset of \textcite{Harrison2016}.
+} is defined as:
 \begin{align}
 \label{eq:CE}
   \begin{split}
@@ -652,8 +654,6 @@ all $x$, is defined as:
     \text{CE} &= \left(\sum_x d_i(x) \frac{x^{1 - r}}{1 - r}\right)^\frac{1}{1 - r}
   \end{split}
 \end{align}
-\noindent These outcomes represent the 3 outcomes in the dataset of
-\textcite{Harrison2016}.
 
 \begin{figure}[h]
   \centering
@@ -661,7 +661,6 @@ all $x$, is defined as:
   \label{fig:hyper_post_ce}
   \includegraphics[width=\textwidth]{../plots/paper/predictive_ce_overlay.pdf}
 \end{figure}
-
 
 The CE in (\ref{eq:CE}) can be calculated for any vector $\theta_i = [r_i,
 \phi_i, \eta_i, \lambda_i]$. Using the sampled draws of $\theta_i$ from the
@@ -677,21 +676,6 @@ between the informative and uninformative models, while Figure
 \ref{fig:post_ce_max} shows the subject with the largest difference in median
 CE.
 
-\begin{figure}[hp]
-  \centering
-  \mycaption{Posterior predictive CE: Least Affected (Subject \py{subject_min_ce})}
-  \label{fig:post_ce_min}
-  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_least_affected.pdf}
-\end{figure}
-
-\begin{figure}[hp]
-  \centering
-  \mycaption{Posterior predictive CE: Most Affected (Subject \py{subject_max_ce})}
-  \label{fig:post_ce_max}
-  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_affected.pdf}
-\end{figure}
-
-
 Looking first at Figure \ref{fig:hyper_post_ce}, we can see a more general
 picture of the effect of an informed hyper-prior distribution on posterior
 inferences about risk preferences. In this figure, we see that the hyper-prior
@@ -702,22 +686,134 @@ however, are the posterior predictive distributions.
 
 The uninformative posterior predictive distribution, shown in orange, displays
 a wide distribution of possible CEs, with substantial density at extreme values
-of risk aversion. The mode of the uninformative posterior is less than \$15,
-indicating extreme risk aversion, and \py{uninf_ce_below_15}\% of the density
-is below \$15. Likewise, \py{uninf_ce_above_40}\% of the density is above \$40,
-indicating extreme risk \textit{seeking}. In contrast, only
-\py{info_ce_below_15}\% of the CE density is below \$15 for the informative
-posterior and \py{info_ce_above_40}\% above \$40.
+of risk aversion. The mode and \py{uninf_ce_below_15}\% of the density of the
+uninformative posterior is less than \$15, indicating extreme risk aversion.
+Likewise, \py{uninf_ce_above_40}\% of the density is above \$40, indicating
+extreme risk \textit{seeking}. In contrast, only \py{info_ce_below_15}\% of the
+CE density is below \$15 for the informative posterior and
+\py{info_ce_above_40}\% above \$40. The overall picture here is again,
+relatively intuitive: the hyper-prior distribution mediated the likelihood of
+the data, reducing the posterior density on extreme values.
+
+\begin{figure}[hp]
+  \centering
+  \mycaption{Posterior predictive CE: Least Affected (Subject \py{subject_min_ce})}
+  \label{fig:post_ce_min}
+  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_least_affected.pdf}
+\end{figure}
+\begin{figure}[hp]
+  \centering
+  \mycaption{Posterior predictive CE: Most Affected (Subject \py{subject_max_ce})}
+  \label{fig:post_ce_max}
+  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_affected.pdf}
+\end{figure}
+
+Figure \ref{fig:hyper_post_ce}, however, only shows the hyper-posterior
+predictive distribution. With a BHM model, we have posterior distributions of
+$\theta_i$ for each subject and can therefore examine each of the 111 subjects'
+predictive posterior distribution directly. I focus for the moment on two
+subjects. Subject \py{subject_min_ce}, displayed in Figure
+\ref{fig:post_ce_min} has the smallest change in median CE between the
+informative and uninformative models, and subject \py{subject_max_ce},
+displayed in Figure \ref{fig:post_ce_max}, has the largest. Both subjects'
+posterior distributions show interesting, and potentially counter-intuitive
+results.
+
+Starting with Figure \ref{fig:post_ce_min}, we can see that there is
+effectively no difference in the medians of the two posterior distributions,
+and that both posteriors are substantially more peaked than the prior
+distribution. This suggests that the data for this subject were very
+informative with regard to our RDU model, perhaps that the subject made very
+consistent choices. When the data are very informative, it makes sense that the
+prior distribution would have less weight in the posterior distribution.
+Perhaps counter-intuitively, the posterior of the informative model is
+\textit{more peaked} than the uninformative model, despite the prior
+distribution being flatter than the posterior of the uninformative model. At
+first glance this may be odd, but what is not shown in this figure is prior
+predictive distribution of the \textit{uninformative} model, which is
+substantially flatter than the informative prior in the figure.
+
+In Figure \ref{fig:post_ce_max}, we see the subject with the greatest
+difference in median predictive posterior distributions between the informative
+and uninformative models. The posterior densities are much flatter than for the
+previous subject, indicating that the data for this subject were much less
+informative. The effect of the prior is therefore much more pronounced. The
+median of posterior predictive distribution for the informative model now, in
+effect, indicates risk neutrality almost exactly, with roughly half of the
+density on CE values that indicate risk seeking. This is much different from
+what the posterior of the uninformative model indicates.
+
+What both figures show is that the inclusion of an informative hyper-prior
+matters most when the data are not particularly informative about parameters of
+interest, which is very intuitive, but also that an informative hyper-prior
+interacts at the individual subject level in less direct ways than in the
+subject was estimated individually with an informative direct prior.
 
 
+\section{Discussion}
 
 
+While it is often the case that picking hyper-prior parameters can be difficult
+and unintuitive, re-parameterization of the problem, and recognition of the
+exchangeability principal, can aid a researcher who wants to do more than
+specify \enquote{uninformative} hyper-priors. The path chosen in this paper, in
+the context of a BHM of risk preferences, is to recognize that researchers
+often have strong beliefs about what a typical subject's preferences might look
+like, and use these individual-level beliefs to inform population-level
+beliefs. These beliefs are often informed by decades of published empirical
+results, and expert intuition about what constitutes reasonable and probable
+preferences. By recognizing that under exchangeability, and without any ex-ante
+data to the contrary, the belief about what a typical subject might look like
+must apply to \textit{all} subjects in a sample, we establish the primary
+result of this paper: the unconditional \enquote{direct} prior about an
+individual integrates over the uncertainty about the population. This limiting
+condition on hyper-prior distributions has not been commonly utilized in BHMs.
 
+This restricting condition does not result in a \enquote{free lunch}, however.
+The same degrees of freedom must ultimately be satisfied. To this end, I
+propose a variance decomposition that has the useful property of being
+unit-agnostic, and is interpretable in terms of the researcher's belief about
+the degree of heterogeneity in their sample. Taken together, the specification
+of a direct prior about what a typical subject ought to look like, and the
+expression of belief about the degree of heterogeneity in the sample, the
+proposed method resolves all degrees of freedom and does so in a way that
+allows for useful hyper-priors to be specified by rigorous researchers, and
+scrutinized by those who may worry that prior distributions are being abused to
+produce arbitrary posterior inferences.
 
+The choice of an informative hyper-prior clearly matters when compared to
+uninformative hyper-prior, as demonstrated here by reproducing the results of
+\textcite{Gao2022} with and without informative hyper-priors. What was not
+discussed here was how to pick the direct prior of a typical individual, or how
+to compare two models with the same data and likelihood functions, but
+different hyper-priors.
 
-\section{Conclusion}
+Starting with the latter point, one of the most common ways Bayesian models are
+compared is by use of Bayes' factor:
+\begin{equation}
+  \text{BF} = \frac{m_\text{info}}{m_\text{noinfo}} = \frac{\displaystyle\int p(D | \theta) \pi_\text{info}(\theta) \, d\theta}{\displaystyle\int p(D | \theta) \pi_\text{noinfo}(\theta) \, d\theta}
+\end{equation}
+\noindent But in our case, the only difference between the two models is the
+prior distribution, $\pi$. The Bayes' factor then reduces entirely to a
+comparison of how well each prior predicted the data before even seeing the
+data. Totally uninformative hyper-priors would lose to even somewhat accurate
+prior distributions, even if the posterior inferences are nearly identical, as
+they are for subject \py{subject_min_ce} in Figure \ref{fig:post_ce_min}. A
+model where the prior and posterior match exactly will always win in the Bayes'
+factor horse race, creating a perverse incentive to evaluate the model, then
+re-evaluate the model again using the previous posterior as the current prior,
+until the point where prior matches posterior. The ability to unscrupulously
+\enquote{game} Bayes' factor makes it unappealing as a method to adjudicate
+what constitutes a better prior.
 
-
+Instead the way a critic ought to judge a prior follows the same path that a
+rigorous researcher ought to take when trying to define the prior in the fist
+place: the prior ought to be defended as the true beliefs of the researcher
+about the parameters of interest. These beliefs ought to be informed by past
+data, expertise, theory, and, sometimes, mathematical convenience. Critics
+ought to interrogate chosen priors on the same grounds. The method proposed in
+this paper reduces the burden for both parties, the researcher and critic, to
+engage in both of their respective responsibilities.
 
 % The References for the main text
 \pagebreak

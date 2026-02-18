@@ -97,14 +97,20 @@ def run_sampling(sampling_opts, prior_params_path=None):
     print("Done.\n")
 
 
-def run_gen_paper_quantities(history_dir, data_dir):
+def run_gen_paper_quantities(history_dir, data_dir, config=None):
     """Extract posterior summaries for paper."""
     print("\n" + "=" * 60)
     print("Running: Generate Paper Quantities")
     print("=" * 60)
+    if config is None:
+        config = {}
     from gen_paper_quantities import gen_paper_quantities
     output_path = Path(data_dir) / 'output' / 'paper_quantities.npz'
-    gen_paper_quantities(history_dir, output_path)
+    gen_paper_quantities(
+        history_dir, output_path,
+        burnin_fraction=config.get('burnin_fraction', 0.5),
+        rhat_K=config.get('rhat_K', 20),
+    )
     print("Done.\n")
 
 
@@ -149,7 +155,7 @@ def run_preprocess_subjects(history_dir, output_dir, force=False):
 
 
 def run_hyperparameter_plots(history_dir, plots_dir, hyperprior_specs=None,
-                             preprocessed_path=None):
+                             preprocessed_path=None, config=None):
     """Generate hyperparameter diagnostic plots.
 
     Args:
@@ -158,6 +164,7 @@ def run_hyperparameter_plots(history_dir, plots_dir, hyperprior_specs=None,
         hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
         preprocessed_path: Path to preprocessed hyperparameter file. If provided,
                           loads from this file instead of history_dir.
+        config: Optional dict with keys hyper_chain_subsample, hyper_params_per_page, hyper_row_height
     """
     print("\n" + "=" * 60)
     print("Running: Hyperparameter Plots")
@@ -166,15 +173,17 @@ def run_hyperparameter_plots(history_dir, plots_dir, hyperprior_specs=None,
     if preprocessed_path is not None:
         from plotting import plot_hyperparams_from_preprocessed
         plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir,
-                                           hyperprior_specs=hyperprior_specs)
+                                           hyperprior_specs=hyperprior_specs,
+                                           config=config)
     else:
         from plotting import plot_hyperparams_only
-        plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=hyperprior_specs)
+        plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=hyperprior_specs,
+                              config=config)
     print("Done.\n")
 
 
 def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None,
-                      prizes=None):
+                      prizes=None, config=None):
     """Generate per-subject diagnostic plots.
 
     Args:
@@ -184,6 +193,7 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
         preprocessed_dir: Directory with preprocessed subject files. If provided,
                          skips preprocessing step.
         prizes: Array of 3 reference prizes [min, mid, max] for CE page (None to skip)
+        config: Optional dict with subject plotting config (forwarded to plot fns)
     """
     print("\n" + "=" * 60)
     print("Running: Subject Plots")
@@ -210,11 +220,11 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
         print(f"  Using preprocessed data from {preprocessed_dir}")
         parallel_plot_subjects(preprocessed_dir, subjects_dir, iterations,
                               batch_boundaries, n_workers=n_workers,
-                              prizes=prizes)
+                              prizes=prizes, config=config)
     else:
         # Use the combined preprocess + plot function
         plot_subjects_only(history_dir, plots_dir, n_workers=n_workers,
-                           prizes=prizes)
+                           prizes=prizes, config=config)
     print("Done.\n")
 
 
@@ -249,14 +259,18 @@ def run_skew_normal_example(direct_prior, researcher_choices, output_dir,
 
 
 def run_prior_predictive_ce(direct_prior, prior_selection, data_dir,
-                             output_dir, n_mc_draws=10000, seed=42):
+                             output_dir, n_mc_draws=10000, seed=42,
+                             config=None):
     """Run prior predictive CE analysis."""
     print("\n" + "=" * 60)
     print("Running: Prior Predictive CE Distribution")
     print("=" * 60)
+    if config is None:
+        config = {}
     from prior_predictive_ce import run_prior_predictive_ce as _run
     _run(direct_prior, prior_selection, data_dir, output_dir,
-         n_mc_draws=n_mc_draws, seed=seed)
+         n_mc_draws=config.get('n_mc_draws', n_mc_draws), seed=seed,
+         config=config)
     print("Done.\n")
 
 
@@ -298,25 +312,33 @@ def run_predictive_ce_overlay(hyper_preprocessed_info, hyper_preprocessed_uninf,
     print("Done.\n")
 
 
-def run_prior_plots(direct_prior, prior_selection, output_dir, seed=42):
+def run_prior_plots(direct_prior, prior_selection, output_dir, seed=42,
+                    config=None):
     """Generate prior distribution plots."""
     print("\n" + "=" * 60)
     print("Running: Prior Distribution Plots")
     print("=" * 60)
+    if config is None:
+        config = {}
+    figsize = config.get('figsize', (10, 8))
+
     from plotting import plot_direct_prior, plot_unconditional_prior, plot_prior_comparison
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("  Plotting direct prior...")
-    plot_direct_prior(direct_prior, output_dir / 'direct_prior.pdf', seed=seed)
+    plot_direct_prior(direct_prior, output_dir / 'direct_prior.pdf', seed=seed,
+                      figsize=figsize)
 
     print("  Plotting unconditional prior (BHM)...")
     plot_unconditional_prior(direct_prior, prior_selection,
-                              output_dir / 'unconditional_prior.pdf', seed=seed)
+                              output_dir / 'unconditional_prior.pdf', seed=seed,
+                              figsize=figsize)
 
     print("  Plotting prior comparison...")
     plot_prior_comparison(direct_prior, prior_selection,
-                           output_dir / 'prior_comparison.pdf', seed=seed)
+                           output_dir / 'prior_comparison.pdf', seed=seed,
+                           figsize=figsize)
 
     print("Done.\n")

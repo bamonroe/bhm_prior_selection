@@ -360,11 +360,14 @@ def _plot_single_subject(args):
 
     Args:
         args: tuple of (subject_id, params_dir, output_dir, iterations,
-              batch_boundaries, prizes)
+              batch_boundaries, prizes, config)
               prizes may be None (CE page skipped).
+              config may be None or a dict with plotting options.
     """
     subject_id, params_dir, output_dir, iterations, batch_boundaries, \
-        prizes = args
+        prizes, config = args
+    if config is None:
+        config = {}
 
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
@@ -379,20 +382,26 @@ def _plot_single_subject(args):
 
     with PdfPages(pdf_path) as pdf:
         # Page 1: Trace plots (all history files)
-        _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf)
+        _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
+                             chain_subsample=config.get('chain_subsample', 50),
+                             figsize=config.get('subject_trace_figsize', (12, 12)))
 
         # Page 2: Density plots (last history file)
         _plot_subject_densities(params, subject_id, pdf, batch_boundaries)
 
         # Page 3: Utility spaghetti (last history file)
         _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
-                              prizes=np.asarray(prizes) if prizes is not None else None)
+                              prizes=np.asarray(prizes) if prizes is not None else None,
+                              figsize=config.get('subject_utility_figsize', (10, 7)),
+                              n_spaghetti=config.get('n_spaghetti', None))
 
         # Page 4: CE distribution (last history file)
         if prizes is not None:
             _plot_subject_ce(params, subject_id, pdf,
                              np.asarray(prizes),
-                             batch_boundaries)
+                             batch_boundaries,
+                             figsize=config.get('subject_ce_figsize', (10, 7)),
+                             bins=config.get('ce_hist_bins', None))
 
     return subject_id
 
@@ -447,7 +456,7 @@ def _compute_subject_ces(r_samples, phi_samples, eta_samples, prizes):
 
 
 def _plot_subject_ce(params, subject_id, pdf, prizes,
-                     batch_boundaries):
+                     batch_boundaries, figsize=(10, 7), bins=None):
     """
     Plot posterior predictive CE distribution for a single subject.
 
@@ -459,7 +468,11 @@ def _plot_subject_ce(params, subject_id, pdf, prizes,
         pdf: PdfPages object
         prizes: array of 3 reference prizes [min, mid, max]
         batch_boundaries: list of batch boundary indices
+        figsize: Figure dimensions in inches (default (10, 7))
+        bins: Number of histogram bins (default uses module-level CE_HIST_BINS)
     """
+    if bins is None:
+        bins = CE_HIST_BINS
     n_samples = params['r'].shape[0]
     burn_idx = _last_batch_start(batch_boundaries, n_samples)
 
@@ -481,10 +494,10 @@ def _plot_subject_ce(params, subject_id, pdf, prizes,
     x_lo = float(prizes[0])
     x_hi = float(prizes[-1])
 
-    fig, ax = plt.subplots(figsize=(10, 7))
+    fig, ax = plt.subplots(figsize=figsize)
     fig.suptitle(f'Subject {subject_id} - Posterior Predictive CE', fontsize=14)
 
-    ax.hist(ces, bins=CE_HIST_BINS, density=True, alpha=0.6, color=COLOR_DATA,
+    ax.hist(ces, bins=bins, density=True, alpha=0.6, color=COLOR_DATA,
             range=(x_lo, x_hi))
 
     # Reference lines
@@ -523,15 +536,16 @@ def _last_batch_start(batch_boundaries, n_samples):
     return n_samples // 2
 
 
-def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf):
+def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
+                         chain_subsample=50, figsize=(12, 12)):
     """Plot trace plots for a subject."""
-    fig, axes = plt.subplots(4, 1, figsize=(12, 12))
+    fig, axes = plt.subplots(4, 1, figsize=figsize)
     fig.suptitle(f'Subject {subject_id} - Trace Plots', fontsize=14)
 
     n_samples, n_chains = params['r'].shape
 
     # Subsample chains for visibility
-    chain_subsample = min(50, n_chains)
+    chain_subsample = min(chain_subsample, n_chains)
     chain_indices = np.linspace(0, n_chains - 1, chain_subsample, dtype=int)
     chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, chain_subsample)))
 
@@ -599,9 +613,11 @@ def _plot_subject_densities(params, subject_id, pdf, batch_boundaries):
 
 
 def _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
-                          prizes=None):
+                          prizes=None, figsize=(10, 7), n_spaghetti=None):
     """Plot utility function spaghetti plot (using last history file)."""
-    fig, ax = plt.subplots(figsize=(10, 7))
+    if n_spaghetti is None:
+        n_spaghetti = N_SPAGHETTI_SAMPLES
+    fig, ax = plt.subplots(figsize=figsize)
     fig.suptitle(f'Subject {subject_id} - CRRA Utility Function', fontsize=14)
 
     n_samples = params['r'].shape[0]
@@ -610,7 +626,7 @@ def _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
     r_samples = params['r'][burn_idx:, :].flatten()
 
     # Subsample for spaghetti plot
-    n_draws = min(N_SPAGHETTI_SAMPLES, len(r_samples))
+    n_draws = min(n_spaghetti, len(r_samples))
     np.random.seed(subject_id)  # Reproducible
     draw_indices = np.random.choice(len(r_samples), n_draws, replace=False)
 
@@ -649,7 +665,7 @@ def _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
 
 def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
                            n_workers=1, max_subjects=None,
-                           prizes=None):
+                           prizes=None, config=None):
     """
     Run parallel plotting with a pool of workers.
 
@@ -661,6 +677,7 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
         n_workers: Number of parallel workers
         max_subjects: Limit number of subjects (for testing)
         prizes: Array of 3 reference prizes [min, mid, max] for CE page (None to skip)
+        config: Optional dict with plotting config (forwarded to per-subject plot fns)
     """
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
@@ -683,7 +700,7 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
     # Build task list - workers receive paths, not data
     tasks = [
         (sid, str(params_dir), str(output_dir), iterations_list, boundaries_list,
-         prizes_list)
+         prizes_list, config)
         for sid in range(n_subjects)
     ]
 
@@ -702,11 +719,12 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
 # =============================================================================
 
 def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
-                         hyperprior_specs=None):
+                         hyperprior_specs=None, chain_subsample=100,
+                         params_per_page=5, row_height=2.8):
     """
     Generate hyperparameter diagnostic PDF.
 
-    Layout: 2-column (traces left, densities right), up to 5 params per page.
+    Layout: 2-column (traces left, densities right), up to params_per_page params per page.
 
     Args:
         history: MCMC history array
@@ -714,6 +732,9 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
         batch_boundaries: Run boundaries
         output_path: Path to save PDF
         hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        chain_subsample: Max chains to show in traces (default 100)
+        params_per_page: Hyperparams per PDF page (default 5)
+        row_height: Height per row in inches (default 2.8)
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -735,19 +756,18 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
         prior_quantiles = compute_hyperprior_quantiles(hyperprior_specs)
 
     # Subsample chains for traces
-    n_chains_plot = min(100, n_chains)
+    n_chains_plot = min(chain_subsample, n_chains)
     chain_indices = np.linspace(0, n_chains - 1, n_chains_plot, dtype=int)
     chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, n_chains_plot)))
 
     with PdfPages(output_path) as pdf:
         n_params = len(HYPERPARAM_INFO)
-        params_per_page = 5
 
         for page_start in range(0, n_params, params_per_page):
             page_end = min(page_start + params_per_page, n_params)
             n_on_page = page_end - page_start
 
-            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, 2.8 * n_on_page))
+            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, row_height * n_on_page))
             if n_on_page == 1:
                 axes = axes.reshape(1, 2)
 
@@ -852,7 +872,8 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
 # STANDALONE PLOT FUNCTIONS
 # =============================================================================
 
-def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_specs=None):
+def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_specs=None,
+                                        config=None):
     """
     Generate hyperparameter plots from preprocessed data file.
 
@@ -860,7 +881,10 @@ def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_
         preprocessed_path: Path to hyperparams_preprocessed.npz file
         plots_dir: Directory to save plots
         hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        config: Optional dict with keys hyper_chain_subsample, hyper_params_per_page, hyper_row_height
     """
+    if config is None:
+        config = {}
     preprocessed_path = Path(preprocessed_path)
     plots_dir = Path(plots_dir)
     plots_dir.mkdir(parents=True, exist_ok=True)
@@ -893,12 +917,16 @@ def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_
     print("  Generating hyperparameter plots...")
     hyper_path = plots_dir / 'rdu_bhm_hyperparams.pdf'
     _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, hyper_path,
-                                  hyperprior_specs=hyperprior_specs)
+                                  hyperprior_specs=hyperprior_specs,
+                                  chain_subsample=config.get('hyper_chain_subsample', 100),
+                                  params_per_page=config.get('hyper_params_per_page', 5),
+                                  row_height=config.get('hyper_row_height', 2.8))
     print(f"  Saved: {hyper_path}")
 
 
 def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, output_path,
-                                  hyperprior_specs=None):
+                                  hyperprior_specs=None, chain_subsample=100,
+                                  params_per_page=5, row_height=2.8):
     """
     Plot hyperparameters from a direct hyperparameter array (no offset calculation needed).
 
@@ -908,6 +936,9 @@ def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, ou
         batch_boundaries: Run boundaries
         output_path: Path to save PDF
         hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        chain_subsample: Max chains to show in traces (default 100)
+        params_per_page: Hyperparams per PDF page (default 5)
+        row_height: Height per row in inches (default 2.8)
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -921,19 +952,18 @@ def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, ou
         prior_quantiles = compute_hyperprior_quantiles(hyperprior_specs)
 
     # Subsample chains for traces
-    n_chains_plot = min(100, n_chains)
+    n_chains_plot = min(chain_subsample, n_chains)
     chain_indices = np.linspace(0, n_chains - 1, n_chains_plot, dtype=int)
     chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, n_chains_plot)))
 
     with PdfPages(output_path) as pdf:
         n_params = len(HYPERPARAM_INFO)
-        params_per_page = 5
 
         for page_start in range(0, n_params, params_per_page):
             page_end = min(page_start + params_per_page, n_params)
             n_on_page = page_end - page_start
 
-            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, 2.8 * n_on_page))
+            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, row_height * n_on_page))
             if n_on_page == 1:
                 axes = axes.reshape(1, 2)
 
@@ -1033,7 +1063,7 @@ def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, ou
             plt.close(fig)
 
 
-def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
+def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None, config=None):
     """
     Generate hyperparameter plots directly from history files (no preprocessing).
 
@@ -1044,7 +1074,10 @@ def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
         history_dir: Directory containing history_*.npz files
         plots_dir: Directory to save plots
         hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        config: Optional dict with keys hyper_chain_subsample, hyper_params_per_page, hyper_row_height
     """
+    if config is None:
+        config = {}
     history_dir = Path(history_dir)
     plots_dir = Path(plots_dir)
     plots_dir.mkdir(parents=True, exist_ok=True)
@@ -1073,12 +1106,15 @@ def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
     print("  Generating hyperparameter plots...")
     hyper_path = plots_dir / 'rdu_bhm_hyperparams.pdf'
     plot_hyperparameters(history, iterations, batch_boundaries, hyper_path,
-                        hyperprior_specs=hyperprior_specs)
+                        hyperprior_specs=hyperprior_specs,
+                        chain_subsample=config.get('hyper_chain_subsample', 100),
+                        params_per_page=config.get('hyper_params_per_page', 5),
+                        row_height=config.get('hyper_row_height', 2.8))
     print(f"  Saved: {hyper_path}")
 
 
 def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
-                       prizes=None):
+                       prizes=None, config=None):
     """
     Generate only per-subject diagnostic plots.
 
@@ -1088,6 +1124,7 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
         max_subjects: Limit subjects for testing
         n_workers: Number of parallel workers
         prizes: Array of 3 reference prizes for CE page (None to skip)
+        config: Optional dict with plotting config (forwarded to per-subject plot fns)
     """
     history_dir = Path(history_dir)
     plots_dir = Path(plots_dir)
@@ -1105,7 +1142,7 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
     parallel_plot_subjects(
         params_dir, subjects_dir, iterations, batch_boundaries,
         n_workers=n_workers, max_subjects=max_subjects,
-        prizes=prizes
+        prizes=prizes, config=config
     )
 
 
@@ -1381,7 +1418,8 @@ PRIOR_PARAM_INFO = [
 ]
 
 
-def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
+def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42,
+                      figsize=(10, 8)):
     """
     Generate 4-panel plot of the direct prior distribution.
 
@@ -1393,13 +1431,14 @@ def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
         output_path: Path to save the figure
         n_samples: Number of samples to draw
         seed: Random seed for reproducibility
+        figsize: Figure dimensions in inches (default (10, 8))
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     np.random.seed(seed)
 
-    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
     axes = axes.flatten()
     fig.suptitle('Direct Prior Distribution', fontsize=14, fontweight='bold')
 
@@ -1464,7 +1503,7 @@ def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
 
 
 def plot_unconditional_prior(direct_prior, prior_selection, output_path,
-                              n_samples=10000, seed=42):
+                              n_samples=10000, seed=42, figsize=(10, 8)):
     """
     Generate 4-panel plot of the unconditional BHM prior distribution.
 
@@ -1480,6 +1519,7 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
         output_path: Path to save the figure
         n_samples: Number of samples to draw
         seed: Random seed for reproducibility
+        figsize: Figure dimensions in inches (default (10, 8))
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1489,7 +1529,7 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
     rho = prior_selection['rho']
     alpha_0 = prior_selection['alpha_0']
 
-    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
     axes = axes.flatten()
     fig.suptitle('Unconditional Prior Distribution (BHM)', fontsize=14, fontweight='bold')
 
@@ -1573,7 +1613,7 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
 
 
 def plot_prior_comparison(direct_prior, prior_selection, output_path,
-                           n_samples=10000, seed=42):
+                           n_samples=10000, seed=42, figsize=(10, 8)):
     """
     Generate comparison plot showing direct prior vs unconditional BHM prior.
 
@@ -1585,6 +1625,7 @@ def plot_prior_comparison(direct_prior, prior_selection, output_path,
         output_path: Path to save the figure
         n_samples: Number of samples to draw
         seed: Random seed for reproducibility
+        figsize: Figure dimensions in inches (default (10, 8))
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1594,7 +1635,7 @@ def plot_prior_comparison(direct_prior, prior_selection, output_path,
     rho = prior_selection['rho']
     alpha_0 = prior_selection['alpha_0']
 
-    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
     axes = axes.flatten()
     fig.suptitle('Prior Comparison: Direct vs Unconditional BHM', fontsize=14, fontweight='bold')
 

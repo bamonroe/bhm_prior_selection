@@ -14,7 +14,8 @@ from posteriors.rdu_bhm import NPARAMS, N_HYPER
 from plotting import HYPERPARAM_INFO
 
 
-def gen_paper_quantities(history_dir, output_path=None):
+def gen_paper_quantities(history_dir, output_path=None,
+                         burnin_fraction=0.5, rhat_K=20):
     """
     Extract posterior summaries from MCMC output.
 
@@ -23,6 +24,8 @@ def gen_paper_quantities(history_dir, output_path=None):
     Args:
         history_dir: Directory containing history_*.npz files
         output_path: Path to save NPZ file (default: data/output/paper_quantities.npz)
+        burnin_fraction: Fraction of iterations to discard as burn-in (default 0.5)
+        rhat_K: Number of chain groups for R-hat computation (default 20)
     """
     history_dir = Path(history_dir)
 
@@ -42,8 +45,8 @@ def gen_paper_quantities(history_dir, output_path=None):
     print(f"Combined history shape: {history.shape}")
     print(f"Iteration range: [{iterations.min()}, {iterations.max()}]")
 
-    # Apply burn-in (drop first half)
-    burn_in_iter = iterations.max() // 2
+    # Apply burn-in
+    burn_in_iter = int(iterations.max() * burnin_fraction)
     print(f"Applying burn-in at iteration {burn_in_iter}...")
     history_post, iter_post, _ = apply_burnin(history, iterations, min_iteration=burn_in_iter)
 
@@ -52,7 +55,7 @@ def gen_paper_quantities(history_dir, output_path=None):
 
     # Compute R-hat (adapt K to chain count after potential tempering filter)
     n_chains_post = history_post.shape[1]
-    K = 20
+    K = rhat_K
     while n_chains_post % K != 0 and K > 1:
         K -= 1
     M = n_chains_post // K

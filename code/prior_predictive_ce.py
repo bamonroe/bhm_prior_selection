@@ -199,7 +199,8 @@ def compute_prior_predictive_ce(
 # Plotting
 # =============================================================================
 
-def plot_prior_predictive_ce(ce_flat, prizes, output_path):
+def plot_prior_predictive_ce(ce_flat, prizes, output_path,
+                             figsize=(8, 5), bins=150, ce_range=(0, 50)):
     """
     Plot histogram of prior predictive CE distribution.
 
@@ -207,6 +208,9 @@ def plot_prior_predictive_ce(ce_flat, prizes, output_path):
         ce_flat: 1D array of CE values
         prizes: Array of 3 prizes [min, mid, max]
         output_path: Path to save PDF
+        figsize: Figure dimensions in inches (default (8, 5))
+        bins: Number of histogram bins (default 150)
+        ce_range: Display range for x-axis and histogram (default (0, 50))
     """
     import matplotlib
     matplotlib.use('Agg')
@@ -226,10 +230,10 @@ def plot_prior_predictive_ce(ce_flat, prizes, output_path):
     # Clip display range to 1st-99th percentile for readability
     x_lo, x_hi = np.percentile(ce_flat, [1, 99])
 
-    fig, ax = plt.subplots(1, 1, figsize=(8, 5))
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
 
-    ax.hist(ce_flat, bins=150, density=True, alpha=0.6, color='steelblue',
-            range=(0, 50))
+    ax.hist(ce_flat, bins=bins, density=True, alpha=0.6, color='steelblue',
+            range=ce_range)
 
     # Reference lines
     ax.axvline(ev, color='black', linestyle=':', linewidth=1.5)
@@ -249,7 +253,7 @@ def plot_prior_predictive_ce(ce_flat, prizes, output_path):
 
     ax.set_xlabel('Certainty Equivalent')
     ax.set_ylabel('Density')
-    ax.set_xlim(0, 50)
+    ax.set_xlim(*ce_range)
 
     plt.tight_layout()
     output_path = Path(output_path)
@@ -270,6 +274,7 @@ def run_prior_predictive_ce(
     output_dir,
     n_mc_draws=10000,
     seed=42,
+    config=None,
 ):
     """
     Run prior predictive CE analysis.
@@ -281,6 +286,7 @@ def run_prior_predictive_ce(
         output_dir: Path for output plot
         n_mc_draws: Number of Monte Carlo draws (default 10000)
         seed: Random seed
+        config: Optional dict with keys figsize, bins, ce_range for plot
     """
     from clean_data import load_clean_data
     from prior_selection import rdu_prelec_prior_selection, derive_hyperpriors
@@ -367,7 +373,12 @@ def run_prior_predictive_ce(
 
     # --- Plot ---
     plot_path = output_dir / 'prior_predictive_ce.pdf'
-    plot_prior_predictive_ce(ce_flat, prizes_ref, plot_path)
+    plot_kwargs = {}
+    if config:
+        for k in ('figsize', 'bins', 'ce_range'):
+            if k in config:
+                plot_kwargs[k] = config[k]
+    plot_prior_predictive_ce(ce_flat, prizes_ref, plot_path, **plot_kwargs)
 
 
 # =============================================================================

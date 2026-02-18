@@ -195,6 +195,38 @@ HYPER_COMPARISON_CONFIG = {
     'style': OVERLAY_STYLE,
 }
 
+# Prior predictive CE plot
+PRIOR_PREDICTIVE_CONFIG = {
+    'n_mc_draws': 10000,       # MC draws for prior predictive CE
+    'figsize': (8, 5),         # Plot dimensions (width, height) in inches
+    'bins': 150,               # Number of histogram bins
+    'ce_range': (0, 50),       # CE display range for x-axis
+}
+
+# Diagnostic plots (subject and hyperparameter)
+DIAGNOSTIC_PLOT_CONFIG = {
+    'subject_trace_figsize': (12, 12),   # Figsize for subject trace plots
+    'subject_ce_figsize': (10, 7),       # Figsize for subject CE plots
+    'subject_utility_figsize': (10, 7),  # Figsize for subject utility spaghetti
+    'n_spaghetti': 100,                  # Posterior draws for spaghetti plots
+    'ce_hist_bins': 100,                 # Bins for subject CE histograms
+    'chain_subsample': 50,              # Chains to show in subject traces
+    'hyper_chain_subsample': 100,        # Chains to show in hyper traces
+    'hyper_params_per_page': 5,          # Hyperparams per PDF page
+    'hyper_row_height': 2.8,             # Height per row in inches (hyper plots)
+}
+
+# Prior distribution comparison plots
+PRIOR_PLOT_CONFIG = {
+    'figsize': (10, 8),   # Figsize for prior comparison plots
+}
+
+# Paper quantities extraction
+PAPER_QUANTITIES_CONFIG = {
+    'burnin_fraction': 0.5,  # Fraction of iterations to discard as burn-in
+    'rhat_K': 20,            # Number of chain groups for R-hat
+}
+
 # =============================================================================
 # Sampling Options
 # =============================================================================
@@ -316,7 +348,8 @@ if __name__ == '__main__':
             prior_selection=PRIOR_SELECTION,
             data_dir=DATA_DIR,
             output_dir=PLOTS_DIR / 'priors',
-            seed=SEEDS['sampling']
+            seed=SEEDS['sampling'],
+            config=PRIOR_PREDICTIVE_CONFIG,
         )
 
     # -------------------------------------------------------------------------
@@ -384,7 +417,8 @@ if __name__ == '__main__':
 
     if do_gen_paper_quantities:
         check_dependency('gen_paper_quantities', ['clean_data'])
-        pipelines.run_gen_paper_quantities(history_dir_info, DATA_DIR)
+        pipelines.run_gen_paper_quantities(history_dir_info, DATA_DIR,
+                                            config=PAPER_QUANTITIES_CONFIG)
 
     if do_hyper_plots_info:
         check_dependency('hyper_plots', ['clean_data'])
@@ -397,10 +431,12 @@ if __name__ == '__main__':
         if hyper_preprocessed.exists():
             pipelines.run_hyperparameter_plots(history_dir_info, plots_dir_info,
                                                hyperprior_specs=hyperprior_specs,
-                                               preprocessed_path=hyper_preprocessed)
+                                               preprocessed_path=hyper_preprocessed,
+                                               config=DIAGNOSTIC_PLOT_CONFIG)
         else:
             pipelines.run_hyperparameter_plots(history_dir_info, plots_dir_info,
-                                               hyperprior_specs=hyperprior_specs)
+                                               hyperprior_specs=hyperprior_specs,
+                                               config=DIAGNOSTIC_PLOT_CONFIG)
 
     if do_subject_plots_info:
         check_dependency('subject_plots', ['clean_data'])
@@ -411,10 +447,12 @@ if __name__ == '__main__':
             pipelines.run_subject_plots(history_dir_info, plots_dir_info,
                                         n_workers=N_WORKERS,
                                         preprocessed_dir=subjects_preprocessed,
-                                        prizes=ref_prizes)
+                                        prizes=ref_prizes,
+                                        config=DIAGNOSTIC_PLOT_CONFIG)
         else:
             pipelines.run_subject_plots(history_dir_info, plots_dir_info, n_workers=N_WORKERS,
-                                        prizes=ref_prizes)
+                                        prizes=ref_prizes,
+                                        config=DIAGNOSTIC_PLOT_CONFIG)
 
     if do_posterior_predictive_ce_info:
         check_dependency('posterior_predictive_ce_info', ['clean_data'])
@@ -438,9 +476,11 @@ if __name__ == '__main__':
             hyper_preprocessed_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
             if hyper_preprocessed_uninf.exists():
                 pipelines.run_hyperparameter_plots(history_dir_uninf, plots_dir_uninf,
-                                                   preprocessed_path=hyper_preprocessed_uninf)
+                                                   preprocessed_path=hyper_preprocessed_uninf,
+                                                   config=DIAGNOSTIC_PLOT_CONFIG)
             else:
-                pipelines.run_hyperparameter_plots(history_dir_uninf, plots_dir_uninf)
+                pipelines.run_hyperparameter_plots(history_dir_uninf, plots_dir_uninf,
+                                                   config=DIAGNOSTIC_PLOT_CONFIG)
         else:
             print(f"Skipping uninformative hyper plots: {history_dir_uninf} not found")
 
@@ -453,10 +493,12 @@ if __name__ == '__main__':
                 pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf,
                                             n_workers=N_WORKERS,
                                             preprocessed_dir=subjects_preprocessed_uninf,
-                                            prizes=ref_prizes_uninf)
+                                            prizes=ref_prizes_uninf,
+                                            config=DIAGNOSTIC_PLOT_CONFIG)
             else:
                 pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf, n_workers=N_WORKERS,
-                                            prizes=ref_prizes_uninf)
+                                            prizes=ref_prizes_uninf,
+                                            config=DIAGNOSTIC_PLOT_CONFIG)
         else:
             print(f"Skipping uninformative subject plots: {history_dir_uninf} not found")
 
@@ -479,7 +521,8 @@ if __name__ == '__main__':
             direct_prior=DIRECT_PRIOR,
             prior_selection=PRIOR_SELECTION,
             output_dir=PLOTS_DIR / 'priors',
-            seed=SEEDS['sampling']
+            seed=SEEDS['sampling'],
+            config=PRIOR_PLOT_CONFIG,
         )
 
     if do_paper_hyper_comparison:

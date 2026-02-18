@@ -66,10 +66,10 @@ HYPERPARAM_INFO = [
 
 # Subject parameter display info: (name, latex_label)
 SUBJECT_PARAM_INFO = [
-    ('r', r'$r$ (CRRA)'),
-    ('phi', r'$\phi$ (Prelec curvature)'),
-    ('eta', r'$\eta$ (Prelec elevation)'),
-    ('lambda', r'$\lambda$ (noise)'),
+    ('r', r'$r$'),
+    ('phi', r'$\phi$'),
+    ('eta', r'$\eta$'),
+    ('lambda', r'$\lambda$'),
 ]
 
 # Color schemes
@@ -510,7 +510,6 @@ def _plot_subject_ce(params, subject_id, pdf, prizes,
                  f'{prizes[0]:.0f}, {prizes[1]:.0f}, {prizes[2]:.0f}')
     ax.set_xlim(x_lo, x_hi)
     ax.legend(loc='upper left', fontsize=9)
-    ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
     pdf.savefig(fig)
@@ -642,7 +641,6 @@ def _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(0, 1)
     ax.legend(loc='lower right')
-    ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
     pdf.savefig(fig)
@@ -1316,7 +1314,7 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
             ax.set_xlabel(latex_label)
             if row == 0 and col == 0:
                 ax.legend(loc='upper right', fontsize=8)
-            ax.grid(True, alpha=0.2)
+            ax.grid(False)
             ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, min_n_ticks=5))
             ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, min_n_ticks=4))
             ax.spines['top'].set_visible(False)
@@ -1376,10 +1374,10 @@ def paper_plots(quantities_path, plots_dir,
 # Parameter display info for prior plots: (key, label, transform_exp)
 # transform_exp=True means samples are on log scale and should be exp-transformed for display
 PRIOR_PARAM_INFO = [
-    ('r', r'$r$ (CRRA)', False),
-    ('phi_raw', r'$\phi$ (Prelec curvature)', True),
-    ('eta_raw', r'$\eta$ (Prelec elevation)', True),
-    ('lambda_raw', r'$\lambda$ (noise)', True),
+    ('r', r'$r$', False),
+    ('phi_raw', r'$\phi$', True),
+    ('eta_raw', r'$\eta$', True),
+    ('lambda_raw', r'$\lambda$', True),
 ]
 
 

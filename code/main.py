@@ -178,6 +178,7 @@ PREDICTIVE_OVERLAY_CONFIG = {
     'subsample_seed': 99,      # Seed for subsampling hyper draws
     'ce_figsize': (6.3, 3.5),          # CE overlay plot dimensions (inches)
     'params_figsize': (4.75, 7.2),      # Parameter overlay plot dimensions (inches)
+    'ce_thresholds': {'below': [15], 'above': [40]},  # CE percentile thresholds
     'style': OVERLAY_STYLE,
 }
 
@@ -238,15 +239,15 @@ do_preprocess_hyper_uninf    = False
 do_preprocess_subjects_uninf = False
 
 # --- Posterior Analysis (compute summaries from preprocessed data) ---
-do_gen_paper_quantities          = True
-do_posterior_predictive_ce_info  = True
-do_posterior_predictive_ce_uninf = True
+do_gen_paper_quantities          = False
+do_posterior_predictive_ce_info  = False
+do_posterior_predictive_ce_uninf = False
 
 # --- Diagnostic Plots ---
-do_hyper_plots_info          = True
-do_subject_plots_info        = True
-do_hyper_plots_uninf         = True
-do_subject_plots_uninf       = True
+do_hyper_plots_info          = False
+do_subject_plots_info        = False
+do_hyper_plots_uninf         = False
+do_subject_plots_uninf       = False
 
 # --- Paper Plots ---
 do_paper_prior_comparison    = True   # Prior distribution comparison
@@ -258,7 +259,7 @@ do_paper_subject_ce          = True   # Subject most/least affected CE
 do_skew_normal_example  = False
 
 # --- Document Compilation ---
-do_compile_doc          = False
+do_compile_doc          = True
 
 
 # =============================================================================

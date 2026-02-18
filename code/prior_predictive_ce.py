@@ -1088,8 +1088,7 @@ def plot_predictive_params_overlay(prior_params, info_params, uninf_params,
     lbl, clr = _parse_overlay_style(style)
 
     param_keys = ['r', 'phi', 'eta', 'lambda']
-    param_labels = [r'$r$ (CRRA)', r'$\phi$ (Prelec curvature)',
-                    r'$\eta$ (Prelec elevation)', r'$\lambda$ (noise)']
+    param_labels = [r'$r$', r'$\phi$', r'$\eta$', r'$\lambda$']
 
     fig, axes = plt.subplots(4, 1, figsize=figsize, sharex=False)
 
@@ -1332,6 +1331,7 @@ def run_predictive_ce_overlay(
     ce_figsize = tuple(config.get('ce_figsize', (6.3, 3.5)))
     params_figsize = tuple(config.get('params_figsize', (6.3, 7.2)))
     plot_style = config.get('style', None)
+    ce_thresholds = config.get('ce_thresholds', {'below': [15], 'above': [40]})
 
     data_dir = Path(data_dir)
     output_dir = Path(output_dir)
@@ -1405,18 +1405,21 @@ def run_predictive_ce_overlay(
 
     # --- Compute paper quantities ---
     ev = float(np.mean(prizes))
-    prior_pct_above_ev = 100 * np.mean(prior_ce_flat > ev)
-    info_pct_below_15 = 100 * np.mean(post_info_ce < 15)
-    info_pct_above_45 = 100 * np.mean(post_info_ce > 45)
-    uninf_pct_below_15 = 100 * np.mean(post_uninf_ce < 15)
-    uninf_pct_above_45 = 100 * np.mean(post_uninf_ce > 45)
+    ce_quantities = {'prior_pct_above_ev': 100 * np.mean(prior_ce_flat > ev)}
+    distributions = [
+        ('prior', prior_ce_flat),
+        ('info', post_info_ce),
+        ('uninf', post_uninf_ce),
+    ]
+    for name, ce in distributions:
+        for t in ce_thresholds.get('below', []):
+            ce_quantities[f'{name}_pct_below_{t:g}'] = 100 * np.mean(ce < t)
+        for t in ce_thresholds.get('above', []):
+            ce_quantities[f'{name}_pct_above_{t:g}'] = 100 * np.mean(ce > t)
 
     print(f"\n  Paper quantities:")
-    print(f"    Prior % > EV ({ev:.0f}):       {prior_pct_above_ev:.1f}%")
-    print(f"    Info % < 15:              {info_pct_below_15:.1f}%")
-    print(f"    Info % > 45:              {info_pct_above_45:.1f}%")
-    print(f"    Uninf % < 15:             {uninf_pct_below_15:.1f}%")
-    print(f"    Uninf % > 45:             {uninf_pct_above_45:.1f}%")
+    for key, val in ce_quantities.items():
+        print(f"    {key}: {val:.1f}%")
 
     # --- Save combined NPZ ---
     npz_path = data_dir / 'output' / 'predictive_ce_overlay.npz'
@@ -1428,11 +1431,7 @@ def run_predictive_ce_overlay(
         post_uninf_ce=post_uninf_ce,
         prizes=prizes,
         n_new=n_new,
-        prior_pct_above_ev=prior_pct_above_ev,
-        info_pct_below_15=info_pct_below_15,
-        info_pct_above_45=info_pct_above_45,
-        uninf_pct_below_15=uninf_pct_below_15,
-        uninf_pct_above_45=uninf_pct_above_45,
+        **ce_quantities,
     )
     print(f"  Saved NPZ to: {npz_path}")
 

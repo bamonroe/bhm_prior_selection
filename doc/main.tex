@@ -508,21 +508,21 @@ These researcher decisions result in the full hyper-prior:
 
 %\begin{figure}
 %  \centering
-%  \caption{Draws from the Direct Prior}
+%  \mycaption{Draws from the Direct Prior}
 %  \label{fig:direct_prior}
 %  \includegraphics[width=\textwidth]{../plots/priors/direct_prior.pdf}
 %\end{figure}
 %
 %\begin{figure}
 %  \centering
-%  \caption{Draws from the Derived Hyper-Prior}
+%  \mycaption{Draws from the Derived Hyper-Prior}
 %  \label{fig:}
 %  \includegraphics[width=\textwidth]{../plots/priors/unconditional_prior.pdf}
 %\end{figure}
 %
 %\begin{figure}
 %  \centering
-%  \caption{Draws from the Derived Hyper-Prior}
+%  \mycaption{Draws from the Derived Hyper-Prior}
 %  \label{fig:}
 %  \includegraphics[width=\textwidth]{../plots/priors/prior_comparison.pdf}
 %\end{figure}
@@ -569,16 +569,15 @@ predictive distributions for each subject of the certainty equivalent (CE) of
 
 \begin{figure}[hp]
   \centering
-  \caption{Hyper-parameter comparison}
+  \mycaption{Hyper-parameter comparison}
   \label{fig:hyper_par_comp}
   \includegraphics[width=\textwidth]{../plots/paper/hyper_comparison.pdf}
 \end{figure}
 \begin{figure}[hp]
   \centering
-  \caption{Hyper-posterior distribution}
+  \mycaption{Hyper-posterior distribution}
   \label{fig:hyper_post_comp}
-  %\includegraphics[width=\textwidth]{../plots/paper/predictive_params_overlay.pdf}
-  \includegraphics[]{../plots/paper/predictive_params_overlay.pdf}
+  \includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{../plots/paper/predictive_params_overlay.pdf}
 \end{figure}
 
 I begin with the hyper-parameter comparison in Figure \ref{fig:hyper_par_comp}.
@@ -631,10 +630,12 @@ subject_max_ce = subject_most_affected
 subject_min_ce = subject_least_affected
 _ce_overlay = np.load("../data/output/predictive_ce_overlay.npz")
 hprior_pred_rs = fmt(float(_ce_overlay['prior_pct_above_ev']), 1)
-uninf_ce_rs = fmt(float(_ce_overlay['uninf_pct_above_45']), 1)
-uninf_ce_ra = fmt(float(_ce_overlay['uninf_pct_below_15']), 1)
-info_ce_rs = fmt(float(_ce_overlay['info_pct_above_45']), 1)
-info_ce_ra = fmt(float(_ce_overlay['info_pct_below_15']), 1)
+prior_ce_below_15 = fmt(float(_ce_overlay['prior_pct_below_15']), 1)
+prior_ce_above_40 = fmt(float(_ce_overlay['prior_pct_above_40']), 1)
+info_ce_below_15 = fmt(float(_ce_overlay['info_pct_below_15']), 1)
+info_ce_above_40 = fmt(float(_ce_overlay['info_pct_above_40']), 1)
+uninf_ce_below_15 = fmt(float(_ce_overlay['uninf_pct_below_15']), 1)
+uninf_ce_above_40 = fmt(float(_ce_overlay['uninf_pct_above_40']), 1)
 \end{pycode}
 
 
@@ -656,7 +657,7 @@ all $x$, is defined as:
 
 \begin{figure}[h]
   \centering
-  \caption{Hyper-posterior predictive CE distributions}
+  \mycaption{Hyper-posterior predictive CE distributions}
   \label{fig:hyper_post_ce}
   \includegraphics[width=\textwidth]{../plots/paper/predictive_ce_overlay.pdf}
 \end{figure}
@@ -678,14 +679,14 @@ CE.
 
 \begin{figure}[hp]
   \centering
-  \caption{Posterior predictive CE: Least Affected (Subject \py{subject_min_ce})}
+  \mycaption{Posterior predictive CE: Least Affected (Subject \py{subject_min_ce})}
   \label{fig:post_ce_min}
   \includegraphics[width=\textwidth]{../plots/paper/subject_ce_least_affected.pdf}
 \end{figure}
 
 \begin{figure}[hp]
   \centering
-  \caption{Posterior predictive CE: Most Affected (Subject \py{subject_max_ce})}
+  \mycaption{Posterior predictive CE: Most Affected (Subject \py{subject_max_ce})}
   \label{fig:post_ce_max}
   \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_affected.pdf}
 \end{figure}
@@ -696,16 +697,17 @@ picture of the effect of an informed hyper-prior distribution on posterior
 inferences about risk preferences. In this figure, we see that the hyper-prior
 we selected world result in \py{hprior_pred_rs}\% of possible CE values to be
 greater than the expected value of the lottery, suggesting a not insignificant
-prior belief that a random subject might be risk seeking. Of greater
-interest, however, are the posterior predictive distributions.
+prior belief that a random subject might be risk seeking. Of greater interest,
+however, are the posterior predictive distributions.
 
-The uniformed posterior predictive distribution, shown in orange, displays a
-wide distribution of possible CEs, with substantial density at extreme values
+The uninformative posterior predictive distribution, shown in orange, displays
+a wide distribution of possible CEs, with substantial density at extreme values
 of risk aversion. The mode of the uninformative posterior is less than \$15,
-indicating extreme risk aversion. Likewise, \py{uninf_ce_rs}\% of the density
-is above \$45, indicating extreme risk \textit{seeking}. In contrast, only
-\py{info_ce_ra}\% of the CE density is below \$15 for the informative posterior
-and \py{info_ce_rs}\% above \$45.
+indicating extreme risk aversion, and \py{uninf_ce_below_15}\% of the density
+is below \$15. Likewise, \py{uninf_ce_above_40}\% of the density is above \$40,
+indicating extreme risk \textit{seeking}. In contrast, only
+\py{info_ce_below_15}\% of the CE density is below \$15 for the informative
+posterior and \py{info_ce_above_40}\% above \$40.
 
 
 
@@ -731,8 +733,7 @@ and \py{info_ce_rs}\% above \$45.
 
 This appendix is for the full covariance derivation.
 
-% print references from this section only
-\appendixref{}
+% \appendixref{}  % uncomment when this appendix has citations
 
 \pagebreak
 
@@ -838,8 +839,9 @@ Consider the hyperprior structure:
   \omega^2 &\sim \text{Inverse-Gamma}(\alpha_\omega, \beta_\omega) \\
   \alpha &\sim \text{Normal}(\mu_\alpha, \tau_\alpha^2)
 \end{align}
-This introduces 6 hyperprior parameters: $(\mu_\xi, \tau_\xi^2, \alpha_\omega,
-\beta_\omega, \mu_\alpha, \tau_\alpha^2)$. The 3 cumulant matching conditions
+This introduces 6 hyperprior parameters:
+$(\mu_\xi, \tau_\xi^2, \alpha_\omega, \beta_\omega, \mu_\alpha, \tau_\alpha^2)$.
+The 3 cumulant matching conditions
 determine 3 of these, leaving 3 degrees of freedom for researcher choice.
 
 \paragraph{Researcher-specified parameters.}
@@ -887,8 +889,7 @@ solvable via root-finding:
 The implied cumulants can be computed via Monte Carlo integration over the
 hyperprior distributions.
 
-% print references from this section only
-\appendixref{}
+% \appendixref{}  % uncomment when this appendix has citations
 
 \pagebreak
 
@@ -921,7 +922,6 @@ Estimation uses the \texttt{bamcmc} package, a JAX-based MCMC sampler with
 coupled A/B chains and GPU acceleration. The sampler runs
 \py{Q.get('n_chains', 'N/A')} chains in parallel on an NVIDIA RTX 4070 GPU.
 
-% print references from this section only
-\appendixref{}
+% \appendixref{}  % uncomment when this appendix has citations
 
 \end{document}

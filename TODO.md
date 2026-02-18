@@ -10,7 +10,7 @@ The full pipeline is implemented and working with Harrison & Ng (2016) data:
 - Diagnostic plots generated for both prior specifications
 - Paper draft updated to reference Harrison & Ng (2016)
 
-**Current branch:** `feat/hn2019-data` (from `master`)
+**Current branch:** `feat/hn2016-data` (from `master`)
 
 ---
 
@@ -36,12 +36,12 @@ The full pipeline is implemented and working with Harrison & Ng (2016) data:
   - Likelihood: verify 3-outcome RDU matches 2-outcome when slot has prob=0
 
 ### Branch Management
-- [ ] Squash/tidy commit history on `feat/hn2019-data`
-- [ ] Merge `feat/hn2019-data` into `master` once pipeline is fully verified
+- [ ] Squash/tidy commit history on `feat/hn2016-data`
+- [ ] Merge `feat/hn2016-data` into `master` once pipeline is fully verified
 
 ### Housekeeping
 - [ ] Decide whether to commit `technical_notes/coupled_transform_sampler/`
-- [ ] Remove stale `data/input/hn2019_insurance.dta` and `data/input/jri/` if not needed
+- [ ] Remove stale `data/input/hn2016_insurance.dta` and `data/input/jri/` if not needed
 
 ---
 

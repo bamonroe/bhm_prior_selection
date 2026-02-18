@@ -70,6 +70,11 @@ def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None
         'thin_iteration': cfg['thin_iteration'],
         'chunk_size': cfg.get('chunk_size', 100),
         'rng_seed': cfg['rng_seed'],
+        # Parallel tempering
+        'n_temperatures': max(cfg.get('n_temperatures', 1), 1),
+        'beta_min': cfg.get('beta_min', 0.1),
+        'per_temp_proposals': cfg.get('per_temp_proposals', True),
+        'use_deo': cfg.get('use_deo', True),
     }
 
     # Build run schedule from reset_runs and resume_runs
@@ -77,27 +82,33 @@ def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None
     n_resume = resume_runs if resume_runs is not None else 0
     total_runs = n_reset + n_resume
 
+    n_temps = mcmc_config['n_temperatures']
+
     print(f"\nSampling Configuration:")
     print(f"  Model: {MODEL_ID}")
     print(f"  Chains: {mcmc_config['num_chains_a']} + {mcmc_config['num_chains_b']}")
     print(f"  Collection iterations: {mcmc_config['num_collect']}")
     print(f"  Thinning: {mcmc_config['thin_iteration']}")
+    if n_temps > 1:
+        print(f"  Parallel tempering: {n_temps} temperatures, "
+              f"beta_min={mcmc_config['beta_min']}, "
+              f"DEO={'on' if mcmc_config['use_deo'] else 'off'}")
     print(f"  Reset runs: {n_reset}, Resume runs: {n_resume}")
     print(f"  Output: {output_dir}")
 
-    # Build run schedule
+    # Build run schedule (passed inside mcmc_config)
     run_schedule = []
     if n_reset > 0:
         run_schedule.append(("reset", n_reset))
     if n_resume > 0:
         run_schedule.append(("resume", n_resume))
+    mcmc_config['run_schedule'] = run_schedule
 
     print(f"\nStarting MCMC with schedule: {run_schedule}")
     summary = rmcmc(
         mcmc_config,
         indexed_data,
         output_dir=str(output_dir),
-        run_schedule=run_schedule,
         calculate_rhat=True,
         burn_in_fresh=True,
     )

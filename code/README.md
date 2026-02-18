@@ -90,7 +90,7 @@ Wrapper functions that main.py calls. Each function:
 
 Loads and transforms experimental data into a unified 3-outcome format for bamcmc.
 Supports two datasets:
-- `'hn2019'`: Harrison & Ng (2016), 3-outcome lotteries in USD (default)
+- `'hn2016'`: Harrison & Ng (2016), 3-outcome lotteries in USD (default)
 - `'andersen2008'`: Andersen et al. (2008), binary lotteries in DKK (padded to 3-outcome)
 
 **Key Functions:**

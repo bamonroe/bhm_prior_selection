@@ -31,6 +31,7 @@ from pathlib import Path
 from multiprocessing import Pool
 
 from bamcmc import combine_batch_histories
+from helpers import load_and_filter_history
 from posteriors.rdu_bhm import NPARAMS, N_HYPER
 
 # Configure LaTeX fonts (Latin Modern)
@@ -65,10 +66,10 @@ HYPERPARAM_INFO = [
 
 # Subject parameter display info: (name, latex_label)
 SUBJECT_PARAM_INFO = [
-    ('r', r'$r$ (CRRA)'),
-    ('phi', r'$\phi$ (Prelec curvature)'),
-    ('eta', r'$\eta$ (Prelec elevation)'),
-    ('lambda', r'$\lambda$ (noise)'),
+    ('r', r'$r$'),
+    ('phi', r'$\phi$'),
+    ('eta', r'$\eta$'),
+    ('lambda', r'$\lambda$'),
 ]
 
 # Color schemes
@@ -223,7 +224,7 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"  Loading {len(history_files)} history files...")
-    history, iterations, _, metadata = combine_batch_histories(history_files)
+    history, iterations, _, metadata = load_and_filter_history(history_files)
     print(f"  Combined shape: {history.shape}")
 
     n_samples, n_chains, n_params = history.shape
@@ -309,7 +310,7 @@ def preprocess_hyperparams(history_dir, output_dir, force=False):
             return output_path
 
     print(f"  Loading {len(history_files)} history files...")
-    history, iterations, _, metadata = combine_batch_histories(history_files)
+    history, iterations, _, metadata = load_and_filter_history(history_files)
     print(f"  Combined shape: {history.shape}")
 
     n_samples, n_chains, n_total_params = history.shape
@@ -359,11 +360,14 @@ def _plot_single_subject(args):
 
     Args:
         args: tuple of (subject_id, params_dir, output_dir, iterations,
-              batch_boundaries, prizes)
+              batch_boundaries, prizes, config)
               prizes may be None (CE page skipped).
+              config may be None or a dict with plotting options.
     """
     subject_id, params_dir, output_dir, iterations, batch_boundaries, \
-        prizes = args
+        prizes, config = args
+    if config is None:
+        config = {}
 
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
@@ -378,20 +382,26 @@ def _plot_single_subject(args):
 
     with PdfPages(pdf_path) as pdf:
         # Page 1: Trace plots (all history files)
-        _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf)
+        _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
+                             chain_subsample=config.get('chain_subsample', 50),
+                             figsize=config.get('subject_trace_figsize', (12, 12)))
 
         # Page 2: Density plots (last history file)
         _plot_subject_densities(params, subject_id, pdf, batch_boundaries)
 
         # Page 3: Utility spaghetti (last history file)
         _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
-                              prizes=np.asarray(prizes) if prizes is not None else None)
+                              prizes=np.asarray(prizes) if prizes is not None else None,
+                              figsize=config.get('subject_utility_figsize', (10, 7)),
+                              n_spaghetti=config.get('n_spaghetti', None))
 
         # Page 4: CE distribution (last history file)
         if prizes is not None:
             _plot_subject_ce(params, subject_id, pdf,
                              np.asarray(prizes),
-                             batch_boundaries)
+                             batch_boundaries,
+                             figsize=config.get('subject_ce_figsize', (10, 7)),
+                             bins=config.get('ce_hist_bins', None))
 
     return subject_id
 
@@ -446,7 +456,7 @@ def _compute_subject_ces(r_samples, phi_samples, eta_samples, prizes):
 
 
 def _plot_subject_ce(params, subject_id, pdf, prizes,
-                     batch_boundaries):
+                     batch_boundaries, figsize=(10, 7), bins=None):
     """
     Plot posterior predictive CE distribution for a single subject.
 
@@ -458,7 +468,11 @@ def _plot_subject_ce(params, subject_id, pdf, prizes,
         pdf: PdfPages object
         prizes: array of 3 reference prizes [min, mid, max]
         batch_boundaries: list of batch boundary indices
+        figsize: Figure dimensions in inches (default (10, 7))
+        bins: Number of histogram bins (default uses module-level CE_HIST_BINS)
     """
+    if bins is None:
+        bins = CE_HIST_BINS
     n_samples = params['r'].shape[0]
     burn_idx = _last_batch_start(batch_boundaries, n_samples)
 
@@ -480,10 +494,10 @@ def _plot_subject_ce(params, subject_id, pdf, prizes,
     x_lo = float(prizes[0])
     x_hi = float(prizes[-1])
 
-    fig, ax = plt.subplots(figsize=(10, 7))
+    fig, ax = plt.subplots(figsize=figsize)
     fig.suptitle(f'Subject {subject_id} - Posterior Predictive CE', fontsize=14)
 
-    ax.hist(ces, bins=CE_HIST_BINS, density=True, alpha=0.6, color=COLOR_DATA,
+    ax.hist(ces, bins=bins, density=True, alpha=0.6, color=COLOR_DATA,
             range=(x_lo, x_hi))
 
     # Reference lines
@@ -509,7 +523,6 @@ def _plot_subject_ce(params, subject_id, pdf, prizes,
                  f'{prizes[0]:.0f}, {prizes[1]:.0f}, {prizes[2]:.0f}')
     ax.set_xlim(x_lo, x_hi)
     ax.legend(loc='upper left', fontsize=9)
-    ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
     pdf.savefig(fig)
@@ -523,15 +536,16 @@ def _last_batch_start(batch_boundaries, n_samples):
     return n_samples // 2
 
 
-def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf):
+def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
+                         chain_subsample=50, figsize=(12, 12)):
     """Plot trace plots for a subject."""
-    fig, axes = plt.subplots(4, 1, figsize=(12, 12))
+    fig, axes = plt.subplots(4, 1, figsize=figsize)
     fig.suptitle(f'Subject {subject_id} - Trace Plots', fontsize=14)
 
     n_samples, n_chains = params['r'].shape
 
     # Subsample chains for visibility
-    chain_subsample = min(50, n_chains)
+    chain_subsample = min(chain_subsample, n_chains)
     chain_indices = np.linspace(0, n_chains - 1, chain_subsample, dtype=int)
     chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, chain_subsample)))
 
@@ -591,7 +605,6 @@ def _plot_subject_densities(params, subject_id, pdf, batch_boundaries):
         ax.legend(loc='upper right', fontsize=9)
 
         ax.set_xlabel(label)
-        ax.set_ylabel('Density')
         ax.set_title(f'{name}')
 
     plt.tight_layout()
@@ -600,9 +613,11 @@ def _plot_subject_densities(params, subject_id, pdf, batch_boundaries):
 
 
 def _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
-                          prizes=None):
+                          prizes=None, figsize=(10, 7), n_spaghetti=None):
     """Plot utility function spaghetti plot (using last history file)."""
-    fig, ax = plt.subplots(figsize=(10, 7))
+    if n_spaghetti is None:
+        n_spaghetti = N_SPAGHETTI_SAMPLES
+    fig, ax = plt.subplots(figsize=figsize)
     fig.suptitle(f'Subject {subject_id} - CRRA Utility Function', fontsize=14)
 
     n_samples = params['r'].shape[0]
@@ -611,7 +626,7 @@ def _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
     r_samples = params['r'][burn_idx:, :].flatten()
 
     # Subsample for spaghetti plot
-    n_draws = min(N_SPAGHETTI_SAMPLES, len(r_samples))
+    n_draws = min(n_spaghetti, len(r_samples))
     np.random.seed(subject_id)  # Reproducible
     draw_indices = np.random.choice(len(r_samples), n_draws, replace=False)
 
@@ -642,7 +657,6 @@ def _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(0, 1)
     ax.legend(loc='lower right')
-    ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
     pdf.savefig(fig)
@@ -651,7 +665,7 @@ def _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
 
 def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
                            n_workers=1, max_subjects=None,
-                           prizes=None):
+                           prizes=None, config=None):
     """
     Run parallel plotting with a pool of workers.
 
@@ -663,6 +677,7 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
         n_workers: Number of parallel workers
         max_subjects: Limit number of subjects (for testing)
         prizes: Array of 3 reference prizes [min, mid, max] for CE page (None to skip)
+        config: Optional dict with plotting config (forwarded to per-subject plot fns)
     """
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
@@ -685,7 +700,7 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
     # Build task list - workers receive paths, not data
     tasks = [
         (sid, str(params_dir), str(output_dir), iterations_list, boundaries_list,
-         prizes_list)
+         prizes_list, config)
         for sid in range(n_subjects)
     ]
 
@@ -704,11 +719,12 @@ def parallel_plot_subjects(params_dir, output_dir, iterations, batch_boundaries,
 # =============================================================================
 
 def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
-                         hyperprior_specs=None):
+                         hyperprior_specs=None, chain_subsample=100,
+                         params_per_page=5, row_height=2.8):
     """
     Generate hyperparameter diagnostic PDF.
 
-    Layout: 2-column (traces left, densities right), up to 5 params per page.
+    Layout: 2-column (traces left, densities right), up to params_per_page params per page.
 
     Args:
         history: MCMC history array
@@ -716,6 +732,9 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
         batch_boundaries: Run boundaries
         output_path: Path to save PDF
         hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        chain_subsample: Max chains to show in traces (default 100)
+        params_per_page: Hyperparams per PDF page (default 5)
+        row_height: Height per row in inches (default 2.8)
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -737,19 +756,18 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
         prior_quantiles = compute_hyperprior_quantiles(hyperprior_specs)
 
     # Subsample chains for traces
-    n_chains_plot = min(100, n_chains)
+    n_chains_plot = min(chain_subsample, n_chains)
     chain_indices = np.linspace(0, n_chains - 1, n_chains_plot, dtype=int)
     chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, n_chains_plot)))
 
     with PdfPages(output_path) as pdf:
         n_params = len(HYPERPARAM_INFO)
-        params_per_page = 5
 
         for page_start in range(0, n_params, params_per_page):
             page_end = min(page_start + params_per_page, n_params)
             n_on_page = page_end - page_start
 
-            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, 2.8 * n_on_page))
+            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, row_height * n_on_page))
             if n_on_page == 1:
                 axes = axes.reshape(1, 2)
 
@@ -841,7 +859,6 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
                                       alpha=0.7, label='Prior 95% CI')
                 ax_density.legend(loc='upper right', fontsize=8)
                 ax_density.set_xlabel(latex_label)
-                ax_density.set_ylabel('Density')
                 ax_density.set_title(f'{state_name} - Posterior')
 
             plt.tight_layout()
@@ -855,7 +872,8 @@ def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
 # STANDALONE PLOT FUNCTIONS
 # =============================================================================
 
-def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_specs=None):
+def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_specs=None,
+                                        config=None):
     """
     Generate hyperparameter plots from preprocessed data file.
 
@@ -863,7 +881,10 @@ def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_
         preprocessed_path: Path to hyperparams_preprocessed.npz file
         plots_dir: Directory to save plots
         hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        config: Optional dict with keys hyper_chain_subsample, hyper_params_per_page, hyper_row_height
     """
+    if config is None:
+        config = {}
     preprocessed_path = Path(preprocessed_path)
     plots_dir = Path(plots_dir)
     plots_dir.mkdir(parents=True, exist_ok=True)
@@ -896,12 +917,16 @@ def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_
     print("  Generating hyperparameter plots...")
     hyper_path = plots_dir / 'rdu_bhm_hyperparams.pdf'
     _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, hyper_path,
-                                  hyperprior_specs=hyperprior_specs)
+                                  hyperprior_specs=hyperprior_specs,
+                                  chain_subsample=config.get('hyper_chain_subsample', 100),
+                                  params_per_page=config.get('hyper_params_per_page', 5),
+                                  row_height=config.get('hyper_row_height', 2.8))
     print(f"  Saved: {hyper_path}")
 
 
 def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, output_path,
-                                  hyperprior_specs=None):
+                                  hyperprior_specs=None, chain_subsample=100,
+                                  params_per_page=5, row_height=2.8):
     """
     Plot hyperparameters from a direct hyperparameter array (no offset calculation needed).
 
@@ -911,6 +936,9 @@ def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, ou
         batch_boundaries: Run boundaries
         output_path: Path to save PDF
         hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        chain_subsample: Max chains to show in traces (default 100)
+        params_per_page: Hyperparams per PDF page (default 5)
+        row_height: Height per row in inches (default 2.8)
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -924,19 +952,18 @@ def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, ou
         prior_quantiles = compute_hyperprior_quantiles(hyperprior_specs)
 
     # Subsample chains for traces
-    n_chains_plot = min(100, n_chains)
+    n_chains_plot = min(chain_subsample, n_chains)
     chain_indices = np.linspace(0, n_chains - 1, n_chains_plot, dtype=int)
     chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, n_chains_plot)))
 
     with PdfPages(output_path) as pdf:
         n_params = len(HYPERPARAM_INFO)
-        params_per_page = 5
 
         for page_start in range(0, n_params, params_per_page):
             page_end = min(page_start + params_per_page, n_params)
             n_on_page = page_end - page_start
 
-            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, 2.8 * n_on_page))
+            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, row_height * n_on_page))
             if n_on_page == 1:
                 axes = axes.reshape(1, 2)
 
@@ -1036,7 +1063,7 @@ def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, ou
             plt.close(fig)
 
 
-def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
+def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None, config=None):
     """
     Generate hyperparameter plots directly from history files (no preprocessing).
 
@@ -1047,7 +1074,10 @@ def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
         history_dir: Directory containing history_*.npz files
         plots_dir: Directory to save plots
         hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        config: Optional dict with keys hyper_chain_subsample, hyper_params_per_page, hyper_row_height
     """
+    if config is None:
+        config = {}
     history_dir = Path(history_dir)
     plots_dir = Path(plots_dir)
     plots_dir.mkdir(parents=True, exist_ok=True)
@@ -1061,7 +1091,7 @@ def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
 
     # Load history
     print("  Loading history for hyperparameters...")
-    history, iterations, _, metadata = combine_batch_histories(history_files)
+    history, iterations, _, metadata = load_and_filter_history(history_files)
     print(f"  Shape: {history.shape}")
 
     # Calculate batch boundaries
@@ -1076,12 +1106,15 @@ def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None):
     print("  Generating hyperparameter plots...")
     hyper_path = plots_dir / 'rdu_bhm_hyperparams.pdf'
     plot_hyperparameters(history, iterations, batch_boundaries, hyper_path,
-                        hyperprior_specs=hyperprior_specs)
+                        hyperprior_specs=hyperprior_specs,
+                        chain_subsample=config.get('hyper_chain_subsample', 100),
+                        params_per_page=config.get('hyper_params_per_page', 5),
+                        row_height=config.get('hyper_row_height', 2.8))
     print(f"  Saved: {hyper_path}")
 
 
 def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
-                       prizes=None):
+                       prizes=None, config=None):
     """
     Generate only per-subject diagnostic plots.
 
@@ -1091,6 +1124,7 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
         max_subjects: Limit subjects for testing
         n_workers: Number of parallel workers
         prizes: Array of 3 reference prizes for CE page (None to skip)
+        config: Optional dict with plotting config (forwarded to per-subject plot fns)
     """
     history_dir = Path(history_dir)
     plots_dir = Path(plots_dir)
@@ -1108,26 +1142,127 @@ def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
     parallel_plot_subjects(
         params_dir, subjects_dir, iterations, batch_boundaries,
         n_workers=n_workers, max_subjects=max_subjects,
-        prizes=prizes
+        prizes=prizes, config=config
     )
+
+
+def _hyperprior_pdf(x, state_name, hyperprior_specs):
+    """
+    Compute the hyperprior PDF evaluated on x for a given hyperparameter.
+
+    For mean params: mu ~ N(mu_0, tau_0_sq) — normal PDF.
+    For logsd params: sigma^2 ~ IG(alpha_0, beta_0) with logsd = 0.5*log(sigma^2),
+        so PDF is computed via change of variables.
+
+    Args:
+        x: Array of points to evaluate
+        state_name: e.g. 'r_mean', 'r_logsd', 'phi_mean', etc.
+        hyperprior_specs: Dict with keys 'r', 'phi_raw', 'eta_raw', 'lambda_raw'
+
+    Returns:
+        Array of PDF values (same shape as x), or None if specs unavailable
+    """
+    if hyperprior_specs is None:
+        return None
+
+    # Map state_name to param key
+    prefix = state_name.split('_')[0]  # r, phi, eta, lambda
+    param_key = {'r': 'r', 'phi': 'phi_raw', 'eta': 'eta_raw', 'lambda': 'lambda_raw'}[prefix]
+
+    if param_key not in hyperprior_specs:
+        return None
+
+    spec = hyperprior_specs[param_key]
+    mu_0 = spec['mu_0']
+    tau_0_sq = spec['tau_0_sq']
+    alpha_0 = spec['alpha_0']
+    beta_0 = spec['beta_0']
+
+    is_logsd = state_name.endswith('_logsd')
+
+    if not is_logsd:
+        # Mean: mu ~ N(mu_0, tau_0_sq)
+        return stats.norm.pdf(x, loc=mu_0, scale=np.sqrt(tau_0_sq))
+    else:
+        # logsd = 0.5 * log(sigma^2), sigma^2 ~ IG(alpha_0, beta_0)
+        # Change of variables: sigma^2 = exp(2 * logsd)
+        # f(logsd) = f_IG(exp(2*logsd)) * |d(sigma^2)/d(logsd)| = f_IG(exp(2*logsd)) * 2*exp(2*logsd)
+        sigma_sq = np.exp(2.0 * x)
+        pdf_ig = stats.invgamma.pdf(sigma_sq, alpha_0, scale=beta_0)
+        jacobian = 2.0 * sigma_sq
+        return pdf_ig * jacobian
+
+
+def _hyperprior_median(state_name, hyperprior_specs):
+    """Return the median of the hyperprior distribution for a given state."""
+    if hyperprior_specs is None:
+        return None
+
+    prefix = state_name.split('_')[0]
+    param_key = {'r': 'r', 'phi': 'phi_raw', 'eta': 'eta_raw', 'lambda': 'lambda_raw'}[prefix]
+    if param_key not in hyperprior_specs:
+        return None
+
+    spec = hyperprior_specs[param_key]
+    is_logsd = state_name.endswith('_logsd')
+
+    if not is_logsd:
+        return spec['mu_0']  # Normal median = mean
+    else:
+        ig_median = stats.invgamma.median(spec['alpha_0'], scale=spec['beta_0'])
+        return 0.5 * np.log(ig_median)
+
+
+def _hyperprior_range(state_name, hyperprior_specs, tail=0.005):
+    """Return (lo, hi) covering the central 1-2*tail mass of the hyperprior."""
+    if hyperprior_specs is None:
+        return None
+
+    prefix = state_name.split('_')[0]
+    param_key = {'r': 'r', 'phi': 'phi_raw', 'eta': 'eta_raw', 'lambda': 'lambda_raw'}[prefix]
+    if param_key not in hyperprior_specs:
+        return None
+
+    spec = hyperprior_specs[param_key]
+    is_logsd = state_name.endswith('_logsd')
+
+    if not is_logsd:
+        dist = stats.norm(loc=spec['mu_0'], scale=np.sqrt(spec['tau_0_sq']))
+        return (dist.ppf(tail), dist.ppf(1 - tail))
+    else:
+        # logsd = 0.5 * log(sigma^2), sigma^2 ~ IG(alpha_0, beta_0)
+        ig = stats.invgamma(spec['alpha_0'], scale=spec['beta_0'])
+        sq_lo, sq_hi = ig.ppf(tail), ig.ppf(1 - tail)
+        return (0.5 * np.log(sq_lo), 0.5 * np.log(sq_hi))
 
 
 def plot_hyper_comparison(info_path, uninf_path, output_path,
                          hyperprior_specs_info=None,
-                         hyperprior_specs_uninf=None):
+                         hyperprior_specs_uninf=None,
+                         config=None):
     """
     Plot posterior density comparison for each hyperparameter.
 
     Produces a single PDF with one row per hyperparameter, showing overlaid
-    KDE densities from informative and uninformative posteriors.
+    KDE densities from informative and uninformative posteriors, with the
+    informative hyperprior density for reference.
 
     Args:
         info_path: Path to informative hyperparams_preprocessed.npz
         uninf_path: Path to uninformative hyperparams_preprocessed.npz
         output_path: Path to save the output PDF
-        hyperprior_specs_info: Informative hyperprior specs (for prior overlay)
-        hyperprior_specs_uninf: Uninformative hyperprior specs (for prior overlay)
+        hyperprior_specs_info: Informative hyperprior specs (for prior density)
+        hyperprior_specs_uninf: Uninformative hyperprior specs (unused currently)
+        config: Optional dict with keys:
+            figsize (tuple): Plot dimensions (width, height) in inches
+            tail (float): Tail probability for x-axis range (default 0.005)
     """
+    if config is None:
+        config = {}
+    figsize = tuple(config.get('figsize', (6.3, 7.2)))
+    tail = config.get('tail', 0.005)
+    from prior_predictive_ce import _parse_overlay_style
+    lbl, clr = _parse_overlay_style(config.get('style', None))
     info_path = Path(info_path)
     uninf_path = Path(uninf_path)
     output_path = Path(output_path)
@@ -1142,12 +1277,9 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
         n = samples.shape[0]
         return samples[n // 2:, :].flatten()
 
-    # Compute prior densities if specs provided
-    prior_info_q = compute_hyperprior_quantiles(hyperprior_specs_info) if hyperprior_specs_info else None
-    prior_uninf_q = compute_hyperprior_quantiles(hyperprior_specs_uninf) if hyperprior_specs_uninf else None
-
-    COLOR_INFO = '#377eb8'     # blue
-    COLOR_UNINF = '#e41a1c'    # red
+    COLOR_PRIOR = clr['prior']
+    COLOR_INFO = clr['info']
+    COLOR_UNINF = clr['uninf']
 
     # 2-column layout: means (left), log-sdevs (right), 4 rows (r, phi, eta, lambda)
     PARAM_PAIRS = [
@@ -1158,8 +1290,7 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
     ]
 
     n_rows = len(PARAM_PAIRS)
-    # Size to match LaTeX \textwidth (a4paper + geometry defaults ≈ 6.3in)
-    fig, axes = plt.subplots(n_rows, 2, figsize=(6.3, 1.8 * n_rows))
+    fig, axes = plt.subplots(n_rows, 2, figsize=figsize)
 
     for row, (mean_name, mean_label, logsd_name, logsd_label) in enumerate(PARAM_PAIRS):
         for col, (state_name, latex_label) in enumerate(
@@ -1170,59 +1301,61 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
             flat_info = _get_post_burnin(info_data, state_name)
             flat_uninf = _get_post_burnin(uninf_data, state_name)
 
-            # Common x range using percentiles, expanded to include prior quantiles
-            lo = min(np.percentile(flat_info, 0.5), np.percentile(flat_uninf, 0.5))
-            hi = max(np.percentile(flat_info, 99.5), np.percentile(flat_uninf, 99.5))
-            data_span = hi - lo
-            # Expand range to include informative prior quantiles
-            if prior_info_q and state_name in prior_info_q:
-                med, ci_lo, ci_hi = prior_info_q[state_name]
-                for v in [med, ci_lo, ci_hi]:
-                    if np.isfinite(v):
-                        lo = min(lo, v)
-                        hi = max(hi, v)
-            margin = 0.15 * (hi - lo)
-            x = np.linspace(lo - margin, hi + margin, 300)
+            # Common x range using percentiles from posteriors AND prior
+            pct_lo = tail * 100
+            pct_hi = (1 - tail) * 100
+            lo = min(np.percentile(flat_info, pct_lo), np.percentile(flat_uninf, pct_lo))
+            hi = max(np.percentile(flat_info, pct_hi), np.percentile(flat_uninf, pct_hi))
+
+            # Expand range to include prior support
+            prior_range = _hyperprior_range(state_name, hyperprior_specs_info, tail=tail)
+            if prior_range is not None:
+                lo = min(lo, prior_range[0])
+                hi = max(hi, prior_range[1])
+
+            x = np.linspace(lo, hi, 300)
+
+            # Prior density (informative hyperprior)
+            prior_pdf = _hyperprior_pdf(x, state_name, hyperprior_specs_info)
+            if prior_pdf is not None:
+                ax.plot(x, prior_pdf, color=COLOR_PRIOR, lw=1.5, label=lbl['prior'])
+                ax.fill_between(x, prior_pdf, alpha=0.15, color=COLOR_PRIOR)
 
             # KDE for informative
             try:
                 kde_info = stats.gaussian_kde(flat_info)
                 ax.fill_between(x, kde_info(x), alpha=0.3, color=COLOR_INFO)
-                ax.plot(x, kde_info(x), color=COLOR_INFO, lw=1.5, label='Informative')
+                ax.plot(x, kde_info(x), color=COLOR_INFO, lw=1.5, label=lbl['info'])
             except Exception:
                 ax.hist(flat_info, bins=80, density=True, alpha=0.3, color=COLOR_INFO,
-                        label='Informative')
+                        label=lbl['info'])
 
             # KDE for uninformative
             try:
                 kde_uninf = stats.gaussian_kde(flat_uninf)
                 ax.fill_between(x, kde_uninf(x), alpha=0.3, color=COLOR_UNINF)
-                ax.plot(x, kde_uninf(x), color=COLOR_UNINF, lw=1.5, label='Uninformative')
+                ax.plot(x, kde_uninf(x), color=COLOR_UNINF, lw=1.5, label=lbl['uninf'])
             except Exception:
                 ax.hist(flat_uninf, bins=80, density=True, alpha=0.3, color=COLOR_UNINF,
-                        label='Uninformative')
+                        label=lbl['uninf'])
 
-            # Informative prior reference lines: green dashed=mean, green dotted=95% CI
-            COLOR_PRIOR = '#2ca02c'  # green
-            if prior_info_q and state_name in prior_info_q:
-                med, ci_lo, ci_hi = prior_info_q[state_name]
-                if np.isfinite(med):
-                    ax.axvline(med, color=COLOR_PRIOR, linestyle='--',
-                               lw=1.0, alpha=0.7)
-                if np.isfinite(ci_lo):
-                    ax.axvline(ci_lo, color=COLOR_PRIOR, linestyle=':',
-                               lw=1.5, alpha=0.6)
-                if np.isfinite(ci_hi):
-                    ax.axvline(ci_hi, color=COLOR_PRIOR, linestyle=':',
-                               lw=1.5, alpha=0.6)
+            # Median dotted lines
+            if prior_pdf is not None:
+                # Prior median from hyperprior specs
+                prior_med = _hyperprior_median(state_name, hyperprior_specs_info)
+                if prior_med is not None:
+                    ax.axvline(prior_med, color=COLOR_PRIOR, linestyle=':', lw=1.2)
+            ax.axvline(np.median(flat_info), color=COLOR_INFO, linestyle=':', lw=1.2)
+            ax.axvline(np.median(flat_uninf), color=COLOR_UNINF, linestyle=':', lw=1.2)
 
             ax.set_xlabel(latex_label)
-            ax.set_ylabel('Density')
             if row == 0 and col == 0:
-                ax.legend(loc='upper right', fontsize=9)
-            ax.grid(True, alpha=0.2)
+                ax.legend(loc='upper right', fontsize=8)
+            ax.grid(False)
             ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, min_n_ticks=5))
             ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, min_n_ticks=4))
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
     fig.savefig(output_path)
@@ -1232,7 +1365,8 @@ def plot_hyper_comparison(info_path, uninf_path, output_path,
 
 def paper_plots(quantities_path, plots_dir,
                 info_hyper_path=None, uninf_hyper_path=None,
-                hyperprior_specs_info=None, hyperprior_specs_uninf=None):
+                hyperprior_specs_info=None, hyperprior_specs_uninf=None,
+                hyper_comparison_config=None):
     """
     Generate publication-ready plots for the paper.
 
@@ -1243,6 +1377,7 @@ def paper_plots(quantities_path, plots_dir,
         uninf_hyper_path: Path to uninformative hyperparams_preprocessed.npz
         hyperprior_specs_info: Informative hyperprior specs (for prior overlay)
         hyperprior_specs_uninf: Uninformative hyperprior specs (for prior overlay)
+        hyper_comparison_config: Config dict for hyper comparison plot
     """
     quantities_path = Path(quantities_path)
     plots_dir = Path(plots_dir)
@@ -1265,6 +1400,7 @@ def paper_plots(quantities_path, plots_dir,
             plots_dir / 'hyper_comparison.pdf',
             hyperprior_specs_info=hyperprior_specs_info,
             hyperprior_specs_uninf=hyperprior_specs_uninf,
+            config=hyper_comparison_config,
         )
 
 
@@ -1275,14 +1411,15 @@ def paper_plots(quantities_path, plots_dir,
 # Parameter display info for prior plots: (key, label, transform_exp)
 # transform_exp=True means samples are on log scale and should be exp-transformed for display
 PRIOR_PARAM_INFO = [
-    ('r', r'$r$ (CRRA)', False),
-    ('phi_raw', r'$\phi$ (Prelec curvature)', True),
-    ('eta_raw', r'$\eta$ (Prelec elevation)', True),
-    ('lambda_raw', r'$\lambda$ (noise)', True),
+    ('r', r'$r$', False),
+    ('phi_raw', r'$\phi$', True),
+    ('eta_raw', r'$\eta$', True),
+    ('lambda_raw', r'$\lambda$', True),
 ]
 
 
-def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
+def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42,
+                      figsize=(10, 8)):
     """
     Generate 4-panel plot of the direct prior distribution.
 
@@ -1294,13 +1431,14 @@ def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
         output_path: Path to save the figure
         n_samples: Number of samples to draw
         seed: Random seed for reproducibility
+        figsize: Figure dimensions in inches (default (10, 8))
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     np.random.seed(seed)
 
-    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
     axes = axes.flatten()
     fig.suptitle('Direct Prior Distribution', fontsize=14, fontweight='bold')
 
@@ -1365,7 +1503,7 @@ def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42):
 
 
 def plot_unconditional_prior(direct_prior, prior_selection, output_path,
-                              n_samples=10000, seed=42):
+                              n_samples=10000, seed=42, figsize=(10, 8)):
     """
     Generate 4-panel plot of the unconditional BHM prior distribution.
 
@@ -1381,6 +1519,7 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
         output_path: Path to save the figure
         n_samples: Number of samples to draw
         seed: Random seed for reproducibility
+        figsize: Figure dimensions in inches (default (10, 8))
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1390,7 +1529,7 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
     rho = prior_selection['rho']
     alpha_0 = prior_selection['alpha_0']
 
-    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
     axes = axes.flatten()
     fig.suptitle('Unconditional Prior Distribution (BHM)', fontsize=14, fontweight='bold')
 
@@ -1474,7 +1613,7 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
 
 
 def plot_prior_comparison(direct_prior, prior_selection, output_path,
-                           n_samples=10000, seed=42):
+                           n_samples=10000, seed=42, figsize=(10, 8)):
     """
     Generate comparison plot showing direct prior vs unconditional BHM prior.
 
@@ -1486,6 +1625,7 @@ def plot_prior_comparison(direct_prior, prior_selection, output_path,
         output_path: Path to save the figure
         n_samples: Number of samples to draw
         seed: Random seed for reproducibility
+        figsize: Figure dimensions in inches (default (10, 8))
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1495,7 +1635,7 @@ def plot_prior_comparison(direct_prior, prior_selection, output_path,
     rho = prior_selection['rho']
     alpha_0 = prior_selection['alpha_0']
 
-    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
     axes = axes.flatten()
     fig.suptitle('Prior Comparison: Direct vs Unconditional BHM', fontsize=14, fontweight='bold')
 

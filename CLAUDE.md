@@ -247,9 +247,8 @@ other python files.
 do_clean_data = False       # Shape raw data for bamcmc
 do_gen_paper_data = False   # Generate data summaries for paper (paper_data.npz)
 
-# --- Prior Selection and Plots ---
+# --- Prior Selection & Analysis ---
 do_generate_prior = False       # Run prior selection methodology
-do_prior_plots = False          # Generate prior distribution comparison plots
 do_prior_predictive_ce = False  # Prior predictive CE distribution
 
 # --- MCMC Sampling ---
@@ -262,17 +261,22 @@ do_preprocess_subjects_info = False  # Preprocess subjects (informative)
 do_preprocess_hyper_uninf = False    # Preprocess hyperparameters (uninformative)
 do_preprocess_subjects_uninf = False # Preprocess subjects (uninformative)
 
-# --- Plotting (Informative) ---
+# --- Posterior Analysis (compute summaries from preprocessed data) ---
 do_gen_paper_quantities = False          # Extract posterior summaries (paper_quantities.npz)
+do_posterior_predictive_ce_info = False   # Posterior predictive CE (informative)
+do_posterior_predictive_ce_uninf = False  # Posterior predictive CE (uninformative)
+
+# --- Diagnostic Plots ---
 do_hyper_plots_info = False              # Hyperparameter diagnostic plots (informative)
 do_subject_plots_info = False            # Subject diagnostic plots (informative)
-do_posterior_predictive_ce_info = False   # Posterior predictive CE (informative)
-do_paper_plots = False                   # Publication figures
+do_hyper_plots_uninf = False             # Hyperparameter diagnostic plots (uninformative)
+do_subject_plots_uninf = False           # Subject diagnostic plots (uninformative)
 
-# --- Plotting (Uninformative) ---
-do_hyper_plots_uninf = False              # Hyperparameter diagnostic plots (uninformative)
-do_subject_plots_uninf = False            # Subject diagnostic plots (uninformative)
-do_posterior_predictive_ce_uninf = False   # Posterior predictive CE (uninformative)
+# --- Paper Plots ---
+do_paper_prior_comparison = False    # Prior distribution comparison
+do_paper_hyper_comparison = False    # Hyperparameter prior vs posterior (8-panel)
+do_paper_predictive_overlay = False  # Predictive CE and parameter overlay
+do_paper_subject_ce = False          # Subject most/least affected CE
 
 # --- Appendix Examples ---
 do_skew_normal_example = False   # Run Skew-Normal hyperprior example

@@ -1,31 +1,29 @@
 # TODO - BHM Risk Preferences with Informed Prior
 
-## Project Status: H&N 2016 Data Integrated, Paper In Progress
+## Project Status: Paper Draft Nearly Complete
 
 The full pipeline is implemented and working with Harrison & Ng (2016) data:
-- Generalized to 3-outcome lotteries (unified format, both datasets supported)
 - RDU-BHM model with 4-parameter Prelec PWF and NCP parameterization
 - MCMC sampling completed for both informative and uninformative priors
-- Prior and posterior predictive CE distributions computed
-- Diagnostic plots generated for both prior specifications
-- Paper draft updated to reference Harrison & Ng (2016)
+- All paper plots generated (prior comparison, hyper posteriors, predictive overlays, subject CE)
+- Paper draft with all sections including discussion
+- Hardcoded config consolidated into main.py config dicts
 
-**Current branch:** `feat/hn2016-data` (from `master`)
+**Current branch:** `master` (all feature branches merged)
 
 ---
 
 ## Up Next
 
 ### Paper Completion
-- [ ] Implement paper figures in `paper_plots()` — currently a stub
 - [ ] Review and finalize results section in `doc/main.tex`
-- [ ] Write discussion comparing informative vs uninformative posterior estimates
-- [ ] Incorporate posterior predictive CE plots into paper (results or appendix)
+- [ ] Polish discussion section (currently first draft)
 - [ ] Final LaTeX compilation with pythontex
+- [ ] Proofread full paper
 
 ### Convergence
 - [ ] Run longer sampling chains for H&N data (current: 500 iter, not fully converged per-run)
-  - Post burn-in nested R-hat is good (max 1.02), but more iterations would improve
+  - Post burn-in nested R-hat is good (max 1.002), but more iterations would improve
 - [ ] Consider whether 500+500 chains is adequate or if more are needed
 
 ### Testing
@@ -34,10 +32,6 @@ The full pipeline is implemented and working with Harrison & Ng (2016) data:
   - CE computation: known-value sanity checks
   - Data cleaning: verify choice encoding flip, 3-outcome padding
   - Likelihood: verify 3-outcome RDU matches 2-outcome when slot has prob=0
-
-### Branch Management
-- [ ] Squash/tidy commit history on `feat/hn2016-data`
-- [ ] Merge `feat/hn2016-data` into `master` once pipeline is fully verified
 
 ### Housekeeping
 - [ ] Decide whether to commit `technical_notes/coupled_transform_sampler/`
@@ -80,6 +74,7 @@ The full pipeline is implemented and working with Harrison & Ng (2016) data:
 - [x] Update paper (`doc/main.tex`) to reference Harrison2016 throughout
 - [x] Add Harrison2016 bib entry to `doc/library.bib`
 - [x] Update `code/README.md` for 3-outcome format and dual-dataset support
+- [x] Rename dataset identifier from hn2019 to hn2016
 
 ### 3. Code Infrastructure
 - [x] Create `code/main.py` hub with do-flags structure (22 flags)
@@ -115,14 +110,26 @@ The full pipeline is implemented and working with Harrison & Ng (2016) data:
 
 ### 7. Posterior Analysis
 - [x] Extract posterior summaries (`gen_paper_quantities.py` → `paper_quantities.npz`)
-  - Nested R-hat max 1.02 after burn-in (excellent convergence)
+  - Nested R-hat max 1.002 after burn-in (excellent convergence)
 - [x] Generate paper data summaries (`gen_paper_data.py` → `paper_data.npz`)
 - [x] Prior predictive CE distribution
   - Mean CE = $27.5, Median = $27.6 (vs EV = $30 — mild risk aversion)
-- [x] Posterior predictive CE distribution (informative)
-  - Mean CE = $25.3, Median = $25.2
+- [x] Posterior predictive CE distribution (informative and uninformative)
 
-### 8. Dead Code Cleanup
+### 8. Paper Plots
+- [x] Prior distribution comparison (direct vs unconditional BHM)
+- [x] Hyperparameter posterior comparison (prior vs informative vs uninformative, 8-panel)
+- [x] Predictive CE overlay (prior vs informative vs uninformative posteriors)
+- [x] Predictive parameter overlay (r, φ, η, λ densities)
+- [x] Subject CE comparison (most/least affected by prior choice)
+
+### 9. Config Consolidation
+- [x] Consolidate hardcoded plot/computation values into main.py config dicts
+  - PRIOR_PREDICTIVE_CONFIG, DIAGNOSTIC_PLOT_CONFIG, PRIOR_PLOT_CONFIG, PAPER_QUANTITIES_CONFIG
+  - PREDICTIVE_OVERLAY_CONFIG, SUBJECT_CE_CONFIG, HYPER_COMPARISON_CONFIG
+- [x] Thread config through pipelines.py → implementation functions
+
+### 10. Dead Code Cleanup
 - [x] Remove `power_pwf()` (unused, replaced by `prelec_pwf`)
 - [x] Remove direct sampler factories (~137 lines, superseded by COUPLED_TRANSFORM)
 - [x] Remove `rdu_power_prior_selection()` alias
@@ -133,16 +140,17 @@ The full pipeline is implemented and working with Harrison & Ng (2016) data:
 - [x] Remove unused imports: `import os`, `import json`, `import jax.random`
 - [x] Fix `paper_plots()` key error (`n_samples` → `n_samples_post_burnin`)
 
-### 9. Paper Draft
+### 11. Paper Draft
 - [x] Write `doc/main.tex` with all major sections
-  - Introduction, Prior Selection Approach, RDU Model, Results, Conclusion
+  - Introduction, Prior Selection Approach, RDU Model, Results, Discussion
   - Appendix A: Full covariance derivation
   - Appendix B: Skew-Normal 3-parameter extension
   - Appendix C: MCMC implementation details
 - [x] Integrate pythontex for dynamic data from NPZ files
 - [x] Skew-Normal example (`skew_normal_hyperprior.py`) for Appendix B
+- [x] Write discussion section (Bayes factor critique, defense of prior specification)
 
-### 10. Technical Notes
+### 12. Technical Notes
 - [x] BHM hyperprior derivation (`technical_notes/bhm_hyperprior_derivation/`)
 - [x] Coupled transform sampler (`technical_notes/coupled_transform_sampler/`)
 

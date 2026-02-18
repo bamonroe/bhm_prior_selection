@@ -4,25 +4,19 @@ Instructions for Claude Code sessions in this workspace.
 
 ## Project Status
 
-**Current State:** Full pipeline working with Prelec 2-parameter probability weighting.
+**Current State:** Full pipeline working. Paper draft nearly complete.
 
-The core methodology is implemented and tested:
-- Prior selection → hyperprior derivation pipeline complete
-- RDU model uses Prelec PWF: w(p) = exp(-η(-ln p)^φ)
+The full estimation pipeline is implemented with Harrison & Ng (2016) data:
+- RDU-BHM model with Prelec 2-parameter PWF: w(p) = exp(-η(-ln p)^φ)
 - 4 parameters per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), λ (noise)
-- Test sampling with 500 chains shows excellent convergence (R-hat max 1.007)
-- Paper draft (`doc/main.tex`) with methodology and appendices
-- Skew-Normal example demonstrating 3-parameter extension
+- MCMC sampling complete for both informative and uninformative priors (1000 chains, R-hat max 1.002)
+- Prior and posterior predictive CE distributions computed
+- All paper plots generated: prior comparison, hyperparameter posteriors, predictive overlays, subject CE
+- Paper draft with introduction, methodology, application, results, and discussion
+- Appendices: covariance derivation, Skew-Normal extension, MCMC details
+- Hardcoded plot/computation config consolidated into main.py config dicts
 
-**Recent Changes:**
-- Added posterior predictive CE distribution (informative + uninformative), with prior overlay
-- Added prior predictive CE distribution pipeline
-- Separated preprocessing and plotting into distinct pipeline steps with separate flags
-- Fixed uninformative prior: now directly specifies hyperprior params (not variance-decomposed)
-- Added prior reference lines (green dashed median, dotted 95% CI) to hyperparameter plots
-- Median line in trace plots now uses only the last history file (final converged state)
-- Paper uses pythontex to load data/quantities from NPZ files via `\py{}` calls
-- Fixed JAX/bamcmc kernel caching bug (cache cleared between sampling runs)
+**Current branch:** `master` (all feature branches merged)
 
 See `TODO.md` for detailed task tracking.
 
@@ -119,46 +113,28 @@ Default researcher choices: ρ = 0.2, α₀ = 20.0
 
 ## Data
 
-### Current Dataset: `data/input/dbar.csv`
+Two datasets are supported via the `DATASET` config in main.py (currently `'hn2016'`).
 
-The data comes from:
+### Primary Dataset: `data/input/hn2016.csv` (Harrison & Ng 2016)
+
+**Harrison, G.W. & Ng, J.M. (2016).** "Evaluating the Expected Welfare Gain
+From Insurance." *Journal of Risk and Insurance*, 83(1), 91-120.
+
+- 111 subjects, 80 choices each
+- 3-outcome lotteries with prizes $10, $30, $50 (USD)
+- Binary choice between left and right lotteries
+
+### Secondary Dataset: `data/input/dbar.csv` (Andersen et al. 2008)
 
 **Andersen, S., Harrison, G.W., Lau, M.I., & Rutström, E.E. (2008).**
 "Discounting behavior: A reconsideration."
 *European Economic Review*, 52(8), 1342-1378.
 
-This is a field experiment from Denmark with joint elicitation of risk and time
-preferences.
+- 501 subjects, 40 risk aversion choices each
+- 2-outcome lotteries (padded to 3-outcome format), prizes 50-4500 DKK
+- Joint elicitation of risk and time preferences
 
-**Structure:**
-- 40,080 rows (decisions), 36 columns
-- Multiple decisions per subject (`userid`)
-
-**Key variables:**
-- `userid`: Subject identifier
-- `decision`: Decision number within session
-- `RA`: Indicator for risk aversion task (1 = lottery choice, 0 = discounting)
-
-**Risk aversion task** (when `RA=1`):
-- `vprizea1`, `vprizea2`: Prizes for lottery A (high, low)
-- `vprizeb1`, `vprizeb2`: Prizes for lottery B (high, low)
-- `rowproba`: Probability of high prize
-- `choicea`: Right-side indicator (1 = chose right/B, 0 = chose left/A)
-  - Note: clean_data.py flips this to model convention (1 = A, 0 = B)
-
-**Discounting task** (when `RA=0`):
-- `principal`: Principal amount (DKK)
-- `horizon`: Time horizon (months)
-- `delayedp`: Delayed payment amount
-- `IDR`: Indicator for individual discount rate task
-
-**Demographics:**
-- `age`, `female`, `young`, `middle`, `old`
-- `owner`, `retired`, `skilled`, `longedu`, `kids`
-- `IncLow`, `IncHigh`
-
-**Experimental design:**
-- `phase`, `RAfirst`, `IDRorder`, `IDRstakes`, `FED`, `IDRhigh`, `FEEhigh`
+Both datasets are cleaned by `clean_data.py` into a unified 3-outcome format.
 
 
 ## Git
@@ -361,8 +337,8 @@ The paper is in `doc/main.tex`. Key sections:
    - Variance decomposition with ρ and α₀
    - Derived hyperpriors formulas
 3. **Application: RDU Estimation** - Model, priors, data, estimation
-4. **Results** - Posterior summaries
-5. **Conclusion**
+4. **Results** - Posterior summaries with informative vs uninformative comparison
+5. **Discussion** - Bayes factor critique, defense of prior specification
 6. **Appendix A** - Full covariance derivation
 7. **Appendix B** - Skew-Normal example (3-parameter extension)
    - Law of total cumulance for skewness
@@ -399,7 +375,7 @@ The project compares two prior specifications:
 **Uninformative Prior** (`UNINFORMATIVE_HYPERPRIOR` in main.py):
 - Directly specifies hyperprior parameters (mu_0, tau_0_sq, alpha_0, beta_0)
 - Bypasses variance decomposition entirely
-- Uses diffuse values: tau_0=10 (wide mean prior), alpha_0=beta_0=0.1 (diffuse variance prior)
+- Uses diffuse values: tau_0_sq=100, alpha_0=beta_0=0.001 (diffuse priors)
 
 This distinction is important: the uninformative case should NOT go through
 `derive_hyperpriors()` because that would impose structure on the variance.

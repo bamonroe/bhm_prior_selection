@@ -3,7 +3,7 @@ Data cleaning module for the BHM Risk Preferences project.
 
 Loads raw experimental data and shapes it for use with bamcmc.
 Supports two datasets:
-  - 'hn2019': Harrison & Ng (2016), 3-outcome lotteries in USD
+  - 'hn2016': Harrison & Ng (2016), 3-outcome lotteries in USD
   - 'andersen2008': Andersen et al. (2008), binary lotteries in DKK
 
 Both are output in a unified 3-outcome format:
@@ -246,14 +246,14 @@ def print_data_summary(data):
 # Clean and Save
 # =============================================================================
 
-def clean_and_save_data(dataset='hn2019'):
+def clean_and_save_data(dataset='hn2016'):
     """
     Main function to clean data and save.
 
     Args:
-        dataset: 'hn2019' for Harrison & Ng, 'andersen2008' for Andersen et al.
+        dataset: 'hn2016' for Harrison & Ng, 'andersen2008' for Andersen et al.
     """
-    if dataset == 'hn2019':
+    if dataset == 'hn2016':
         print(f"  Loading raw data from: {RAW_DATA_HN}")
         rows = load_raw_data_hn()
         print(f"  Loaded {len(rows)} rows")

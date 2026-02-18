@@ -148,8 +148,8 @@ SKEW_NORMAL_RESEARCHER = {
 # Dataset Configuration
 # =============================================================================
 
-# Which dataset to use: 'hn2019' (Harrison & Ng) or 'andersen2008' (Andersen et al.)
-DATASET = 'hn2019'
+# Which dataset to use: 'hn2016' (Harrison & Ng) or 'andersen2008' (Andersen et al.)
+DATASET = 'hn2016'
 
 # Random seeds for reproducibility
 SEEDS = {

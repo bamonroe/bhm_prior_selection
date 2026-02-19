@@ -37,24 +37,38 @@ from pathlib import Path
 doc_dir = Path('.').resolve()
 data_dir = doc_dir.parent / 'data' / 'output'
 
-# Load data summary
-data_file = data_dir / 'paper_data.npz'
-if data_file.exists():
-    D = dict(np.load(data_file))
-else:
-    D = {}  # Will show errors in document if referenced
-
-# Load posterior quantities
-quant_file = data_dir / 'paper_quantities.npz'
-if quant_file.exists():
-    Q = dict(np.load(quant_file))
-else:
-    Q = {}
+def _load_npz(name):
+    f = data_dir / name
+    return dict(np.load(f)) if f.exists() else {}
 
 def fmt(x, decimals=2):
     """Format number, handling numpy types."""
-    val = float(x)
-    return f"{val:.{decimals}f}"
+    return f"{float(x):.{decimals}f}"
+
+# Load all NPZ files
+D = _load_npz('paper_data.npz')
+Q = _load_npz('paper_quantities.npz')
+_prior_params = _load_npz('prior_params.npz')
+_ce_comp = _load_npz('posterior_ce_comparison.npz')
+_ce_overlay = _load_npz('predictive_ce_overlay.npz')
+
+# Total posterior samples for inference
+total_samples = f"{int(Q.get('n_samples_post_burnin', 0)) * int(Q.get('n_chains', 0)):,}"
+
+# Subject CE identifiers
+subject_most_affected = int(_ce_comp['most_affected_sid']) if _ce_comp else 0
+subject_least_affected = int(_ce_comp['least_affected_sid']) if _ce_comp else 0
+subject_max_ce = subject_most_affected
+subject_min_ce = subject_least_affected
+
+# CE overlay quantities
+hprior_pred_rs = fmt(float(_ce_overlay.get('prior_pct_above_ev', 0)), 1)
+prior_ce_below_15 = fmt(float(_ce_overlay.get('prior_pct_below_15', 0)), 1)
+prior_ce_above_40 = fmt(float(_ce_overlay.get('prior_pct_above_40', 0)), 1)
+info_ce_below_15 = fmt(float(_ce_overlay.get('info_pct_below_15', 0)), 1)
+info_ce_above_40 = fmt(float(_ce_overlay.get('info_pct_above_40', 0)), 1)
+uninf_ce_below_15 = fmt(float(_ce_overlay.get('uninf_pct_below_15', 0)), 1)
+uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
 \end{pycode}
 
 
@@ -63,22 +77,20 @@ def fmt(x, decimals=2):
 \singlespacing{}
 
 \begin{abstract}
-
   \begin{justify}
+
   Bayesian hierarchical models (BHMs) are increasingly used to estimate
   heterogeneous risk preferences, yet researchers face the difficult task of
   specifying hyperprior distributions over population parameters. I propose a
-  principled approach that dramatically reduces researcher degrees of freedom:
-  specify priors for a single random individual---a cognitively tractable
-  task---then derive hyperpriors such that the unconditional BHM prior matches
-  this individual-level specification. For a model with $p$ parameters, this
-  reduces $4p$ hyperprior choices to just 2: a variance partition ratio and a
-  concentration parameter. I demonstrate the approach using rank-dependent
-  utility estimation with data from \textcite{Harrison2016}, showing
-  that the methodology produces well-identified posteriors with excellent
-  convergence properties.
-  \end{justify}
+  principled approach: specify priors for a single random individual---a
+  cognitively tractable task---then derive hyperpriors such that the
+  unconditional BHM prior matches this individual-level specification. I
+  demonstrate the approach using rank-dependent utility estimation with data
+  from \textcite{Harrison2016}, showing that the methodology produces
+  well-identified posteriors with excellent convergence properties, and
+  qualitatively different results than an uninformative hyperprior.
 
+  \end{justify}
 \end{abstract}
 \vspace{\fill}
 \small
@@ -94,42 +106,54 @@ def fmt(x, decimals=2):
 
 \section{Introduction}
 
-Bayesian hierarchical models (BHMs) have become a standard tool for estimating
+Bayesian hierarchical models (BHMs) are becoming a standard tool for estimating
 heterogeneous preferences in experimental economics \parencite{Gao2022}. These
 models jointly estimate individual-level parameters and the hyper-parameters
 that govern their prior distributions. With the assumption that individuals are
 exchangeable, BHMs have the advantage of using the distribution of individual
 estimands to inform the prior distribution for the estimands. There is no free
 lunch, however, instead of needing a specified prior distribution for a given
-individual, one must now specify a \textit{hyper-prior} over the
+individual, one must now specify a \textit{hyperprior} over the
 \textit{hyper-parameters} of the individual level estimands.
 
-It is common for models to specify $p$ parameters, and assign a prior
-distribution with 2 hyper-parameters; for example, a normal distribution with a
-mean and variance. For BHMs, each hyper-parameter needs its own prior
-distribution, which is again often formulated with 2 degrees of freedom; for
-example, another normal distribution for the hyper-mean parameter and an
-inverse-gamma distribution for the hyper-variance parameter. Thus, a model with
-$p$ parameters typically results in a hyper-prior that requires the
-specification of $4p$ hyper-prior parameters.
+It is common for models to assign a prior distribution with 2 hyper-parameters
+per individual-level parameter; for example, a normal distribution with a mean
+and variance. For BHMs, each hyper-parameter needs its own prior distribution,
+which is again often defined with 2 degrees of freedom; for example, another
+normal distribution for the hyper-mean parameter and an inverse-gamma
+distribution for the hyper-variance parameter. Thus, a model with $p$
+parameters typically results in a hyperprior that requires the specification of
+$4p$ hyperprior parameters.
 
 Common models of risk preferences modeled with Expected Utility Theory (EUT)
 can have 2-3 parameters, models assuming Rank Dependent Utility (RDU) can have
 3-5 parameters, and models assuming Cumulative Prospect Theory (CPT) can have
-up to 9. These parameters interact in complex ways, making the choice of
-picking 4 hyper-prior parameters per model parameter difficult.
+up to 10.\footnote{
+  These parameter count ranges assume all models share a noise parameter, and
+  use utility and probability weighting functions. Two common utility functions
+  are the CRRA and Expo-Power \parencite{Saha1993} functions, with 1 and 2
+  parameters each, giving EUT 2-3 parameters total. Two popular probability
+  weighting functions are the power function \parencite{Quiggin1982}, and the
+  two parameter function by \textcite{Prelec1998}, giving RDU models 3-5
+  parameters. CPT has a utility and probability weighting functions separately
+  defined over losses and gains, leading to a base of 5 parameters for a simple
+  parameterization with the CRRA and Power functions and one noise parameter,
+  up to 10 parameters with Expo-Power and Prelec functions and separate noise
+  parameters for losses and gains.
+} These parameters interact in complex ways, making the choice of picking 4
+hyperprior parameters per model parameter difficult.
 
-In this paper, I propose a principled way to select hyper-prior parameters for
-BHMs of risk preference models by first specifying a prior predictive
-distribution for a single agent, and then, noting the assumed exchangeability
-of agents, deriving the hyper-prior that produces the same distribution in
-expectation. Since it is often simpler and more natural to think of risk
-preferences for individual agents, I believe this process results in proper
-hyper-prior distributions that can help researchers pick informed priors, and
-help critics of research using BHMs focus on priors of convenience that ignore
-substage knowledge about the target domain.
+In this paper, I propose a principled way to select hyperprior parameters for
+BHMs of risk preferences by first specifying a prior predictive distribution
+for a single agent, and then, noting the assumed exchangeability of agents,
+deriving the hyperprior that produces the same distribution. Since it is often
+simpler and more natural to think of risk preferences for individual agents, I
+believe this process results in proper hyperprior distributions that can help
+researchers pick informed priors, and help critics of research using BHMs focus
+on priors of convenience that ignore substantive knowledge about the target
+domain.
 
-I begin by outlining the process for selecting a hyper-prior for an arbitrary
+I begin by outlining the process for selecting a hyperprior for an arbitrary
 model. I then demonstrate the approach using rank-dependent utility (RDU)
 estimation with lottery choice data from \textcite{Harrison2016}. I show that
 these informed priors can lead to substantive differences in the posterior
@@ -143,7 +167,7 @@ I begin with an arbitrary, single parameter model:
   y_i = \Phi(\theta_i, x),
 \end{equation}
 \noindent where $y_i$ is some modeled quantity conditional on other observable
-data, $x$, and $\theta_i \in \mathbb{R}$, a parameter of interest for a single
+data, $x$, and $\theta_i \in \mathbb{R}$ is a parameter of interest for a single
 subject. A Bayesian model seeks to find the posterior distribution of
 $\theta_i$ conditional on the observed data:
 \begin{align}
@@ -176,15 +200,15 @@ different posterior distributions of $\theta_i$ across subjects may influence
 our beliefs about the population they were drawn from. This influence is
 directly modeled with a Bayesian Hierarchical Model (BHM), whereby the
 prior parameters are themselves said to be distributed according to some
-\textit{hyper-prior} distribution.
+\textit{hyperprior} distribution.
 \begin{align}
   \label{eq:simple_bhm_mean}
   \mu &\sim \text{Normal}(\mu_0, \tau_0^2) \\
   \label{eq:simple_bhm_sd}
   \sigma^2 &\sim \text{Inverse-Gamma}(\alpha_0, \beta_0)
 \end{align}
-\noindent The use of Normal and Inverse-Gamma distribution is common for
-real-valued hierarchical models because its lends it self to the cognate
+\noindent The use of Normal and Inverse-Gamma distributions is common for
+real-valued hierarchical models because it lends itself to the conjugate
 relationship of normal distributions.\footnote{
   For now, I assume the model takes a single parameter, but it should be clear
   that a set of uncorrelated parameters $\theta^j_i$, with $j \in [1, p]$ can
@@ -202,38 +226,38 @@ What does it mean to set $\alpha_{0} = 3$ versus $\alpha_{0} = 10$? How should
 $\tau_{0}^2$ relate to $\beta_{0}$? These questions often lack intuitive
 answers, even if $\theta_i$ is well understood.
 
-\section{Exchangeability and a prior over an individual}
+\subsection{Exchangeability and a prior over an individual}
 
-For the moment, we revisit the problem of selecting prior in
-(\ref{eq:simple_prior}). The prior selection approach begins with a cognitively
-tractable question: \emph{What might the value $\theta_i$ of a single random
-individual look like?} This requires the specification of $\mu$ and $\sigma^2$
+The prior selection approach begins with a cognitively tractable question:
+\emph{What might the value $\theta_i$ of a single random individual look like?}
+This requires revisiting the problem of selecting prior in
+(\ref{eq:simple_prior}), and the direct specification of $\mu$ and $\sigma^2$
 prior parameters. This lower-level specification of prior parameters is often
-conceptually easier than the direct specification of hyper-prior parameters.
-Let us designate this \enquote{direct prior} as:
+conceptually easier than the direct specification of hyperprior parameters. Let
+us designate this \enquote{direct prior} as:
 \begin{equation}
   \label{eq:direct_prior}
-  p^*(\theta_i | \mu^*, \sigma^{2*}) = \text{Normal}(\mu^*, \sigma^{2*}) \\
+  p(\theta_i | \mu^*, \sigma^{2*}) = \text{Normal}(\mu^*, \sigma^{2*}) \\
 \end{equation}
 \noindent Note here that we use the superscript ${}^*$ to designate our direct prior
 parameters. When omitted, the parameter is modeled rather than specified.
 
-While the question posed asks about an individual, not a population, the answer
+While the question posed asks about an individual, not a population, its answer
 implicitly integrates over population heterogeneity introduced in
 (\ref{eq:simple_bhm_mean})-(\ref{eq:simple_bhm_sd}):
 \begin{equation}
-    p^*(\theta_i |\  \mu^*, \sigma^{2*}) = \int p(\theta_i |\  \mu, \sigma^2) p(\mu, \sigma^2 |\  \mu_0, \tau_0^2, \alpha_0, \beta_0 ) \, d\mu \, d\sigma^2
+    p(\theta_i |\  \mu^*, \sigma^{2*}) = \int p(\theta_i |\  \mu, \sigma^2) p(\mu, \sigma^2 |\  \mu_0, \tau_0^2, \alpha_0, \beta_0 ) \, d\mu \, d\sigma^2
 \end{equation}
 \noindent This restriction, that a prior specified over a given individual
 implicitly integrates over all possible heterogeneity that could have produced
-that prior, is the key component to the proposed hyper-prior selection process.
+that prior, is the key component to the proposed hyperprior selection process.
 This restriction amounts to a consistency of beliefs about population-level
 parameters $\mu_0, \tau_0^2, \alpha_0, \beta_0$, and our beliefs about what a
 random individual would look like directly $\mu^*, \sigma^{2*}$.
 
-The solution to picking the hyper-prior parameters is reconciling these two
+The solution to picking the hyperprior parameters is reconciling these two
 sets of parameters. If a direct prior has two degrees of freedom, like a normal
-distribution, then any hyper-prior must have:
+distribution, then any hyperprior must have:
 \begin{align}
 \label{eq:prior_decomposed}
 \begin{split}
@@ -282,9 +306,9 @@ variance gives:
     \sigma^{2*} &= \frac{\beta_0}{\left(\alpha_0 - 1\right)} + \tau_{0}^2 \\
     \end{split}
 \end{align}
-where $\tau_{0}^2$ is the hyper-prior
+where $\tau_{0}^2$ is the hyperprior
 variance on the mean hyper-parameter $\mu$, and $\alpha_0, \beta_0$ are the
-shape and scale parameters for the inverse-gamma distributed variance
+shape and scale parameters for the Inverse-Gamma distributed variance
 hyper-parameter, $\sigma^2$.
 
 This decomposition of the direct prior variance allows us to think of it in
@@ -295,8 +319,6 @@ relationship as assigning a fraction of the direct prior variance $\sigma^{2*}$
 to each of these components:
 \begin{align}
   \sigma^{2*} &= \rho \sigma^{2*} + (1 - \rho) \sigma^{2*} \\
-  %{} &= \frac{\tau_0^2}{\rho} \\
-  %{} &= \frac{\beta}{(\alpha_0 - 1)(1 - \rho)}\\
   \rho \sigma^{2*} &= \tau_{0}^2 \\ %\quad \text{(uncertainty about population mean)} \\
   (1 - \rho) \sigma^{2*} &= \frac{\beta_0}{\left(\alpha_0 - 1\right)}  % \quad \text{(expected population heterogeneity)}
 \end{align}
@@ -311,17 +333,44 @@ The expected population variance $\E{\sigma_j^2} = \beta_{0,j}/(\alpha_{0,j} -
 re-parameterize, or specify one directly. With the $\rho$ parameter in place,
 and interpretable in part as managing prior beliefs about the heterogeneity
 of the population, specifying $\alpha_0$ directly is a reasonable
-course of action. The $\alpha_0$ parameter is the scale of the Inverse-Gamma
+course of action. The $\alpha_0$ parameter is the shape of the Inverse-Gamma
 distribution that determines the variance hyper-parameter. In a sense,
 $\alpha_0$ can be thought of as a pseudo-count of the number of observations
 that informs the prior.
 
-With the researcher selection of a direct prior, $\mu^*$ and $\sigma^{2*}$,
-and the selection of the variance partition ratio and scale of population
-variance, $\rho$ and $\alpha_0$, we have 4 specified parameters, matching the
-initial 4 degrees of freedom needed to select hyper-prior parameters. With
-these specifications, the hyper-parameters specified in
-(\ref{eq:simple_bhm_mean}) and (\ref{eq:simple_bhm_sd}) are fully defined:
+The $\rho$ parameter can be interpreted as the central
+tendency of our beliefs about the heterogeneity of the sample, with low values
+of $\rho$ indicating a greater belief in a high degree of heterogeneity, and
+high values of $\rho$ indicating the opposite. The choice of $\alpha$
+parameter, can likewise be interpreted as expressing our \textit{confidence} in
+that degree of heterogeneity. Low values of $\alpha$ would result in a wider
+distribution of the $\sigma^2$ hyper-parameter with heavy right tails, while
+greater values of $\alpha$ would reign in those tails, making the distribution
+of $\sigma^2$ more heavily concentrated around its mean.
+
+\textit{Any} choice of $\rho \in [0, 1]$ and $\alpha > 0$ will result in the
+unconditional hyperprior being equivalent to the direct prior. Additionally,
+the specification of $\rho$ and $\alpha$ is \textit{unit-agnostic}. Neither
+require intuition about the possible values of the mean or variance
+hyperparameter. That unit-specific intuition about possible values is baked
+into the specification of the direct prior and the imposed restriction. This is
+very different from having to specify the hyperprior directly, which would
+require unit-specific intuition about $\tau_0$, the variance of the mean
+hyperparameter, and $\beta$, the scale of the variance hyperparameter.
+
+The choice the researcher needs to make, after having specified the direct
+prior, is therefore an expression of their belief about the degree of
+heterogeneity in the sample. While it could be the case that we have different
+beliefs about this heterogeneity composition per-parameter, it may also be a
+reasonable default to set the same $\rho$ and $\alpha$ hyper-prior parameters
+for all parameters.
+
+With the researcher selection of a direct prior, $\mu^*$ and $\sigma^{2*}$, and
+the selection of the variance partition ratio and shape of population variance,
+$\rho$ and $\alpha_0$, we have 4 specified parameters, matching the initial 4
+degrees of freedom needed to select hyperprior parameters. With these
+specifications, the hyper-parameters specified in (\ref{eq:simple_bhm_mean})
+and (\ref{eq:simple_bhm_sd}) are fully defined:
 \begin{align}
     \mu_{0} &= \mu^* \label{eq:hp_mu}\\
     \tau_{0}^2 &= \rho \sigma^{2*} \label{eq:hp_tau}\\
@@ -330,12 +379,12 @@ these specifications, the hyper-parameters specified in
 \end{align}
 
 It is worth noting that there is no \enquote{free lunch} here; with 4
-hyper-prior parameters, there are still 4 decisions needed to satisfy the 4
-degrees of freedom. The primary advantage of this approach is when it is easier
-to specify the prior for a given individual $\theta_i$ through a simpler
-distribution, and then re-parameterize such that the researcher decision then
-becomes about the degree of heterogeneity in the population.
-
+hyperprior parameters, there are still 4 decisions needed to satisfy the 4
+degrees of freedom of the hyperprior. This approach is most advantageous when
+it is easier to specify the prior for a given individual $\theta_i$ through a
+simpler distribution and separately consider how sample heterogeneity would
+present in that direct sample, than to specify the 4 hyperprior parameters
+directly.
 
 \section{Defining a Bayesian Hierarchical Model of Risk Preferences}
 
@@ -369,7 +418,7 @@ logistic choice function:
 \begin{align}
 \label{eq:likelihood}
 \begin{split}
-  L(A) &= \frac{1}{1 + \exp\left(-\Delta\right)} \\
+  L(A) &= \frac{1}{1 + \exp\left(-\Delta\right)}, \\
   \Delta &= \frac{U(A) - U(B)}{\lambda \left(u(\bar{x}) - u(\underbar{x})\right)}
 \end{split}
 \end{align}
@@ -390,8 +439,8 @@ informed by the assumption of exchangeability among subjects.
 
 As a model for an individual agent, the vector $\theta_i = [r_i, \phi_i,
 \eta_i, \lambda_i]$ must be estimated. In a Bayesian framework, this estimation
-takes the form of finding the posterior distribution of $\theta$ conditional on
-observed choice data:
+takes the form of finding the posterior distribution of $\theta$, conditional
+on observed choice data:
 \begin{equation}
   p(\theta_i | D) \propto L(D | \theta_i) p(\theta_i)
 \end{equation}
@@ -402,52 +451,45 @@ distribution $p(\theta_i)$.
 \subsection{Prior Specification of a Single RDU Agent}
 
 \begin{pycode}
-import numpy as np
-
-# Load direct prior and prior selection parameters from paper_data.npz
-_paper_data = np.load("../data/output/paper_data.npz")
-
+# Build structured dicts from already-loaded NPZ data
 dprior = {
-    "r": {"mu": float(_paper_data["dprior_r_mu"]),
-          "sigma2": float(_paper_data["dprior_r_sigma2"])},
-    "phi_raw": {"mu": float(_paper_data["dprior_phi_raw_mu"]),
-                "sigma2": float(_paper_data["dprior_phi_raw_sigma2"])},
-    "eta_raw": {"mu": float(_paper_data["dprior_eta_raw_mu"]),
-                "sigma2": float(_paper_data["dprior_eta_raw_sigma2"])},
-    "lambda_raw": {"mu": float(_paper_data["dprior_lambda_raw_mu"]),
-                   "sigma2": float(_paper_data["dprior_lambda_raw_sigma2"])}
+    "r": {"mu": float(D.get("dprior_r_mu", 0)),
+          "sigma2": float(D.get("dprior_r_sigma2", 0))},
+    "phi_raw": {"mu": float(D.get("dprior_phi_raw_mu", 0)),
+                "sigma2": float(D.get("dprior_phi_raw_sigma2", 0))},
+    "eta_raw": {"mu": float(D.get("dprior_eta_raw_mu", 0)),
+                "sigma2": float(D.get("dprior_eta_raw_sigma2", 0))},
+    "lambda_raw": {"mu": float(D.get("dprior_lambda_raw_mu", 0)),
+                   "sigma2": float(D.get("dprior_lambda_raw_sigma2", 0))}
 }
 
-ps_rho = float(_paper_data["ps_rho"])
-ps_alpha_0 = float(_paper_data["ps_alpha_0"])
-
-# Load derived hyperpriors from prior_params.npz
-_prior_params = np.load("../data/output/prior_params.npz")
+ps_rho = float(D.get("ps_rho", 0))
+ps_alpha_0 = float(D.get("ps_alpha_0", 0))
 
 hyperpriors = {
     "r": {
-        "mu_0": float(_prior_params["r_mean"]),
-        "tau_0": float(np.exp(_prior_params["ln_r_sdev"])),
-        "alpha_0": float(_prior_params["alpha_0"]),
-        "beta_0": float(_prior_params["beta_0_r"]),
+        "mu_0": float(_prior_params.get("r_mean", 0)),
+        "tau_0": float(np.exp(_prior_params.get("ln_r_sdev", 0))),
+        "alpha_0": float(_prior_params.get("alpha_0", 0)),
+        "beta_0": float(_prior_params.get("beta_0_r", 0)),
     },
     "phi": {
-        "mu_0": float(_prior_params["phi_mean"]),
-        "tau_0": float(np.exp(_prior_params["ln_phi_sdev"])),
-        "alpha_0": float(_prior_params["alpha_0"]),
-        "beta_0": float(_prior_params["beta_0_phi"]),
+        "mu_0": float(_prior_params.get("phi_mean", 0)),
+        "tau_0": float(np.exp(_prior_params.get("ln_phi_sdev", 0))),
+        "alpha_0": float(_prior_params.get("alpha_0", 0)),
+        "beta_0": float(_prior_params.get("beta_0_phi", 0)),
     },
     "eta": {
-        "mu_0": float(_prior_params["eta_mean"]),
-        "tau_0": float(np.exp(_prior_params["ln_eta_sdev"])),
-        "alpha_0": float(_prior_params["alpha_0"]),
-        "beta_0": float(_prior_params["beta_0_eta"]),
+        "mu_0": float(_prior_params.get("eta_mean", 0)),
+        "tau_0": float(np.exp(_prior_params.get("ln_eta_sdev", 0))),
+        "alpha_0": float(_prior_params.get("alpha_0", 0)),
+        "beta_0": float(_prior_params.get("beta_0_eta", 0)),
     },
     "lambda": {
-        "mu_0": float(_prior_params["lambda_mean"]),
-        "tau_0": float(np.exp(_prior_params["ln_lambda_sdev"])),
-        "alpha_0": float(_prior_params["alpha_0"]),
-        "beta_0": float(_prior_params["beta_0_lambda"]),
+        "mu_0": float(_prior_params.get("lambda_mean", 0)),
+        "tau_0": float(np.exp(_prior_params.get("ln_lambda_sdev", 0))),
+        "alpha_0": float(_prior_params.get("alpha_0", 0)),
+        "beta_0": float(_prior_params.get("beta_0_lambda", 0)),
     },
 }
 \end{pycode}
@@ -464,37 +506,26 @@ for these \enquote{direct prior} parameters:
   \ln\lambda \sim N\left(\mu^{\lambda} = \py{dprior["lambda_raw"]["mu"]},\right.& \left.\sigma^{2, \lambda} = \py{dprior["lambda_raw"]["sigma2"]}\right) \\
 \end{matrix}
 \end{equation}
+\noindent These prior choices represent my a-priori belief about what a
+reasonable subject may look like. The median subject is modestly risk averse,
+and conforms to EUT\@. However, for the purposes of the current discussion, any
+values could have been chosen.
 
 Using the method described above, in addition to the two direct prior
-parameters per parameter in \ref{eq:d_prior}, we need to make two more
-hyper-prior decisions per parameter. This is a situation where the
-re-parameterization done before can benefit us. The first re-parameterization
-we did was to introduce the variance partition parameter $\rho$. Unlike
-specifying $\tau_0$ directly, which would rely on our intuition about the mean
-hyper-parameter directly, the specification of $\rho$ is
-\textit{unit-agnostic}. The $\rho$ parameter can be interpreted as the central
-tendency of our beliefs about the heterogeneity of the sample, with low values
-of $\rho$ indicating a belief in a high degree of heterogeneity, and high
-values of $\rho$ indicating the opposite. The choice of $\alpha$ parameter, can
-likewise be interpreted as expressing our \textit{confidence} in the degree of
-heterogeneity. Low values of $\alpha$ would result in a distribution of the
-$\sigma^2$ hyper-parameter with heavy right tails, while greater values of
-$\alpha$ would reign in those tails, making the distribution of $\sigma^2$ more
-heavily concentrated around its mean.
-
-\textit{Any} choice of $\rho \in [0, 1]$ and $\alpha > 0$ will result in the
-unconditional hyper-prior being equivalent to the direct prior. The choice the
-researcher needs to make, after having specified the direct prior, is an
-expression of their belief about the degree of heterogeneity in the sample.
-While it could be the case that we have different beliefs about this
-heterogeneity composition per-parameter, it is also reasonable to think that we
-set the same hyper-prior parameters for all parameters:
+parameters per parameter in \ref{eq:d_prior}, we need to characterize our
+beliefs about the heterogeneity in the sample by specifying the $\rho$ and
+$\alpha_0$ hyperpriors for each parameter. I believe there to be a fair degree
+of heterogeneity in the population, but I am also not dogmatically certain
+about the location of the mean hyperparameter. I therefore pick a $\rho$ value
+closer to 0 than to 1, and an $\alpha_0$ parameter indicating that my
+confidence comes from the Equivalent of having seen roughly \py{ps_alpha_0}
+subjects. I do not have great reason to think heterogeneity differs
+systematically across parameters, so I set the same values for all parameters:
 \begin{align}
-  \rho^j &= \py{ps_rho} \quad \forall j \in [r, \phi, \eta, \lambda] \\
-  \alpha_{0}^j &= \py{ps_alpha_0} \quad \forall j \in [r, \phi, \eta, \lambda]
+  \rho^j = \py{ps_rho} \quad &\forall j \in [r, \phi, \eta, \lambda] \\
+  \alpha_{0}^j = \py{ps_alpha_0} \quad &\forall j \in [r, \phi, \eta, \lambda]
 \end{align}
-
-These researcher decisions result in the full hyper-prior:
+\noindent These researcher decisions result in the fully specified hyperprior:
 \begin{align}
   \label{eq:hyperprior-values}
 \begin{matrix}
@@ -515,14 +546,14 @@ These researcher decisions result in the full hyper-prior:
 %
 %\begin{figure}
 %  \centering
-%  \mycaption{Draws from the Derived Hyper-Prior}
+%  \mycaption{Draws from the Derived hyperprior}
 %  \label{fig:}
 %  \includegraphics[width=\textwidth]{../plots/priors/unconditional_prior.pdf}
 %\end{figure}
 %
 %\begin{figure}
 %  \centering
-%  \mycaption{Draws from the Derived Hyper-Prior}
+%  \mycaption{Draws from the Derived hyperprior}
 %  \label{fig:}
 %  \includegraphics[width=\textwidth]{../plots/priors/prior_comparison.pdf}
 %\end{figure}
@@ -533,23 +564,27 @@ These researcher decisions result in the full hyper-prior:
 
 
 I use the risk preference task from \textcite{Harrison2016}, which elicited
-lottery choices from \py{D['n_subjects']} subjects in a laboratory experiment.
-Each subject made \py{D['n_choices_per_subject']} binary choices between
-three-outcome lotteries with prize amounts of \$10, \$30, and \$50.
-
-I estimate the model using Markov chain Monte Carlo with \py{Q.get('n_chains', 'N/A')}
-parallel chains. The sampler uses block-wise Metropolis-Hastings with adaptive
-proposals informed by cross-chain covariance estimation. Further details of the
-sampling procedure are provided in Appendix \ref{app:mcmc}. \footnote{
-  The maximum $\hat{R}$ statistic is \py{fmt(Q.get('rhat_max', 0), 2)} across
-  all \py{Q.get('n_total_params', 'N/A')} parameters (\py{Q.get('n_subjects',
+lottery choices from \py{D['n_subjects']} subjects in a laboratory experiment
+in 2015 at Georgia State University. Each subject made
+\py{D['n_choices_per_subject']} binary choices between three-outcome lotteries
+with prize amounts of \$10, \$30, and \$50. I estimate the model using a Markov
+Chain Monte Carlo (MCMC) with \py{Q.get('n_chains', 'N/A')} parallel
+chains, ultimately obtaining \py{total_samples} samples from the posterior for
+inference.\footnote{
+  The sampler uses a block-wise Metropolis-Hastings in Gibbs sampler with
+  adaptive proposals informed by cross-chain covariance estimation. The maximum
+  $\hat{R}$ statistic is \py{fmt(Q.get('rhat_max', 0), 2)} across all
+  \py{Q.get('n_total_params', 'N/A')} parameters (\py{Q.get('n_subjects',
   'N/A')} subjects $\times$ 4 parameters + 8 hyperparameters), suggesting
-  excellent convergence. Trace plots are provided in Appendix \ref{app:mcmc}.
+  excellent convergence. Further details of the sampling procedure along with
+  trace plots of the hyperparameters, and individual-level parameters for the
+  subsequently discussed subjects \py{subject_min_ce} and \py{subject_max_ce},
+  are provided in Appendix \ref{app:mcmc}.
 }
 
 To assess the impact of an informative prior, I estimate the model once using
-the informative hyper-prior in (\ref{eq:hyperprior-values}), and again using
-the uninformative hyper-prior used by \textcite[279-281]{Gao2022}:
+the informative hyperprior in (\ref{eq:hyperprior-values}), and again using
+the uninformative hyperprior used by \textcite[279-281]{Gao2022}:
 \begin{align}
   \label{eq:ght_prior}
 \begin{matrix}
@@ -562,89 +597,83 @@ the uninformative hyper-prior used by \textcite[279-281]{Gao2022}:
 
 I assess the impact of these priors in two ways. First, I directly compare the
 posterior distributions of the hyper-parameters for each of the informed and
-uninformed hyper-priors. The second way I assess is by examining the posterior
-predictive distributions for each subject of the certainty equivalent (CE) of
+uninformed hyperpriors. Second, I examine the posterior predictive
+distributions of a certainty equivalent (CE) defined over an equi-probably
+lottery for two distinct subjects.
 
 \subsection{Hyper-parameter Comparison}
 
 \begin{figure}[hp]
   \centering
   \mycaption{Hyper-parameter comparison}
-  \label{fig:hyper_par_comp}
+  \label{fig:hyperparam_post}
   \includegraphics[width=\textwidth]{../plots/paper/hyper_comparison.pdf}
 \end{figure}
 \begin{figure}[hp]
   \centering
   \mycaption{Hyper-posterior distribution}
-  \label{fig:hyper_post_comp}
+  \label{fig:hyperparam_pred}
   \includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{../plots/paper/predictive_params_overlay.pdf}
 \end{figure}
 
-I begin with the hyper-parameter comparison in Figure \ref{fig:hyper_par_comp}.
-In this figure, the blue density curve shows the posterior density of the
-hyper-parameters for the informative prior, and the red density curve shos the
-posterior density for the uninformative prior. The vertical dashed green line
-shows the mean of the hyper-prior for that parameter, and the vertical dotted
-green lines show the 90\% confidence interval of the hyper-prior distribution
-for that hyper-parameter.
+I begin with the hyper-parameter comparison in Figure \ref{fig:hyperparam_post}.
+In this figure, the blue curve shows the posterior density of the
+hyper-parameters for the informative prior, the orange curve shows the
+posterior density for the uninformative prior, and the grey curve shows the
+hyperprior density for that parameter.
 
 There are substantial differences in the posterior distributions of the hyper
 parameters between the informative and uninformative posteriors, as might be
 expected. We can see that for all hyper-parameters, the posterior distributions
 are narrower (except for $\mu_\lambda$), indicating greater posterior
 confidence in the potential values of the parameters. We also see that the
-posterior distributions with informative hyper-priors are all closer to the
-mean of the hyper-prior distribution than the uninformative posterior
+posterior distributions with informative hyperpriors are all closer to the
+mean of the hyperprior distribution than the uninformative posterior
 distributions (except for $\mu_\phi$).
 
-These results are, in general, totally intuitive. With informative hyper-prior
+These results are, in general, totally intuitive. With informative hyperprior
 distributions, we ought in general, see movement of the posterior distributions
-toward the high-density regions of the hyper-prior distributions, which is
+toward the high-density regions of the hyperprior distributions, which is
 exactly what we see. The exception to this rule is the posterior distribution
 of the $\mu_\phi$ parameter, which is somewhat farther from the mean of the
-hyper-prior for the informative case compared to the uninformative case. These
+hyperprior for the informative case compared to the uninformative case. These
 parameters cannot be interpreted fully independently, however, the posterior
-distribution of the $\sigma_\phi$ term is much closer to the hyper-prior mean,
-which may compensate. The difficulty in determining \enquote{how much} it
-matters is the primary motivation of the proposed decomposition of the
-hyper-prior distribution.
+distribution of the $\sigma_\phi$ term is much closer to the hyperprior mean,
+which may compensate.
 
-In Figure \ref{fig:hyper_post_comp}, we show the draws for the unconditional
+Figure \ref{fig:hyperparam_pred} shows the density for the unconditional
 $\theta_i = [r_i, \phi_i, \eta_i, \lambda_i]$ vector from the informative
-hyper-prior distribution (which is equivalent to our direct prior distribution
-by construction), the posterior of the informative hyper-parameter
+hyperprior distribution, the posterior of the informative hyper-parameter
 distribution, and the uninformative hyper-parameter distribution. We can see
-from this figure a similar story as in Figure \ref{fig:hyper_par_comp}, but
-interpretable in parameter terms that are more interpretable; the informed
-posterior is closer to the hyper-prior distribution than the uninformative
-posterior.
+from this figure a similar story as in Figure \ref{fig:hyperparam_post}, but in
+terms that are more interpretable; the informed posterior is closer to the
+hyperprior distribution than the uninformative posterior. We can also see that
+although the informed posterior of the mean and variance hyperparameters for
+$\eta$ are clearly different from the hyperprior in Figure
+\ref{fig:hyperparam_post}, the informed posterior and prior predictive
+distributions for $\eta$ in Figure \ref{fig:hyperparam_pred} are almost
+identical.
+
+Reconciling the interpretation of the two figures is possible by framing it in
+terms of the variance decomposition we used to generate our prior. If the two
+distributions are identical, but the variance on the mean hyperparameter
+(characterized by $\tau_0$) is lower for the informed posterior than the
+hyperprior, that implies $\rho$ is closer to 0 for the posterior than the
+hyperprior. A lower $\rho$ is interpretable as believing there is a greater
+degree of heterogeneity, which is exactly what we see in Figure
+\ref{fig:hyperparam_post}: the mean of the $\ln \sigma_\eta$ distribution for
+the informed posterior is greater than the corresponding hyperprior
+distribution, which results in more inter-subject heterogeneity.
 
 
 \subsection{Posterior Predictive Distribution of Certainty Equivalent}
 
-\begin{pycode}
-_ce_comp = np.load("../data/output/posterior_ce_comparison.npz")
-subject_most_affected = int(_ce_comp['most_affected_sid'])
-subject_least_affected = int(_ce_comp['least_affected_sid'])
-subject_max_ce = subject_most_affected
-subject_min_ce = subject_least_affected
-_ce_overlay = np.load("../data/output/predictive_ce_overlay.npz")
-hprior_pred_rs = fmt(float(_ce_overlay['prior_pct_above_ev']), 1)
-prior_ce_below_15 = fmt(float(_ce_overlay['prior_pct_below_15']), 1)
-prior_ce_above_40 = fmt(float(_ce_overlay['prior_pct_above_40']), 1)
-info_ce_below_15 = fmt(float(_ce_overlay['info_pct_below_15']), 1)
-info_ce_above_40 = fmt(float(_ce_overlay['info_pct_above_40']), 1)
-uninf_ce_below_15 = fmt(float(_ce_overlay['uninf_pct_below_15']), 1)
-uninf_ce_above_40 = fmt(float(_ce_overlay['uninf_pct_above_40']), 1)
-\end{pycode}
-
-
-The Certainty Equivalent (CE) a lottery is the amount of money that provides an
-equivalent utility as a given lottery. The CE can be used as a normalized
-utility function \parencite{King1983}, but is also very useful in terms of
-assessing risk preference models with many interrelated preference parameters.
-The CE for a lottery with outcomes $x \in [10, 30, 50]$ and $p(x) = 1/3$ for
-all $x$,\footnote{
+The Certainty Equivalent (CE) a lottery is the amount of money for certain that
+provides an equivalent utility as a given lottery. The CE can be used as a
+normalized utility function \parencite{King1983}, but is also very useful in
+terms of assessing risk preference models with many interrelated preference
+parameters \parencite{Harrison2022}. The CE for a lottery with outcomes $x \in
+[10, 30, 50]$ and $p(x) = 1/3$ for all $x$,\footnote{
   These outcomes represent the 3 outcomes in the dataset of \textcite{Harrison2016}.
 } is defined as:
 \begin{align}
@@ -666,8 +695,8 @@ The CE in (\ref{eq:CE}) can be calculated for any vector $\theta_i = [r_i,
 \phi_i, \eta_i, \lambda_i]$. Using the sampled draws of $\theta_i$ from the
 posterior distribution results in a posterior predictive distribution of CEs. I
 focus on two results with respect to the CE. Figure \ref{fig:hyper_post_ce}
-shows the hyper-prior predictive distribution of the CE using our informed
-hyper-prior, and the hyper-posterior predictive of the CE for both informative
+shows the hyperprior predictive distribution of the CE using our informed
+hyperprior, and the hyper-posterior predictive of the CE for both informative
 and uninformative priors. Figures \ref{fig:post_ce_min} and
 \ref{fig:post_ce_max} examine two individual subjects predictive posterior
 distributions. Figure \ref{fig:post_ce_min} shows the posterior predictive
@@ -677,8 +706,8 @@ between the informative and uninformative models, while Figure
 CE.
 
 Looking first at Figure \ref{fig:hyper_post_ce}, we can see a more general
-picture of the effect of an informed hyper-prior distribution on posterior
-inferences about risk preferences. In this figure, we see that the hyper-prior
+picture of the effect of an informed hyperprior distribution on posterior
+inferences about risk preferences. In this figure, we see that the hyperprior
 we selected world result in \py{hprior_pred_rs}\% of possible CE values to be
 greater than the expected value of the lottery, suggesting a not insignificant
 prior belief that a random subject might be risk seeking. Of greater interest,
@@ -692,7 +721,7 @@ Likewise, \py{uninf_ce_above_40}\% of the density is above \$40, indicating
 extreme risk \textit{seeking}. In contrast, only \py{info_ce_below_15}\% of the
 CE density is below \$15 for the informative posterior and
 \py{info_ce_above_40}\% above \$40. The overall picture here is again,
-relatively intuitive: the hyper-prior distribution mediated the likelihood of
+relatively intuitive: the hyperprior distribution mediated the likelihood of
 the data, reducing the posterior density on extreme values.
 
 \begin{figure}[hp]
@@ -740,23 +769,22 @@ previous subject, indicating that the data for this subject were much less
 informative. The effect of the prior is therefore much more pronounced. The
 median of posterior predictive distribution for the informative model now, in
 effect, indicates risk neutrality almost exactly, with roughly half of the
-density on CE values that indicate risk seeking. This is much different from
-what the posterior of the uninformative model indicates.
+density on CE values that indicate risk seeking. This is qualitatively
+different from what the posterior of the uninformative model indicates.
 
-What both figures show is that the inclusion of an informative hyper-prior
+What both figures show is that the inclusion of an informative hyperprior
 matters most when the data are not particularly informative about parameters of
-interest, which is very intuitive, but also that an informative hyper-prior
-interacts at the individual subject level in less direct ways than in the
-subject was estimated individually with an informative direct prior.
+interest, which is very intuitive, but also that an informative hyperprior
+interacts at the individual subject level only indirectly.
 
 
 \section{Discussion}
 
 
-While it is often the case that picking hyper-prior parameters can be difficult
+While it is often the case that picking hyperprior parameters can be difficult
 and unintuitive, re-parameterization of the problem, and recognition of the
-exchangeability principal, can aid a researcher who wants to do more than
-specify \enquote{uninformative} hyper-priors. The path chosen in this paper, in
+exchangeability principle, can aid a researcher who wants to do more than
+specify \enquote{uninformative} hyperpriors. The path chosen in this paper, in
 the context of a BHM of risk preferences, is to recognize that researchers
 often have strong beliefs about what a typical subject's preferences might look
 like, and use these individual-level beliefs to inform population-level
@@ -764,10 +792,10 @@ beliefs. These beliefs are often informed by decades of published empirical
 results, and expert intuition about what constitutes reasonable and probable
 preferences. By recognizing that under exchangeability, and without any ex-ante
 data to the contrary, the belief about what a typical subject might look like
-must apply to \textit{all} subjects in a sample, we establish the primary
-result of this paper: the unconditional \enquote{direct} prior about an
+must apply to \textit{all} subjects in a sample \textit{a-priori}, we establish the
+primary result of this paper: the unconditional \enquote{direct} prior about an
 individual integrates over the uncertainty about the population. This limiting
-condition on hyper-prior distributions has not been commonly utilized in BHMs.
+condition on hyperprior distributions has not been commonly utilized in BHMs.
 
 This restricting condition does not result in a \enquote{free lunch}, however.
 The same degrees of freedom must ultimately be satisfied. To this end, I
@@ -777,16 +805,16 @@ the degree of heterogeneity in their sample. Taken together, the specification
 of a direct prior about what a typical subject ought to look like, and the
 expression of belief about the degree of heterogeneity in the sample, the
 proposed method resolves all degrees of freedom and does so in a way that
-allows for useful hyper-priors to be specified by rigorous researchers, and
+allows for useful hyperpriors to be specified by rigorous researchers, and
 scrutinized by those who may worry that prior distributions are being abused to
 produce arbitrary posterior inferences.
 
-The choice of an informative hyper-prior clearly matters when compared to
-uninformative hyper-prior, as demonstrated here by reproducing the results of
-\textcite{Gao2022} with and without informative hyper-priors. What was not
+The choice of an informative hyperprior clearly matters when compared to
+uninformative hyperprior, as demonstrated here by reproducing the results of
+\textcite{Gao2022} with and without informative hyperpriors. What was not
 discussed here was how to pick the direct prior of a typical individual, or how
 to compare two models with the same data and likelihood functions, but
-different hyper-priors.
+different hyperpriors.
 
 Starting with the latter point, one of the most common ways Bayesian models are
 compared is by use of Bayes' factor:
@@ -796,7 +824,7 @@ compared is by use of Bayes' factor:
 \noindent But in our case, the only difference between the two models is the
 prior distribution, $\pi$. The Bayes' factor then reduces entirely to a
 comparison of how well each prior predicted the data before even seeing the
-data. Totally uninformative hyper-priors would lose to even somewhat accurate
+data. Totally uninformative hyperpriors would lose to even somewhat accurate
 prior distributions, even if the posterior inferences are nearly identical, as
 they are for subject \py{subject_min_ce} in Figure \ref{fig:post_ce_min}. A
 model where the prior and posterior match exactly will always win in the Bayes'
@@ -875,7 +903,7 @@ The cumulants are:
 
 \subsection{Hierarchical Decomposition}
 
-Suppose we wish to specify hyper-priors such that the unconditional distribution
+Suppose we wish to specify hyperpriors such that the unconditional distribution
 of $\theta_i$ matches a direct prior $\text{Skew-Normal}(\xi^*, \omega^*, \alpha^*)$.
 The Skew-Normal has three parameters, so following the prior selection approach,
 we must match three cumulants using the law of total cumulance.

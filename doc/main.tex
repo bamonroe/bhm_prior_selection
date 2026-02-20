@@ -112,7 +112,7 @@ models jointly estimate individual-level parameters and the hyper-parameters
 that govern their prior distributions. With the assumption that individuals are
 exchangeable, BHMs have the advantage of using the distribution of individual
 estimands to inform the prior distribution for the estimands. There is no free
-lunch, however, instead of needing a specified prior distribution for a given
+lunch, however: instead of needing a specified prior distribution for a given
 individual, one must now specify a \textit{hyperprior} over the
 \textit{hyper-parameters} of the individual level estimands.
 
@@ -230,7 +230,7 @@ answers, even if $\theta_i$ is well understood.
 
 The prior selection approach begins with a cognitively tractable question:
 \emph{What might the value $\theta_i$ of a single random individual look like?}
-This requires revisiting the problem of selecting prior in
+This requires revisiting the problem of selecting a prior in
 (\ref{eq:simple_prior}), and the direct specification of $\mu$ and $\sigma^2$
 prior parameters. This lower-level specification of prior parameters is often
 conceptually easier than the direct specification of hyperprior parameters. Let
@@ -341,11 +341,11 @@ that informs the prior.
 The $\rho$ parameter can be interpreted as the central
 tendency of our beliefs about the heterogeneity of the sample, with low values
 of $\rho$ indicating a greater belief in a high degree of heterogeneity, and
-high values of $\rho$ indicating the opposite. The choice of $\alpha$
-parameter, can likewise be interpreted as expressing our \textit{confidence} in
+high values of $\rho$ indicating the opposite. The choice of the $\alpha_0$
+parameter can likewise be interpreted as expressing our \textit{confidence} in
 that degree of heterogeneity. Low values of $\alpha$ would result in a wider
 distribution of the $\sigma^2$ hyper-parameter with heavy right tails, while
-greater values of $\alpha$ would reign in those tails, making the distribution
+greater values of $\alpha$ would rein in those tails, making the distribution
 of $\sigma^2$ more heavily concentrated around its mean.
 
 \textit{Any} choice of $\rho \in [0, 1]$ and $\alpha > 0$ will result in the
@@ -518,7 +518,7 @@ $\alpha_0$ hyperpriors for each parameter. I believe there to be a fair degree
 of heterogeneity in the population, but I am also not dogmatically certain
 about the location of the mean hyperparameter. I therefore pick a $\rho$ value
 closer to 0 than to 1, and an $\alpha_0$ parameter indicating that my
-confidence comes from the Equivalent of having seen roughly \py{ps_alpha_0}
+confidence comes from the equivalent of having seen roughly \py{ps_alpha_0}
 subjects. I do not have great reason to think heterogeneity differs
 systematically across parameters, so I set the same values for all parameters:
 \begin{align}
@@ -668,7 +668,7 @@ distribution, which results in more inter-subject heterogeneity.
 
 \subsection{Posterior Predictive Distribution of Certainty Equivalent}
 
-The Certainty Equivalent (CE) a lottery is the amount of money for certain that
+The Certainty Equivalent (CE) of a lottery is the amount of money for certain that
 provides an equivalent utility as a given lottery. The CE can be used as a
 normalized utility function \parencite{King1983}, but is also very useful in
 terms of assessing risk preference models with many interrelated preference
@@ -680,7 +680,7 @@ parameters \parencite{Harrison2022}. The CE for a lottery with outcomes $x \in
 \label{eq:CE}
   \begin{split}
   \frac{\text{CE}^{1 - r}}{1 - r} &= \sum_x d_i(x) \frac{x^{1 - r}}{1 - r} \\
-    \text{CE} &= \left(\sum_x d_i(x) \frac{x^{1 - r}}{1 - r}\right)^\frac{1}{1 - r}
+    \text{CE} &= \left(\sum_x d_i(x) x^{1 - r}\right)^\frac{1}{1 - r}
   \end{split}
 \end{align}
 
@@ -708,7 +708,7 @@ CE.
 Looking first at Figure \ref{fig:hyper_post_ce}, we can see a more general
 picture of the effect of an informed hyperprior distribution on posterior
 inferences about risk preferences. In this figure, we see that the hyperprior
-we selected world result in \py{hprior_pred_rs}\% of possible CE values to be
+we selected would result in \py{hprior_pred_rs}\% of possible CE values to be
 greater than the expected value of the lottery, suggesting a not insignificant
 prior belief that a random subject might be risk seeking. Of greater interest,
 however, are the posterior predictive distributions.
@@ -835,7 +835,7 @@ until the point where prior matches posterior. The ability to unscrupulously
 what constitutes a better prior.
 
 Instead the way a critic ought to judge a prior follows the same path that a
-rigorous researcher ought to take when trying to define the prior in the fist
+rigorous researcher ought to take when trying to define the prior in the first
 place: the prior ought to be defended as the true beliefs of the researcher
 about the parameters of interest. These beliefs ought to be informed by past
 data, expertise, theory, and, sometimes, mathematical convenience. Critics

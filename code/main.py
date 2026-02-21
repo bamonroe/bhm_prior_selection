@@ -237,7 +237,7 @@ sampling_opts = {
     'plots_dir': PLOTS_DIR / 'rdu_bhm',
     'clean': True,
     'reset_runs': 1,
-    'resume_runs': 2,
+    'resume_runs': 5,
     'num_chains': 1000,  # Must be divisible by 16 (n_temperatures * 2) for PT
     'num_collect': 100,
     'thin_iteration': 10,
@@ -282,10 +282,10 @@ do_hyper_plots_uninf         = False
 do_subject_plots_uninf       = False
 
 # --- Paper Plots ---
-do_paper_prior_comparison    = True   # Prior distribution comparison
-do_paper_hyper_comparison    = True   # Hyperparameter prior vs posterior (8-panel)
-do_paper_predictive_overlay  = True   # Predictive CE and parameter overlay
-do_paper_subject_ce          = True   # Subject most/least affected CE
+do_paper_prior_comparison    = False   # Prior distribution comparison
+do_paper_hyper_comparison    = False   # Hyperparameter prior vs posterior (8-panel)
+do_paper_predictive_overlay  = False   # Predictive CE and parameter overlay
+do_paper_subject_ce          = False   # Subject most/least affected CE
 
 # --- Appendix Examples ---
 do_skew_normal_example  = False

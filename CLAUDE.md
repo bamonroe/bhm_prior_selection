@@ -4,42 +4,55 @@ Instructions for Claude Code sessions in this workspace.
 
 ## Project Status
 
-**Current State:** Full pipeline working. Paper draft nearly complete.
+**Current State:** Paper restructured for Journal of Econometrics. Phase 1 (paper structure) complete on feature branch.
 
-The full estimation pipeline is implemented with Harrison & Ng (2016) data:
+The paper has been restructured from an Economics Letter into a full JoE paper:
+- New title: "Observable-Space Prior Specification for Bayesian Hierarchical Models"
+- 9 sections + 6 appendices (was 4 sections + 3 appendices)
+- Two contributions: (i) observable-space priors with Jacobian correction; (ii) variance decomposition with κ parameterization
+- Three applications planned: RDU (real data, working), CPT (simulation, stub), discounting (simulation, stub)
+- Bibliography expanded from ~11 to ~30+ references
+- New material from technical notes integrated into main paper body and appendices
+
+The full estimation pipeline remains working with Harrison & Ng (2016) data:
 - RDU-BHM model with Prelec 2-parameter PWF: w(p) = exp(-η(-ln p)^φ)
 - 4 parameters per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), λ (noise)
 - MCMC sampling complete for both informative and uninformative priors (1000 chains, R-hat max 1.002)
-- Prior and posterior predictive CE distributions computed
-- All paper plots generated: prior comparison, hyperparameter posteriors, predictive overlays, subject CE
-- Paper draft with introduction, methodology, application, results, and discussion
-- Appendices: covariance derivation, Skew-Normal extension, MCMC details
-- Hardcoded plot/computation config consolidated into main.py config dicts
+- All paper plots generated; pythontex dynamic data loading preserved
 
-**Current branch:** `master` (all feature branches merged)
+**Current branch:** `feat/joe-restructure` (Phase 1 complete, not yet merged to master)
 
 See `TODO.md` for detailed task tracking.
 
 ## Project Goal
 
-Working title: "Principled Hyperprior Selection for Bayesian Hierarchical Models of Risk Preferences"
+Working title: "Observable-Space Prior Specification for Bayesian Hierarchical Models: Theory and Applications to Risk Preferences"
 
-The goal is to write an Economics Letter demonstrating a principled approach to
-selecting hyperpriors for Bayesian Hierarchical Models (BHMs).
+Target: Journal of Econometrics, full-length paper (~30-35 pages with appendices).
 
-**Core Insight:** It is far easier to specify a prior for a single random
-individual than to directly specify population-level hyperpriors. Given an
-individual-level prior, we derive hyperpriors such that the unconditional BHM
-distribution matches this prior exactly.
+**Two Contributions:**
 
-**Key Result:** For a model with p parameters, this reduces 4p hyperprior
-choices to just 2 interpretable parameters:
-- **ρ (rho):** Variance partition ratio - fraction of variance from uncertainty
-  about population mean vs. population heterogeneity
-- **α₀ (alpha_0):** Concentration parameter - confidence in prior selection variance
+1. **Observable-space prior specification** — Specify priors on interpretable
+   quantities (certainty equivalents, choice probabilities) and transform to
+   parameter space via Jacobian correction: p(θ) = p_Y(g(θ)) |det J_g(θ)|
 
-We apply this to Rank-Dependent Utility (RDU) estimation, replicating:
+2. **Distribution-free variance decomposition** — Reduce 4p hyperprior choices
+   to 2 interpretable parameters:
+   - **ρ (rho):** Variance partition ratio — fraction of variance from
+     uncertainty about population mean vs. population heterogeneity
+   - **κ (kappa):** Coefficient of variation of heterogeneity — replaces α₀
+     with a distribution-free measure: κ = SD[σ²]/E[σ²]
 
+**Three Applications:**
+- RDU estimation with Harrison & Ng (2016) real data (working)
+- CPT simulation study (planned — Phase 5)
+- Temporal discounting simulation study (planned — Phase 5)
+
+The paper bridges two prior specification literatures: "robust/uninformative"
+(Gelman 2006, Simpson 2017) and "prior predictive calibration" (Kadane 1980,
+Gabry 2019), providing analytical machinery the latter has lacked.
+
+We replicate/extend:
 > Gao, Harrison & Tchernis (2022). "Behavioral welfare economics and risk
 > preferences: a Bayesian approach." *Experimental Economics*.
 > https://doi.org/10.1007/s10683-022-09751-0
@@ -110,6 +123,14 @@ Variance decomposition: `V = τ₀² + E[σ²]` where:
 - E[σ²] = (1-ρ) × V (population heterogeneity)
 
 Default researcher choices: ρ = 0.2, α₀ = 20.0
+
+### κ Parameterization (new in JoE version)
+
+κ = SD[σ²] / E[σ²] — coefficient of variation of heterogeneity.
+- Distribution-free: defined without reference to IG or any specific family
+- For IG: κ = 1/√(α₀-2), so α₀ = 2 + 1/κ²
+- Interpretable as "confidence in heterogeneity specification"
+- κ = 0: certain about heterogeneity level; κ = 1: high uncertainty
 
 ## Data
 
@@ -329,22 +350,26 @@ Keep TODO.md current so future sessions can quickly understand project status.
 
 ## Paper Document
 
-The paper is in `doc/main.tex`. Key sections:
+The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 
-1. **Introduction** - Motivation for principled hyperprior selection
-2. **The Prior Selection Approach** - Core methodology
-   - Law of total cumulance (iterated expectations, total variance)
-   - Variance decomposition with ρ and α₀
-   - Derived hyperpriors formulas
-3. **Application: RDU Estimation** - Model, priors, data, estimation
-4. **Results** - Posterior summaries with informative vs uninformative comparison
-5. **Discussion** - Bayes factor critique, defense of prior specification
-6. **Appendix A** - Full covariance derivation
-7. **Appendix B** - Skew-Normal example (3-parameter extension)
-   - Law of total cumulance for skewness
-   - 3 degrees of freedom: ρ, α_ω, τ_α²
-   - Numerical solution approach
-8. **Appendix C** - MCMC implementation details
+### Main Sections
+1. **Introduction** - Two contributions, bridge between two literatures, three applications
+2. **Literature — Two Camps** - Camp 1 (uninformative), Camp 2 (knowledge-based), BHMs in economics
+3. **Observable-Space Prior Specification** - General framework, CE space, choice probability, block-triangular Jacobian, global injectivity
+4. **Hyperprior Derivation via Variance Decomposition** - κ parameterization, NIG mapping, NIW extension
+5. **Application — RDU with Real Data** - Model, priors, H&N 2016 data, results (working, with pythontex)
+6. **Application — CPT** (simulation study, stub)
+7. **Application — Discounting** (simulation study, stub)
+8. **Discussion** - Practical guidance, limitations, Bayes factor comparison
+9. **Conclusion**
+
+### Appendices
+- **A**: Full Covariance (NIW derivation) — preserved from original
+- **B**: Skew-Normal 3-parameter extension — preserved from original
+- **C**: Global Injectivity — new, from technical notes
+- **D**: Jacobian Correction — new, from technical notes
+- **E**: MCMC Implementation Details — preserved/condensed
+- **F**: Simulation Study Details — placeholder stub
 
 To compile (with pythontex for dynamic data):
 ```bash

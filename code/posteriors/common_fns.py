@@ -234,3 +234,126 @@ def risk_likelihood(utilities, phi, eta, datai, dataf, sid, lam):
     )
 
     return jnp.sum(log_liks)
+
+
+# =============================================================================
+# CRRA Inverse Utility (JAX)
+# =============================================================================
+
+def crra_inverse(v, r):
+    """
+    Inverse of CRRA utility function (JAX).
+
+    Given u(x) = x^(1-r) / (1-r), the inverse is:
+        x = ((1-r)*v)^(1/(1-r))
+
+    For r close to 1 (log utility), u(x) = log(x) so x = exp(v).
+
+    Args:
+        v: Utility value (scalar)
+        r: CRRA coefficient (scalar)
+
+    Returns:
+        Certainty equivalent in prize units
+    """
+    r_safe = jnp.clip(r, -10, 10)
+    inner = jnp.maximum((1 - r_safe) * v, 1e-30)
+    crra_inv = jnp.power(inner, 1.0 / (1 - r_safe))
+    log_inv = jnp.exp(v)
+    use_log = jnp.abs(r_safe - 1.0) < 0.01
+    return jnp.where(use_log, log_inv, crra_inv)
+
+
+# =============================================================================
+# CE Computation for Reference Lotteries
+# =============================================================================
+
+def rdu_ce_3outcome(r, phi, eta, prizes, probs):
+    """
+    Compute certainty equivalent for a 3-outcome lottery with arbitrary probs.
+
+    Uses RDU with Prelec PWF. Prizes must be sorted ascending.
+
+    Args:
+        r: CRRA coefficient (scalar)
+        phi: Prelec curvature (natural scale, positive)
+        eta: Prelec elevation (natural scale, positive)
+        prizes: Array of 3 prizes [x1, x2, x3] sorted ascending
+        probs: Array of 3 probabilities [p1, p2, p3] summing to 1
+
+    Returns:
+        CE in prize units (scalar)
+    """
+    x1, x2, x3 = prizes[0], prizes[1], prizes[2]
+    p1, p2, p3 = probs[0], probs[1], probs[2]
+
+    u1 = crra_ufn(x1, r)
+    u2 = crra_ufn(x2, r)
+    u3 = crra_ufn(x3, r)
+
+    # Cumulative probs (at least as good as)
+    C3 = p3
+    C2 = p2 + p3
+
+    # Decision weights via Prelec PWF
+    w_C3 = prelec_pwf(C3, phi, eta)
+    w_C2 = prelec_pwf(C2, phi, eta)
+
+    pi3 = w_C3
+    pi2 = w_C2 - w_C3
+    pi1 = 1.0 - w_C2
+
+    rdu_val = pi1 * u1 + pi2 * u2 + pi3 * u3
+    return crra_inverse(rdu_val, r)
+
+
+def ce_mapping_3lotteries(r, phi_raw, eta_raw, ref_lotteries):
+    """
+    Compute (CE1, CE2, CE3) for three reference lotteries.
+
+    This is the forward map g(theta) from parameter space to CE space.
+
+    Args:
+        r: CRRA coefficient (scalar)
+        phi_raw: log(phi), Prelec curvature on log scale (scalar)
+        eta_raw: log(eta), Prelec elevation on log scale (scalar)
+        ref_lotteries: Flat array of shape (18,) encoding 3 lotteries:
+            [prizes1(3), probs1(3), prizes2(3), probs2(3), prizes3(3), probs3(3)]
+
+    Returns:
+        Array of shape (3,) with [CE1, CE2, CE3]
+    """
+    phi = jnp.exp(phi_raw)
+    eta = jnp.exp(eta_raw)
+
+    ce1 = rdu_ce_3outcome(r, phi, eta, ref_lotteries[0:3], ref_lotteries[3:6])
+    ce2 = rdu_ce_3outcome(r, phi, eta, ref_lotteries[6:9], ref_lotteries[9:12])
+    ce3 = rdu_ce_3outcome(r, phi, eta, ref_lotteries[12:15], ref_lotteries[15:18])
+
+    return jnp.array([ce1, ce2, ce3])
+
+
+def ce_jacobian_logabsdet(r, phi_raw, eta_raw, ref_lotteries):
+    """
+    Compute log|det J| of the CE mapping g: (r, phi_raw, eta_raw) -> (CE1, CE2, CE3).
+
+    Uses jax.jacfwd to compute the 3x3 Jacobian, then jnp.linalg.slogdet.
+
+    Args:
+        r: CRRA coefficient (scalar)
+        phi_raw: log(phi) (scalar)
+        eta_raw: log(eta) (scalar)
+        ref_lotteries: Flat array of shape (18,)
+
+    Returns:
+        log|det J| (scalar). Returns -inf if det is zero or negative.
+    """
+    def f(theta):
+        return ce_mapping_3lotteries(theta[0], theta[1], theta[2], ref_lotteries)
+
+    theta = jnp.array([r, phi_raw, eta_raw])
+    J = jax.jacfwd(f)(theta)  # (3, 3)
+    sign, logabsdet = jnp.linalg.slogdet(J)
+    # We need log|det J|; sign can be negative (orientation-reversing map is fine)
+    # Only reject if det is exactly zero (sign == 0)
+    return jnp.where(sign != 0, logabsdet, -jnp.inf)

@@ -693,7 +693,13 @@ dprior = {
 }
 
 ps_rho = float(D.get("ps_rho", 0))
-ps_alpha_0 = float(D.get("ps_alpha_0", 0))
+# Support both old (alpha_0) and new (kappa) config
+if "ps_kappa" in D:
+    ps_kappa = float(D["ps_kappa"])
+    ps_alpha_0 = 2.0 + 1.0 / ps_kappa**2
+else:
+    ps_alpha_0 = float(D.get("ps_alpha_0", 20.0))
+    ps_kappa = 1.0 / (ps_alpha_0 - 2.0)**0.5
 
 hyperpriors = {
     "r": {
@@ -739,10 +745,10 @@ individual is:
 averse ($r = 0.5$), conforming to EUT ($\phi = \eta = 1$, so $\ln \phi = \ln
 \eta = 0$), with moderate noise.
 
-The variance decomposition is applied with $\rho = \py{ps_rho}$ and $\alpha_0
-= \py{ps_alpha_0}$ (equivalently, $\kappa =
-1/\sqrt{\py{ps_alpha_0} - 2} \approx \py{fmt(1/(ps_alpha_0 - 2)**0.5, 2)}$),
-shared across all parameters. These choices yield the informative hyperprior:
+The variance decomposition is applied with $\rho = \py{ps_rho}$ and $\kappa
+\approx \py{fmt(ps_kappa, 2)}$ (equivalently, $\alpha_0 = 2 + 1/\kappa^2
+\approx \py{fmt(ps_alpha_0, 0)}$), shared across all parameters.
+These choices yield the informative hyperprior:
 \begin{align}
   \label{eq:hyperprior-values}
 \begin{matrix}
@@ -888,6 +894,44 @@ What both figures demonstrate is that informative hyperpriors matter most when
 subject-level data are not particularly informative---a very intuitive result.
 An informative hyperprior interacts at the individual level only indirectly,
 through the population distribution that serves as each subject's prior.
+
+\subsubsection{Sensitivity to $(\rho, \kappa)$}
+
+Table~\ref{tab:sensitivity} reports the prior predictive CE distribution across
+a grid of researcher choices. The median CE and 90\% credible interval are
+virtually identical across the entire $(\rho, \kappa)$ grid. This stability is
+by construction: the variance decomposition ensures that the unconditional prior
+$p(\theta_i)$ matches the direct prior regardless of how the variance is
+partitioned between population-mean uncertainty ($\rho$) and heterogeneity
+confidence ($\kappa$).
+
+\begin{table}[htbp]
+\centering
+\caption{Prior predictive CE distribution: median [90\% CI] across $(\rho, \kappa)$ grid.
+Reference lottery: \$10/\$30/\$50 equally likely ($\text{EV} = \$30$).}
+\label{tab:sensitivity}
+\begin{tabular}{rcccc}
+\toprule
+$\rho$ & $\kappa = 0.15$ & $\kappa = 0.24$ & $\kappa = 0.50$ & $\kappa = 1.00$ \\
+ & $(\alpha_0 = 46)$ & $(\alpha_0 = 19)$ & $(\alpha_0 = 6)$ & $(\alpha_0 = 3)$ \\
+\midrule
+0.05 & $27.6\;[18.3,\,36.3]$ & $27.6\;[18.4,\,36.3]$ & $27.6\;[18.4,\,36.2]$ & $27.6\;[18.6,\,36.1]$ \\
+0.10 & $27.7\;[18.4,\,36.3]$ & $27.6\;[18.4,\,36.2]$ & $27.6\;[18.4,\,36.2]$ & $27.5\;[18.5,\,36.0]$ \\
+0.20 & $27.6\;[18.4,\,36.3]$ & $27.5\;[18.3,\,36.2]$ & $27.6\;[18.4,\,36.3]$ & $27.6\;[18.6,\,36.1]$ \\
+0.30 & $27.6\;[18.4,\,36.3]$ & $27.6\;[18.4,\,36.3]$ & $27.6\;[18.5,\,36.3]$ & $27.6\;[18.5,\,36.1]$ \\
+0.50 & $27.6\;[18.4,\,36.2]$ & $27.6\;[18.5,\,36.4]$ & $27.7\;[18.4,\,36.3]$ & $27.6\;[18.4,\,36.2]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The practical import is that $\rho$ and $\kappa$ control \emph{how} the prior
+distributes probability mass across the hierarchical structure---how much
+variance comes from between-population uncertainty versus within-population
+heterogeneity, and how confident the researcher is about the level of
+heterogeneity---without altering what the prior implies about individual
+behavior. The differences between these choices emerge in the
+\emph{posterior}, where $\rho$ and $\kappa$ govern how much the data can update
+the population-level parameters.
 
 
 %==============================================================================

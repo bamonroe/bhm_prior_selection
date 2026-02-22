@@ -314,7 +314,8 @@ def run_prior_predictive_ce(
     print("  Deriving hyperpriors from direct prior...")
     ps = rdu_prelec_prior_selection(direct_prior)
     hp = derive_hyperpriors(ps, rho=prior_selection['rho'],
-                            alpha_0=prior_selection['alpha_0'])
+                            kappa=prior_selection.get('kappa'),
+                            alpha_0=prior_selection.get('alpha_0'))
 
     hyperprior_params = {
         'mu_0': hp.mu_0,
@@ -1384,7 +1385,8 @@ def run_predictive_ce_overlay(
     from prior_selection import rdu_prelec_prior_selection, derive_hyperpriors
     ps = rdu_prelec_prior_selection(direct_prior)
     hp = derive_hyperpriors(ps, rho=prior_selection['rho'],
-                            alpha_0=prior_selection['alpha_0'])
+                            kappa=prior_selection.get('kappa'),
+                            alpha_0=prior_selection.get('alpha_0'))
     hyperprior_params = {
         'mu_0': hp.mu_0, 'tau_0_sq': hp.tau_0_sq,
         'alpha_0': hp.alpha_0, 'beta_0': hp.beta_0,

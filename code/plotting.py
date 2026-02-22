@@ -1527,7 +1527,11 @@ def plot_unconditional_prior(direct_prior, prior_selection, output_path,
     np.random.seed(seed)
 
     rho = prior_selection['rho']
-    alpha_0 = prior_selection['alpha_0']
+    if 'kappa' in prior_selection:
+        from prior_selection import kappa_to_alpha0
+        alpha_0 = kappa_to_alpha0(prior_selection['kappa'])
+    else:
+        alpha_0 = prior_selection['alpha_0']
 
     fig, axes = plt.subplots(2, 2, figsize=figsize)
     axes = axes.flatten()
@@ -1633,7 +1637,11 @@ def plot_prior_comparison(direct_prior, prior_selection, output_path,
     np.random.seed(seed)
 
     rho = prior_selection['rho']
-    alpha_0 = prior_selection['alpha_0']
+    if 'kappa' in prior_selection:
+        from prior_selection import kappa_to_alpha0
+        alpha_0 = kappa_to_alpha0(prior_selection['kappa'])
+    else:
+        alpha_0 = prior_selection['alpha_0']
 
     fig, axes = plt.subplots(2, 2, figsize=figsize)
     axes = axes.flatten()

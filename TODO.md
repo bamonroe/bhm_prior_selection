@@ -31,19 +31,26 @@ Paper restructured from Economics Letter to Journal of Econometrics:
 - [ ] Verify LaTeX compilation
 - [ ] Git commit on feature branch
 
-### Phase 2: κ Parameterization + Sensitivity
-- [ ] Implement κ → α₀ mapping in `code/prior_selection.py`
-- [ ] Update `code/main.py` to use κ instead of α₀ in config
-- [ ] Run sensitivity grid over (ρ, κ) for existing RDU model
-- [ ] Generate sensitivity tables for paper
-- [ ] Update paper with sensitivity results
+### Phase 2: κ Parameterization + Sensitivity — COMPLETE
+- [x] Implement κ → α₀ mapping in `code/prior_selection.py`
+- [x] Update `code/main.py` to use κ instead of α₀ in config
+- [x] Run sensitivity grid over (ρ, κ) for existing RDU model
+- [x] Generate sensitivity tables for paper
+- [x] Update paper with sensitivity results
 
-### Phase 3: CE-Space Priors
-- [ ] Derive Beta-of-Betas hierarchical moment-matching formulas
-- [ ] Implement CE Jacobian computation via `jax.jacfwd`
-- [ ] Add CE-space prior to `code/posteriors/rdu_bhm.py` with Jacobian correction
-- [ ] Implement Beta hierarchy for bounded CEs
-- [ ] Run MCMC with CE-space priors on H&N 2016 data
+### Phase 3: CE-Space Priors — IN PROGRESS
+- [x] Implement CE Jacobian computation via `jax.jacfwd` (`common_fns.py`)
+- [x] Implement CE-space posterior (`code/posteriors/rdu_bhm_ce.py`)
+- [x] Implement CE-space prior selection (`code/prior_selection.py`)
+- [x] Implement CE-space sampling module (`code/sampling_ce.py`)
+- [x] Add CE config and pipeline wiring (`main.py`, `pipelines.py`)
+- [x] Smoke test MCMC with CE-space priors (10 iter, 40 chains — passes)
+- [x] Technical note: over-determined CE priors / Gram determinant
+- [x] Technical note: cross-domain priors and data-uninformed parameters
+- [x] Technical note: Beta-Beta hierarchy for bounded CEs (prior predictive extension)
+- [ ] Derive Beta-of-Betas hierarchical moment-matching formulas (code implementation)
+- [ ] Implement Beta population distribution in `rdu_bhm_ce.py` (replacing Normal)
+- [ ] Run full MCMC with CE-space priors on H&N 2016 data
 - [ ] Generate comparison figures (parameter-space vs CE-space vs diffuse)
 
 ### Phase 4: Choice Probability Prior for λ
@@ -71,10 +78,11 @@ Paper restructured from Economics Letter to Journal of Econometrics:
 
 ## Up Next (immediate)
 
-### Phase 1 Completion
-- [ ] Verify LaTeX compilation (`pdflatex → pythontex → pdflatex → biber → pdflatex`)
-- [ ] Fix any compilation errors
-- [ ] Git commit Phase 1 on `feat/joe-restructure`
+### Phase 3 Completion
+- [ ] Implement Beta-Beta hyperprior in code (replacing NIG for CE-space)
+- [ ] Update `rdu_bhm_ce.py` to use Beta population distribution
+- [ ] Full MCMC run with CE-space priors on H&N 2016 data
+- [ ] Compare posteriors: parameter-space vs CE-space priors
 
 ### Convergence (ongoing)
 - [ ] Run longer sampling chains for H&N data if needed
@@ -114,24 +122,26 @@ Paper restructured from Economics Letter to Journal of Econometrics:
 - [x] Config consolidation (7 config dicts)
 - [x] pythontex integration for dynamic data
 - [x] Skew-Normal example for Appendix B
-- [x] Technical notes: BHM derivation, coupled transform, prior predictive extension, Jacobian correction
+- [x] Technical notes: BHM derivation, coupled transform, prior predictive extension, Jacobian correction, over-determined CE priors
 
 ---
 
 ## New Code Required (Phases 2-5)
 
-| Component | File | Phase |
-|-----------|------|-------|
-| κ parameterization | `code/prior_selection.py` | 2 |
-| Sensitivity grid | `code/sensitivity.py` | 2 |
-| CE Jacobian | `code/posteriors/common_fns.py` | 3 |
-| CE-space log-posterior | `code/posteriors/rdu_bhm.py` | 3 |
-| Beta hierarchy | `code/prior_selection.py` | 3 |
-| Choice prob prior | `code/posteriors/rdu_bhm.py` | 4 |
-| CPT posterior | `code/posteriors/cpt_bhm.py` | 5 |
-| Discounting posterior | `code/posteriors/discounting_bhm.py` | 5 |
-| Simulation DGP | `code/simulation/dgp.py` | 5 |
-| Monte Carlo runner | `code/simulation/monte_carlo.py` | 5 |
+| Component | File | Phase | Status |
+|-----------|------|-------|--------|
+| κ parameterization | `code/prior_selection.py` | 2 | Done |
+| Sensitivity grid | `code/sensitivity.py` | 2 | Done |
+| CE Jacobian | `code/posteriors/common_fns.py` | 3 | Done |
+| CE-space log-posterior | `code/posteriors/rdu_bhm_ce.py` | 3 | Done (Normal) |
+| CE-space prior selection | `code/prior_selection.py` | 3 | Done (Normal) |
+| CE-space sampling | `code/sampling_ce.py` | 3 | Done |
+| Beta hierarchy (code) | `code/posteriors/rdu_bhm_ce.py` | 3 | TODO |
+| Choice prob prior | `code/posteriors/rdu_bhm.py` | 4 | |
+| CPT posterior | `code/posteriors/cpt_bhm.py` | 5 | |
+| Discounting posterior | `code/posteriors/discounting_bhm.py` | 5 | |
+| Simulation DGP | `code/simulation/dgp.py` | 5 | |
+| Monte Carlo runner | `code/simulation/monte_carlo.py` | 5 | |
 
 ---
 

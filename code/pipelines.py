@@ -29,15 +29,119 @@ def run_gen_paper_data(data_dir, direct_prior=None, prior_selection=None):
     print("Done.\n")
 
 
-def run_prior_selection(data_dir, rho=0.3, alpha_0=6.0, direct_prior=None):
+def run_prior_selection(data_dir, rho=0.3, alpha_0=None, kappa=None, direct_prior=None):
     """Run prior selection and save hyperpriors."""
     print("\n" + "=" * 60)
     print("Running: Prior Selection")
     print("=" * 60)
     from prior_selection import run_prior_selection as _run_prior_selection
     output_path = Path(data_dir) / 'output' / 'prior_params.npz'
-    _run_prior_selection(rho=rho, alpha_0=alpha_0, output_path=output_path,
-                         direct_prior=direct_prior)
+    _run_prior_selection(rho=rho, alpha_0=alpha_0, kappa=kappa,
+                         output_path=output_path, direct_prior=direct_prior)
+    print("Done.\n")
+
+
+def run_prior_selection_ce(data_dir, ce_direct_prior, prior_selection_ce,
+                           ref_lotteries=None, distribution='normal'):
+    """Run CE-space prior selection and save hyperpriors.
+
+    Args:
+        data_dir: Data directory root
+        ce_direct_prior: Dict with per-CE mu and sigma2
+        prior_selection_ce: Dict with rho and kappa/alpha_0
+        ref_lotteries: List of reference lottery dicts (required for distribution='beta')
+        distribution: 'normal' (NIG) or 'beta' (Beta-Beta)
+    """
+    print("\n" + "=" * 60)
+    print(f"Running: CE-Space Prior Selection (distribution={distribution})")
+    print("=" * 60)
+    from prior_selection import run_prior_selection_ce as _run
+    output_path = Path(data_dir) / 'output' / 'prior_params_ce.npz'
+    _run(
+        ce_direct_prior=ce_direct_prior,
+        rho=prior_selection_ce['rho'],
+        kappa=prior_selection_ce.get('kappa'),
+        alpha_0=prior_selection_ce.get('alpha_0'),
+        output_path=output_path,
+        ref_lotteries=ref_lotteries,
+        distribution=distribution,
+    )
+    print("Done.\n")
+
+
+def run_sampling_ce(sampling_opts, ref_lotteries, prior_params_path=None):
+    """Run MCMC sampling with CE-space BHM.
+
+    Args:
+        sampling_opts: Sampling configuration dict
+        ref_lotteries: List of 3 reference lottery dicts
+        prior_params_path: Path to prior_params_ce.npz to load hyperpriors from
+    """
+    print("\n" + "=" * 60)
+    print("Running: MCMC Sampling (CE-Space Prior)")
+    print("=" * 60)
+
+    # Clear kernel cache
+    from bamcmc.mcmc.compile import get_compiled_kernel_cache
+    cache = get_compiled_kernel_cache()
+    if cache:
+        print(f"Clearing {len(cache)} cached kernel(s)...")
+        cache.clear()
+
+    # Load hyperpriors from file if specified
+    if prior_params_path is not None:
+        from posteriors.rdu_bhm_ce import load_hyperpriors_from_file
+        load_hyperpriors_from_file(prior_params_path)
+
+    # Clean existing files if requested
+    if sampling_opts.get('clean', False):
+        from bamcmc import clean_model_files
+        output_dir = str(sampling_opts['output_dir'])
+        model_name = sampling_opts['model']
+        print(f"Cleaning existing files for {model_name}...")
+        result = clean_model_files(output_dir, model_name, mode='all')
+        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
+        print(f"  Deleted {len(result['deleted_histories'])} histories")
+
+    from sampling_ce import run_sampling as _run_sampling
+    num_chains = sampling_opts['num_chains']
+    _run_sampling(
+        output_dir=sampling_opts['output_dir'],
+        ref_lotteries=ref_lotteries,
+        reset_runs=sampling_opts.get('reset_runs', 1),
+        resume_runs=sampling_opts.get('resume_runs', 0),
+        num_collect=sampling_opts['num_collect'],
+        config={
+            'num_chains_a': num_chains,
+            'num_chains_b': num_chains,
+            'thin_iteration': sampling_opts['thin_iteration'],
+            'chunk_size': sampling_opts.get('chunk_size', 100),
+            'rng_seed': sampling_opts['seed'],
+            'n_temperatures': max(sampling_opts.get('n_temperatures', 1), 1),
+            'beta_min': sampling_opts.get('beta_min', 0.1),
+            'per_temp_proposals': sampling_opts.get('per_temp_proposals', True),
+            'use_deo': sampling_opts.get('use_deo', True),
+        },
+    )
+    print("Done.\n")
+
+
+def run_sensitivity(direct_prior, data_dir, output_dir, seed=42, config=None):
+    """Run sensitivity analysis over (ρ, κ) grid."""
+    print("\n" + "=" * 60)
+    print("Running: Sensitivity Analysis")
+    print("=" * 60)
+    from sensitivity import run_sensitivity as _run_sensitivity
+    _run_sensitivity(
+        direct_prior=direct_prior,
+        data_dir=Path(data_dir),
+        output_dir=Path(output_dir),
+        rho_values=config.get('rho_values') if config else None,
+        kappa_values=config.get('kappa_values') if config else None,
+        n_mc_draws=config.get('n_mc_draws', 5000) if config else 5000,
+        n_subjects=config.get('n_subjects', 50) if config else 50,
+        seed=seed,
+    )
     print("Done.\n")
 
 
@@ -309,6 +413,16 @@ def run_predictive_ce_overlay(hyper_preprocessed_info, hyper_preprocessed_uninf,
     _run(hyper_preprocessed_info, hyper_preprocessed_uninf, data_dir,
          direct_prior, prior_selection, output_dir,
          seed=seed, config=config or {})
+    print("Done.\n")
+
+
+def run_injectivity_analysis(output_dir, config=None):
+    """Run CE mapping injectivity analysis for appendix."""
+    print("\n" + "=" * 60)
+    print("Running: CE Mapping Injectivity Analysis")
+    print("=" * 60)
+    from injectivity_analysis import run_injectivity_analysis as _run
+    _run(output_dir, config=config)
     print("Done.\n")
 
 

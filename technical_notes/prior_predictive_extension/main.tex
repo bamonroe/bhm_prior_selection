@@ -1,0 +1,1569 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{enumerate}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{remark}[theorem]{Remark}
+
+% Notation shortcuts
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Cov}{\mathrm{Cov}}
+\newcommand{\Normal}{\mathcal{N}}
+\newcommand{\IG}{\mathrm{IG}}
+\newcommand{\given}{\,|\,}
+\newcommand{\bpsi}{\boldsymbol{\psi}}
+\newcommand{\btheta}{\boldsymbol{\theta}}
+\newcommand{\bmu}{\boldsymbol{\mu}}
+\DeclareMathOperator{\CE}{CE}
+\DeclareMathOperator{\RDU}{RDU}
+
+\title{Prior Predictive Specification for\\Bayesian Hierarchical Models:\\
+Extending the Moment-Matching Framework to Observable Quantities}
+\author{Technical Note}
+\date{February 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The current paper derives hyperpriors by matching the moments of the
+unconditional distribution of parameters $\theta_i$ to a researcher-specified
+``direct prior.'' This note develops an extension where the researcher instead
+specifies beliefs about observable quantities---such as certainty
+equivalents---and hyperpriors are derived so that the prior predictive
+distribution matches these beliefs. When the mapping from $p$ preference
+parameters to $p$ observable quantities is invertible, the moment-matching
+framework applies directly in the observable space with no approximation:
+the researcher specifies a direct prior over certainty equivalents, the
+standard $\rho/\alpha_0$ decomposition derives hyperpriors in that space, and
+posterior sampling proceeds in parameter space using only the forward mapping
+and a Jacobian correction. We establish the conditions under which the
+certainty equivalent mapping is globally injective---showing that prize
+diversity across reference lotteries is the key structural requirement---and
+demonstrate that the identity case (parameter-level specification) is a special
+case with unit Jacobian.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%==============================================================================
+\section{Motivation}
+%==============================================================================
+
+The current paper asks the researcher to specify a direct prior over the
+parameter vector $\btheta_i$ of a single individual:
+\begin{equation}
+    \theta_i^j \sim \Normal(\mu^{j*}, \sigma^{2j*}), \quad j = 1, \ldots, p
+\end{equation}
+The hyperprior is then derived so that the unconditional (marginal) distribution
+of $\theta_i^j$ matches this direct prior. This works well when the researcher
+has good intuition about the parameter space---for example, a CRRA coefficient
+$r$ or the log of a Prelec curvature parameter.
+
+However, researchers often have stronger intuition about \emph{observable
+consequences} of preferences than about the parameters themselves. A researcher
+might confidently say:
+\begin{quote}
+    ``For a lottery paying \$10, \$30, or \$50 with equal probability, I expect
+    a typical person's certainty equivalent to be around \$25, and it would be
+    unusual for it to fall below \$5 or above \$45.''
+\end{quote}
+This statement is about $g(\btheta)$---the certainty equivalent as a function
+of risk preference parameters---not about $\btheta$ directly. The certainty
+equivalent integrates information from all four parameters ($r$, $\phi$,
+$\eta$, $\lambda$) through a nonlinear mapping, making it difficult to
+``reverse engineer'' parameter-level beliefs from predictive-level beliefs.
+
+This extension is motivated by three considerations:
+
+\begin{enumerate}
+    \item \textbf{Cognitive tractability.} Researchers may find it easier to
+    reason about quantities in the same units as experimental outcomes (dollars,
+    probabilities of choice) than about abstract model parameters.
+
+    \item \textbf{Literature alignment.} The prior predictive checking
+    literature (e.g., Box 1980, Gabry et al.\ 2019) emphasizes evaluating
+    priors through their implications for observables. Specifying the prior
+    \emph{directly} in predictive space makes this the starting point rather
+    than a post-hoc check.
+
+    \item \textbf{Cross-parameter coherence.} When $g$ depends on multiple
+    parameters jointly, specifying beliefs about $g(\btheta)$ implicitly
+    constrains the joint distribution of $\btheta$ in a way that
+    parameter-by-parameter specification does not. This is relevant for the RDU
+    model where the certainty equivalent depends on all four parameters
+    simultaneously.
+\end{enumerate}
+
+%==============================================================================
+\section{General Framework}
+%==============================================================================
+
+\subsection{Setup}
+
+Consider a hierarchical model where:
+\begin{itemize}
+    \item $\btheta_i \in \mathbb{R}^p$ is the parameter vector for subject $i$
+    \item $\btheta_i \given \bmu, \Sigma \sim \Normal(\bmu, \Sigma)$ (or with
+        independent components: $\theta_i^j \given \mu_j, \sigma_j^2 \sim
+        \Normal(\mu_j, \sigma_j^2)$)
+    \item $(\bmu, \Sigma) \sim p(\bmu, \Sigma \given \bpsi)$ for some
+        hyperprior with parameters $\bpsi$
+    \item $g: \mathbb{R}^p \to \mathbb{R}$ is a known function mapping
+        parameters to an observable quantity
+\end{itemize}
+
+\begin{definition}[Direct Prior Predictive]
+The \emph{direct prior predictive} for $g$ is the unconditional distribution of
+$Y_i = g(\btheta_i)$, integrating over all levels of the hierarchy:
+\begin{equation}
+    \label{eq:prior_predictive}
+    p(Y_i) = \int p(Y_i \given \btheta_i) \, p(\btheta_i \given \bmu, \Sigma)
+    \, p(\bmu, \Sigma \given \bpsi) \, d\btheta_i \, d\bmu \, d\Sigma
+\end{equation}
+When $Y_i = g(\btheta_i)$ is a deterministic function of $\btheta_i$, this
+simplifies to:
+\begin{equation}
+    p(Y_i) = \int \delta(Y_i - g(\btheta_i)) \, p(\btheta_i \given \bpsi) \,
+    d\btheta_i
+\end{equation}
+where $p(\btheta_i \given \bpsi) = \int p(\btheta_i \given \bmu, \Sigma) \,
+p(\bmu, \Sigma \given \bpsi) \, d\bmu \, d\Sigma$ is the unconditional
+(marginal) distribution of $\btheta_i$.
+\end{definition}
+
+The researcher specifies target moments for the prior predictive:
+\begin{align}
+    \E[g(\btheta_i)] &= m^* \\
+    \Var[g(\btheta_i)] &= v^*
+\end{align}
+The task is to find hyperprior parameters $\bpsi$ such that the implied prior
+predictive of $g$ matches these targets.
+
+\subsection{Law of Total Variance Applied to \texorpdfstring{$g(\btheta)$}{g(theta)}}
+
+The laws of iterated expectations and total variance apply to $g(\btheta_i)$
+just as they do to $\theta_i$ itself. Define the conditional moments:
+\begin{align}
+    \label{eq:cond_mean}
+    m(\bmu, \Sigma) &\coloneqq \E[g(\btheta_i) \given \bmu, \Sigma] \\
+    \label{eq:cond_var}
+    v(\bmu, \Sigma) &\coloneqq \Var[g(\btheta_i) \given \bmu, \Sigma]
+\end{align}
+These are the mean and variance of $g(\btheta_i)$ for a \emph{known} population
+distribution $\Normal(\bmu, \Sigma)$, before integrating over hyperprior
+uncertainty.
+
+The unconditional moments then decompose as:
+\begin{align}
+    \label{eq:iterated_g}
+    m^* = \E[g(\btheta_i)] &= \E_{\bpsi}[m(\bmu, \Sigma)] \\
+    \label{eq:total_var_g}
+    v^* = \Var[g(\btheta_i)] &= \underbrace{\E_{\bpsi}[v(\bmu, \Sigma)]}_{\text{average within-population variance}} + \underbrace{\Var_{\bpsi}[m(\bmu, \Sigma)]}_{\text{between-population variance}}
+\end{align}
+where $\E_{\bpsi}$ and $\Var_{\bpsi}$ denote expectations over the hyperprior.
+
+\begin{remark}
+Equations~\eqref{eq:iterated_g}--\eqref{eq:total_var_g} are completely general.
+They hold for any hyperprior family, any function $g$, and any subject-level
+distribution---they are the laws of iterated expectations and total variance
+applied to $g(\btheta_i)$.
+\end{remark}
+
+The variance partition with $\rho$ generalizes directly:
+\begin{align}
+    \label{eq:rho_g}
+    \rho \, v^* &= \Var_{\bpsi}[m(\bmu, \Sigma)] \\
+    (1 - \rho) \, v^* &= \E_{\bpsi}[v(\bmu, \Sigma)]
+\end{align}
+The interpretation of $\rho$ is preserved: it is the fraction of prior
+predictive variance attributable to uncertainty about the population center
+(as measured through its effect on $g$), versus average within-population
+dispersion.
+
+\subsection{The Identity Case Recovers the Current Method}
+\label{sec:identity}
+
+When $g(\btheta_i) = \theta_i^j$ (the identity function applied to a single
+parameter), the conditional moments simplify to:
+\begin{align}
+    m(\mu_j, \sigma_j^2) &= \E[\theta_i^j \given \mu_j, \sigma_j^2] = \mu_j \\
+    v(\mu_j, \sigma_j^2) &= \Var[\theta_i^j \given \mu_j, \sigma_j^2] = \sigma_j^2
+\end{align}
+Substituting into \eqref{eq:total_var_g}:
+\begin{equation}
+    \sigma^{2j*} = \E[\sigma_j^2] + \Var[\mu_j]
+\end{equation}
+which is exactly the variance decomposition in the current paper. The $\rho$
+decomposition yields the same moment targets:
+$\Var[\mu_j] = \rho \sigma^{2j*}$ and $\E[\sigma_j^2] = (1-\rho)\sigma^{2j*}$.
+The current method is the special case $g = \text{id}$.
+
+
+%==============================================================================
+\section{Why Invertibility Matters}
+%==============================================================================
+
+When $g: \mathbb{R}^p \to \mathbb{R}$ is a scalar-valued function of a vector
+argument, the framework of Section~2 cannot be applied directly: a single
+calibration quantity provides only 2 moment conditions ($m^*$, $v^*$) for $2p$
+hyperprior unknowns. The natural resolution is to choose exactly $p$
+calibration quantities so that
+$\mathbf{g}: \mathbb{R}^p \to \mathbb{R}^p$ is an invertible mapping, and
+work entirely in the calibration space.
+
+With $p$ calibration quantities matching the $p$ preference parameters, we
+have $2p$ moment conditions for $2p$ unknowns (after fixing $\rho$ and
+$\alpha_0$)---exactly as in the identity case. Moreover, if $\mathbf{g}$ is
+invertible, the prior can be specified directly in $\mathbf{g}$-space with no
+approximation, and the nonlinearity of $\mathbf{g}$ is handled exactly by a
+Jacobian correction during sampling. This is developed in the next section.
+
+
+%==============================================================================
+\section{The Invertible Case: Full Reparameterization}
+\label{sec:invertible}
+%==============================================================================
+
+As noted in Section~3, the dimensionality problem is resolved by choosing $p$
+calibration quantities to match the $p$ preference parameters, so that
+$\mathbf{g}: \mathbb{R}^p \to \mathbb{R}^p$ is a \emph{diffeomorphism}
+(smooth bijection with smooth inverse). With an invertible mapping, the
+moment-matching framework applies directly in the predictive space.
+
+\subsection{Change of Variables in the Prior}
+
+Suppose we have $p$ preference parameters
+$\btheta = (\theta^1, \ldots, \theta^p)$ and $p$ observable quantities
+$\mathbf{Y} = (Y^1, \ldots, Y^p)$ defined by an invertible mapping:
+\begin{equation}
+    \mathbf{Y} = \mathbf{g}(\btheta), \qquad
+    \btheta = \mathbf{g}^{-1}(\mathbf{Y})
+\end{equation}
+For the RDU application, $\btheta = (r, \phi, \eta)$ (the 3 preference
+parameters, with noise $\lambda$ specified separately) and
+$\mathbf{Y} = (\CE_1, \CE_2, \CE_3)$ are certainty equivalents for three
+suitably chosen reference lotteries.
+
+Instead of specifying a prior in parameter space, the researcher specifies a
+prior directly in CE space:
+\begin{equation}
+    \label{eq:direct_prior_ce}
+    Y_i^k \sim \Normal(m^{k*}, s^{2k*}), \qquad k = 1, \ldots, p
+\end{equation}
+This is the ``direct prior predictive''---it encodes beliefs about what the
+observable preferences of a single random individual would look like. (The
+Normal distribution is used here for continuity with the preceding development;
+Section~\ref{sec:bounded} replaces it with a bounded distribution appropriate
+for quantities like certainty equivalents.)
+
+If we wish to evaluate the prior density in parameter space (e.g., because the
+likelihood is naturally expressed in terms of $\btheta$), the standard change
+of variables gives:
+\begin{equation}
+    \label{eq:jacobian_prior}
+    p(\btheta) = p_{\mathbf{Y}}(\mathbf{g}(\btheta)) \;
+    \left|\det J_{\mathbf{g}}(\btheta)\right|
+\end{equation}
+where $J_{\mathbf{g}}(\btheta)$ is the $p \times p$ Jacobian matrix with
+entries $(J_{\mathbf{g}})_{kj} = \partial g_k / \partial \theta^j$, and
+$p_{\mathbf{Y}}$ is the density specified in \eqref{eq:direct_prior_ce}. The
+Jacobian corrects for the nonlinear warping of volume elements between the two
+coordinate systems. This is the \emph{only} place the nonlinearity of
+$\mathbf{g}$ appears.
+
+\subsection{The BHM in Predictive Space}
+
+The crucial insight is that the \emph{entire} Bayesian hierarchy---from
+hyperprior through population distribution to individual-level prior---can be
+specified in observable (CE) space. Model parameters $\btheta$ appear only in
+the likelihood and through the Jacobian that links the two spaces. The
+hyperprior, the population distribution, and the variance decomposition all
+operate on certainty equivalents, denominated in the same units as experimental
+outcomes.
+
+Using Normal distributions for illustration (Section~\ref{sec:bounded}
+develops the proper bounded treatment), the hierarchical model is:
+\begin{align}
+    \label{eq:bhm_ce_subject}
+    Y_i^k \given \mu_k^Y, \sigma_k^{Y2} &\sim
+        \Normal(\mu_k^Y, \sigma_k^{Y2}), \quad k = 1, \ldots, p \\
+    \label{eq:bhm_ce_mean}
+    \mu_k^Y &\sim \Normal(\mu_{0,k}^Y, \tau_{0,k}^{Y2}) \\
+    \label{eq:bhm_ce_var}
+    \sigma_k^{Y2} &\sim \IG(\alpha_0^Y, \beta_{0,k}^Y)
+\end{align}
+The moment-matching framework from the paper applies \emph{exactly} as before,
+with no modifications:
+\begin{align}
+    m^{k*} &= \mu_{0,k}^Y \\
+    s^{2k*} &= \E[\sigma_k^{Y2}] + \Var[\mu_k^Y]
+        = \frac{\beta_{0,k}^Y}{\alpha_0^Y - 1} + \tau_{0,k}^{Y2}
+\end{align}
+The $\rho$ decomposition, the $\alpha_0$ specification, and the derived
+hyperparameter formulas all carry over verbatim---just applied to the CE moments
+$(m^{k*}, s^{2k*})$ rather than the parameter moments
+$(\mu^{j*}, \sigma^{2j*})$.
+
+\subsection{Posterior Sampling}
+\label{sec:posterior_sampling}
+
+The natural approach draws proposals for $\btheta_i$ directly in parameter
+space. Each MCMC step requires:
+\begin{enumerate}
+    \item The \textbf{likelihood} $p(\text{data}_i \given \btheta_i)$, computed
+    exactly as in the standard model.
+    \item The \textbf{forward mapping} $\mathbf{g}(\btheta_i) = (\CE_1, \CE_2,
+    \CE_3)$, a deterministic evaluation of the proposed parameters.
+    \item The \textbf{normal prior density} $p_{\mathbf{Y}}(\mathbf{g}(\btheta_i)
+    \given \bmu^Y, \bm{\sigma}^{Y2})$, evaluated at the CEs from step~2.
+    \item The \textbf{Jacobian correction}
+    $\log|\det J_{\mathbf{g}}(\btheta_i)|$, adjusting for the nonlinear
+    change of variables.
+\end{enumerate}
+The log-posterior is:
+\begin{equation}
+    \label{eq:log_posterior_theta}
+    \log p(\btheta_i \given \bmu^Y, \bm{\sigma}^{Y2}, \text{data}_i) =
+    \log p(\text{data}_i \given \btheta_i) +
+    \log p_{\mathbf{Y}}(\mathbf{g}(\btheta_i) \given \bmu^Y, \bm{\sigma}^{Y2})
+    + \log \left|\det J_{\mathbf{g}}(\btheta_i)\right| + \text{const.}
+\end{equation}
+Crucially, \textbf{no inversion is required}. The forward mapping $\mathbf{g}$
+and its Jacobian are available in closed form
+(Section~\ref{sec:jacobian_rdu}). In practice, automatic differentiation
+(e.g.\ \texttt{jax.jacfwd}) computes the $3 \times 3$ Jacobian matrix and its
+determinant exactly, with negligible overhead relative to the likelihood
+evaluation.
+
+\begin{remark}[Why not sample in CE space?]
+An alternative would draw proposals in $\mathbf{Y}$-space, where the prior is
+normal. However, evaluating the likelihood then requires \emph{inverting} the
+CE mapping---solving $\mathbf{g}(\btheta) = \mathbf{Y}$ at every MCMC step for
+every subject---which is a $p$-dimensional root-finding problem. Since the
+likelihood is evaluated thousands of times during sampling, this overhead is
+substantial. Parameter-space sampling avoids inversion entirely: the forward
+map and its Jacobian are all that is needed.
+\end{remark}
+
+\subsection{Why This Works}
+
+With $p$ CEs for $p$ preference parameters and an invertible mapping, the
+framework inherits all the simplicity of the identity case:
+\begin{enumerate}
+    \item \textbf{Correct dimensionality.} We have $2p$ moment conditions for
+    $2p$ unknowns (after fixing $\rho$ and $\alpha_0$).
+
+    \item \textbf{No intractable conditional moments.} The prior is specified
+    directly in CE space, so the moments are just normal moments---no
+    integration against a nonlinear $g$ is needed.
+
+    \item \textbf{No coupling between mean and variance.} In CE space, the
+    mean hyperparameters $\mu_k^Y$ and variance hyperparameters $\sigma_k^{Y2}$
+    are separated exactly as in the identity case.
+
+    \item \textbf{No approximation.} The Jacobian handles the nonlinearity of
+    $\mathbf{g}$ exactly.
+\end{enumerate}
+
+\subsection{Requirements}
+
+For this approach to work, three conditions must hold:
+
+\paragraph{Dimensionality.} The number of calibration quantities must equal the
+number of preference parameters: $\dim(\mathbf{Y}) = \dim(\btheta)$. Parameters
+not involved in the observable mapping (such as the noise parameter $\lambda$ in
+the RDU model) must be handled separately---either specified directly in
+parameter space, or mapped through their own invertible function (e.g., a choice
+probability for a specific lottery pair).
+
+\paragraph{Invertibility.} The mapping $\mathbf{g}$ must be a bijection on the
+relevant domain. This requires two ingredients: (i) \emph{local invertibility}
+($\det J_{\mathbf{g}} \neq 0$ everywhere on the prior support), and
+(ii) \emph{global injectivity} (no two distinct parameter vectors produce
+identical CEs). For the RDU-Prelec CE mapping, local invertibility holds if
+and only if the reference lotteries have distinct cumulative probability
+structures (Section~\ref{sec:jacobian_rdu}). Global injectivity additionally
+requires prize diversity across lotteries
+(Section~\ref{sec:general_injectivity}); without it, utility curvature and
+probability weighting can compensate each other. The general conditions for
+global injectivity are developed in Section~\ref{sec:sufficient}.
+
+\paragraph{Computability.} The forward mapping $\mathbf{g}$ and its Jacobian
+$J_{\mathbf{g}}$ must be computable. For parameter-space sampling
+(Section~\ref{sec:posterior_sampling}), the inverse $\mathbf{g}^{-1}$ is
+\emph{not} required---only the forward evaluation
+$\btheta \mapsto \mathbf{g}(\btheta)$ and the determinant
+$|\det J_{\mathbf{g}}(\btheta)|$. Both are available analytically for the CE
+mapping (Section~\ref{sec:jacobian_rdu}), and automatic differentiation
+computes the Jacobian with negligible overhead.
+
+\subsection{Application to RDU}
+\label{sec:rdu_invertible}
+
+For the RDU model with CRRA utility and 2-parameter Prelec PWF:
+
+\paragraph{Preference parameters:} $\btheta = (r, \phi, \eta)$. These
+determine the certainty equivalent of any lottery.
+
+\paragraph{Noise parameter:} $\lambda$ governs the Fechner error structure and
+does not affect the deterministic CE. It can be handled in parameter space
+using the standard moment-matching approach, or mapped through a choice
+probability for a specific lottery pair.
+
+\paragraph{Reference lotteries:} Choose 3 lotteries $L_1, L_2, L_3$ with
+diverse characteristics. For example:
+\begin{itemize}
+    \item $L_1$: Low stakes, equal probabilities (e.g., \$10/\$30/\$50,
+        each $1/3$)---primarily sensitive to $r$.
+    \item $L_2$: High stakes, equal probabilities (e.g., \$100/\$300/\$500,
+        each $1/3$)---sensitive to $r$ at a different scale, allowing the
+        nonlinearity of CRRA to separate $r$ from the PWF.
+    \item $L_3$: Skewed probabilities (e.g., \$10 w.p.\ $0.9$, \$50 w.p.\
+        $0.1$)---primarily sensitive to probability weighting ($\phi$, $\eta$).
+\end{itemize}
+The mapping is $\mathbf{g}(r, \phi, \eta) = (\CE_1, \CE_2, \CE_3)$.
+
+\paragraph{Prior specification:} The researcher specifies, for each lottery:
+\begin{itemize}
+    \item $m^{k*}$: Expected CE for a random individual.
+    \item $s^{2k*}$: Variance of CEs across individuals.
+\end{itemize}
+For a lottery paying \$10/\$30/\$50 equally, the expected value is \$30. A
+researcher might specify $m^{1*} = 25$ (slight risk aversion) with
+$s^{1*} = 8$ (standard deviation of \$8, so a 95\% interval of roughly
+\$9--\$41). These are statements about dollars, not about abstract curvature
+parameters.
+
+\paragraph{Hyperprior derivation:} Apply the standard formulas in CE space:
+\begin{align}
+    \mu_{0,k}^Y &= m^{k*} \\
+    \tau_{0,k}^{Y2} &= \rho \, s^{2k*} \\
+    \beta_{0,k}^Y &= (1 - \rho) \, s^{2k*} \, (\alpha_0 - 1)
+\end{align}
+Identical to the current paper's equations, with CE moments in place of
+parameter moments.
+
+\paragraph{Correlation structure.} With independent priors across the 3 CEs,
+the induced prior on $(r, \phi, \eta)$ will generally \emph{not} have
+independent components---the nonlinearity of $\mathbf{g}^{-1}$ introduces
+dependence. This is a feature: the CE-space specification implicitly encodes
+cross-parameter structure that would be difficult to specify directly. If
+desired, the researcher could specify a joint prior over CEs with correlations,
+using the Normal-Inverse-Wishart framework from Appendix~A of the paper.
+
+\subsection{Jacobian Structure and Invertibility Verification}
+\label{sec:jacobian_rdu}
+
+We derive the explicit Jacobian of the CE mapping for the RDU-Prelec model and
+verify invertibility for a specific lottery set. The results in this section
+were confirmed by symbolic computation (SymPy).
+
+\paragraph{Monotone reduction.} Since
+$\CE_k = [B_k]^{1/(1-r)}$ where $B_k = (1-r) \cdot \RDU_k$ is a monotone
+transform of $\CE_k$ for fixed $r$, the mapping
+$(r, \phi, \eta) \mapsto (\CE_1, \CE_2, \CE_3)$ is invertible if and only if
+$(r, \phi, \eta) \mapsto (B_1, B_2, B_3)$ is. We work with $B_k$ for
+algebraic simplicity.
+
+For a 3-outcome lottery with prizes $x_1 < x_2 < x_3$, cumulative
+probabilities $q_k = P(X \geq x_3)$ and $s_k = P(X \geq x_2)$, and decision
+weights $d_1 = 1 - w(s_k)$, $d_2 = w(s_k) - w(q_k)$, $d_3 = w(q_k)$:
+\begin{equation}
+    \label{eq:B_k}
+    B_k = (1 - w(s_k)) \, x_1^{1-r} + (w(s_k) - w(q_k)) \, x_2^{1-r}
+    + w(q_k) \, x_3^{1-r}
+\end{equation}
+
+\paragraph{Jacobian entries.} Define the prize-power gaps
+$\Delta_{12} \coloneqq x_2^{1-r} - x_1^{1-r} > 0$ and
+$\Delta_{23} \coloneqq x_3^{1-r} - x_2^{1-r} > 0$. The partial derivatives of
+$B_k$ are:
+\begin{align}
+    \frac{\partial B_k}{\partial r} &= -\Big[
+        (1 - w(s_k)) \, x_1^{1-r} \ln x_1
+        + (w(s_k) - w(q_k)) \, x_2^{1-r} \ln x_2
+        + w(q_k) \, x_3^{1-r} \ln x_3 \Big]
+    \label{eq:dBdr} \\[6pt]
+    \frac{\partial B_k}{\partial \phi} &=
+        \frac{\partial w}{\partial \phi}\bigg|_{s_k} \Delta_{12}
+        + \frac{\partial w}{\partial \phi}\bigg|_{q_k} \Delta_{23}
+    \label{eq:dBdphi} \\[6pt]
+    \frac{\partial B_k}{\partial \eta} &=
+        \frac{\partial w}{\partial \eta}\bigg|_{s_k} \Delta_{12}
+        + \frac{\partial w}{\partial \eta}\bigg|_{q_k} \Delta_{23}
+    \label{eq:dBdeta}
+\end{align}
+where the Prelec derivatives are:
+\begin{align}
+    \frac{\partial w}{\partial \phi}\bigg|_p &= -\eta \, (-\ln p)^\phi
+        \ln(-\ln p) \, w(p)
+    \label{eq:dwdphi} \\
+    \frac{\partial w}{\partial \eta}\bigg|_p &= -(-\ln p)^\phi \, w(p)
+    \label{eq:dwdeta}
+\end{align}
+Note that \eqref{eq:dBdphi} and \eqref{eq:dBdeta} have the same structure:
+each is a linear combination of PWF derivatives evaluated at $s_k$ and $q_k$,
+weighted by the prize-power gaps. The $r$-column \eqref{eq:dBdr} has a
+fundamentally different structure involving $\ln x_j$ terms.
+
+\paragraph{Prelec derivative ratio.} The ratio of the two Prelec derivatives is:
+\begin{equation}
+    \label{eq:prelec_ratio}
+    \frac{\partial w / \partial \phi}{\partial w / \partial \eta}\bigg|_p
+    = \eta \, \ln(-\ln p)
+\end{equation}
+This ratio \textbf{depends on $p$}. Substituting into
+\eqref{eq:dBdphi}--\eqref{eq:dBdeta}, the ratio of the $\phi$-entry to the
+$\eta$-entry in Jacobian row $k$ is a weighted average:
+\begin{equation}
+    \label{eq:column_ratio}
+    \frac{\partial B_k / \partial \phi}{\partial B_k / \partial \eta}
+    = \eta \Big[ \omega_k \ln(-\ln s_k) + (1 - \omega_k) \ln(-\ln q_k) \Big]
+\end{equation}
+where $\omega_k \in (0,1)$ depends on the prize gaps and PWF derivatives at
+$s_k$. This weighted average varies across rows if and only if the lotteries
+have different $(q_k, s_k)$ pairs.
+
+\paragraph{Invertibility condition.} The Jacobian
+$\partial(B_1, B_2, B_3) / \partial(r, \phi, \eta)$ is singular if and only if
+the $\phi$ and $\eta$ columns are proportional, since the $r$ column is
+structurally independent (involving $\ln x_j$ terms that the PWF columns lack).
+By \eqref{eq:column_ratio}, proportionality holds if and only if all three
+ratios \eqref{eq:column_ratio} are equal, which occurs precisely when
+$q_1 = q_2 = q_3$ and $s_1 = s_2 = s_3$. Therefore:
+\begin{quote}
+    \emph{The CE mapping is generically invertible if and only if the reference
+    lotteries have distinct cumulative probability structures $(q_k, s_k)$.}
+\end{quote}
+With identical probability structures, the $\phi$ and $\eta$ columns are
+proportional with ratio $\eta \ln(-\ln q)$ (a scalar independent of $k$), and
+$\det J = 0$ identically. This is confirmed by symbolic computation:
+substituting equal probabilities yields $\det J = 0$ exactly.
+
+\paragraph{Numerical verification of local invertibility.} For the no-FOSD
+lottery set
+\begin{center}
+\begin{tabular}{lccc}
+    Lottery & Probabilities $(x_1, x_2, x_3)$ & $q_k$ & $s_k$ \\
+    \hline
+    $L_1$ (binary)  & $(1/2,\; 0,\; 1/2)$   & $1/2$  & $1/2$ \\
+    $L_2$ (middle)  & $(1/10,\; 8/10,\; 1/10)$ & $1/10$ & $9/10$ \\
+    $L_3$ (skewed)  & $(3/10,\; 3/10,\; 4/10)$ & $4/10$ & $7/10$ \\
+\end{tabular}
+\end{center}
+with shared prizes $(10, 30, 50)$, the CDFs cross for every pair (no pairwise
+FOSD), guaranteeing that CE orderings are unconstrained across preference
+types. Symbolic computation of $\det J$ evaluated at 8 points spanning
+$r \in [0.1, 0.9]$, $\phi \in [0.4, 1.5]$, $\eta \in [0.4, 1.5]$ yields a
+\emph{strictly positive} determinant at every point, confirming local
+invertibility throughout the economically relevant domain.
+
+\paragraph{Global injectivity fails for shared-prize lotteries.}
+Despite $\det J > 0$ everywhere, the 3-lottery CE mapping with shared prizes
+is \textbf{not globally injective}. Numerical computation identifies
+observationally equivalent parameter triples---distinct
+$(r, \phi, \eta) \neq (r', \phi', \eta')$ producing identical
+$(\CE_1, \CE_2, \CE_3)$ to machine precision:
+\begin{center}
+\begin{tabular}{lcccc}
+    & $r$ & $\phi$ & $\eta$ & max $|\Delta\CE|$ \\ \hline
+    Params A & $0.80$ & $0.50$ & $1.30$ & \\
+    Params B & $0.63$ & $0.52$ & $1.43$ & $< 10^{-9}$ \\[4pt]
+    Params A & $1.50$ & $0.60$ & $1.00$ & \\
+    Params B & $0.55$ & $0.71$ & $1.68$ & $< 10^{-9}$ \\
+\end{tabular}
+\end{center}
+The two parameter sets produce \emph{different} decision weights for each
+lottery, but the differences are exactly compensated by the change in utility
+curvature: higher $r$ (more concave utility) is offset by lower $\eta$ and
+$\phi$ (less pessimistic probability weighting), and vice versa.
+
+\paragraph{The compensation mechanism.} With shared prizes, all lotteries
+share the same utility differences $\Delta_{12}(r) = x_2^{1-r} - x_1^{1-r}$
+and $\Delta_{23}(r) = x_3^{1-r} - x_2^{1-r}$. After normalization, the system
+becomes:
+\begin{equation}
+    \label{eq:shared_prize_system}
+    C_k(r) = w(s_k;\, \phi, \eta) + R(r) \cdot w(q_k;\, \phi, \eta),
+    \quad k = 1, 2, 3
+\end{equation}
+where $R(r) = \Delta_{23}(r)/\Delta_{12}(r)$ is a \emph{single} scalar
+function of $r$ common to all three equations. Although $R(r)$ is strictly
+decreasing (proved: higher risk aversion compresses upper utility gaps more
+than lower), the system \eqref{eq:shared_prize_system} has three equations in
+three effective unknowns---$(R, \phi, \eta)$---and is therefore exactly
+determined, admitting multiple solutions in $(r, \phi, \eta)$.
+
+In economic terms: all three lotteries test probability weighting at different
+probability levels, but they all test utility curvature at the \emph{same}
+prize levels. The mapping has enough information to locally identify all
+parameters, but globally there exists a smooth curve in parameter space along
+which the utility and probability weighting effects exactly compensate.
+
+\paragraph{Practical computation.} While the symbolic Jacobian entries
+\eqref{eq:dBdr}--\eqref{eq:dBdeta} are available in closed form, in practice
+one need not implement them by hand. Automatic differentiation
+(\texttt{jax.jacfwd} or \texttt{jax.jacrev}) applied to the forward CE
+function computes the full $3 \times 3$ Jacobian matrix---and hence its
+log-determinant---exactly and efficiently. The computational cost is comparable
+to a single forward evaluation of $\mathbf{g}$, which is itself far cheaper
+than the likelihood evaluation over 80 choice observations per subject.
+
+\subsection{Achieving Global Injectivity}
+\label{sec:global_injectivity}
+
+The shared-prize compensation mechanism suggests two natural remedies: adding
+a fourth lottery (overdetermination) or using lotteries with distinct prize
+structures (breaking the common factor).
+
+\subsubsection{Strategy 1: A Fourth Lottery on the Same Prizes}
+
+With $K = 4$ lotteries sharing prizes $(x_1, x_2, x_3)$, the system
+\eqref{eq:shared_prize_system} becomes four equations in three effective
+unknowns $(R, \phi, \eta)$---generically overdetermined with no solution for
+the spurious root. Numerical verification confirms: every fourth lottery tested
+(seven designs spanning diverse probability structures) separates both
+confirmed equivalent pairs, with $|\Delta\CE| \in [0.04, 3.2]$.
+
+This strategy is guaranteed to work for generic probability structures, since
+the fourth equation imposes an additional constraint that the spurious
+parameter triple generically cannot satisfy.
+
+\subsubsection{Strategy 2: Lotteries with Distinct Prize Structures}
+
+With different prizes across lotteries, the normalized system becomes:
+\begin{equation}
+    \label{eq:mixed_prize_system}
+    C_k(r) = w(s_k;\, \phi, \eta) \cdot f_k(r)
+    + w(q_k;\, \phi, \eta) \cdot g_k(r), \quad k = 1, 2, 3
+\end{equation}
+where $f_k(r)$ and $g_k(r)$ are lottery-specific functions of $r$ (determined
+by the prize vectors). Now $r$ enters through \emph{multiple independent
+channels} rather than through the single scalar $R(r)$. Matching all three
+equations simultaneously overdetermines $r$, generically precluding
+compensation.
+
+Numerical verification is decisive: for six tested mixed-prize
+configurations---including designs where all prizes remain within the
+$[\$10, \$50]$ range---\textbf{no observationally equivalent triples were
+found} for either confirmed equivalent pair. Even modest variation suffices:
+replacing one lottery's prizes from $(10, 30, 50)$ to $(15, 30, 45)$ or
+$(10, 20, 40)$ eliminates the equivalence entirely.
+
+\paragraph{Which designs work.} The key requirement is that at least two
+lotteries differ in their \emph{interior} prize spacing. The effective
+condition is:
+\begin{quote}
+    \emph{At least two lotteries must have distinct ratios
+    $\Delta_{23}^{(k)}(r) / \Delta_{12}^{(k)}(r)$ as functions of $r$.}
+\end{quote}
+Since $R_k(r) = (c_k^{1-r} - b_k^{1-r}) / (b_k^{1-r} - a_k^{1-r})$ depends
+on the prize vector $(a_k, b_k, c_k)$, two lotteries with genuinely different
+prize spacing produce different $R_k$ functions, and the compensation mechanism
+breaks.
+
+Importantly, \textbf{changing a single prize suffices}---the extreme prizes can
+remain shared. For example, changing only the middle prize from \$30 to \$25
+(i.e., using $(10, 25, 50)$ instead of $(10, 30, 50)$ for one lottery) is
+enough to break the equivalence. The separation is modest but decisive:
+$|\Delta\CE| \in [0.07, 0.78]$ across the confirmed equivalent pairs, and a
+systematic search over $r \in [0.05, 3.0]$ with multiple solver restarts finds
+\emph{no new equivalents} for any of four tested parameter configurations.
+
+The only caveat is that the lottery must actually \emph{use} the changed
+prize: a binary gamble placing zero probability on the middle outcome has its
+CE determined entirely by the extreme prizes, so changing $b$ alone has no
+effect for that specific lottery. As long as the middle outcome receives
+positive probability, any change to $b$ produces a different $R_k(r)$ and
+breaks the compensation.
+
+\paragraph{Recommendation.} For the predictive prior specification, the
+simplest design uses 3 lotteries where at least one differs in its middle
+prize. For instance, within the existing $[\$10, \$50]$ experimental range:
+\begin{itemize}
+    \item $L_1$: Prizes $(10, 30, 50)$, diverse probabilities
+    \item $L_2$: Prizes $(10, 30, 50)$, different probabilities
+    \item $L_3$: Prizes $(10, 25, 50)$, any probabilities with $p_2 > 0$
+\end{itemize}
+The first two lotteries, sharing prizes, separate $\phi$ from $\eta$ through
+different probability structures. The third lottery, differing only in its
+middle prize, breaks the $r$-compensation through a different $R_3(r)$
+function. Larger prize shifts (e.g., $(15, 30, 45)$ or $(10, 20, 40)$)
+provide stronger separation but are not necessary.
+
+\subsection{Relationship to the Current Framework}
+
+The parameter-space approach in the current paper is the special case where the
+reference quantities \emph{are} the parameters themselves:
+$\mathbf{g} = \text{id}$, $J_{\mathbf{g}} = I$, and the Jacobian correction
+is unity. The CE-space approach generalizes this by allowing the researcher to
+choose any convenient coordinate system for specifying beliefs, with the
+Jacobian mediating between the specification space and the likelihood space.
+
+Importantly, $\rho$ and $\alpha_0$ retain their interpretations: $\rho$ is the
+fraction of prior predictive CE variance attributable to uncertainty about the
+population mean CE (versus heterogeneity in CEs across individuals), and
+$\alpha_0$ controls the concentration of the CE variance distribution. These
+are arguably \emph{more} interpretable in CE space than in parameter space,
+since the researcher can reason about variance in dollars rather than variance
+in utility curvature.
+
+
+%==============================================================================
+\section{Bounded Distributions for Observable-Space Priors}
+\label{sec:bounded}
+%==============================================================================
+
+The Normal population distribution in Section~\ref{sec:invertible} is
+convenient but incorrect for certainty equivalents. CEs are bounded:
+\begin{equation}
+    a_k \leq \CE_k \leq b_k
+\end{equation}
+where $a_k$ and $b_k$ are the minimum and maximum prizes of reference lottery
+$k$. No agent values a lottery outside its prize range. This section develops
+the proper bounded treatment using Beta distributions, shows that the variance
+decomposition framework applies unchanged, and derives closed-form hyperprior
+parameters analogous to the NIG case.
+
+\subsection{The Full Hierarchy in Observable Space}
+
+Before developing the bounded formulation, we state the hierarchy explicitly.
+The key point is that \textbf{model parameters $\btheta$ never appear in the
+prior specification}. They enter only through the likelihood and the Jacobian
+that links observable and parameter space.
+
+\begin{enumerate}
+    \item[\textbf{Level 1.}] \textbf{Hyperprior.} A distribution over
+    population-level parameters $(\mu_k, \phi_k)_{k=1}^p$ that govern the
+    population distribution of each CE. These are denominated in observable
+    units (dollars, normalized CEs) --- not in parameter space.
+
+    \item[\textbf{Level 2.}] \textbf{Population distribution.} For subject
+    $i$, the CE values are drawn from the population distribution:
+    $z_i^k \given \mu_k, \phi_k \sim F(\mu_k, \phi_k)$, where $F$ is
+    a distribution on $[0,1]$ (Beta in this section; Normal in the
+    preceding section as a convenient approximation).
+
+    \item[\textbf{Level 3.}] \textbf{Individual parameters.} The
+    parameter vector $\btheta_i$ is related to the CEs through
+    $\mathbf{g}(\btheta_i) = (Y_i^1, \ldots, Y_i^p)$. The prior density on
+    $\btheta_i$ is the CE-space density evaluated at $\mathbf{g}(\btheta_i)$,
+    multiplied by the Jacobian correction
+    $\sqrt{\det(J_{\mathbf{g}}^\top J_{\mathbf{g}})}$.
+
+    \item[\textbf{Level 4.}] \textbf{Data.} The likelihood
+    $L(\text{data}_i \given \btheta_i)$ is evaluated in parameter space, as
+    usual.
+\end{enumerate}
+
+\noindent
+The variance decomposition operates at the interface between Levels 1 and 2:
+the researcher specifies beliefs about unconditional CE moments (integrating
+over the hyperprior), and $\rho$ and $\kappa$ partition the CE variance into
+between-population and within-population components. The Jacobian correction
+at Level 3 is a separate, independent step.
+
+\subsection{Normalized Certainty Equivalents}
+
+Define the normalized CE for reference lottery $k$:
+\begin{equation}
+    z_i^k = \frac{Y_i^k - a_k}{b_k - a_k} \in [0, 1]
+\end{equation}
+where $Y_i^k = g_k(\btheta_i)$ is the CE in dollar terms. The researcher
+specifies beliefs in dollars and we convert to the normalized scale. For the
+Harrison \& Ng (2016) data with prizes $\{10, 30, 50\}$: $z = 0$ corresponds
+to $\CE = \$10$ (extreme risk aversion), $z = 0.5$ to $\CE = \$30$ (risk
+neutrality), and $z = 1$ to $\CE = \$50$ (extreme risk seeking).
+
+\subsection{Beta Population Distribution}
+\label{sec:beta_pop}
+
+The Beta distribution with mean-concentration parameterization is the natural
+choice for $z \in [0,1]$:
+\begin{equation}
+    \label{eq:beta_pop}
+    z_i^k \given \mu_k, \phi_k \sim
+    \mathrm{Beta}(\mu_k \phi_k, \; (1 - \mu_k)\phi_k)
+\end{equation}
+where:
+\begin{itemize}
+    \item $\mu_k \in (0,1)$ is the population mean (in normalized units):
+    the ``typical'' CE for lottery $k$, rescaled to $[0,1]$.
+    \item $\phi_k > 0$ is the concentration parameter: higher $\phi_k$ means
+    less within-population dispersion.
+\end{itemize}
+The moments are:
+\begin{align}
+    \E[z_i^k \given \mu_k, \phi_k] &= \mu_k \\
+    \Var[z_i^k \given \mu_k, \phi_k] &= \frac{\mu_k(1-\mu_k)}{\phi_k + 1}
+    \label{eq:beta_var}
+\end{align}
+
+Define the \emph{variance fraction}:
+\begin{equation}
+    \label{eq:psi_def}
+    \psi_k \coloneqq \frac{1}{\phi_k + 1} \in (0,1)
+\end{equation}
+so that the within-population variance is
+$\Var[z_i^k \given \mu_k, \phi_k] = \mu_k(1-\mu_k) \, \psi_k$. The quantity
+$\psi_k$ has a direct interpretation: the within-population CE variance as a
+fraction of its maximum possible value $\mu_k(1-\mu_k)$. When $\psi_k = 0$
+(equivalently $\phi_k \to \infty$), the population is degenerate; when
+$\psi_k = 1$ (equivalently $\phi_k = 0$), the population has maximum
+dispersion (Bernoulli on the endpoints).
+
+\subsection{Variance Decomposition}
+
+The law of total variance applies unchanged. The unconditional variance of
+$z_i^k$ decomposes as:
+\begin{equation}
+    \label{eq:beta_total_var}
+    v_k^* = \Var[z_i^k]
+    = \underbrace{\E\!\left[\frac{\mu_k(1-\mu_k)}{\phi_k + 1}\right]}_{\text{within-population heterogeneity}}
+    + \underbrace{\Var[\mu_k]}_{\text{between-population (mean uncertainty)}}
+\end{equation}
+
+The researcher's two choices apply directly:
+\begin{align}
+    \Var[\mu_k] &= \rho \, v_k^*
+    && \text{(between-population share)}
+    \label{eq:beta_rho_between} \\
+    \E\!\left[\frac{\mu_k(1-\mu_k)}{\phi_k + 1}\right] &= (1-\rho) \, v_k^*
+    && \text{(within-population share)}
+    \label{eq:beta_rho_within}
+\end{align}
+
+\begin{remark}[Distribution-free character of the decomposition]
+Equations~\eqref{eq:beta_total_var}--\eqref{eq:beta_rho_within} have the same
+structure as in the Normal-IG case. The law of total variance is a property of
+iterated expectations, not of any particular distributional family. The $\rho$
+decomposition is defined by the decomposition of unconditional CE variance, and
+this decomposition is valid for any population distribution and any hyperprior.
+What changes across families is the mapping from moment conditions to
+hyperprior parameters.
+\end{remark}
+
+\subsection{Hyperprior Derivation}
+
+\subsubsection{Hyperprior on $\mu_k$: the population mean CE}
+
+Since $\mu_k \in (0,1)$, the natural hyperprior is itself a Beta:
+\begin{equation}
+    \mu_k \sim \mathrm{Beta}(a_\mu, b_\mu)
+\end{equation}
+The two moment conditions are:
+\begin{align}
+    \E[\mu_k] &= \mu_k^*
+    && \Longrightarrow \quad \frac{a_\mu}{a_\mu + b_\mu} = \mu_k^*
+    \\[4pt]
+    \Var[\mu_k] &= \rho \, v_k^*
+    && \Longrightarrow \quad
+    \frac{\mu_k^*(1-\mu_k^*)}{a_\mu + b_\mu + 1} = \rho \, v_k^*
+\end{align}
+Define the ``effective sample size'' of the hyperprior on $\mu_k$:
+\begin{equation}
+    \label{eq:nu_mu}
+    \nu_\mu \coloneqq a_\mu + b_\mu
+    = \frac{\mu_k^*(1-\mu_k^*)}{\rho \, v_k^*} - 1
+\end{equation}
+Then:
+\begin{equation}
+    \label{eq:beta_hyper_mu}
+    a_\mu = \mu_k^* \, \nu_\mu, \qquad
+    b_\mu = (1-\mu_k^*) \, \nu_\mu
+\end{equation}
+
+\begin{remark}
+The solution requires $\nu_\mu > 0$, i.e.,
+$\rho \, v_k^* < \mu_k^*(1-\mu_k^*)$. This is always satisfied: the total
+variance $v_k^*$ of any distribution on $[0,1]$ with mean $\mu_k^*$ cannot
+exceed $\mu_k^*(1-\mu_k^*)$ (the Bernoulli bound), so
+$\rho \, v_k^* < v_k^* \leq \mu_k^*(1-\mu_k^*)$ whenever $\rho < 1$.
+\end{remark}
+
+\subsubsection{Hyperprior on $\psi_k$: the variance fraction}
+
+Using the variance fraction $\psi_k = 1/(\phi_k + 1) \in (0,1)$ from
+\eqref{eq:psi_def}, the within-population variance is
+$\mu_k(1-\mu_k) \cdot \psi_k$. Assuming $\mu_k \perp \psi_k$ (the population
+mean and dispersion are a priori independent), the within-population target
+\eqref{eq:beta_rho_within} becomes:
+\begin{equation}
+    (1-\rho) \, v_k^*
+    = \E[\mu_k(1-\mu_k)] \cdot \E[\psi_k]
+\end{equation}
+Since $\E[\mu_k(1-\mu_k)] = \mu_k^*(1-\mu_k^*) - \Var[\mu_k]
+= \mu_k^*(1-\mu_k^*) - \rho \, v_k^*$, solving for $\E[\psi_k]$:
+\begin{equation}
+    \label{eq:psi_target}
+    \psi_k^* \coloneqq \E[\psi_k]
+    = \frac{(1-\rho) \, v_k^*}{\mu_k^*(1-\mu_k^*) - \rho \, v_k^*}
+\end{equation}
+
+The second researcher choice---$\kappa$, the coefficient of variation of the
+within-population variance---determines the second moment. Under the
+approximation $\mu_k \approx \mu_k^*$ (valid when $\Var[\mu_k]$ is small
+relative to $\mu_k^*(1-\mu_k^*)$):
+\begin{equation}
+    \kappa \approx \frac{\mathrm{SD}[\psi_k]}{\E[\psi_k]}
+\end{equation}
+This is the same interpretable quantity as in the Normal-IG case: $\kappa$
+measures the researcher's confidence in their specification of
+within-population heterogeneity. Small $\kappa$ means the researcher is
+confident about the level of heterogeneity; large $\kappa$ means they are
+uncertain.
+
+A Beta hyperprior on $\psi_k$ is natural since $\psi_k \in (0,1)$:
+\begin{equation}
+    \psi_k \sim \mathrm{Beta}(a_\psi, b_\psi)
+\end{equation}
+Define the effective sample size:
+\begin{equation}
+    \label{eq:nu_psi}
+    \nu_\psi \coloneqq a_\psi + b_\psi
+    = \frac{1 - \psi_k^*}{\psi_k^* \, \kappa^2} - 1
+\end{equation}
+Then:
+\begin{equation}
+    \label{eq:beta_hyper_psi}
+    a_\psi = \psi_k^* \, \nu_\psi, \qquad
+    b_\psi = (1-\psi_k^*) \, \nu_\psi
+\end{equation}
+
+\begin{remark}[Comparison with the $\kappa$--$\alpha_0$ relationship]
+In the Normal-IG case, $\kappa = 1/\sqrt{\alpha_0 - 2}$ relates $\kappa$ to
+the Inverse-Gamma shape parameter. Here, $\kappa$ determines $\nu_\psi$, the
+effective sample size of the Beta hyperprior on $\psi_k$. The functional form
+differs, but the role is identical: $\kappa$ controls how concentrated the
+hyperprior is around the target heterogeneity level. As $\kappa \to 0$,
+$\nu_\psi \to \infty$ and $\psi_k$ concentrates at $\psi_k^*$; as
+$\kappa \to \infty$, $\nu_\psi \to 0$ and the hyperprior becomes diffuse.
+\end{remark}
+
+\subsection{Summary: The Beta-Beta Hierarchy}
+
+Collecting the results, the complete hierarchy for each reference lottery $k$
+(in normalized CE units) is:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Level} & \textbf{Distribution} & \textbf{Parameters} \\
+\midrule
+Population &
+    $z_i^k \given \mu_k, \psi_k \sim
+    \mathrm{Beta}\!\left(\frac{\mu_k(1-\psi_k)}{\psi_k},\;
+    \frac{(1-\mu_k)(1-\psi_k)}{\psi_k}\right)$ &
+    $\mu_k \in (0,1)$, $\psi_k \in (0,1)$ \\[8pt]
+Hyper (mean) &
+    $\mu_k \sim \mathrm{Beta}(a_\mu, b_\mu)$ &
+    $\nu_\mu = \mu_k^*(1-\mu_k^*)/(\rho v_k^*) - 1$ \\[4pt]
+Hyper (dispersion) &
+    $\psi_k \sim \mathrm{Beta}(a_\psi, b_\psi)$ &
+    $\nu_\psi = (1-\psi_k^*)/(\psi_k^* \kappa^2) - 1$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+The researcher provides three inputs per CE:
+\begin{itemize}
+    \item $\mu_k^*$: prior mean CE (in normalized units)
+    \item $v_k^*$: prior variance of CE (total, unconditional)
+    \item Two shared choices: $\rho$ (variance partition) and $\kappa$
+    (heterogeneity confidence)
+\end{itemize}
+These four quantities ($\mu_k^*$, $v_k^*$, $\rho$, $\kappa$) determine the
+four hyperprior parameters ($a_\mu$, $b_\mu$, $a_\psi$, $b_\psi$) through
+equations~\eqref{eq:nu_mu}--\eqref{eq:beta_hyper_mu} and
+\eqref{eq:nu_psi}--\eqref{eq:beta_hyper_psi}. The structure is identical to
+the Normal-IG case: two moments per CE, two researcher choices shared across
+CEs.
+
+\subsection{Connection to the Normal-IG Case}
+
+The Normal-IG hierarchy of Section~\ref{sec:invertible} is a limiting case.
+When the Beta concentration is large ($\phi_k \gg 1$, equivalently
+$\psi_k \ll 1$) and the mean is well inside the bounds ($\mu_k^*$ not near 0
+or 1):
+\begin{equation}
+    \mathrm{Beta}(\mu\phi, (1-\mu)\phi) \approx
+    \Normal\!\left(\mu, \; \frac{\mu(1-\mu)}{\phi}\right)
+    \qquad \text{for } \phi \gg 1
+\end{equation}
+In this regime the bounds are irrelevant and the two formulations agree. The
+Beta formulation is preferred when:
+\begin{itemize}
+    \item The CE prior mean is near the bounds (e.g., highly risk-averse or
+    risk-seeking populations).
+    \item The CE prior standard deviation is a substantial fraction of the
+    prize range.
+    \item The researcher wishes the prior to encode the known bounded support
+    as a structural constraint.
+\end{itemize}
+
+\subsection{Implementation}
+
+The Beta formulation changes the population distribution but not the MCMC
+mechanics. The log-posterior for subject $i$'s parameters $\btheta_i$ is:
+\begin{multline}
+    \label{eq:log_posterior_beta}
+    \log p(\btheta_i \given \bmu, \bm{\psi}, \text{data}_i) =
+    \log L(\text{data}_i \given \btheta_i) \\
+    + \sum_{k=1}^p \log \mathrm{Beta}\!\left(z_i^k \;\Big|\;
+    \frac{\mu_k(1-\psi_k)}{\psi_k},\;
+    \frac{(1-\mu_k)(1-\psi_k)}{\psi_k}\right)
+    + \frac{1}{2}\log\det\!\big(J^\top J\big)
+    + \text{const.}
+\end{multline}
+where $z_i^k = (g_k(\btheta_i) - a_k)/(b_k - a_k)$ is the normalized CE from
+the forward map. No conjugacy is exploited---the MCMC sampler evaluates each
+log-density term directly. The Jacobian correction is identical to the Normal
+case; only the population-level density evaluation changes.
+
+For the hyperparameter blocks, the Beta hyperpriors on $\mu_k$ and $\psi_k$
+are evaluated directly:
+\begin{equation}
+    \log p(\mu_k, \psi_k) = \log \mathrm{Beta}(\mu_k \given a_\mu, b_\mu)
+    + \log \mathrm{Beta}(\psi_k \given a_\psi, b_\psi)
+\end{equation}
+The cost per MCMC step is negligible: evaluating a Beta log-density is a single
+call to \texttt{jax.scipy.stats.beta.logpdf}.
+
+
+%==============================================================================
+\section{Global Injectivity: General Conditions}
+\label{sec:general_injectivity}
+%==============================================================================
+
+The shared-prize non-injectivity result for RDU-Prelec is an instance of a
+general phenomenon. This section derives the conditions under which a CE
+mapping is globally injective for an arbitrary utility model. The results
+clarify what the researcher must verify for any specific application.
+
+\subsection{Setup}
+
+Consider a general decision-under-uncertainty model with parameter vector
+$\bm{\alpha} = (\alpha_1, \ldots, \alpha_p) \in \Omega \subseteq \mathbb{R}^p$
+and $K$ reference lotteries. Each lottery $k$ has outcomes
+$\mathbf{x}_k = (x_{k,1}, \ldots, x_{k,n_k})$ with probabilities
+$\mathbf{p}_k = (p_{k,1}, \ldots, p_{k,n_k})$. The certainty equivalent is:
+\begin{equation}
+    \label{eq:general_ce}
+    \CE_k(\bm{\alpha}) = u^{-1}\!\left(
+    \sum_{j=1}^{n_k} d_{k,j}(\bm{\alpha}) \, u(x_{k,j};\, \bm{\alpha})
+    \,;\; \bm{\alpha}\right)
+\end{equation}
+where $u(x;\, \bm{\alpha})$ is the utility function and
+$d_{k,j}(\bm{\alpha})$ are decision weights (which may depend on
+$\bm{\alpha}$ through a probability weighting function, or may simply equal
+$p_{k,j}$ for expected utility). Define the CE mapping
+$\mathbf{g}: \Omega \to \mathbb{R}^K$ by
+$\mathbf{g}(\bm{\alpha}) = (\CE_1(\bm{\alpha}), \ldots, \CE_K(\bm{\alpha}))$.
+
+For the Jacobian-based prior specification of Section~\ref{sec:invertible}, we
+require $K = p$ and $\mathbf{g}$ to be a diffeomorphism (smooth bijection).
+Two conditions are needed: \emph{local} invertibility ($\det J \neq 0$
+everywhere) and \emph{global} injectivity (no two distinct parameter vectors
+produce identical CEs).
+
+\subsection{Necessary Condition: Local Invertibility}
+
+\begin{proposition}[Local invertibility]
+\label{prop:local}
+The CE mapping $\mathbf{g}: \Omega \to \mathbb{R}^p$ is a local
+diffeomorphism if and only if $\det J_{\mathbf{g}}(\bm{\alpha}) \neq 0$ for
+all $\bm{\alpha} \in \Omega$.
+\end{proposition}
+
+This is the inverse function theorem. It guarantees that in a neighborhood of
+every point, the mapping can be inverted. For practical applications, one
+verifies this either symbolically (as in Section~\ref{sec:jacobian_rdu}) or
+numerically by evaluating $\det J$ on a grid and confirming it does not change
+sign.
+
+In 1 dimension ($p = 1$), local invertibility is \emph{sufficient} for global
+injectivity: $g'(\alpha) > 0$ everywhere implies $g$ is strictly increasing.
+In higher dimensions this fails, as the following makes precise.
+
+\subsection{The Obstruction: Why Local Does Not Imply Global}
+\label{sec:obstruction}
+
+A local diffeomorphism $\mathbf{g}: \Omega \to \mathbb{R}^p$ (with $\Omega$
+convex, $\det J > 0$ everywhere) can fail to be globally injective. The
+canonical counterexample is $f(x,y) = (e^x \cos y,\; e^x \sin y)$ on
+$\mathbb{R}^2$: $\det J = e^{2x} > 0$ everywhere, yet
+$f(0, 0) = f(0, 2\pi)$.
+
+For CE mappings, the obstruction has a specific economic interpretation.
+The standard sufficient condition for promoting local to global invertibility
+is \emph{properness}: preimages of compact sets must be compact (Hadamard's
+global inverse function theorem). But CE mappings are never proper: the
+codomain is bounded (CEs lie between the minimum and maximum prizes) while the
+parameter domain is typically unbounded. As parameters approach extremes, CEs
+saturate at boundary values, creating the possibility---in principle---that
+distant parameter vectors map to identical CEs.
+
+Whether this possibility is realized depends on the \emph{structure} of the
+model, as the RDU-Prelec analysis demonstrates.
+
+\subsection{The Compensation Mechanism}
+
+The RDU-Prelec counterexample reveals a general obstruction to global
+injectivity. Suppose the parameter vector decomposes as
+$\bm{\alpha} = (\bm{\xi}, \bm{\psi})$ where $\bm{\xi}$ governs the utility
+function $u(x;\, \bm{\xi})$ and $\bm{\psi}$ governs the decision weights
+$d_{k,j}(\bm{\psi})$. Then:
+\begin{equation}
+    \CE_k(\bm{\xi}, \bm{\psi}) = u^{-1}\!\left(
+    \sum_{j} d_{k,j}(\bm{\psi}) \, u(x_{k,j};\, \bm{\xi}) \,;\; \bm{\xi}\right)
+\end{equation}
+When all lotteries share the same prize vector $\mathbf{x}$, the utility
+values $u(x_j;\, \bm{\xi})$ are \emph{common} across lotteries. The CE
+mapping then has the form:
+\begin{equation}
+    \CE_k = u^{-1}\!\big(\mathbf{d}_k(\bm{\psi})^\top
+    \mathbf{u}(\bm{\xi}) \,;\; \bm{\xi}\big)
+\end{equation}
+where $\mathbf{u}(\bm{\xi}) = (u(x_1;\,\bm{\xi}), \ldots, u(x_n;\,\bm{\xi}))$
+is the same for all $k$. The parameter $\bm{\xi}$ enters only through the
+shared ``utility profile'' $\mathbf{u}$, creating a common factor that
+allows changes in $\bm{\xi}$ to be compensated by changes in $\bm{\psi}$.
+
+With different prize structures, each lottery has its own utility profile
+$\mathbf{u}_k(\bm{\xi})$, and $\bm{\xi}$ enters through multiple independent
+channels, generically breaking the compensation.
+
+\subsection{Sufficient Conditions for Global Injectivity}
+\label{sec:sufficient}
+
+\begin{proposition}[Overdetermination]
+\label{prop:overdetermined}
+If $K > p$ reference lotteries are used, each with
+$\det J_{\mathbf{g}} \neq 0$ for any $p$-element subset, then the CE mapping
+$\mathbf{g}: \Omega \to \mathbb{R}^K$ is generically globally injective
+(the set of $\bm{\alpha}$ admitting an observationally equivalent
+$\bm{\alpha}'$ has measure zero in $\Omega$).
+\end{proposition}
+
+This is the ``fourth lottery'' strategy: a single additional lottery
+generically breaks any exact compensation between parameters.
+
+\begin{proposition}[Prize diversity]
+\label{prop:prize_diversity}
+Consider a model with utility parameters $\bm{\xi} \in \mathbb{R}^{p_1}$ and
+weighting parameters $\bm{\psi} \in \mathbb{R}^{p_2}$ ($p_1 + p_2 = p$). The
+CE mapping with $K = p$ lotteries is globally injective (for generic
+probability structures) if:
+\begin{enumerate}
+    \item[\textnormal{(a)}] The lotteries have distinct cumulative probability
+    structures (separates the components of $\bm{\psi}$);
+    \item[\textnormal{(b)}] At least $p_1 + 1$ distinct prize vectors appear
+    among the lotteries (overdetermines $\bm{\xi}$ given $\bm{\psi}$);
+    \item[\textnormal{(c)}] $\det J_{\mathbf{g}}(\bm{\alpha}) \neq 0$ for all
+    $\bm{\alpha} \in \Omega$.
+\end{enumerate}
+\end{proposition}
+
+Condition (b) is the key structural requirement. For the RDU-Prelec model with
+$p_1 = 1$ (only $r$ is a utility parameter), at least $2$ distinct prize
+vectors are needed. Since $K = 3$ lotteries are required, the condition allows
+two lotteries to share prizes and the third to differ---exactly the design
+verified numerically in Section~\ref{sec:global_injectivity}.
+
+\paragraph{Intuition.} The argument parallels instrument relevance in
+econometrics. With shared prizes, $\bm{\xi}$ enters through a single ``reduced
+form'' (the utility profile $\mathbf{u}$), so the system is underidentified in
+$\bm{\xi}$. Prize diversity introduces multiple ``instruments'' for
+$\bm{\xi}$, each constraining it from a different direction.
+
+\paragraph{Proof sketch for $p_1 = 1$.} Suppose lotteries $k$ and $j$ have
+different prize vectors. The ratio
+$R_k(r) = \Delta_{23}^{(k)}(r) / \Delta_{12}^{(k)}(r)$ and
+$R_j(r) = \Delta_{23}^{(j)}(r) / \Delta_{12}^{(j)}(r)$ are both strictly
+monotone in $r$, but with different functional forms (determined by their prize
+vectors). For fixed $(\phi, \eta)$, each lottery's CE equation
+$C_k(r) = w(s_k) + R_k(r) \cdot w(q_k)$ determines $r$ as an implicit
+function. Two equations with different $R_k(\cdot)$ generically determine $r$
+uniquely, leaving no freedom for the ``second solution'' that the shared-prize
+case admits.
+
+\subsection{The Pure Utility Case: No Probability Weighting}
+
+When the decision weights are known (i.e., $d_{k,j} = p_{k,j}$ as in expected
+utility, or more generally any model where the weights do not depend on
+$\bm{\alpha}$), the CE mapping simplifies to:
+\begin{equation}
+    \CE_k(\bm{\alpha}) = u^{-1}\!\bigg(\sum_{j} p_{k,j} \, u(x_{k,j};\,
+    \bm{\alpha})\bigg)
+\end{equation}
+with $\bm{\alpha} = \bm{\xi}$ (all parameters are utility parameters, $p_2 = 0$).
+This case is fundamentally easier because there is no compensation
+mechanism---all parameters enter through the utility function alone.
+
+\paragraph{Single parameter ($p = 1$).}
+If $\bm{\alpha} = r$ is a scalar (e.g., CRRA), then $\CE_k(r)$ is a scalar
+function of $r$. Provided $\partial\CE_k / \partial r \neq 0$ (the lottery is
+non-degenerate and $r$ affects the CE), strict monotonicity gives global
+injectivity from a single lottery. No prize diversity is needed.
+
+\paragraph{Multiple utility parameters ($p > 1$).}
+If $\bm{\alpha} = (\alpha_1, \ldots, \alpha_p)$ are all utility parameters
+(e.g., a utility function with curvature, loss aversion, and reference point
+parameters), the CE mapping $\mathbf{g}: \mathbb{R}^p \to \mathbb{R}^p$
+requires $K = p$ reference lotteries. The conditions for global injectivity
+are:
+\begin{enumerate}
+    \item \textbf{Local invertibility}: $\det J_{\mathbf{g}} \neq 0$
+    everywhere. This requires the $p$ lotteries to have sufficiently diverse
+    characteristics that each parameter has a distinct ``signature'' in the
+    Jacobian---verified symbolically or numerically.
+
+    \item \textbf{Prize diversity}: At least $p + 1$ distinct prize
+    vectors\footnote{More precisely: the utility profiles
+    $\mathbf{u}_k(\bm{\alpha}) = (u(x_{k,1};\,\bm{\alpha}), \ldots,
+    u(x_{k,n_k};\,\bm{\alpha}))$ must span a space of dimension exceeding
+    $\dim(\bm{\alpha})$ as functions of $\bm{\alpha}$. With shared prizes, all
+    profiles are the \emph{same} vector $\mathbf{u}(\bm{\alpha})$, giving
+    dimension 1 regardless of $p$.} among the $K$ lotteries. This prevents the
+    shared-utility-profile obstruction: with shared prizes, all $p$ parameters
+    enter through a single utility vector, and the system of CE equations has
+    the structure of $p$ equations in what is effectively a lower-dimensional
+    image.
+\end{enumerate}
+
+\noindent
+For the pure utility case, the compensation mechanism of
+Section~\ref{sec:obstruction} is between different utility parameters (e.g.,
+curvature compensating loss aversion) rather than between utility and weighting
+parameters. The remedy is the same: prize diversity ensures each parameter
+influences the CEs through independent channels.
+
+\subsection{Summary of Conditions}
+
+For a CE mapping $\mathbf{g}: \bm{\alpha} \mapsto (\CE_1, \ldots, \CE_K)$
+with $K = p = \dim(\bm{\alpha})$:
+\begin{center}
+\begin{tabular}{lll}
+    \textbf{Condition} & \textbf{What it ensures} & \textbf{Status} \\ \hline
+    $\det J \neq 0$ everywhere & Local invertibility & Necessary \\
+    Distinct probability structures & Separates $\bm{\psi}$ components &
+        Necessary (with PWF) \\
+    Prize diversity (condition~(b)) & Breaks $\bm{\xi}$--$\bm{\psi}$
+        compensation & Sufficient for global \\
+    Overdetermination ($K > p$) & Breaks \emph{all} compensation &
+        Sufficient for global \\
+\end{tabular}
+\end{center}
+The first two conditions are necessary for local invertibility. The third or
+fourth is needed to promote local to global injectivity. For the parameter-space
+Jacobian approach (Section~\ref{sec:posterior_sampling}), local invertibility
+alone suffices for a well-defined density---but the researcher should be aware
+that the induced prior may assign positive probability to observationally
+equivalent regions unless global injectivity holds.
+
+
+
+%==============================================================================
+\section{Detailed Analysis for the RDU Application}
+%==============================================================================
+
+\subsection{The Certainty Equivalent as \texorpdfstring{$g(\btheta)$}{g(theta)}}
+
+For the RDU model with a 3-outcome lottery $(x_1, x_2, x_3)$ with equal
+probabilities, the certainty equivalent is:
+\begin{equation}
+    \CE(r, \phi, \eta) = u^{-1}\!\Big(\sum_{k=1}^3 d_k(r, \phi, \eta) \,
+    u(x_k; r)\Big)
+\end{equation}
+where $u(x; r) = x^{1-r}/(1-r)$ is the CRRA utility function, and
+$d_k(\phi, \eta)$ are the Prelec decision weights. (We suppress the noise
+parameter $\lambda$ here since the CE is a preference-theoretic quantity
+independent of the choice process.)
+
+This function has several properties relevant to our analysis:
+
+\paragraph{Gradient structure.} The partial derivatives of $\CE$ with respect
+to the parameters capture different aspects of preferences:
+\begin{itemize}
+    \item $\partial \CE / \partial r$: Sensitivity to risk aversion. Negative
+    for gains (higher $r$ means lower CE). Large in magnitude when the lottery
+    has high variance.
+    \item $\partial \CE / \partial \phi$: Sensitivity to probability distortion
+    curvature. Captures the inverse-S shape effect.
+    \item $\partial \CE / \partial \eta$: Sensitivity to probability distortion
+    elevation. Captures overall optimism/pessimism.
+\end{itemize}
+These gradients are functions of $\btheta$ itself, evaluated at the population
+mean. They are heterogeneous across parameters, meaning different parameters
+contribute differently to CE variance.
+
+\paragraph{Nonlinearity.} The CRRA utility function has a pole at $r = 1$
+(where it transitions to log utility) and is highly nonlinear for $r$ near 1.
+The Prelec function $w(p) = \exp(-\eta(-\ln p)^\phi)$ is also nonlinear in
+$\phi$ and $\eta$. These nonlinearities make the Jacobian correction
+essential---a linear approximation would be unreliable for large parameter
+variances.
+
+\paragraph{Parameter scale mismatch.} In the current implementation, $\phi$ and
+$\eta$ are sampled on the log scale ($\phi_{\text{raw}} = \ln \phi$). The
+function $g$ is then a composition: $\CE(r, e^{\phi_{\text{raw}}},
+e^{\eta_{\text{raw}}})$. The exponential transform amplifies the effect of
+variance in the raw parameters, especially in the tails.
+
+
+
+%==============================================================================
+\section{Implications for the Paper}
+%==============================================================================
+
+\subsection{What Changes}
+
+The invertible-$\mathbf{g}$ approach (Section~\ref{sec:invertible}) is not
+merely an extension of the current framework---it is the \emph{same} framework
+applied in a different coordinate system. The paper's methodology section could
+be presented at two levels:
+
+\paragraph{General statement.} The moment-matching framework applies to any
+quantity with defined moments. Given a direct prior over $\mathbf{Y} =
+\mathbf{g}(\btheta)$---whether $\mathbf{g}$ is the identity (parameters
+directly) or an economically meaningful mapping (certainty equivalents)---the
+law of total variance decomposes the prior predictive variance, and $\rho$
+partitions this variance between population-mean uncertainty and
+within-population heterogeneity. The hyperprior is derived by matching moments
+in whichever coordinate system the researcher specified beliefs.
+
+\paragraph{The identity case as baseline.} The current paper's derivation is
+the special case $\mathbf{g} = \text{id}$, which requires no Jacobian and
+admits particularly clean closed-form hyperparameters.
+
+\paragraph{The predictive case as generalization.} When
+$\mathbf{g} \neq \text{id}$ but is invertible, the same formulas apply in
+$\mathbf{g}$-space. Sampling proceeds in parameter space with the prior density
+evaluated via the forward mapping $\mathbf{g}(\btheta)$ and the Jacobian
+correction \eqref{eq:jacobian_prior}. No inversion or approximation is needed.
+
+\subsection{What Is Preserved}
+
+\begin{itemize}
+    \item The $\rho$ and $\alpha_0$ researcher choices retain their
+    interpretations and apply identically in any coordinate system.
+
+    \item The moment-matching derivation of hyperpriors is unchanged---it is
+    applied in the coordinate system where beliefs are specified.
+
+    \item The hyperprior families (NIG, NIW) and their closed-form solutions
+    are untouched.
+
+    \item The ``no free lunch'' result holds: the number of degrees of freedom
+    is the same; they are just expressed in a different space.
+\end{itemize}
+
+\subsection{Recommended Framing for the Paper}
+
+The invertible case suggests a stronger framing than the original version of
+this note proposed:
+
+\begin{enumerate}
+    \item Present the general framework in coordinate-free terms: the
+    researcher specifies a direct prior over any $p$-dimensional quantity
+    $\mathbf{Y} = \mathbf{g}(\btheta)$, and the moment-matching machinery
+    derives hyperpriors in $\mathbf{Y}$-space.
+
+    \item Develop the parameter-space case ($\mathbf{g} = \text{id}$) as the
+    primary worked example, since it requires no inversion and yields the
+    cleanest formulas.
+
+    \item Note that when $\mathbf{g}$ is an invertible mapping to observable
+    quantities (such as certainty equivalents), the framework applies directly
+    in that space. Sampling in parameter space requires only the forward
+    mapping $\mathbf{g}(\btheta)$ and a Jacobian correction---no inversion.
+
+    \item Frame the existing prior predictive CE analysis as evidence that the
+    parameter-level specification implies reasonable predictive behavior---and
+    note that the researcher could equally have started from predictive beliefs.
+\end{enumerate}
+
+This positions the paper's contribution as more general than
+``hyperprior selection for Normal-Inverse-Gamma BHMs''---it is a coordinate-free
+moment-matching framework that applies in any parameterization the researcher
+finds natural.
+
+
+%==============================================================================
+\section{Connections to the Literature}
+%==============================================================================
+
+\subsection{Prior Predictive Checking}
+
+The prior predictive distribution $p(Y) = \int p(Y \given \theta) p(\theta)
+\, d\theta$ has been advocated as a tool for prior assessment by Box (1980),
+Gelman et al.\ (2013, Ch.~6), and Gabry et al.\ (2019, ``Visualization in
+Bayesian workflow''). The standard approach is:
+\begin{enumerate}
+    \item Specify a prior.
+    \item Simulate from the prior predictive.
+    \item Check whether the implied distribution of observables is reasonable.
+    \item If not, revise the prior.
+\end{enumerate}
+The extension proposed here collapses steps 1 and 3: the prior is
+\emph{defined} by the predictive targets, rather than checked against them
+post-hoc. This is conceptually cleaner but computationally harder.
+
+\subsection{Calibrated Priors}
+
+The idea of choosing priors to match predictive implications has been explored
+in several contexts:
+\begin{itemize}
+    \item \textbf{Penalized complexity priors} (Simpson et al., 2017):
+    Priors are calibrated so that the model assigns a specified probability to
+    deviating from a simpler base model. This is a form of predictive
+    calibration using KL divergence rather than moment matching.
+
+    \item \textbf{Prior elicitation via observables} (Kadane and Wolfson, 1998;
+    O'Hagan et al., 2006): Experts specify credible intervals for observable
+    quantities; priors are derived by inversion. This is closest in spirit to
+    the extension proposed here, but the elicitation literature focuses on
+    conjugate models where the inversion is tractable.
+
+    \item \textbf{Simulation-based calibration} (Talts et al., 2018): Uses
+    simulation to validate that the prior-likelihood-posterior pipeline is
+    self-consistent. This is a diagnostic tool rather than a prior specification
+    method, but the forward simulation machinery is the same.
+\end{itemize}
+
+\subsection{Decision-Theoretic Prior Selection}
+
+In the risk preference context specifically, the certainty equivalent is the
+natural ``decision-relevant'' quantity. Specifying priors via CE targets
+connects to the decision-theoretic literature on loss functions and utility:
+the prior is calibrated so that the \emph{decision-relevant implications} of
+parameter uncertainty are reasonable, not just the parameter values themselves.
+
+This is especially compelling for policy-relevant applications where the
+ultimate quantity of interest is a welfare measure (willingness to pay,
+certainty equivalent, compensating variation) rather than a structural
+parameter.
+
+
+%==============================================================================
+\section{Open Questions}
+%==============================================================================
+
+\begin{enumerate}
+    \item \textbf{Global injectivity and lottery design (resolved).}
+    Section~\ref{sec:jacobian_rdu} establishes local invertibility ($\det J > 0$
+    everywhere) for distinct probability structures.
+    Section~\ref{sec:global_injectivity} demonstrates that local invertibility
+    does \emph{not} imply global injectivity for lotteries sharing a common
+    prize vector, due to the $\bm{\xi}$--$\bm{\psi}$ compensation mechanism.
+    Section~\ref{sec:sufficient} provides sufficient conditions for global
+    injectivity: either overdetermination ($K > p$) or prize diversity. The
+    practical recommendation is clear: use at least two distinct prize vectors
+    among the reference lotteries.
+
+    \item \textbf{Sensitivity to lottery choice.} Different reference lotteries
+    define different coordinate systems in CE space, and therefore different
+    induced priors in parameter space (even from the same CE-space prior). How
+    sensitive are the posterior results to this choice? In principle, the
+    posterior should be invariant to the parameterization (the Jacobian ensures
+    consistency), but in practice, different CE-space priors represent different
+    substantive beliefs.
+
+    \item \textbf{Normality in CE space (resolved).} The Normal population
+    distribution places mass outside the CE bounds $[a_k, b_k]$.
+    Section~\ref{sec:bounded} resolves this by replacing the Normal with a
+    Beta distribution on the normalized CE $z \in [0,1]$, using the
+    mean-concentration parameterization. The variance decomposition framework
+    applies unchanged, and the Beta-Beta hyperprior has closed-form parameters
+    determined by $(\mu_k^*, v_k^*, \rho, \kappa)$---the same inputs as the
+    Normal-IG case.
+
+    \item \textbf{Correlation structure.} Independent normal priors across CEs
+    induce a specific (non-independent, non-normal) prior over $(r, \phi, \eta)$
+    via $\mathbf{g}^{-1}$. Is this induced dependence structure reasonable?
+    Conversely, does the researcher have intuition about CE correlations (e.g.,
+    ``someone with a low CE for a small-stakes lottery also has a low CE for a
+    large-stakes lottery'') that should be encoded?
+
+    \item \textbf{Handling the noise parameter.} $\lambda$ does not affect CE
+    but does affect choice probabilities. It could be: (a) specified directly in
+    parameter space, (b) mapped through a choice probability (e.g., $P(\text{choose
+    safer option})$ for a specific lottery pair), or (c) integrated out. Option
+    (b) would bring the full model into predictive space but requires a
+    4-dimensional invertible mapping.
+\end{enumerate}
+
+
+
+%==============================================================================
+\section{Summary}
+%==============================================================================
+
+The moment-matching framework for hyperprior selection is
+coordinate-free: the law of total variance and the $\rho$ decomposition apply
+identically to any quantity with defined moments, whether that quantity is a
+structural parameter or an observable like a certainty equivalent.
+
+The key insight of this note is that when $\mathbf{g}: \mathbb{R}^p \to
+\mathbb{R}^p$ is an invertible mapping from preference parameters to observable
+quantities, the \emph{entire} Bayesian hierarchy---from hyperprior through
+population distribution---can be specified in observable space with no
+approximation. Model parameters never enter the prior specification; they
+appear only in the likelihood and the Jacobian correction that links the two
+spaces. The researcher specifies beliefs about certainty equivalents
+(or other interpretable quantities), the standard $\rho$/$\kappa$
+decomposition derives hyperpriors in that space, and the Jacobian of
+$\mathbf{g}$ handles the coordinate change exactly. The identity case
+($\mathbf{g} = \text{id}$, parameter-level specification) is a special case
+with unit Jacobian.
+
+Because certainty equivalents are bounded by the prize range, the
+Normal population distribution should be replaced by a Beta distribution on
+normalized CEs (Section~\ref{sec:bounded}). The Beta-Beta hierarchy---Beta
+population distribution with Beta hyperpriors on the mean and variance
+fraction---has closed-form hyperprior parameters determined by the same four
+inputs as the Normal-IG case: the prior mean $\mu_k^*$, the prior variance
+$v_k^*$, the variance partition $\rho$, and the heterogeneity confidence
+$\kappa$. The variance decomposition is distribution-free; only the mapping
+from moment conditions to hyperprior parameters changes across families.
+
+A central finding of this note is that \textbf{local invertibility ($\det J
+\neq 0$ everywhere) does not guarantee global injectivity} for the CE mapping.
+When all reference lotteries share a common prize vector, utility curvature and
+probability weighting can exactly compensate each other, producing distinct
+parameter vectors with identical certainty equivalents. This compensation
+mechanism is broken by either using lotteries with distinct prize structures or
+by adding an additional reference lottery (overdetermination). The general
+conditions for global injectivity---applicable to any utility model with
+separable utility and weighting parameters---are developed in
+Section~\ref{sec:general_injectivity}.
+
+For the current paper, the invertible case strengthens the contribution by
+showing that the framework is not tied to parameter-space specification. The
+parameter-level derivation can be presented as the cleanest special case, with
+the CE-space generalization noted as immediate. For a follow-up paper or an
+expanded version, a full worked example in CE space---with reference lottery
+selection, Jacobian computation, and posterior comparison to the parameter-space
+approach---would demonstrate the practical value of the extension.
+
+
+\end{document}

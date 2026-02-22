@@ -103,12 +103,15 @@ DIRECT_PRIOR = {
 
 # BHM Hyperprior researcher choices:
 # - rho: Variance partition ratio (fraction from mean uncertainty vs population spread)
-#        0.3 means 30% from hyperprior mean uncertainty, 70% from population variance
-# - alpha_0: InverseGamma shape parameter (higher = tighter variance prior)
-#            CV[sigma^2] = 1/sqrt(alpha_0-2)
+#        0.2 means 20% from hyperprior mean uncertainty, 80% from population variance
+# - kappa: Coefficient of variation of heterogeneity (CV[sigma^2] = SD[sigma^2]/E[sigma^2])
+#          Distribution-free; maps to IG via alpha_0 = 2 + 1/kappa^2
+#          kappa ≈ 0.236 corresponds to alpha_0 = 20 (tight)
+#          kappa = 0.5 corresponds to alpha_0 = 6 (moderate)
+#          kappa = 1.0 corresponds to alpha_0 = 3 (diffuse)
 PRIOR_SELECTION = {
     'rho': 0.2,
-    'alpha_0': 20.0,
+    'kappa': 1.0 / (20.0 - 2.0)**0.5,  # ≈ 0.2357, equivalent to alpha_0 = 20
 }
 
 # Uninformative (diffuse) hyperprior for comparison
@@ -129,6 +132,32 @@ UNINFORMATIVE_HYPERPRIOR = {
     'lambda_raw': {'mu_0': base_mu0, 'tau_0_sq': base_tau0, 'alpha_0': base_alpha0, 'beta_0': base_beta0},
 }
 
+# =============================================================================
+# CE-Space Prior Configuration
+# =============================================================================
+
+# Reference lotteries for CE-space prior (prize diversity for injectivity)
+REFERENCE_LOTTERIES = [
+    {'prizes': [10, 30, 50], 'probs': [1/3, 1/3, 1/3]},  # L1: equal-prob, all prizes
+    {'prizes': [10, 30, 50], 'probs': [0.5, 0.3, 0.2]},   # L2: skewed toward low prize
+    {'prizes': [10, 25, 50], 'probs': [1/3, 1/3, 1/3]},   # L3: different middle prize
+]
+
+# CE-space direct prior: beliefs about CEs for reference lotteries
+# These are set based on forward-mapping at reasonable parameter values.
+# A risk-averse individual (r~0.5, phi~1, eta~1) will have CE < EV.
+DIRECT_PRIOR_CE = {
+    'ce1': {'mu': 27.0, 'sigma2': 25.0},  # L1: EV=30, CE ~27 ± 5
+    'ce2': {'mu': 22.0, 'sigma2': 25.0},  # L2: EV=23, CE ~22 ± 5
+    'ce3': {'mu': 25.0, 'sigma2': 25.0},  # L3: EV=28.3, CE ~25 ± 5
+}
+
+# Researcher choices for CE-space variance decomposition
+PRIOR_SELECTION_CE = {
+    'rho': 0.2,
+    'kappa': 1.0 / (20.0 - 2.0)**0.5,  # same as parameter-space version
+}
+
 # Skew-Normal example configuration (for Appendix B)
 # Direct prior: SN(ξ*, ω*, α*) - the target unconditional distribution
 SKEW_NORMAL_DIRECT_PRIOR = {
@@ -137,11 +166,20 @@ SKEW_NORMAL_DIRECT_PRIOR = {
     'alpha': 2.0,   # shape parameter (positive = right skew)
 }
 
-# Researcher choices for Skew-Normal (3 degrees of free#dom)
+# Researcher choices for Skew-Normal (3 degrees of freedom)
 SKEW_NORMAL_RESEARCHER = {
     'rho': 0.2,           # variance partition (same interpretation as Normal case)
     'alpha_omega': 20.0,   # scale concentration (analogous to alpha_0)
     'tau_alpha_sq': 0.25, # shape uncertainty (new degree of freedom)
+}
+
+# Injectivity analysis configuration (for Appendix C)
+INJECTIVITY_CONFIG = {
+    'lotteries': [
+        {'prizes': (10, 30, 50), 'probs': (0.5, 0.0, 0.5)},   # L1: binary
+        {'prizes': (10, 30, 50), 'probs': (0.1, 0.8, 0.1)},   # L2: concentrated middle
+        {'prizes': (10, 30, 50), 'probs': (0.3, 0.3, 0.4)},   # L3: mildly right-skewed
+    ],
 }
 
 # =============================================================================
@@ -221,6 +259,14 @@ PRIOR_PLOT_CONFIG = {
     'figsize': (10, 8),   # Figsize for prior comparison plots
 }
 
+# Sensitivity analysis grid
+SENSITIVITY_CONFIG = {
+    'rho_values': [0.05, 0.1, 0.2, 0.3, 0.5],
+    'kappa_values': [0.15, 0.24, 0.50, 1.00],
+    'n_mc_draws': 5000,
+    'n_subjects': 50,
+}
+
 # Paper quantities extraction
 PAPER_QUANTITIES_CONFIG = {
     'burnin_fraction': 0.5,  # Fraction of iterations to discard as burn-in
@@ -248,6 +294,22 @@ sampling_opts = {
     'beta_min': 0.1,
 }
 
+sampling_opts_ce = {
+    'model': 'rdu_bhm_ce',
+    'output_dir': DATA_DIR / 'output',
+    'plots_dir': PLOTS_DIR / 'rdu_bhm_ce',
+    'clean': True,
+    'reset_runs': 1,
+    'resume_runs': 5,
+    'num_chains': 1000,
+    'num_collect': 100,
+    'thin_iteration': 10,
+    'chunk_size': 100,
+    'seed': SEEDS['sampling'],
+    'n_temperatures': 0,
+    'beta_min': 0.1,
+}
+
 # =============================================================================
 # Control Flags
 # =============================================================================
@@ -259,6 +321,7 @@ do_gen_paper_data = False
 # --- Prior Selection & Analysis ---
 do_generate_prior       = False
 do_prior_predictive_ce  = False
+do_sensitivity          = False
 
 # --- MCMC Sampling ---
 do_sampling               = False
@@ -287,8 +350,15 @@ do_paper_hyper_comparison    = False   # Hyperparameter prior vs posterior (8-pa
 do_paper_predictive_overlay  = False   # Predictive CE and parameter overlay
 do_paper_subject_ce          = False   # Subject most/least affected CE
 
+# --- CE-Space Prior ---
+do_generate_prior_ce       = False
+do_sampling_ce             = False
+do_preprocess_hyper_ce     = False
+do_preprocess_subjects_ce  = False
+
 # --- Appendix Examples ---
-do_skew_normal_example  = False
+do_skew_normal_example     = False
+do_injectivity_analysis    = False
 
 # --- Document Compilation ---
 do_compile_doc          = True
@@ -337,7 +407,7 @@ if __name__ == '__main__':
         pipelines.run_prior_selection(
             DATA_DIR,
             rho=PRIOR_SELECTION['rho'],
-            alpha_0=PRIOR_SELECTION['alpha_0'],
+            kappa=PRIOR_SELECTION['kappa'],
             direct_prior=DIRECT_PRIOR
         )
 
@@ -350,6 +420,16 @@ if __name__ == '__main__':
             output_dir=PLOTS_DIR / 'priors',
             seed=SEEDS['sampling'],
             config=PRIOR_PREDICTIVE_CONFIG,
+        )
+
+    if do_sensitivity:
+        check_dependency('sensitivity', ['clean_data'])
+        pipelines.run_sensitivity(
+            direct_prior=DIRECT_PRIOR,
+            data_dir=DATA_DIR,
+            output_dir=DATA_DIR / 'output',
+            seed=SEEDS['sampling'],
+            config=SENSITIVITY_CONFIG,
         )
 
     # -------------------------------------------------------------------------
@@ -377,6 +457,27 @@ if __name__ == '__main__':
         uninformative_opts['plots_dir'] = PLOTS_DIR / 'rdu_bhm_uninformative'
         uninformative_opts['clean'] = True  # Clean previous uninformative runs
         pipelines.run_sampling(uninformative_opts, prior_params_path=uninformative_prior_path)
+
+    # -------------------------------------------------------------------------
+    # CE-Space Prior Selection and Sampling
+    # -------------------------------------------------------------------------
+    if do_generate_prior_ce:
+        pipelines.run_prior_selection_ce(
+            DATA_DIR,
+            ce_direct_prior=DIRECT_PRIOR_CE,
+            prior_selection_ce=PRIOR_SELECTION_CE,
+            ref_lotteries=REFERENCE_LOTTERIES,
+            distribution='beta',
+        )
+
+    if do_sampling_ce:
+        check_dependency('sampling_ce', ['clean_data'])
+        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
+        pipelines.run_sampling_ce(
+            sampling_opts_ce,
+            ref_lotteries=REFERENCE_LOTTERIES,
+            prior_params_path=prior_params_ce_path,
+        )
 
     # -------------------------------------------------------------------------
     # Preprocessing (Informative Prior)
@@ -411,6 +512,24 @@ if __name__ == '__main__':
             print(f"Skipping uninformative subject preprocessing: {history_dir_uninf} not found")
 
     # -------------------------------------------------------------------------
+    # Preprocessing (CE-Space Prior)
+    # -------------------------------------------------------------------------
+    history_dir_ce = get_mcmc_dir('rdu_bhm_ce') / 'history' / 'full'
+    preprocess_dir_ce = get_mcmc_dir('rdu_bhm_ce') / 'preprocessed'
+
+    if do_preprocess_hyper_ce:
+        if history_dir_ce.exists():
+            pipelines.run_preprocess_hyperparams(history_dir_ce, preprocess_dir_ce)
+        else:
+            print(f"Skipping CE preprocessing: {history_dir_ce} not found")
+
+    if do_preprocess_subjects_ce:
+        if history_dir_ce.exists():
+            pipelines.run_preprocess_subjects(history_dir_ce, preprocess_dir_ce / 'subjects')
+        else:
+            print(f"Skipping CE subject preprocessing: {history_dir_ce} not found")
+
+    # -------------------------------------------------------------------------
     # Plotting (Informative Prior)
     # -------------------------------------------------------------------------
     plots_dir_info = get_plots_dir('rdu_bhm')
@@ -424,7 +543,7 @@ if __name__ == '__main__':
         check_dependency('hyper_plots', ['clean_data'])
         from prior_selection import get_hyperprior_specs_for_plotting
         hyperprior_specs = get_hyperprior_specs_for_plotting(
-            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], alpha_0=PRIOR_SELECTION['alpha_0']
+            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], kappa=PRIOR_SELECTION['kappa']
         )
         # Use preprocessed data if available
         hyper_preprocessed = preprocess_dir_info / 'hyperparams_preprocessed.npz'
@@ -531,7 +650,7 @@ if __name__ == '__main__':
         info_hyper_path = preprocess_dir_info / 'hyperparams_preprocessed.npz'
         uninf_hyper_path = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
         hp_specs_info = get_hyperprior_specs_for_plotting(
-            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], alpha_0=PRIOR_SELECTION['alpha_0']
+            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], kappa=PRIOR_SELECTION['kappa']
         )
         pipelines.run_paper_plots(
             OUTPUTS['paper_quantities'], PLOTS_DIR / 'paper',
@@ -580,6 +699,12 @@ if __name__ == '__main__':
             output_dir=PLOTS_DIR / 'skew_normal',
             n_mc_samples=50000,
             seed=SEEDS['sampling'],
+        )
+
+    if do_injectivity_analysis:
+        pipelines.run_injectivity_analysis(
+            output_dir=PLOTS_DIR / 'injectivity',
+            config=INJECTIVITY_CONFIG,
         )
 
     # -------------------------------------------------------------------------

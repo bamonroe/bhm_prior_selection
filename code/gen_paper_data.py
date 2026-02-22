@@ -20,7 +20,7 @@ def gen_paper_data(output_path=None, direct_prior=None, prior_selection=None):
     Args:
         output_path: Path to save NPZ file (default: data/output/paper_data.npz)
         direct_prior: Dict with direct prior specification for each parameter
-        prior_selection: Dict with researcher choices (rho, alpha_0)
+        prior_selection: Dict with researcher choices (rho, kappa)
     """
     print("Loading data...")
     clean = load_clean_data()

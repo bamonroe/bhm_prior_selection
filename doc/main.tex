@@ -4,7 +4,7 @@
 
 \hyphenpenalty=10000
 
-\title{Observable-Space Prior Specification for Bayesian Hierarchical Models:\\
+\title{Quantity-Space Prior Specification for Bayesian Hierarchical Models:\\
 Theory and Applications to Risk Preferences}
 \author{
 	Brian Albert Monroe\\
@@ -27,6 +27,11 @@ Theory and Applications to Risk Preferences}
 \newcommand{\Var}[1]{\text{Var}\left[#1\right]}
 \newcommand{\Cov}[2]{\text{Cov}\left[#1, #2\right]}
 \DeclareMathOperator{\CE}{CE}
+\newcommand{\bth}{\boldsymbol{\theta}}
+\newcommand{\bv}{\boldsymbol{\vartheta}}
+\newcommand{\bg}{\mathbf{g}}
+\newcommand{\hype}{\boldsymbol{\psi}}
+\newcommand{\bx}{\boldsymbol{\xi}}
 
 \begin{document}
 
@@ -87,7 +92,7 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
   parameters per individual typically requires $4p$ hyperprior choices that
   lack direct interpretation. I develop a two-part framework for principled
   hyperprior construction. First, I show how researchers can specify prior
-  beliefs directly on observable quantities---such as certainty
+  beliefs directly on generated quantities---such as certainty
   equivalents---rather than structural parameters, using a Jacobian correction
   to translate between spaces. Second, I introduce a distribution-free variance
   decomposition that reduces the remaining degrees of freedom to two
@@ -108,7 +113,7 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
 \vspace{\fill}
 \small
 \textbf{Keywords:} Bayesian hierarchical models, hyperprior selection, prior
-elicitation, observable-space priors, risk preferences, rank-dependent utility
+elicitation, quantity-space priors, risk preferences, rank-dependent utility
 
 \textbf{JEL Classification:} C11, C25, D81
 
@@ -159,7 +164,7 @@ choices---a daunting prospect even for an expert.
 In this paper, I develop a two-part framework for constructing hyperpriors that
 addresses both the \textit{space} in which beliefs are specified and the
 \textit{structure} of the hyperprior itself. The first contribution is an
-observable-space prior specification: the researcher states beliefs about
+quantity-space prior specification: the researcher states beliefs about
 quantities they can reason about directly---certainty equivalents, choice
 probabilities---rather than abstract structural parameters. An invertible
 mapping and a Jacobian correction translate these beliefs into parameter-space
@@ -178,8 +183,8 @@ develops priors that avoid imposing strong information---half-Cauchy variance
 priors, penalized complexity priors---and has identified important pathologies
 in common choices like the Inverse-Gamma($\varepsilon$, $\varepsilon$) prior.
 The other camp, following \textcite{Kadane1980} and developed more recently by
-\textcite{Gabry2019} and \textcite{Bland2023}, advocates specifying priors
-through their implications for observable quantities, but has lacked the
+\textcite{Gabry2019} and \textcite{Bland2025}, advocates specifying priors
+through their implications for generated quantities, but has lacked the
 analytical machinery to translate predictive beliefs into hyperprior
 parameters. The framework developed here provides this machinery: it starts
 from the predictive intuition of the second camp and delivers closed-form
@@ -194,18 +199,18 @@ generality across model classes and provide controlled evidence on the
 performance of informative versus diffuse hyperpriors.
 
 The paper proceeds as follows. Section~\ref{sec:literature} reviews the two
-camps of the prior specification literature and positions the current
-contribution. Section~\ref{sec:observable_space} develops the observable-space
-prior specification framework, including the Jacobian correction, the
-treatment of noise parameters through choice probabilities, and the conditions
-for global injectivity. Section~\ref{sec:variance_decomposition} presents the
-variance decomposition methodology, introducing the $\kappa$ parameterization
-and mapping to specific distributional families.
-Section~\ref{sec:application_rdu} applies the framework to RDU estimation with
-real data. Sections~\ref{sec:application_cpt} and
-\ref{sec:application_discounting} present the CPT and discounting simulation
-studies. Section~\ref{sec:discussion} discusses practical guidance,
-limitations, and extensions. Section~\ref{sec:conclusion} concludes.
+camps of the prior specification literature.
+Section~\ref{sec:gq_space} develops the quantity-space prior
+specification via injective mappings and Jacobian corrections.
+Section~\ref{sec:variance_decomposition} introduces the distribution-free
+variance decomposition, reducing the remaining degrees of freedom to the
+interpretable parameters $\rho$ and $\kappa$.
+Section~\ref{sec:application_rdu} applies both contributions to RDU estimation
+with real data, demonstrating the CE mapping, choice probability specification,
+and NIG hyperprior derivation.
+Sections~\ref{sec:application_cpt} and \ref{sec:application_discounting}
+present simulation studies. Section~\ref{sec:discussion} discusses practical
+guidance and limitations. Section~\ref{sec:conclusion} concludes.
 
 
 %==============================================================================
@@ -213,330 +218,318 @@ limitations, and extensions. Section~\ref{sec:conclusion} concludes.
 \label{sec:literature}
 %==============================================================================
 
-The specification of prior distributions in hierarchical models has generated a
-large and sometimes conflicting literature. I organize this literature into two
-camps, distinguished by whether the researcher possesses---and wishes to
-encode---substantive domain knowledge about the parameters of interest.
+In a very strict sense, \textit{any} proper prior distribution will result in
+proper posterior distribution, a fact that often gives Bayesian methods an edge
+over other inferential methods, but this does not mean that all priors are
+equal. A large literature has developed around what might constitute a
+\textit{good} as opposed to a \textit{proper} prior.
+
+There are a variety of criteria that influence the judgment of how good a prior
+is, but both criteria and suggestions for priors can potentially be grouped
+into two camps: the first camp gives recommendations about \enquote{default}
+priors when the researcher actually has little to no information about the
+model (they have a weak or non-existent prior), and the second camp gives
+recommendations about priors when the researcher has at least \textit{some}
+information about the model (they have an informed prior), but may have trouble
+fully expressing it. I summarize some key insights from the two camps here,
+noting that the prior selection method I am proposing almost entirely
+contributes to the second camp.
+
 
 \subsection{Camp 1: Priors Without Strong Information}
 
 The first camp develops priors for settings where the researcher has limited
-domain knowledge or wishes to ``let the data speak.'' The classical approach
-uses reference priors \parencite{Jeffreys1961, BergerBernardo1992} derived from
-information-theoretic principles, but these are model-specific and do not
-naturally extend to hierarchical settings.
+domain knowledge or wishes to \enquote{let the data speak.} The classical
+approach uses reference priors \parencite{Jeffreys1961, BergerBernardo1992}
+derived from information-theoretic principles. Jeffreys' prior is famously
+often improper, although its use can still result in proper posterior
+distributions. The primary appeal of the Jeffreys prior as a default is that it
+is invariant to re-parameterization of the model from $\theta$ to $g(\theta)$,
+and that it is largely \enquote{uninformative}: the likelihood of data will
+quickly dominate the prior as the number of observations grow. Priors with this
+property are sometimes called \enquote{objective} or \enquote{reference}
+priors.
 
-For variance parameters in hierarchical models, \textcite{Gelman2006}
-identified a fundamental pathology: the widely used
-Inverse-Gamma($\varepsilon$, $\varepsilon$) prior, intended to be
-uninformative, in fact places substantial mass near zero and can strongly
-influence posterior inferences. Gelman recommended half-Cauchy priors for
-standard deviation parameters as a principled alternative.
-\textcite{PolsonScott2012} provided theoretical justification for half-Cauchy
-priors as global scale parameters in the context of global-local shrinkage,
-and \textcite{Carvalho2010} developed the horseshoe prior for
+One of the most common choices for a proper uninformative prior on variance
+parameters (which have a lower bound of 0) is the Inverse-Gamma($\varepsilon$,
+$\varepsilon$) prior.\footnote{
+  Used, for example, by \textcite{Gao2022}, and discussed later.
+} This prior puts tremendous mass near $0$ and has an exceedingly long right
+tail, but very low density over moderate values. However, \textcite{Gelman2006}
+identified a fundamental pathology with the Inverse-Gamma($\varepsilon$,
+$\varepsilon$) prior, which, although intended to be uninformative, can in fact
+strongly influence posterior inferences. Gelman recommended half-Cauchy
+priors for standard deviation parameters as a principled alternative.
+\textcite{PolsonScott2012} provided additional theoretical justification for
+half-Cauchy priors as global scale parameters in the context of global-local
+shrinkage, and \textcite{Carvalho2010} developed the horseshoe prior for
 high-dimensional sparse settings.
 
-\textcite{Simpson2017} proposed penalized complexity (PC) priors, which
-penalize model components for deviating from a simpler base model using
-Kullback-Leibler divergence. PC priors are calibrated through a single
-interpretable quantity---the probability of exceeding a user-specified
-threshold---and provide a disciplined way to express skepticism about
-complexity without encoding positive beliefs about parameter values.
+\textcite{Simpson2017}, noting the difficulty in applying objective priors to
+hierarchical models, proposed penalized complexity (PC) priors, which penalize
+model components for deviating from a simpler base model using Kullback-Leibler
+divergence. PC priors are calibrated through a single interpretable quantity,
+the probability of exceeding a user-specified threshold, and provide a
+disciplined way to express skepticism about complexity while trying to still
+minimize the information share of the prior.
+\textcite{GelmanSimpsonBetancourt2017} further discuss the need for more formal
+treatment of prior selection when the researcher cannot formulate a prior
+before the data being modeled is collected, noting that models are often
+developed while examining the data, and in these circumstances, it can be
+impossible to specify a prior distribution that encodes expert knowledge.
 
-These contributions solve genuine problems: the IG($\varepsilon$, $\varepsilon$)
-pathology is real and consequential, and PC priors provide elegant solutions
-for specific model classes. However, they share a limitation: they do not
-provide a mechanism for encoding substantive domain knowledge when it exists.
-A researcher who knows from decades of experiments that CRRA coefficients
-typically fall between 0.2 and 0.8 gains nothing from a prior designed to
-express ignorance.
+The literature on recommendations for uninformative or default priors is much
+more vast than is indicated here. The practical contribution of this collective
+work is tremendous, in part because of the difficulty in truthfully encoding
+expert domain specific knowledge into a joint probability distribution, and
+also in part because that domain knowledge may not exist. The method I propose
+in this paper, however, is to help researchers encode domain specific knowledge
+into their priors, which is the focus of the second camp of the literature on
+prior distributions.
+
 
 \subsection{Camp 2: Priors When Knowledge Is Available}
 
-The second camp develops methods for translating substantive knowledge into
-prior distributions. The foundational work of \textcite{Kadane1980}
-established the paradigm of \textit{predictive elicitation}: rather than
-asking an expert to specify prior parameters directly, one asks about
-observable quantities---predictions, effect sizes, test statistics---and
-derives compatible prior distributions. \textcite{KadaneWolfson1998}
-distinguished \textit{structural elicitation} (asking about parameters) from
-\textit{predictive elicitation} (asking about observables), arguing that the
-latter is more cognitively natural. \textcite{Garthwaite2005} provided a
-comprehensive review of elicitation methods, and \textcite{OHagan2006}
-developed the theory further.
+The second camp develops methods for when that domain knowledge does exist, and
+the researcher wishes to translate it into prior distributions.
+\textcite{Kadane1980} established the paradigm of \enquote{predictive
+elicitation}: rather than asking an expert to specify prior parameters
+directly, one asks about observable quantities (predictions, effect sizes, test
+statistics, etc.) and derives compatible prior distributions.
+\textcite{KadaneWolfson1998} distinguished \enquote{structural elicitation}
+(asking about parameters) from \textit{predictive elicitation} (asking about
+observables), arguing that the latter is more cognitively natural.
 
-More recently, \textcite{Gabry2019} advocated a Bayesian workflow in which
-prior predictive checking---simulating observable implications of the
-prior---is a central step. \textcite{GelmanSimpsonBetancourt2017} argued
-that ``the prior can often only be understood in the context of the
-likelihood,'' motivating specification in terms of observable consequences.
-\textcite{Mikkola2024} surveyed the modern elicitation landscape, noting the
-gap between theoretical frameworks and practical tools.
+Actually \textit{eliciting} the beliefs of individuals is a substantial
+literature onto itself, largely contributed to by psychologists and economists.
+I provide only a brief overview of this literature. In the economics
+literature, subjective beliefs are largely elicited through the consequence of
+revealed preferences. Individuals who make risky bets are said to reveal their
+subjective probabilities about those events jointly with their risk
+preferences.
 
-In the experimental economics literature specifically, \textcite{Bland2023}
-proposed calibrating priors for structural models by examining their
-implications for certainty equivalents---the closest existing precursor to the
-present work. Bland's approach is informal, relying on visual inspection of
-prior predictive distributions and manual adjustment, where the framework
-developed here provides closed-form solutions.
-\textcite{SegertDavisStober2019} developed Jacobian-based transformations
-between parameter and observable spaces for individual-level (non-hierarchical)
-models of risky choice, establishing the mathematical foundation that the
-present work extends to hierarchical settings.
+The economics literature on belief elicitation is dominated by the proper
+scoring rule (PSR) initially discussed by \textcite{Juster1966}, and more
+formally developed by \textcite{Winkler1969}, \textcite{Murphy1970}.
+\textcite{Savage1971} details further examples of how one might elicit
+subjective probabilities of events using the auction design of
+\textcite{Becker1964}, noting the complication of risk aversion in inference.
+The complication of risk-aversion confounding direct inference of beliefs from
+observed behavior has lead to techniques to correct inference about beliefs
+from observed choices. \textcite{Harrison2017b}, \textcite{Harrison2019a}
+propose methods for correcting proper scoring rule elicitations given an
+individual conforms to Expected Utility Theory (EUT) or Rank Dependent Utility
+(RDU) \parencite{Quiggin1982} risk preferences. \textcite{Offerman2009}
+provides a method for eliciting beliefs that corrects for risk preferences, but
+can sometimes result in the inference of non-proper distributions.
+\textcite{Hossain2013} further develop and popularize the method of using a
+PSR, but paying in \textit{utilities} as opposed to monetary outcomes, as
+initially proposed by \textcite{Smith1961}, which \textit{risk-neutralizes} the
+subject, and allows one to infer beliefs \textit{directly} from observed choice
+behavior. \textcite{Schlag2015} provides an excellent overview of other ways
+that economists elicit beliefs.
 
-\textcite{Manderson2023} proposed a general approach to translating predictive
-beliefs into prior distributions using Kullback-Leibler optimization, but their
-method requires black-box numerical optimization where the framework developed
-here provides closed-form solutions for standard distributional families.
+In addition to the substantial economics literature on belief elicitation,
+psychologists have contributed greatly to practical methods, and identified
+many difficulties in attempting to directly ask individuals for subjective
+probabilities about events. \textcite{Garthwaite2005} provided a comprehensive
+review of elicitation methods, with later additional contributions to the
+literature on direct elicitation measures and its difficulties by
+\textcite{Manski2004, Manski2010,OHagan2006}, and many others.
+\textcite{Mikkola2024} provides a more modern review of elicitation techniques,
+noting, as \textcite{GelmanSimpsonBetancourt2017} does, the gap between
+theoretical frameworks and practical tools.
 
-\subsection{BHMs in Experimental and Behavioral Economics}
+When a researcher \textit{does} have informed beliefs about relevant quantities
+that are encoded into probability distributions, there are many suggestions
+about how best to utilize them in Bayesian analysis. \textcite{Gabry2019}
+discuss a Bayesian workflow in which they suggest that prior predictive
+checking be used iteratively to check the reasonableness of the prior. In the
+experimental economics literature specifically, \textcite{Bland2025} proposed
+calibrating priors for structural models by examining their implications for
+certainty equivalents.
 
-BHMs have become standard in behavioral economics.
-\textcite{Gao2022} estimated a rank-dependent utility BHM to assess behavioral
-welfare, using diffuse hyperpriors that the present paper uses as a comparison
-case. \textcite{Nilsson2011} applied hierarchical Bayesian estimation to
-cumulative prospect theory, and \textcite{Vincent2016} developed hierarchical
-Bayesian methods for delay discounting tasks.
+Drawing connections between prior predictive distributions and prior
+distributions are actively being explored in the general statistics literature.
+\textcite{Manderson2026} proposed a general approach to translating predictive
+beliefs into prior distributions using Kullback-Leibler optimization, which can
+numerically match the prior predictive to some prior distribution.
+\textcite{Segert2019} developed Jacobian-based transformations between
+parameter and observable spaces for individual-level (non-hierarchical) models.
+They focus on the conceptual consistency of non-informative predictive
+distributions and what they mean for prior distributions, but note that their
+methods are applicable to informed prior predictive distributions as well.
 
-Outside behavioral economics, the idea of specifying priors through observable
-implications has appeared in macroeconometrics. \textcite{DelNegroSchorfheide2008}
-formed priors for DSGE models by matching model-implied moments to
-pre-sample data---a form of observable-space prior specification.
-\textcite{Villani2009} developed steady-state priors for vector
-autoregressions, specifying beliefs about long-run equilibrium values
-(observables) rather than reduced-form coefficients (parameters).
+These contributions collectively establish a foundation that the present paper
+builds on. \textcite{Segert2019} develop the Jacobian-based transformation
+between parameter and observable spaces for individual-level models;
+\textcite{Bland2025} demonstrates the value of calibrating priors through
+their implications for certainty equivalents; \textcite{Manderson2026} provides
+a general numerical framework for matching prior predictive beliefs to prior
+distributions. What has not yet been addressed is how to extend these ideas to
+the hierarchical setting --- where the $4p$ problem is most acute --- and how
+to do so analytically, yielding closed-form hyperprior parameters from
+interpretable inputs. The present paper provides this extension: starting from
+a researcher's beliefs about generated quantities for a single individual, I
+derive the full hyperprior through a Jacobian correction and a
+distribution-free variance decomposition. This process places the emerging
+consensus that prior predictive distributions ought to be a primary criteria
+for prior setting at the forefront of the process, and helps extend this
+process to hierarchical settings.
 
-\subsection{Positioning}
-
-The present paper provides the first systematic derivation of hyperpriors from
-individual-level beliefs about observable quantities, combining Camp~2's
-predictive insight with Camp~1's analytical rigor. The variance decomposition
-framework is distribution-free---it applies to any hyperprior family with
-defined first and second moments---and the $\rho$ and $\kappa$ parameters
-provide the same interpretability as PC priors' threshold parameters while
-encoding positive beliefs rather than penalizing complexity.
 
 
 %==============================================================================
-\section{Observable-Space Prior Specification}
-\label{sec:observable_space}
+\section{General Hyperprior Specification from Generated Quantities}
+\label{sec:gq_space}
 %==============================================================================
 
-\subsection{General Framework}
-\label{sec:general_framework}
+While the primary motivation for this paper is to extend principled prior
+selection to structural models of risk preferences, the method is generalizable
+to many other structural models. I therefore begin with a general model, and
+extend this later into the risk preference domain.
 
-Consider a model with $p$ structural parameters
-$\boldsymbol{\theta} = (\theta^1, \ldots, \theta^p) \in \Omega \subseteq
-\mathbb{R}^p$ and an invertible mapping
-$\mathbf{g}: \Omega \to \mathbb{R}^p$ that takes parameters to $p$
-observable quantities $\mathbf{Y} = \mathbf{g}(\boldsymbol{\theta})$. The
-researcher specifies a prior density $p_{\mathbf{Y}}(\mathbf{y})$ directly on
-the observable space. The induced prior on parameter space is:
+\subsection{Quantity-Space Prior Specification}
+
+Consider a model with $p$ structural parameters $\bth =
+(\theta^1, \ldots, \theta^p) \in \Omega \subseteq \mathbb{R}^p$ and an
+injective mapping $\bg: \Omega \to \mathbb{R}^k$ that takes parameters
+to $k \geq p$ generated quantities $\bv{} = \bg(\bth)$.\footnote{
+  This is a weaker requirement than bijectivity, and permits a wider range of
+  predictive quantities to be used in prior setting. The function $\bg$
+  must be one-to-one on its domain $\Omega$, but it does not need to map onto
+  all of $\mathbb{R}^k$. The conditions needed for injectivity must be checked
+  on a case by case basis.
+}
+The researcher specifies a prior density $p_{\vartheta}(\bv{})$ directly on the
+quantity space. The induced prior on the parameter space is:
 \begin{equation}
   \label{eq:jacobian_prior}
-  p(\boldsymbol{\theta}) = p_{\mathbf{Y}}\!\left(\mathbf{g}(\boldsymbol{\theta})\right)
-  \left|\det J_{\mathbf{g}}(\boldsymbol{\theta})\right|
+  p_\theta(\bth) = p_{\vartheta}\!\left(\bv{}\right) \sqrt{\det\!\left(J_{\bg}^\top J_{\bg}\right)}
 \end{equation}
-where $J_{\mathbf{g}}(\boldsymbol{\theta})$ is the $p \times p$ Jacobian matrix
-with entries $(J_{\mathbf{g}})_{kj} = \partial g_k / \partial \theta^j$. The
-absolute determinant corrects for the nonlinear warping of volume elements
-between the two coordinate systems.
+where $J_{\bg}$ is the $k \times p$ Jacobian matrix of $\bg{}$, and $J_{\bg}^\top
+J_{\bg}$ is the $p \times p$ Gram matrix. The Gram determinant
+$\sqrt{\det(J_\bg{}^\top J_\bg{})}$ measures the $p$-dimensional volume of the
+parallelepiped spanned by the columns of $J$ in $\mathbb{R}^k$.
 
-Three features of (\ref{eq:jacobian_prior}) are worth emphasis. First, only the
-\textit{forward} mapping $\mathbf{g}$ and its Jacobian are needed---not the
-inverse $\mathbf{g}^{-1}$. In practice, automatic differentiation (e.g.,
-\texttt{jax.jacfwd}) computes the Jacobian exactly with computational cost
-comparable to a single forward evaluation of $\mathbf{g}$. Second, when
-$\mathbf{g}$ is the identity mapping, $J_{\mathbf{g}} = I$ and
-(\ref{eq:jacobian_prior}) reduces to $p(\boldsymbol{\theta}) =
-p_{\mathbf{Y}}(\boldsymbol{\theta})$---the standard parameter-space
-specification is a special case. Third, the mapping must be injective on the
-prior support for the induced density to be well-defined; the conditions for
-this are developed in Section~\ref{sec:injectivity}.
+This adjustment to a probability distribution is well known, although it is
+usually presented in the special case where $k = p$ and
+$\sqrt{\det(J_\bg{}^\top J_\bg{})} = |\det J|$. \textcite[108-110]{Segert2019}
+discuss the detailed mathematical derivation of this formula and note the
+correction via the Coarea Formula needed when $k \leq p$. Given the focus of
+risk preference models, and the abundance of possible prior quantities on
+economic variables derived from risk preferences, we will only focus on the
+cases where $k \geq p$, with particular emphasis on $k = p$.
 
-\subsection{Case 1: Certainty Equivalent Space}
-\label{sec:ce_space}
-
-For models of risk preferences, the certainty equivalent (CE) provides a
-natural observable-space coordinate system. Given a lottery $L$ with outcomes
-$\mathbf{x}$ and probabilities $\mathbf{p}$, the CE is the amount of money
-for certain that provides equivalent utility:
-\begin{equation}
-  \label{eq:ce_definition}
-  u(\CE; \boldsymbol{\theta}) = \sum_k d_k(\boldsymbol{\theta}) \,
-  u(x_k; \boldsymbol{\theta})
-\end{equation}
-where $u(\cdot; \boldsymbol{\theta})$ is the utility function and
-$d_k(\boldsymbol{\theta})$ are decision weights. For the RDU model with
-CRRA utility and Prelec probability weighting, the preference parameters
-$\boldsymbol{\theta}_{\text{pref}} = (r, \phi, \eta)$ determine the CE of any
-lottery. The noise parameter $\lambda$ does not affect the CE, and is handled
-separately (Section~\ref{sec:choice_prob}).
-
-Choosing three reference lotteries $L_1, L_2, L_3$ with suitably diverse
-characteristics defines the mapping:
-\begin{equation}
-  \mathbf{g}(r, \phi, \eta) = \left(\CE_1, \CE_2, \CE_3\right)
-\end{equation}
-The researcher then specifies beliefs in dollar terms:
-\begin{quote}
-  \textit{``For a lottery paying \$10, \$30, or \$50 with equal probability, I
-  expect a typical person's certainty equivalent to be around \$25, with a
-  standard deviation of about \$8.''}
-\end{quote}
-These are statements about dollars, not about abstract curvature parameters.
-Formally, the direct prior in CE space is:
-\begin{equation}
-  \label{eq:ce_prior}
-  Y_i^k \sim \text{Normal}(m^{k*}, s^{2k*}), \qquad k = 1, 2, 3
-\end{equation}
-where $m^{k*}$ and $s^{2k*}$ encode the researcher's beliefs about the
-expected CE and its variance across individuals for reference lottery $k$.
-
-\paragraph{Jacobian structure.} For the RDU-Prelec model, the Jacobian of the
-CE mapping has specific structure. The $r$-column involves $\ln x_j$ terms
-(sensitivity of utility to curvature), while the $\phi$ and $\eta$ columns
-involve Prelec derivatives. Crucially, the ratio of the $\phi$ and $\eta$
-partial derivatives at any probability $p$ is
-$\partial w / \partial \phi \big/ \partial w / \partial \eta = \eta \ln(-\ln p)$,
-which \textit{depends on} $p$. This means the $\phi$ and $\eta$ columns of the
-Jacobian are non-proportional whenever the reference lotteries have distinct
-cumulative probability structures---the generic condition for local
-invertibility.
-
-\subsection{Case 2: Choice Probability Space}
-\label{sec:choice_prob}
-
-The noise parameter $\lambda$ governs the precision of choices but does not
-affect deterministic preferences (certainty equivalents). It can be
-incorporated into the observable-space framework by specifying beliefs about a
-\textit{choice probability} for a reference lottery pair.
-
-Consider a lottery pair $(A, B)$ where lottery $A$ is clearly superior for a
-risk-neutral agent. The probability that an individual chooses $A$ is:
-\begin{equation}
-  P(\text{choose } A \mid \boldsymbol{\theta}, \lambda) =
-  \frac{1}{1 + \exp\!\left(-\Delta(\boldsymbol{\theta}) / \lambda\right)}
-\end{equation}
-where $\Delta(\boldsymbol{\theta})$ is the normalized utility difference. For
-\textit{fixed} $\boldsymbol{\theta}$, this is a monotone function of $\lambda$:
-larger $\lambda$ (more noise) pushes the choice probability toward $1/2$.
-
-The researcher might specify: ``For this pair where $A$ clearly dominates, I
-expect about 90\% of a typical agent's choices to be $A$, with standard
-deviation 10\%.'' This pins down the prior for $\lambda$ (or equivalently
-$\ln \lambda$) through the inverse of the choice probability function.
-
-\subsection{Joint Specification and Block-Triangular Jacobian}
-\label{sec:block_jacobian}
-
-The full 4-parameter mapping combines the CE and choice probability
-specifications:
-\begin{equation}
-  \mathbf{g}(r, \phi, \eta, \lambda) = \left(\CE_1, \CE_2, \CE_3, P_{\text{choice}}\right)
-\end{equation}
-Since the CEs do not depend on $\lambda$, the Jacobian has a block-triangular
-structure:
-\begin{equation}
-  J_{\mathbf{g}} = \begin{pmatrix}
-    J_{\CE} & \mathbf{0} \\[4pt]
-    \mathbf{v}^\top & \dfrac{\partial P}{\partial \lambda}
-  \end{pmatrix}
-\end{equation}
-where $J_{\CE}$ is the $3 \times 3$ Jacobian of the CE mapping,
-$\mathbf{v}^\top$ captures the dependence of $P_{\text{choice}}$ on
-$(r, \phi, \eta)$, and $\partial P / \partial \lambda$ is the sensitivity of the
-choice probability to noise. The determinant factors cleanly:
-\begin{equation}
-  \det J_{\mathbf{g}} = \det(J_{\CE}) \times \frac{\partial P}{\partial \lambda}
-\end{equation}
-This factorization means that the CE invertibility conditions and the
-choice-probability monotonicity are \textit{separable}: one can verify each
-independently. Since $P$ is strictly monotone in $\lambda$ for any fixed
-$\boldsymbol{\theta}$ with $\Delta \neq 0$, the choice-probability component
-is always locally invertible.
-
-\subsection{Global Injectivity}
-\label{sec:injectivity}
-
-Local invertibility ($\det J_{\mathbf{g}} \neq 0$ everywhere) is necessary but
-not sufficient for global injectivity. In particular, when all reference
-lotteries share a common prize vector, the CE mapping can fail to be globally
-injective: changes in utility curvature (governed by $r$) can be exactly
-compensated by changes in probability weighting (governed by $\phi$ and $\eta$),
-producing distinct parameter vectors with identical certainty equivalents.
-
-The compensation mechanism arises because shared prizes mean all lotteries test
-utility curvature at the \textit{same} prize levels. The parameter $r$ then
-enters through a single scalar function $R(r) = \Delta_{23}(r)/\Delta_{12}(r)$
-common to all three CE equations, creating an effectively lower-dimensional
-image.
-
-This obstruction is broken by \textit{prize diversity}: using reference
-lotteries with at least two distinct prize vectors. With different prizes, $r$
-enters through multiple independent channels---each lottery has its own
-$R_k(r)$ function---and the compensation mechanism generically fails.
-
-\begin{quote}
-  \textbf{Proposition (Prize Diversity).}
-  \textit{For a model with $p_1$ utility parameters and $p_2$ weighting
-  parameters ($p_1 + p_2 = p$), the CE mapping with $K = p$ lotteries is
-  globally injective (for generic probability structures) if the lotteries have
-  (a) distinct cumulative probability structures (separating weighting
-  parameters), (b) at least $p_1 + 1$ distinct prize vectors (overdetermining
-  utility parameters given weighting parameters), and (c) $\det J \neq 0$
-  everywhere.}
-\end{quote}
-
-For the RDU-Prelec model with $p_1 = 1$ (only $r$ is a utility parameter), at
-least 2 distinct prize vectors are needed among the 3 reference lotteries.
-Changing a single middle prize suffices: using $(10, 25, 50)$ instead of
-$(10, 30, 50)$ for one lottery breaks the compensation entirely. The practical
-recommendation is simple: use at least two distinct prize vectors among the
-reference lotteries. Detailed proofs, numerical verification, and
-counterexamples are provided in Appendix~\ref{app:global_injectivity}.
-
-
-%==============================================================================
-\section{Hyperprior Derivation via Variance Decomposition}
-\label{sec:variance_decomposition}
-%==============================================================================
-
-\subsection{General Framework}
-\label{sec:general_vd}
-
-Whether the researcher specifies beliefs in parameter space or observable
-space, the law of total variance provides the bridge from individual-level
-beliefs to population-level hyperpriors. Let $Y = g(\boldsymbol{\theta})$
-denote the quantity about which beliefs are specified (which may be a parameter
-itself, in the identity case). The unconditional moments decompose as:
-\begin{align}
-  \label{eq:iterated_exp}
-  m^* = \E{Y_i} &= \E{\E{Y_i \mid \boldsymbol{\psi}}} \\
-  \label{eq:total_var}
-  v^* = \Var{Y_i} &= \underbrace{\E{v(\boldsymbol{\psi})}}_{\substack{\text{average within-population} \\ \text{variance}}} + \underbrace{\Var{m(\boldsymbol{\psi})}}_{\substack{\text{between-population} \\ \text{variance}}}
-\end{align}
-where $\boldsymbol{\psi}$ denotes the hyperprior parameters,
-$m(\boldsymbol{\psi}) \coloneqq \E{Y_i \mid \boldsymbol{\psi}}$ is the
-conditional mean, and $v(\boldsymbol{\psi}) \coloneqq
-\Var{Y_i \mid \boldsymbol{\psi}}$ is the conditional variance. Equations
-(\ref{eq:iterated_exp})--(\ref{eq:total_var}) hold for any hyperprior family
-with defined first and second moments---they are consequences of the laws of
-iterated expectations and total variance, not properties of a particular
-distributional choice.\footnote{
-  In general, if the direct prior has $n$ degrees of freedom, the expansion
-  requires $n$ equations using the law of total cumulance. For cumulant
-  $\kappa_n$: $\kappa_n(Y) = \E{\kappa_n(Y|X)} + g_n(\kappa_1, \ldots,
-  \kappa_{n-1})$ where $g_n$ involves lower-order cumulants. An example using
-  the 3-parameter Skew-Normal distribution, which requires matching three
-  cumulants, is given in Appendix~\ref{app:skew_normal}.
+In practical terms, it is worth emphasizing that only the \textit{forward}
+mapping $\bg$ and its Jacobian are needed: the inverse, $\bg^{-1}$, does not
+need to be solved at any point. This is a relief, given that many economic
+quantities of interest do not have analytical inverse functions even if
+$\bg{}$ can be proven to be injective, and numerical inversions can be
+computationally prohibitive.\footnote{
+  In practice, popular tools like the SymPy python library or Mathematica can
+  be used to derive an analytical form for the Jacobian, if one exists.
+  Additionally, automatic differentiation, as is used in the popular Stan
+  statistical software and JAX python library, efficiently computes both
+  $\bg(\bth)$ and $J_\bg{}$ directly without first having to solve their
+  analytical form, further reducing the barriers for use of this method.
 }
 
-When $\mathbf{g} = \text{id}$ (parameter-space specification), the conditional
-moments simplify to $m(\mu, \sigma^2) = \mu$ and $v(\mu, \sigma^2) = \sigma^2$,
-recovering the standard decomposition
-$\sigma^{2*} = \E{\sigma^2} + \Var{\mu}$.
+\textcite{Manderson2026} solve the same problem numerically for models
+where the mapping $\bg$ may not be analytically tractable: they match the
+full prior predictive distribution to an elicited target via Bayesian
+optimisation, without requiring a closed-form Jacobian.
+
+Equation (\ref{eq:jacobian_prior}) is the starting point of the proposed
+method. I presume that a researcher can specify proper probability
+distributions over $k \geq p$ generated quantities that are related to the $p$
+model parameters through a provably injective mapping $\bg$, for some randomly
+selected individual from a population of exchangeable individuals. I call this
+specified individual-level prior a \enquote{direct prior.} For a model of a
+single random individual, with the direct prior in hand, the prior
+specification exercise would be over. However, we are primarily concerned with
+Bayesian Hierarchical Models (BHMs), and therefore must specify a
+\textit{hyperprior} distribution.
+
+
+\subsection{Hyperprior Construction via Variance Decomposition}
+\label{sec:variance_decomposition}
+
+Consider for now a hierarchical model where $k = p = 1$, and therefore
+$\bv{}_i$ is a scalar that represents a quantity of interest about which a
+researcher has specified a direct prior $p^*_\vartheta(\bv{})$. The
+prior here represents the researcher's informed belief about the quantity
+$\bv{}$ for a single randomly selected individual from a population. If all
+individuals from the population are exchangeable, then this prior must equally
+apply to all individuals in the population. The direct prior therefore
+integrates over all possible heterogeneity in the population:
+\begin{align}
+\label{eq:dp_total}
+p^*_\vartheta(\bv{}) = \int p_\vartheta(\bv{} \mid \hype{})\, p(\hype{} \mid \bx{})\, d\hype{}
+\end{align}
+\noindent where $\hype{}$ are the \textit{hyperparameters} that govern the
+population distribution of the generated quantity $\bv{}$, and
+$p(\hype{} \mid \bx{})$ is the \textit{hyperprior}, a prior over $\hype{}$
+parameterized by $\bx{}$. The equality in (\ref{eq:dp_total}) specifies the
+primary restriction needed to transfer a prior about a random individual, the
+\textit{direct} prior, to hyperpriors over the population. The goal is to find
+hyperprior parameters $\bx{}$ such that (\ref{eq:dp_total}) holds.
+
+An intuitive path is to match the moments of the direct prior to those of the
+hyperprior predictive distribution of $\bv{}$. The most common distributions
+used to specify priors have 2 parameters that biject to the first two moments,
+which in turn fully determine all higher moments.\footnote{
+  For example, the Normal distribution is defined by its mean and standard
+  deviation, and all higher cumulants are zero. The Beta distribution has
+  $\alpha$ and $\beta$ parameters that biject to the first two moments. This
+  relationship holds for a wide class of commonly used distributions.
+} I focus for now on this common 2-parameter case, denoting the mean of the
+direct prior $m^*$ and the variance $v^*$.\footnote{
+  The method requires moments to \textit{exist}, not to be available in closed
+  form. Distributions whose moments must be computed numerically, such as the
+  Logit-Normal, are perfectly feasible. Unfortunately, this does rule out the
+  popular Cauchy distribution, which has \textit{no} moments.
+}
+
+
+The law of total variance provides the bridge from moments of the direct prior
+to population-level hyperpriors. If we first define the conditional mean and
+variance as:
+\begin{align}
+  m(\hype) &= \E{\bv_i | \hype{}} \\
+  v(\hype) &= \Var{\bv_i | \hype{}}
+\end{align}
+\noindent then the unconditional mean and variance decompose as:
+\begin{align}
+  \label{eq:iterated_exp}
+  m^* = \E{\bv_i} &= \E{m(\hype)} \\
+  \label{eq:total_var}
+  v^* = \Var{\bv_i} &= \E{v(\hype)} + \Var{m(\hype)}
+\end{align}
+Equations
+(\ref{eq:iterated_exp})-(\ref{eq:total_var}) hold for \textit{any} hyperprior
+family with defined first and second moments. They are consequences of the laws
+of iterated expectations and total variance, not properties of a particular
+distributional choice.\footnote{
+  This moment matching exercise can be extended to higher moments. If the
+  direct prior has $n$ degrees of freedom, the expansion requires $n$ equations
+  using the law of total cumulance. For the $n$-th cumulant $c_n$: $c_n(\theta)
+  = \E{c_n(\theta|X)} + g_n(c_1, \ldots, c_{n-1})$ where $g_n$
+  involves lower-order cumulants. An example using the 3-parameter Skew-Normal
+  distribution, which requires matching three cumulants, is given in Appendix
+  \ref{app:skew_normal}.
+}
+As an example, for a normal hierarchical model with $\bv_i \sim N(\mu,
+\sigma^2)$, the hyperparameters are themselves the conditional mean and
+variance:
+\begin{align}
+  \begin{split}
+    \mu &= m(\mu, \sigma^2) \\
+    \sigma^2 &= v(\mu, \sigma^2) \\
+    m^* &= \E{\mu} \\
+    v^* &= \E{\sigma^2} + \Var{\mu}
+  \end{split}
+\end{align}
 
 \subsection{Two Interpretable Parameters}
 
@@ -544,88 +537,78 @@ The decomposition (\ref{eq:total_var}) separates the direct prior variance
 $v^*$ into two components. I parameterize this partition with a ratio:
 \begin{align}
   \label{eq:rho_def}
-  \rho \, v^* &= \Var{m(\boldsymbol{\psi})} \\
+  \rho \, v^* &= \Var{m(\hype{})} \\
   \label{eq:one_minus_rho}
-  (1 - \rho) \, v^* &= \E{v(\boldsymbol{\psi})}
+  (1 - \rho) \, v^* &= \E{v(\hype{})}
 \end{align}
-where $\rho \in (0, 1)$ is the \textbf{variance partition ratio}: the fraction
-of direct prior variance attributable to uncertainty about the population center,
-as distinguished from genuine within-population heterogeneity.
-
-The interpretation is concrete: if $\rho = 0.2$, the researcher believes that
-80\% of their uncertainty about a random individual comes from knowing that
-people genuinely differ, and only 20\% from not knowing where the population is
-centered. Low $\rho$ reflects a belief in substantial heterogeneity; high $\rho$
+where $\rho \in (0, 1)$ is the variance partition ratio: the fraction
+of direct prior variance attributable to uncertainty about the population
+mean, as opposed to the expected level of within-population
+heterogeneity.\footnote{
+  The ratio $\rho$ is numerically equivalent to the variance partition
+  coefficient \parencite{Goldstein2002} and the intraclass correlation
+  coefficient, which are widely used as posterior diagnostics in multilevel
+  modelling. Here $\rho$ serves a different purpose: it is a fixed researcher
+  choice for prior construction, not a summary of a fitted model.
+  \textcite{Fuglstad2020} also use variance proportions as prior inputs, but
+  in a different decomposition: they partition variance across model
+  components, with the proportions treated as random variables.
+} Low $\rho$ reflects a belief in substantial heterogeneity; high $\rho$
 reflects a belief that most uncertainty would be resolved by learning the
 population mean.
 
-With $\rho$ fixed, the expected population variance
-$\E{v(\boldsymbol{\psi})} = (1-\rho) v^*$ involves the first moment of the
-variance hyperprior. Its \textit{second moment}---how uncertain the researcher is
-about the level of heterogeneity---requires a second parameter. I introduce the
-\textbf{coefficient of variation of heterogeneity}:
-\begin{equation}
+With $\rho$ fixed, the expected population variance $\E{v(\hype{})} = (1-\rho)
+v^*$ involves the first moment of the variance hyperprior. Its \textit{second
+moment}---how uncertain the researcher is about the level of
+heterogeneity---requires a second parameter. I introduce the
+coefficient of variation of heterogeneity:
+\begin{align}
   \label{eq:kappa_def}
-  \kappa \coloneqq \frac{\text{SD}[\sigma^2]}{\E{\sigma^2}}
-\end{equation}
-which measures relative uncertainty about the variance hyperparameter. This
-parameterization is distribution-free: $\kappa$ is defined without reference to
-any specific family for $\sigma^2$. Its interpretation is direct:
-\begin{itemize}
-  \item $\kappa \to 0$: the researcher is certain about the level of population
-    heterogeneity.
-  \item $\kappa = 1$: substantial uncertainty; the standard deviation of $\sigma^2$
-    equals its mean.
-  \item $\kappa > 1$: very high uncertainty about heterogeneity.
-\end{itemize}
-
-Both $\rho$ and $\kappa$ are unit-agnostic: neither requires intuition about
-the scale of the parameters or observables. That scale-specific information is
-encoded in the direct prior $(m^*, v^*)$; the researcher choices $(\rho,
-\kappa)$ express structural beliefs about how that variance decomposes across
-the hierarchy.
-
-\subsection{Mapping to Specific Distributional Families}
-
-The researcher choices $(\rho, \kappa)$, combined with the direct prior moments
-$(m^*, v^*)$, provide sufficient constraints to determine the hyperprior
-parameters for any family with defined first and second moments. I develop the
-mapping for two standard families.
-
-\paragraph{Normal-Inverse-Gamma (unbounded parameters).}
-For parameter-space specification with
-$\theta_i \mid \mu, \sigma^2 \sim N(\mu, \sigma^2)$,
-$\mu \sim N(\mu_0, \tau_0^2)$, and
-$\sigma^2 \sim \text{IG}(\alpha_0, \beta_0)$:
-\begin{align}
-  \mu_0 &= m^* \label{eq:nig_mu0} \\
-  \tau_0^2 &= \rho \, v^* \label{eq:nig_tau0} \\
-  \alpha_0 &= 2 + 1/\kappa^2 \label{eq:nig_alpha0} \\
-  \beta_0 &= (1 - \rho) \, v^* (\alpha_0 - 1) \label{eq:nig_beta0}
+  \begin{split}
+    \kappa &\coloneqq \frac{\text{SD}[v(\hype{})]}{\E{v(\hype{})}} \\[.75em]
+    {} &\coloneqq \frac{\text{SD}[v(\hype{})]}{(1 - \rho) \, v^*}
+  \end{split}
 \end{align}
-The mapping from $\kappa$ to $\alpha_0$ follows from the variance of the
-Inverse-Gamma distribution: $\text{Var}[\sigma^2] = \beta_0^2 /
-[(\alpha_0-1)^2(\alpha_0-2)]$, so
-$\kappa^2 = \text{Var}[\sigma^2] / \E{\sigma^2}^2 = 1/(\alpha_0-2)$, giving
-$\alpha_0 = 2 + 1/\kappa^2$. Setting $\kappa = 1/\sqrt{\alpha_0 - 2}$
-recovers the original $\alpha_0$ parameterization used in the univariate case.
+which measures relative uncertainty about the variance hyperparameter.\footnote{
+  The coefficient of variation of the inverse-gamma distribution
+  $\mathrm{IG}(\alpha, \beta)$ is well-known to be $1/\sqrt{\alpha - 2}$ for
+  $\alpha > 2$.
+} This parameterization is distribution-free: $\kappa$ is defined without
+reference to any specific family for $v(\hype{})$. As $\kappa \to 0$, the
+researcher is expressing near-certainty that population heterogeneity will be
+close to its expectation $(1-\rho)v^*$. As $\kappa$ grows, it expresses
+greater uncertainty: at $\kappa = 1$ the standard deviation of the variance
+equals its mean, and $\kappa > 1$ indicates very high uncertainty about
+heterogeneity.
 
-\paragraph{Normal-Inverse-Wishart (correlated parameters).}
-When parameters have a full covariance structure, with
-$\boldsymbol{\theta}_i \mid \boldsymbol{\mu}, \boldsymbol{\Sigma} \sim
-\text{MVN}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ and
-$(\boldsymbol{\mu}, \boldsymbol{\Sigma}) \sim
-\text{NIW}(\boldsymbol{\mu}_0, \kappa_0, \boldsymbol{\Psi}_0, \nu_0)$:
-\begin{align}
-  \boldsymbol{\mu}_0 &= \boldsymbol{\mu}^* \\
-  \kappa_0 &= (1 - \rho) / \rho \\
-  \boldsymbol{\Psi}_0 &= (1 - \rho) \cdot \boldsymbol{\Sigma}^* \cdot (\nu_0 - p - 1) \\
-  \nu_0 &\text{ chosen by the researcher (controls concentration)}
-\end{align}
-The full derivation is provided in Appendix~\ref{app:full_cov}. The $\rho$
-parameter controls $\kappa_0$, which scales the variance of the population
-mean relative to the population covariance. The degrees of freedom $\nu_0$
-plays the role of $\kappa$ in the multivariate case.
+The two parameters $\rho$ and $\kappa$ can therefore be interpreted as
+expressing the researcher's belief in the \textit{level} of heterogeneity in a
+population ($\rho$), and their \textit{confidence} in that level ($\kappa$).
+Both parameters do so in a way that is unit-agnostic: neither requires
+intuition about the scale of the parameters or generated quantities. That
+scale-specific information is already encoded in the direct prior $(m^*, v^*)$;
+the researcher choices $(\rho, \kappa)$ express structural beliefs about how
+that variance decomposes across the hierarchy. \textit{Any} value of $\rho \in
+(0, 1)$ and $\kappa > 0$ results in a hyperprior with a predictive prior
+distribution that matches the first two moments of the direct prior, inducing a
+consistency in researcher beliefs that must prevail given the assumption of
+exchangeability in the population.
+
+The two-step process for the definition of a hyperprior for a given model is
+therefore to first specify a quantity-space prior that has an injective mapping
+from parameter-space to quantity-space, for a single randomly selected
+individual from a population of exchangeable individuals, and then specify
+beliefs about the degree of heterogeneity that may exist in this population.
+There is no free lunch in this process. If the direct prior has $2p$ degrees of
+freedom, and each presumed hyperprior has 2 degrees of freedom, the researcher
+must still satisfy the full $4p$ degrees of freedom. The direct prior provides
+$2p$ constraints (the moments $m^*$ and $v^*$ for each parameter), and the
+researcher choices $(\rho, \kappa)$ provide the remaining $2p$, making the
+system exactly determined. However, as will be demonstrated subsequently,
+forming priors over generated quantities about a random individual and
+expressing a belief about the heterogeneity of a population can often be a
+substantially easier task for structural models of risk than specifying $4p$
+degrees of freedom directly.
 
 
 %==============================================================================
@@ -633,7 +616,6 @@ plays the role of $\kappa$ in the multivariate case.
 \label{sec:application_rdu}
 %==============================================================================
 
-\subsection{Model}
 
 To demonstrate the framework, I define a BHM where all subjects have RDU risk
 preferences using the CRRA utility function and the 2-parameter
@@ -676,6 +658,144 @@ outcome with positive probability across \textit{A} and \textit{B}. Dividing by
 the difference of maximum and minimum utilities normalizes the difference in
 utilities to be between $[-1, 1]$ and applies the Contextual Utility model of
 \textcite{Wilcox2011}.
+
+\subsection{Quantity-Space Mapping for RDU}
+\label{sec:ce_space}
+
+The general framework of Section~\ref{sec:gq_space} is now applied to
+the RDU model. The preference parameters
+$\bth_{\text{pref}} = (r, \phi, \eta)$ determine the certainty
+equivalent (CE) of any lottery---the amount of money for certain that provides
+equivalent utility:
+\begin{equation}
+  \label{eq:ce_definition}
+  u(\CE; \bth) = \sum_k d_k(\bth) \,
+  u(x_k; \bth)
+\end{equation}
+where $u(\cdot; \bth)$ is the utility function and
+$d_k(\bth)$ are decision weights. The noise parameter $\lambda$
+does not affect the CE and is handled separately below.
+
+Choosing three reference lotteries $L_1, L_2, L_3$ with suitably diverse
+characteristics defines the mapping:
+\begin{equation}
+  \bg(r, \phi, \eta) = \left(\CE_1, \CE_2, \CE_3\right)
+\end{equation}
+The researcher then specifies beliefs in dollar terms:
+\begin{quote}
+  \textit{``For a lottery paying \$10, \$30, or \$50 with equal probability, I
+  expect a typical person's certainty equivalent to be around \$25, with a
+  standard deviation of about \$8.''}
+\end{quote}
+These are statements about dollars, not about abstract curvature parameters.
+Formally, the direct prior in CE space is:
+\begin{equation}
+  \label{eq:ce_prior}
+  Y_i^k \sim \text{Normal}(m^{k*}, s^{2k*}), \qquad k = 1, 2, 3
+\end{equation}
+where $m^{k*}$ and $s^{2k*}$ encode the researcher's beliefs about the
+expected CE and its variance across individuals for reference lottery $k$.
+
+\paragraph{Choice probability for noise.}
+\label{sec:choice_prob}
+The noise parameter $\lambda$ governs the precision of choices but does not
+affect deterministic preferences (certainty equivalents). It can be
+incorporated into the quantity-space framework by specifying beliefs about a
+\textit{choice probability} for a reference lottery pair.
+
+Consider a lottery pair $(A, B)$ where lottery $A$ is clearly superior for a
+risk-neutral agent. The probability that an individual chooses $A$ is:
+\begin{equation}
+  P(\text{choose } A \mid \bth, \lambda) =
+  \frac{1}{1 + \exp\!\left(-\Delta(\bth) / \lambda\right)}
+\end{equation}
+where $\Delta(\bth)$ is the normalized utility difference. For
+\textit{fixed} $\bth$, this is a monotone function of $\lambda$:
+larger $\lambda$ (more noise) pushes the choice probability toward $1/2$.
+
+The researcher might specify: ``For this pair where $A$ clearly dominates, I
+expect about 90\% of a typical agent's choices to be $A$, with standard
+deviation 10\%.'' This pins down the prior for $\lambda$ (or equivalently
+$\ln \lambda$) through the inverse of the choice probability function.
+
+\paragraph{Block-triangular Jacobian.}
+\label{sec:block_jacobian}
+The full 4-parameter mapping combines the CE and choice probability
+specifications:
+\begin{equation}
+  \bg(r, \phi, \eta, \lambda) = \left(\CE_1, \CE_2, \CE_3, P_{\text{choice}}\right)
+\end{equation}
+Since the CEs do not depend on $\lambda$, the Jacobian has a block-triangular
+structure:
+\begin{equation}
+  J_{\bg} = \begin{pmatrix}
+    J_{\CE} & \mathbf{0} \\[4pt]
+    \mathbf{v}^\top & \dfrac{\partial P}{\partial \lambda}
+  \end{pmatrix}
+\end{equation}
+where $J_{\CE}$ is the $3 \times 3$ Jacobian of the CE mapping,
+$\mathbf{v}^\top$ captures the dependence of $P_{\text{choice}}$ on
+$(r, \phi, \eta)$, and $\partial P / \partial \lambda$ is the sensitivity of the
+choice probability to noise. The determinant factors cleanly:
+\begin{equation}
+  \det J_{\bg} = \det(J_{\CE}) \times \frac{\partial P}{\partial \lambda}
+\end{equation}
+This factorization means that the CE invertibility conditions and the
+choice-probability monotonicity are \textit{separable}: one can verify each
+independently. Since $P$ is strictly monotone in $\lambda$ for any fixed
+$\bth$ with $\Delta \neq 0$, the choice-probability component
+is always locally invertible.
+
+\paragraph{Jacobian structure.} For the RDU-Prelec model, the Jacobian of the
+CE mapping has specific structure. The $r$-column involves $\ln x_j$ terms
+(sensitivity of utility to curvature), while the $\phi$ and $\eta$ columns
+involve Prelec derivatives. Crucially, the ratio of the $\phi$ and $\eta$
+partial derivatives at any probability $p$ is
+$\partial w / \partial \phi \big/ \partial w / \partial \eta = \eta \ln(-\ln p)$,
+which \textit{depends on} $p$. This means the $\phi$ and $\eta$ columns of the
+Jacobian are non-proportional whenever the reference lotteries have distinct
+cumulative probability structures---the generic condition for local
+invertibility.
+
+\subsection{Global Injectivity}
+\label{sec:injectivity}
+
+Local invertibility ($\det J_{\bg} \neq 0$ everywhere) is necessary but
+not sufficient for global injectivity. In particular, when all reference
+lotteries share a common prize vector, the CE mapping can fail to be globally
+injective: changes in utility curvature (governed by $r$) can be exactly
+compensated by changes in probability weighting (governed by $\phi$ and $\eta$),
+producing distinct parameter vectors with identical certainty equivalents.
+
+The compensation mechanism arises because shared prizes mean all lotteries test
+utility curvature at the \textit{same} prize levels. The parameter $r$ then
+enters through a single scalar function $R(r) = \Delta_{23}(r)/\Delta_{12}(r)$
+common to all three CE equations, creating an effectively lower-dimensional
+image.
+
+This obstruction is broken by \textit{prize diversity}: using reference
+lotteries with at least two distinct prize vectors. With different prizes, $r$
+enters through multiple independent channels---each lottery has its own
+$R_k(r)$ function---and the compensation mechanism generically fails.
+
+\begin{quote}
+  \textbf{Proposition (Prize Diversity).}
+  \textit{For a model with $p_1$ utility parameters and $p_2$ weighting
+  parameters ($p_1 + p_2 = p$), the CE mapping with $K = p$ lotteries is
+  globally injective (for generic probability structures) if the lotteries have
+  (a) distinct cumulative probability structures (separating weighting
+  parameters), (b) at least $p_1 + 1$ distinct prize vectors (overdetermining
+  utility parameters given weighting parameters), and (c) $\det J \neq 0$
+  everywhere.}
+\end{quote}
+
+For the RDU-Prelec model with $p_1 = 1$ (only $r$ is a utility parameter), at
+least 2 distinct prize vectors are needed among the 3 reference lotteries.
+Changing a single middle prize suffices: using $(10, 25, 50)$ instead of
+$(10, 30, 50)$ for one lottery breaks the compensation entirely. The practical
+recommendation is simple: use at least two distinct prize vectors among the
+reference lotteries. Detailed proofs, numerical verification, and
+counterexamples are provided in Appendix~\ref{app:global_injectivity}.
 
 \subsection{Prior Specification}
 
@@ -744,6 +864,29 @@ individual is:
 \noindent These choices represent beliefs about a typical subject: modestly risk
 averse ($r = 0.5$), conforming to EUT ($\phi = \eta = 1$, so $\ln \phi = \ln
 \eta = 0$), with moderate noise.
+
+\paragraph{NIG mapping.}
+Each parameter is modeled independently with a Normal-Inverse-Gamma (NIG)
+hierarchical structure:
+$\theta_i \mid \mu, \sigma^2 \sim N(\mu, \sigma^2)$,
+$\mu \sim N(\mu_0, \tau_0^2)$, and
+$\sigma^2 \sim \text{IG}(\alpha_0, \beta_0)$. The variance decomposition
+of Section~\ref{sec:variance_decomposition} maps the direct prior moments
+$(m^*, v^*)$ and researcher choices $(\rho, \kappa)$ to NIG hyperprior
+parameters:
+\begin{align}
+  \mu_0 &= m^* \label{eq:nig_mu0} \\
+  \tau_0^2 &= \rho \, v^* \label{eq:nig_tau0} \\
+  \alpha_0 &= 2 + 1/\kappa^2 \label{eq:nig_alpha0} \\
+  \beta_0 &= (1 - \rho) \, v^* (\alpha_0 - 1) \label{eq:nig_beta0}
+\end{align}
+The mapping from $\kappa$ to $\alpha_0$ follows from the variance of the
+Inverse-Gamma distribution: $\text{Var}[\sigma^2] = \beta_0^2 /
+[(\alpha_0-1)^2(\alpha_0-2)]$, so
+$\kappa^2 = \text{Var}[\sigma^2] / \E{\sigma^2}^2 = 1/(\alpha_0-2)$, giving
+$\alpha_0 = 2 + 1/\kappa^2$. The multivariate extension using
+Normal-Inverse-Wishart hyperpriors is derived in
+Appendix~\ref{app:full_cov}.
 
 The variance decomposition is applied with $\rho = \py{ps_rho}$ and $\kappa
 \approx \py{fmt(ps_kappa, 2)}$ (equivalently, $\alpha_0 = 2 + 1/\kappa^2
@@ -972,13 +1115,13 @@ diffuse priors exhibit Gelman (2006) pathology in small samples.]}
 
 \textit{[This section will present a Monte Carlo study using temporal
 discounting models. The quasi-hyperbolic $(\beta, \delta)$ model provides a
-natural setting for observable-space priors: the ``observables'' are
+natural setting for quantity-space priors: the generated quantities are
 indifference amounts (present value equivalents) at different time horizons,
 which are directly elicited in many experiments.]}
 
 \subsection{Model}
 
-\textit{[Quasi-hyperbolic $(\beta, \delta)$ discounting. Observable: present
+\textit{[Quasi-hyperbolic $(\beta, \delta)$ discounting. Generated quantities: present
 value equivalents at horizons $t_1, t_2$.]}
 
 \subsection{Simulation Design}
@@ -990,7 +1133,7 @@ Same sample size grid and replication structure as CPT.]}
 
 \textit{[Same reporting structure as CPT. Indifference amounts are directly
 elicited in many experiments, making this a natural setting for
-observable-space priors.]}
+quantity-space priors.]}
 
 
 %==============================================================================
@@ -1006,8 +1149,8 @@ researchers specifying hyperpriors:
 \begin{enumerate}
   \item \textbf{Choose the specification space.} Decide whether to specify
     beliefs about structural parameters directly (the identity case) or about
-    observable quantities (certainty equivalents, choice probabilities,
-    indifference amounts). Use the observable space when the researcher has
+    generated quantities (certainty equivalents, choice probabilities,
+    indifference amounts). Use the quantity space when the researcher has
     stronger intuition about quantities in experimental units.
 
   \item \textbf{Specify the direct prior.} For each dimension of the
@@ -1022,14 +1165,14 @@ researchers specifying hyperpriors:
     heterogeneity with moderate confidence.
 
   \item \textbf{Verify via prior predictive checking.} Simulate from the
-    implied prior predictive distribution and confirm that the observable
+    implied prior predictive distribution and confirm that the predictive
     implications are reasonable. The framework guarantees that the unconditional
     distribution matches the direct prior by construction, but the
     \textit{hierarchical} structure (population mean, population variance)
     implied by the $\rho$/$\kappa$ decomposition should be examined.
 
   \item \textbf{Estimate.} Proceed with standard MCMC sampling. If using
-    observable-space specification, add the Jacobian correction term to the
+    quantity-space specification, add the Jacobian correction term to the
     log-posterior.
 \end{enumerate}
 
@@ -1043,8 +1186,8 @@ extension (Appendix~\ref{app:skew_normal}) shows how the framework
 generalizes to three moments, but at the cost of an additional researcher
 choice and numerical rather than closed-form solutions.
 
-Second, the observable-space specification requires an invertible mapping from
-parameters to observables. This constrains the design of reference
+Second, the quantity-space specification requires an injective mapping from
+parameters to generated quantities. This constrains the design of reference
 lotteries---prize diversity is needed for global injectivity---and means that
 not all experimental designs are equally suitable for prior specification.
 
@@ -1076,7 +1219,7 @@ beliefs---transparent.
 
 Bayesian hierarchical models require hyperprior specifications that are
 difficult to construct from first principles. I have developed a two-part
-framework that addresses this challenge. First, observable-space prior
+framework that addresses this challenge. First, quantity-space prior
 specification allows researchers to state beliefs about quantities they can
 reason about directly---certainty equivalents, choice probabilities---with a
 Jacobian correction translating these beliefs to parameter space exactly.
@@ -1122,9 +1265,9 @@ aversion also tend to have lower probability weighting curvature.
 Suppose the direct prior for a single individual is multivariate normal:
 \begin{equation}
   \label{eq:mv_direct_prior}
-  \boldsymbol{\theta}_i \sim \text{MVN}(\boldsymbol{\mu}^*, \boldsymbol{\Sigma}^*)
+  \bth_i \sim \text{MVN}(\boldsymbol{\mu}^*, \boldsymbol{\Sigma}^*)
 \end{equation}
-where $\boldsymbol{\theta}_i \in \mathbb{R}^p$ is the parameter vector,
+where $\bth_i \in \mathbb{R}^p$ is the parameter vector,
 $\boldsymbol{\mu}^* \in \mathbb{R}^p$ is the direct prior mean, and
 $\boldsymbol{\Sigma}^*$ is a $p \times p$ positive definite covariance matrix.
 Note that when $\boldsymbol{\Sigma}^*$ is diagonal, this reduces to $p$
@@ -1162,9 +1305,9 @@ By the law of iterated expectations:
 The matrix analog of the law of total variance gives:
 \begin{equation}
   \label{eq:matrix_total_var}
-  \text{Cov}[\boldsymbol{\theta}_i]
-    = \E{\text{Cov}[\boldsymbol{\theta}_i \mid \boldsymbol{\mu}, \boldsymbol{\Sigma}]}
-    + \text{Cov}[\E{\boldsymbol{\theta}_i \mid \boldsymbol{\mu}}]
+  \text{Cov}[\bth_i]
+    = \E{\text{Cov}[\bth_i \mid \boldsymbol{\mu}, \boldsymbol{\Sigma}]}
+    + \text{Cov}[\E{\bth_i \mid \boldsymbol{\mu}}]
 \end{equation}
 
 The unconditional covariance is:
@@ -1422,29 +1565,29 @@ condition that compensates for the failure of properness.
 %==============================================================================
 
 This appendix provides the mathematical foundation for the Jacobian correction
-used in observable-space prior specification
-(Section~\ref{sec:observable_space}).
+used in quantity-space prior specification
+(Section~\ref{sec:gq_space}).
 
 \subsection{Why Only the Forward Map Is Needed}
 
 The prior density in parameter space is
-$p(\boldsymbol{\theta}) = p_{\mathbf{Y}}(\mathbf{g}(\boldsymbol{\theta}))
-|\det J_{\mathbf{g}}(\boldsymbol{\theta})|$.
-In MCMC sampling, proposals are made in $\boldsymbol{\theta}$-space. At each
-proposed $\boldsymbol{\theta}$:
+$p(\bth) = p_{\mathbf{Y}}(\bg(\bth))
+|\det J_{\bg}(\bth)|$.
+In MCMC sampling, proposals are made in $\bth$-space. At each
+proposed $\bth$:
 \begin{enumerate}
-  \item Evaluate the forward map: $\mathbf{Y} = \mathbf{g}(\boldsymbol{\theta})$.
+  \item Evaluate the forward map: $\mathbf{Y} = \bg(\bth)$.
   \item Evaluate the prior density at $\mathbf{Y}$:
     $\log p_{\mathbf{Y}}(\mathbf{Y})$.
-  \item Compute the Jacobian: $J_{\mathbf{g}}(\boldsymbol{\theta})$ via
+  \item Compute the Jacobian: $J_{\bg}(\bth)$ via
     automatic differentiation.
   \item Compute the log-determinant:
-    $\log|\det J_{\mathbf{g}}(\boldsymbol{\theta})|$.
+    $\log|\det J_{\bg}(\bth)|$.
 \end{enumerate}
-All computations start from $\boldsymbol{\theta}$ and proceed forward.
-The inverse $\mathbf{g}^{-1}$ would only be needed if sampling in
+All computations start from $\bth$ and proceed forward.
+The inverse $\bg^{-1}$ would only be needed if sampling in
 $\mathbf{Y}$-space, where the likelihood would require solving
-$\mathbf{g}(\boldsymbol{\theta}) = \mathbf{Y}$ at every step.
+$\bg(\bth) = \mathbf{Y}$ at every step.
 
 \subsection{Geometric Intuition}
 
@@ -1454,24 +1597,24 @@ $p_\theta(\theta) \, d\theta = p_Y(g(\theta)) \cdot |g'(\theta)| \, d\theta$.
 A large $|g'|$ means the $\theta$-interval maps to a wide $Y$-interval,
 capturing more $Y$-probability, leading to higher $p_\theta$.
 
-In multiple dimensions, $|\det J_{\mathbf{g}}|$ measures the $p$-dimensional
+In multiple dimensions, $|\det J_{\bg}|$ measures the $p$-dimensional
 volume scaling factor: the ratio of infinitesimal volumes in $\mathbf{Y}$-space
-to those in $\boldsymbol{\theta}$-space.
+to those in $\bth$-space.
 
 \subsection{When the Formula Fails: Non-Injectivity}
 
 The derivation of the Jacobian formula assumes each $\mathbf{Y}$-value is the
-image of exactly one $\boldsymbol{\theta}$. When $\mathbf{g}$ is not injective,
-multiple $\boldsymbol{\theta}$-regions map to overlapping $\mathbf{Y}$-regions,
+image of exactly one $\bth$. When $\bg$ is not injective,
+multiple $\bth$-regions map to overlapping $\mathbf{Y}$-regions,
 and the naive formula double-counts probability:
-$\int p_{\mathbf{Y}}(\mathbf{g}(\boldsymbol{\theta}))
-|\det J_{\mathbf{g}}(\boldsymbol{\theta})| \, d\boldsymbol{\theta} \neq 1$.
+$\int p_{\mathbf{Y}}(\bg(\bth))
+|\det J_{\bg}(\bth)| \, d\bth \neq 1$.
 
-The forward evaluation is entirely local: at proposed $\boldsymbol{\theta}$,
-one computes $\mathbf{g}(\boldsymbol{\theta})$ and
-$J_{\mathbf{g}}(\boldsymbol{\theta})$ but has no information about whether
-other $\boldsymbol{\theta}'$ also satisfy
-$\mathbf{g}(\boldsymbol{\theta}') = \mathbf{g}(\boldsymbol{\theta})$.
+The forward evaluation is entirely local: at proposed $\bth$,
+one computes $\bg(\bth)$ and
+$J_{\bg}(\bth)$ but has no information about whether
+other $\bth'$ also satisfy
+$\bg(\bth') = \bg(\bth)$.
 This is why global injectivity must be established analytically or numerically
 \textit{before} sampling, not verified during sampling.
 
@@ -1494,12 +1637,10 @@ hyperparameters (a population mean and log-standard-deviation for each of the 4
 parameters).
 
 These parameters are divided into 115 blocks:
-\begin{itemize}
-  \item \py{Q.get('n_subjects', 'N/A')} subject blocks, each containing the 4
-    parameters for a single subject.
-  \item 4 hyperparameter blocks, each containing the population mean and
-    log-standard-deviation for one parameter (e.g., $\mu_r$ and $\ln\sigma_r$).
-\end{itemize}
+\py{Q.get('n_subjects', 'N/A')} subject blocks, each containing the 4
+parameters for a single subject, and 4 hyperparameter blocks, each containing
+the population mean and log-standard-deviation for one parameter (e.g.,
+$\mu_r$ and $\ln\sigma_r$).
 
 \noindent Each iteration of the sampler cycles through all 115 blocks, proposing
 updates to each block conditional on the current values of all other blocks.

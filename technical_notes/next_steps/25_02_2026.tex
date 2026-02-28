@@ -1,0 +1,473 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\title{Paper Status Assessment and Recommendations\\[6pt]
+\large ``Quantity-Space Prior Specification for Bayesian Hierarchical Models''}
+\author{Technical Note}
+\date{February 2026}
+
+\begin{document}
+\maketitle
+
+\section{Overview}
+
+This note provides a section-by-section assessment of the current draft,
+identifies issues ranging from minor to structural, and recommends an order of
+operations for bringing the paper to submission quality. The assessment is based
+on a full read of \texttt{doc/main.tex} as of February 25, 2026.
+
+The paper is in strong shape methodologically. Sections~1--5 contain the full
+argument for the primary application (RDU with real data), and the methodology
+sections (3--4) are tight after recent editing. The main gaps are the two stub
+sections (CPT and Discounting simulation studies), and a collection of
+presentation issues distributed across the existing sections.
+
+
+\section{Section-by-Section Assessment}
+
+\subsection{Abstract (lines 86--112)}
+
+The abstract is well-written and accurately summarizes both contributions. Two
+observations:
+
+\begin{enumerate}[label=(\alph*)]
+  \item The phrase ``reduces the remaining degrees of freedom to two
+    interpretable parameters'' is slightly ambiguous---it could be read as
+    reducing from 4$p$ to 2 total, when the actual reduction is from 4$p$ to
+    2$p$ + 2. The conclusion states this correctly; the abstract should match.
+  \item The abstract mentions ``any distributional family'' for the hyperprior.
+    This is true for the moment-matching framework but the worked examples are
+    all NIG. Consider softening to ``demonstrated for standard conjugate
+    families and extensible to others'' or leaving as-is and ensuring the
+    Skew-Normal appendix is cited as evidence.
+\end{enumerate}
+
+
+\subsection{Section 1: Introduction (lines 128--213)}
+
+Solid. The two-camp framing is clear. One remaining issue:
+
+\begin{enumerate}[label=(\alph*)]
+  \item[{[x]}] Line 167: ``an quantity-space'' --- fixed to ``a quantity-space.''
+  \item The road map paragraph (lines 201--213) references Sections 6 and 7 but
+    does not warn the reader that these are forthcoming simulation studies. If
+    the paper will be submitted with stubs, the road map should acknowledge
+    this. If the stubs will be filled in before submission, no change is needed.
+\end{enumerate}
+
+
+\subsection{Section 2: Literature --- Two Camps (lines 216--378)}
+
+This section is long (approximately 4 pages of double-spaced text) and
+currently the weakest section in terms of focus. The belief-elicitation
+literature (lines 303--338) is interesting but tangential: the paper does not
+actually elicit beliefs from subjects. This subsection reads as a detour that a
+reviewer might ask to be cut.
+
+\begin{enumerate}[label=(\alph*)]
+  \item Consider condensing the belief-elicitation material to 2--3 sentences
+    acknowledging the literature, or moving it to a footnote. The key point---
+    that translating domain knowledge into priors is hard---is already made by
+    the Kadane and Gabry citations.
+  \item The transition paragraph (lines 363--378) does important work connecting
+    Segert, Bland, and Manderson \& Goudie to the present contribution. This
+    is the strongest part of the section and should be preserved.
+  \item Camp~1 (lines 239--288) is well-balanced. No changes recommended.
+\end{enumerate}
+
+
+\subsection{Section 3: General Hyperprior Specification (lines 382--611)}
+
+This section has been recently edited and is in good shape. Remaining issues:
+
+\begin{enumerate}[label=(\alph*)]
+  \item The section title says ``General Hyperprior Specification from Generated
+    Quantities'' but the section covers \emph{two} contributions: (i) the
+    Jacobian correction for quantity-space priors (\S3.1) and (ii) the variance
+    decomposition (\S3.2--3.3). Consider whether the title should reflect both,
+    or whether Section~3 should be split into two sections. If the paper is
+    targeting 9 sections, splitting Section~3 into ``Quantity-Space Prior
+    Specification'' (current \S3.1) and ``Hyperprior Construction via Variance
+    Decomposition'' (current \S3.2--3.3) would create a cleaner structure and
+    better match the ``two contributions'' framing. The section numbers in the
+    road map would then shift by one.
+  \item Line 421: ``we will only focus'' --- the paper otherwise uses first
+    person singular (``I''). This should be ``I focus'' or ``the paper focuses.''
+  \item The ``no free lunch'' paragraph (lines 597--611) is important but its
+    placement at the end of \S3.3 makes it feel like an afterthought. It might
+    work better as the opening of a brief ``Summary'' paragraph or as the
+    closing of \S3.2, immediately after the law of total variance is introduced.
+\end{enumerate}
+
+
+\subsection{Section 4: Application --- RDU with Real Data (lines 614--1078)}
+
+This is the longest section and carries the empirical weight of the paper. It
+is well-structured but has several issues.
+
+\subsubsection{Model specification (\S4.1, lines 620--661)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item The model specification (RDU, CRRA, Prelec, Fechner) is standard and
+    clear.
+  \item The Wilcox (2011) contextual utility normalization is mentioned but not
+    explained in detail. A reviewer unfamiliar with this could stumble. A
+    one-sentence clarification or a forward reference to the appendix would
+    help.
+\end{enumerate}
+
+\subsubsection{CE mapping and injectivity (\S4.2--4.3, lines 662--798)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item The CE-space mapping is clearly explained. The block-triangular Jacobian
+    factorization for $\lambda$ is a nice result.
+  \item The injectivity section is well-written but quite detailed for the main
+    text. The proposition (lines 781--790) is the key result; the surrounding
+    discussion of the compensation mechanism could be condensed by 30--40\%
+    with more material pushed to Appendix~C (which already contains the full
+    proofs).
+  \item The proposition is presented in a \verb|\begin{quote}| with
+    \verb|\textbf{Proposition}|. This is fine stylistically, but some journals
+    prefer a formal theorem environment. Check JoE style guidelines.
+\end{enumerate}
+
+\subsubsection{Prior specification (\S4.4, lines 800--915)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item The pythontex integration for displaying hyperprior values is excellent
+    for reproducibility.
+  \item The direct prior (equation~\ref{eq:d_prior}) specifies priors on
+    $r$, $\ln\phi$, $\ln\eta$, $\ln\lambda$. The log transforms are mentioned
+    but the rationale (positivity constraints on $\phi$, $\eta$, $\lambda$) is
+    not stated here. A brief parenthetical would help.
+  \item The NIG mapping (equations 10--13) is the core application of the
+    variance decomposition. The derivation of $\alpha_0 = 2 + 1/\kappa^2$ from
+    the IG variance formula is given inline. This is correct and clear.
+  \item The diffuse hyperprior from Gao et al.\ (2022) uses
+    IG(0.001, 0.001). Given that the paper has discussed the Gelman (2006)
+    pathology of IG($\varepsilon$, $\varepsilon$) priors, this comparison is
+    well-motivated. However, the paper does not explicitly note the irony: the
+    uninformative comparison prior is precisely the type of prior the first camp
+    identifies as problematic. Making this connection explicit would strengthen
+    the narrative.
+\end{enumerate}
+
+\subsubsection{Results (\S4.5--4.7, lines 925--1078)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item The hyperparameter posterior discussion (lines 953--979) is substantive
+    and nuanced. The observation about $\eta$ --- where hyperparameter
+    posteriors differ but the unconditional distributions are similar, explained
+    through the variance decomposition --- is a genuine insight that
+    demonstrates the interpretive value of the $\rho$ framework.
+  \item The CE posterior predictive section (lines 981--1037) effectively
+    demonstrates the practical stakes: the diffuse prior puts
+    substantial mass at extreme risk aversion and risk seeking.
+  \item The sensitivity table (\S4.7, lines 1041--1078) demonstrates the
+    key invariance property: the prior predictive is stable across the
+    $(\rho, \kappa)$ grid. The interpretation (lines 1070--1077) that the
+    differences emerge in the \emph{posterior} is important and well-stated.
+  \item \textbf{Missing}: A sensitivity analysis showing how the \emph{posterior}
+    changes with $(\rho, \kappa)$ would be valuable. The prior predictive table
+    demonstrates that the methodology works as advertised, but the reader's
+    natural question is: ``so does $(\rho, \kappa)$ actually matter?'' A table
+    or figure showing posterior summaries across the $(\rho, \kappa)$ grid
+    would answer this. This could be computationally expensive (requiring
+    MCMC for each grid point) or could be approximated analytically.
+  \item Figure captions are terse (e.g., ``Hyperparameter posteriors''). JoE
+    typically expects self-contained captions that summarize the key message.
+    The \verb|\mycaption| command is used; check that its expansion provides
+    adequate detail.
+\end{enumerate}
+
+
+\subsection{Sections 5 and 6: CPT and Discounting (lines 1081--1137)}
+
+These are stubs. The outlines are reasonable: multiple DGPs, sample size grids,
+100+ replications, three estimation approaches per replication. The scope is
+ambitious.
+
+\begin{enumerate}[label=(\alph*)]
+  \item The stub text is currently in \verb|\textit{}|. This is fine for
+    internal drafts but should be removed or replaced before any external
+    review.
+  \item Consider whether \emph{both} simulation studies are necessary for the
+    first submission. A single well-executed simulation (CPT, given its higher
+    parameter count and stronger motivation) might be sufficient, with
+    discounting reserved for a revision or supplement. This would substantially
+    reduce the time to submission.
+  \item If both simulations are retained, the discounting section should clarify
+    why it adds value beyond CPT. The current stub mentions that indifference
+    amounts are ``directly elicited,'' which is a good distinguishing feature.
+\end{enumerate}
+
+
+\subsection{Section 7: Discussion (lines 1139--1213)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item[{[x]}] The practical guidance (\S7.1) workflow labels have been changed
+    from \verb|\textbf{}| to \verb|\emph{}|. The \verb|enumerate| environment
+    is retained for the step-by-step procedure.
+  \item The Bayes factor discussion (\S7.3, lines 1198--1213) is interesting
+    but feels incomplete. The argument that BFs create a ``perverse incentive to
+    retroactively tune priors'' is strong but needs a citation or a more careful
+    statement. The point is valid for \emph{marginal likelihoods} used as model
+    comparison tools; it is not unique to the framework proposed here.
+    Consider citing \textcite{Gelman2013} or the ``garden of forking paths''
+    literature. Alternatively, this subsection could be shortened to
+    acknowledge the issue without fully resolving it.
+  \item The limitations section (\S7.2) is honest and well-calibrated. The three
+    limitations (moment-based, injectivity requirement, no model
+    misspecification) are the right ones to highlight.
+\end{enumerate}
+
+
+\subsection{Section 8: Conclusion (lines 1215--1244)}
+
+The conclusion is concise and effective. The ``reduces further'' phrasing
+(lines 1233--1236) has been reworded to clarify that sharing $(\rho, \kappa)$
+means only 2 of the $2p+2$ choices involve population-level reasoning, without
+falsely implying a further numerical reduction.
+
+
+\subsection{Appendix A: Full Covariance Derivation (lines 1249--1378)}
+
+Complete and well-structured. The derivation is clean and the verification
+confirms the algebra. A footnote has been added distinguishing the NIW scaling
+parameter $\kappa_0$ from the CV of heterogeneity $\kappa$.
+
+\subsection{Appendix B: Skew-Normal Extension (lines 1381--1456)}
+
+Complete. Demonstrates the generalization to 3-moment matching. No issues.
+
+Note: the \verb|\begin{enumerate}| on line 1401 for the three terms of the law
+of total cumulance technically violates the no-bullet-point rule, but numbered
+lists of mathematical terms seem acceptable.
+
+\subsection{Appendix C: Global Injectivity (lines 1459--1557)}
+
+Complete and detailed. The numerical verification, counterexamples, and
+sufficient conditions are all present. Bold text has been removed (line 1534)
+and sufficient condition labels changed to \verb|\emph{}|. One remaining
+suggestion: the appendix is thorough enough that the main text injectivity
+discussion (\S4.3) could be further condensed with a forward reference.
+
+
+\subsection{Appendix D: Jacobian Correction (lines 1561--1619)}
+
+Clear and correct. The three-part structure (why only forward map, geometric
+intuition, non-injectivity) is pedagogically effective. No issues.
+
+\subsection{Appendix E: MCMC Implementation (lines 1624--1707)}
+
+Complete. The coupled transform sampler and NCP descriptions are clear. One
+note: the ``115 blocks'' count is hardcoded (line 1639, 1645) rather than
+computed from pythontex. If the number of subjects or blocking strategy changes,
+these would need manual updates. Consider using \verb|\py{}| here too.
+
+\subsection{Appendix F: Simulation Study Details (lines 1711--1721)}
+
+Stub. Will be populated when Sections 5--6 are written.
+
+
+\section{Cross-Cutting Issues}
+
+\subsection{Notation}
+
+\begin{enumerate}[label=(\alph*)]
+  \item[{[x]}] $\kappa_0$ vs $\kappa$ confusion resolved via footnote in
+    Appendix~A.
+  \item The paper uses both $\bv{}$ (\verb|\bv|, $\boldsymbol{\vartheta}$) and
+    $\bth$ (\verb|\bth|, $\boldsymbol{\theta}$). The distinction (generated
+    quantities vs.\ structural parameters) is clear once established, but
+    $\vartheta$ and $\theta$ are visually similar in some fonts. Monitor how
+    this renders in the JoE template.
+  \item The Prelec PWF uses $c_i$ for cumulative probabilities (line 635) and
+    the law of total cumulance footnote uses $c_n$ for cumulants (line 516).
+    These are in different sections and unlikely to confuse, but worth noting.
+\end{enumerate}
+
+\subsection{First-person consistency --- RESOLVED}
+
+Fixed: ``we will only focus'' (line 421) and ``we are primarily concerned''
+(line 450) changed to first person singular. Remaining ``we'' instances
+(lines 496, 1427, 1429) are in mathematical exposition where the convention
+is acceptable.
+
+\subsection{Bold text --- RESOLVED}
+
+All \verb|\textbf{}| in the paper body has been replaced with \verb|\emph{}|
+or removed. Remaining instances are only in front matter
+(\verb|\textbf{Keywords:}| and \verb|\textbf{JEL Classification:}|), which is
+standard.
+
+\subsection{Figure captions}
+
+All figure captions use \verb|\mycaption{}| and appear terse from the LaTeX
+source. Check that this command expands to include sufficient detail for
+standalone interpretation.
+
+
+\section{Prioritized Recommendations}
+
+Based on the assessment above, I recommend the following order of operations,
+organized by priority.
+
+\subsection{Priority 1: Fixes that can be made immediately (no computation)
+--- COMPLETE}
+
+All items in this priority have been implemented:
+
+\begin{enumerate}
+  \item[{[x]}] Fixed ``an quantity-space'' $\to$ ``a quantity-space'' (line 167)
+  \item[{[x]}] Fixed ``we'' $\to$ ``I'' (lines 421, 450)
+  \item[{[x]}] Replaced \verb|\textbf{}| with \verb|\emph{}| in Discussion
+    workflow labels (5 items), Proposition (\S4.3), and Appendix~C sufficient
+    conditions
+  \item[{[x]}] Removed bold from Appendix~C numerical verification (line 1536)
+  \item[{[x]}] Added footnote distinguishing $\kappa_0$ (NIW) from $\kappa$
+    (CV) in Appendix~A
+  \item[{[x]}] Rewrote conclusion's ``reduces further'' phrasing to clarify
+    that sharing $(\rho, \kappa)$ means only 2 of $2p+2$ choices involve
+    population structure
+  \item[{[x]}] Added sentence explaining log transforms ($\phi$, $\eta$,
+    $\lambda$ are strictly positive) before direct prior interpretation
+  \item[{[x]}] Made IG($\varepsilon$, $\varepsilon$) connection explicit in the
+    diffuse prior comparison, linking back to Gelman (2006)
+\end{enumerate}
+
+\subsection{Priority 2: Structural improvements (editing, no computation)}
+
+\begin{enumerate}
+  \item Condense the belief-elicitation literature in \S2.2 (lines 303--338)
+    to 2--3 sentences or a footnote. This tightens the paper by approximately
+    1 page.
+  \item Condense the main-text injectivity discussion (\S4.3) by moving the
+    compensation mechanism details to Appendix~C. Keep the proposition and the
+    practical recommendation (``use at least two distinct prize vectors'').
+  \item Consider splitting Section~3 into two sections (one per contribution)
+    to match the ``two contributions'' framing. This is optional but would
+    improve structural clarity.
+  \item Strengthen the Bayes factor discussion or shorten it. The current
+    argument about ``perverse incentives'' needs either a citation or more
+    careful hedging.
+\end{enumerate}
+
+\subsection{Priority 3: Decide simulation study scope}
+
+This is the most consequential decision for time-to-submission.
+
+\begin{enumerate}
+  \item \textbf{Option A: Submit with one simulation (CPT only).} Drop the
+    discounting section or reduce it to a brief discussion of how the framework
+    applies. The CPT study is the stronger motivating example (highest
+    parameter count, strongest $4p$ problem). The discounting study could be
+    added in revision if requested.
+  \item \textbf{Option B: Submit with both simulations.} Retain the current
+    structure. This requires implementing two new model posteriors, simulation
+    DGP code, and running hundreds of MCMC replications for each.
+  \item \textbf{Option C: Submit with real-data application only.} Drop both
+    simulation stubs and reframe as a methods paper with a single worked
+    application. This would require strengthening the sensitivity analysis
+    (Priority~4) to compensate for the lack of controlled evidence.
+\end{enumerate}
+
+My recommendation is \textbf{Option A}. The CPT simulation provides controlled
+evidence that the methodology works, the RDU application provides real-data
+credibility, and the paper would be a manageable length (~30 pages with
+appendices). The discounting application can be added if referees request it.
+
+\subsection{Priority 4: Posterior sensitivity analysis (computation required)}
+
+The current sensitivity table (Table~1) shows that the \emph{prior predictive}
+is invariant to $(\rho, \kappa)$. This is by construction and therefore
+unsurprising. The more informative question is: how does the \emph{posterior}
+vary with $(\rho, \kappa)$?
+
+Two approaches:
+
+\begin{enumerate}
+  \item \textbf{Full MCMC grid:} Re-estimate the model at each $(\rho,
+    \kappa)$ grid point. Computationally expensive but definitive.
+  \item \textbf{Analytical approximation:} Use the fact that the posterior mean
+    in a Normal--Normal model is a weighted average of the prior mean and the
+    data mean, with weights determined by the prior precision and the data
+    precision. This would give approximate posterior sensitivity without
+    re-running MCMC.
+\end{enumerate}
+
+Either approach would substantially strengthen the paper. The current table
+demonstrates correctness; a posterior table would demonstrate relevance.
+
+\subsection{Priority 5: Phase 3 completion (CE-space priors)}
+
+The CE-space prior specification (\S4.2) is described in the paper but
+Phase~3 implementation is incomplete. Completing this would allow a
+comparison of parameter-space vs.\ CE-space priors in the results section,
+demonstrating Contribution~1 empirically (currently only Contribution~2 is
+demonstrated).
+
+This is important but can be done in parallel with the text improvements.
+
+\subsection{Priority 6: Phase 4 (choice probability prior for $\lambda$)}
+
+Currently $\lambda$ is handled with a direct parameter-space prior, not via
+the quantity-space framework. Implementing the choice-probability mapping
+would make the application fully consistent with the methodology. This is
+a moderate-effort task that could be deferred to revision.
+
+
+\section{Recommended Order of Operations}
+
+\begin{enumerate}
+  \item[{[x]}] Immediate text fixes (Priority 1) --- complete
+  \item Structural editing (Priority 2): half a day
+  \item Decide simulation scope (Priority 3): decision point
+  \item Posterior sensitivity analysis (Priority 4): depends on approach
+  \item CE-space implementation (Priority 5): multi-day
+  \item Choice probability prior (Priority 6): multi-day, can defer
+  \item Simulation study (Priority 3 execution): weeks
+  \item Final polish (Phase 6): after all above
+\end{enumerate}
+
+The key decision point is Priority 3. Everything else follows from that
+choice. If Option~A is selected, the path to a submittable draft requires
+Priority~2 (text), Priority~4 (posterior sensitivity), one simulation
+study (CPT), and final polish.
+
+
+\section{Summary of Issues Found}
+
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+Location & Type & Severity & Status & Description \\
+\midrule
+Line 167 & Typo & Minor & Fixed & ``an quantity-space'' \\
+Lines 421, 450 & Style & Minor & Fixed & ``we'' $\to$ ``I'' \\
+\S2.2 (303--338) & Structure & Moderate & Open & Belief-elicitation detour \\
+\S3 title & Structure & Minor & Open & Title doesn't reflect both contributions \\
+\S4.3 & Length & Minor & Open & Injectivity could be condensed \\
+\S4.4 line 858 & Clarity & Minor & Fixed & Log transforms unexplained \\
+\S4.4 line 906 & Narrative & Minor & Fixed & IG($\varepsilon$,$\varepsilon$) irony \\
+\S4.7 & Missing & Moderate & Open & No posterior sensitivity analysis \\
+\S7.1 & Formatting & Minor & Fixed & Bold in workflow labels \\
+\S7.3 & Argument & Minor & Open & BF ``perverse incentive'' needs citation \\
+\S8 lines 1233--36 & Logic & Minor & Fixed & ``reduces further'' phrasing \\
+App.\ A & Notation & Minor & Fixed & $\kappa_0$ vs $\kappa$ footnote \\
+App.\ C & Formatting & Minor & Fixed & Bold text \\
+App.\ E & Maintenance & Minor & Open & Hardcoded ``115 blocks'' \\
+\S5--6 & Completeness & Major & Open & Stub sections \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+\end{document}

@@ -163,7 +163,7 @@ choices---a daunting prospect even for an expert.
 
 In this paper, I develop a two-part framework for constructing hyperpriors that
 addresses both the \textit{space} in which beliefs are specified and the
-\textit{structure} of the hyperprior itself. The first contribution is an
+\textit{structure} of the hyperprior itself. The first contribution is a
 quantity-space prior specification: the researcher states beliefs about
 quantities they can reason about directly---certainty equivalents, choice
 probabilities---rather than abstract structural parameters. An invertible
@@ -418,7 +418,7 @@ $\sqrt{\det(J_\bg{}^\top J_\bg{})} = |\det J|$. \textcite[108-110]{Segert2019}
 discuss the detailed mathematical derivation of this formula and note the
 correction via the Coarea Formula needed when $k \leq p$. Given the focus of
 risk preference models, and the abundance of possible prior quantities on
-economic variables derived from risk preferences, we will only focus on the
+economic variables derived from risk preferences, I focus only on the
 cases where $k \geq p$, with particular emphasis on $k = p$.
 
 In practical terms, it is worth emphasizing that only the \textit{forward}
@@ -447,7 +447,7 @@ model parameters through a provably injective mapping $\bg$, for some randomly
 selected individual from a population of exchangeable individuals. I call this
 specified individual-level prior a \enquote{direct prior.} For a model of a
 single random individual, with the direct prior in hand, the prior
-specification exercise would be over. However, we are primarily concerned with
+specification exercise would be over. However, I am primarily concerned with
 Bayesian Hierarchical Models (BHMs), and therefore must specify a
 \textit{hyperprior} distribution.
 
@@ -616,10 +616,12 @@ degrees of freedom directly.
 \label{sec:application_rdu}
 %==============================================================================
 
-
-To demonstrate the framework, I define a BHM where all subjects have RDU risk
-preferences using the CRRA utility function and the 2-parameter
-\textcite{Prelec1998} probability weighting function (PWF).
+The primary motivation for this derivation of prior and hyperprior
+distributions is to provide formal guidance for the estimation of BHM for
+structural models in economics. To give a motivating example, following
+\textcite{Gao2022}, I define a BHM where all subjects have RDU risk preferences
+using the CRRA utility function and the 2-parameter \textcite{Prelec1998}
+probability weighting function (PWF):
 \begin{align}
   \label{eq:rdu}
   U  &= \sum_i d_i u(x_i)\\
@@ -662,11 +664,23 @@ utilities to be between $[-1, 1]$ and applies the Contextual Utility model of
 \subsection{Quantity-Space Mapping for RDU}
 \label{sec:ce_space}
 
-The general framework of Section~\ref{sec:gq_space} is now applied to
-the RDU model. The preference parameters
-$\bth_{\text{pref}} = (r, \phi, \eta)$ determine the certainty
-equivalent (CE) of any lottery---the amount of money for certain that provides
-equivalent utility:
+For a given individual, there is a vector of 4 parameters that are required to
+be modeled, $\bth = (r, \phi, \eta, \lambda)$. While we can follow
+\textcite{Gao2022} in using independent Normal-Inverse-Gamma distributions to
+model the hyperprior distributions for these parameters, this would require us
+to set the 16 hyperprior parameters, each with consequences on prior predictive
+distribution of observable quantities. Following the method in Section
+\ref{sec:gq_space}, we start instead by specifying 4 direct priors on
+observable quantities about which a research would have strong beliefs: 3
+certainty equivalents (CEs) and one choice probability. We discuss first the
+derivation of each of these quantities in turn, and then present the resulting
+hyperprior.
+
+\subsection{Certainty Equivalent Quantities}
+
+The preference parameters $\bth_{\text{pref}} = (r, \phi, \eta)$ determine the
+certainty equivalent (CE) of any lottery: the amount of money for certain that
+provides equivalent utility:
 \begin{equation}
   \label{eq:ce_definition}
   u(\CE; \bth) = \sum_k d_k(\bth) \,
@@ -779,7 +793,7 @@ enters through multiple independent channels---each lottery has its own
 $R_k(r)$ function---and the compensation mechanism generically fails.
 
 \begin{quote}
-  \textbf{Proposition (Prize Diversity).}
+  \emph{Proposition (Prize Diversity).}
   \textit{For a model with $p_1$ utility parameters and $p_2$ weighting
   parameters ($p_1 + p_2 = p$), the CE mapping with $K = p$ lotteries is
   globally injective (for generic probability structures) if the lotteries have
@@ -861,7 +875,9 @@ individual is:
   \ln\lambda \sim N\left(\mu^{\lambda} = \py{dprior["lambda_raw"]["mu"]},\right.& \left.\sigma^{2, \lambda} = \py{dprior["lambda_raw"]["sigma2"]}\right) \\
 \end{matrix}
 \end{equation}
-\noindent These choices represent beliefs about a typical subject: modestly risk
+\noindent The parameters $\phi$, $\eta$, and $\lambda$ are strictly positive, so
+priors are placed on their logarithms to ensure support on $\mathbb{R}$.
+These choices represent beliefs about a typical subject: modestly risk
 averse ($r = 0.5$), conforming to EUT ($\phi = \eta = 1$, so $\ln \phi = \ln
 \eta = 0$), with moderate noise.
 
@@ -903,7 +919,9 @@ These choices yield the informative hyperprior:
 \end{align}
 
 To illustrate the consequences of hyperprior choice, I also estimate the model
-using the diffuse hyperprior from \textcite[279--281]{Gao2022}:
+using the diffuse hyperprior from \textcite[279--281]{Gao2022}, which uses the
+Inverse-Gamma($\varepsilon$, $\varepsilon$) specification for variance
+parameters that \textcite{Gelman2006} identified as potentially problematic:
 \begin{align}
   \label{eq:ght_prior}
 \begin{matrix}
@@ -1147,31 +1165,31 @@ The framework developed in this paper suggests a concrete workflow for
 researchers specifying hyperpriors:
 
 \begin{enumerate}
-  \item \textbf{Choose the specification space.} Decide whether to specify
+  \item \emph{Choose the specification space.} Decide whether to specify
     beliefs about structural parameters directly (the identity case) or about
     generated quantities (certainty equivalents, choice probabilities,
     indifference amounts). Use the quantity space when the researcher has
     stronger intuition about quantities in experimental units.
 
-  \item \textbf{Specify the direct prior.} For each dimension of the
+  \item \emph{Specify the direct prior.} For each dimension of the
     specification space, provide a mean and variance reflecting beliefs about a
     single random individual. These can be informed by published empirical
     estimates, experimental pilot data, or expert judgment.
 
-  \item \textbf{Choose $\rho$ and $\kappa$.} Express beliefs about the degree
+  \item \emph{Choose $\rho$ and $\kappa$.} Express beliefs about the degree
     of population heterogeneity ($\rho$) and confidence in that
     heterogeneity specification ($\kappa$). Default values of $\rho = 0.2$ and
     $\kappa \approx 0.24$ (equivalently $\alpha_0 = 20$) express substantial
     heterogeneity with moderate confidence.
 
-  \item \textbf{Verify via prior predictive checking.} Simulate from the
+  \item \emph{Verify via prior predictive checking.} Simulate from the
     implied prior predictive distribution and confirm that the predictive
     implications are reasonable. The framework guarantees that the unconditional
     distribution matches the direct prior by construction, but the
     \textit{hierarchical} structure (population mean, population variance)
     implied by the $\rho$/$\kappa$ decomposition should be examined.
 
-  \item \textbf{Estimate.} Proceed with standard MCMC sampling. If using
+  \item \emph{Estimate.} Proceed with standard MCMC sampling. If using
     quantity-space specification, add the Jacobian correction term to the
     log-posterior.
 \end{enumerate}
@@ -1230,9 +1248,10 @@ ratio $\rho$ and the heterogeneity confidence $\kappa$.
 The framework reduces the researcher's burden from $4p$ opaque hyperprior
 parameters to $2p + 2$ interpretable choices: a mean and variance for each of
 $p$ quantities (the direct prior), plus the two structural parameters $\rho$
-and $\kappa$. When $\rho$ and $\kappa$ are shared across parameters, as is
-natural when the researcher lacks strong reasons to differentiate, the burden
-reduces further to $2p + 2$ total choices. For a CPT model with 10 parameters,
+and $\kappa$. When $\rho$ and $\kappa$ are shared across parameters---as is
+natural when the researcher lacks strong reasons to differentiate---only 2 of
+the $2p + 2$ choices require reasoning about population structure rather than
+individual behavior. For a CPT model with 10 parameters,
 this reduces 40 hyperprior parameters to 22---and the 22 remaining choices are
 specified in terms of quantities (CEs, choice probabilities) that researchers
 have decades of empirical evidence to draw upon.
@@ -1290,7 +1309,12 @@ where $\boldsymbol{\mu}_0 \in \mathbb{R}^p$ is the prior mean for the
 population mean, $\kappa_0 > 0$ scales the variance of the population mean
 relative to the population covariance, $\boldsymbol{\Psi}_0$ is the $p \times
 p$ positive definite scale matrix, and $\nu_0 > p + 1$ is the degrees of
-freedom parameter.
+freedom parameter.\footnote{
+  The NIW scaling parameter $\kappa_0$ is standard notation in the conjugate
+  prior literature and should not be confused with the coefficient of variation
+  of heterogeneity $\kappa$ introduced in
+  Section~\ref{sec:variance_decomposition}.
+}
 
 \subsection{Mean Constraint}
 
@@ -1531,8 +1555,8 @@ With different prizes across lotteries, each has its own $R_k(r)$ function.
 Two lotteries with genuinely different prize spacing produce different $R_k$
 functions, overdetermining $r$ and generically precluding compensation.
 
-Numerical verification: for six mixed-prize configurations, \textbf{no
-observationally equivalent triples were found}. Even modest variation
+Numerical verification: for six mixed-prize configurations, no
+observationally equivalent triples were found. Even modest variation
 suffices: changing one lottery's middle prize from \$30 to \$25 eliminates
 the equivalence entirely.
 
@@ -1542,9 +1566,9 @@ For a model with utility parameters $\boldsymbol{\xi} \in \mathbb{R}^{p_1}$
 and weighting parameters $\boldsymbol{\psi} \in \mathbb{R}^{p_2}$:
 
 \begin{enumerate}
-  \item \textbf{Overdetermination ($K > p$):} Additional lotteries generically
+  \item \emph{Overdetermination ($K > p$):} Additional lotteries generically
     break any compensation.
-  \item \textbf{Prize diversity:} At least $p_1 + 1$ distinct prize vectors
+  \item \emph{Prize diversity:} At least $p_1 + 1$ distinct prize vectors
     among $K = p$ lotteries, combined with distinct probability structures and
     local invertibility.
 \end{enumerate}

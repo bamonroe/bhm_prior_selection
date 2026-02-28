@@ -1,0 +1,787 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{titlesec}
+\usepackage[stretch=15]{microtype}
+\usepackage{parskip}
+\usepackage[backend=biber,style=authoryear,maxnames=3,minnames=1]{biblatex}
+\addbibresource{references.bib}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries}{}{0em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{}{0em}{}
+
+% Math shortcuts
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\SD}{\mathrm{SD}}
+\newcommand{\IG}{\mathrm{IG}}
+\newcommand{\Normal}{\mathcal{N}}
+
+\title{Technical Note: Literature Review of the\\Variance Decomposition
+Framework\\[6pt]
+\large Prior Art for $\rho$, $\kappa$, and the Law of Total Variance\\
+as a Prior Specification Tool\\[6pt]
+\normalsize Current state on branch \texttt{feat/joe-restructure}}
+\author{}
+\date{February 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\vspace{1em}
+\hrule
+\vspace{1em}
+
+\section{Purpose}
+
+The paper introduces a variance decomposition for hyperprior construction
+(Section~3.1) built on three elements:
+
+\begin{enumerate}[label=(\roman*)]
+  \item The \textbf{law of total variance} used as a design tool to
+    analytically derive hyperprior parameters from a target unconditional
+    (direct) prior:
+    \[
+      v^* = \Var{m(\psi)} + \E{v(\psi)}
+    \]
+  \item The \textbf{variance partition ratio} $\rho \in (0,1)$, defined as the
+    fraction of direct prior variance attributable to uncertainty about the
+    population center:
+    \[
+      \rho\, v^* = \Var{m(\psi)}, \qquad (1-\rho)\, v^* = \E{v(\psi)}
+    \]
+  \item The \textbf{coefficient of variation of heterogeneity}
+    $\kappa = \SD[\sigma^2] / \E{\sigma^2}$, a distribution-free measure of
+    uncertainty about the level of population heterogeneity.
+\end{enumerate}
+
+This note surveys existing literature to determine whether any of these three
+elements have been proposed before, and how to position the paper's
+contribution relative to closely related work.
+
+
+\section{The Variance Partition Ratio $\rho$}
+
+\subsection{Post-hoc diagnostics: VPC and ICC}
+
+The idea of expressing variance as a ratio of between-group to total variance
+is well established --- as a \emph{posterior diagnostic}. Two standard terms
+exist:
+
+\begin{itemize}
+  \item \textbf{Intraclass Correlation Coefficient (ICC).} Dating to Fisher
+    (1925) and earlier, the ICC is defined as the correlation between two
+    randomly chosen units within the same group. In a simple two-level
+    random-intercept model, the ICC equals
+    $\sigma^2_u / (\sigma^2_u + \sigma^2_e)$.
+
+  \item \textbf{Variance Partition Coefficient (VPC).} Introduced by Goldstein,
+    Browne \& Rasbash (2002) in \emph{Understanding Statistics}. The VPC
+    generalises the ICC to settings where the ICC interpretation (as a
+    correlation) breaks down: models with random slopes, heteroscedastic
+    residuals, non-normal responses, and three or more levels. Goldstein et
+    al.\ define the VPC as the proportion of total variance attributable to a
+    given level, conditional on covariates.
+\end{itemize}
+
+In both cases the quantity is computed \emph{from a fitted model} to summarise
+how much clustering exists in the data. The standard references are Snijders \&
+Bosker (2012, \emph{Multilevel Analysis}, 2nd ed.) and Leckie et al.\ (2020)
+for extensions to count data. The meta-analysis analogue is the $I^2$ statistic
+of Higgins \& Thompson (2002), defined as
+$\tau^2 / (\sigma^2 + \tau^2)$.
+
+\medskip
+
+\noindent\textbf{Relationship to $\rho$.}\quad The paper's $\rho$ is
+numerically the same object as the VPC/ICC --- but used in a fundamentally
+different way. In the existing literature, VPC/ICC is a \emph{descriptive
+summary} of an estimated model. In the paper, $\rho$ is a \emph{design input}:
+a researcher choice that, together with the direct prior moments $(m^*, v^*)$,
+analytically determines the hyperprior parameters. No prior work uses VPC/ICC
+as a specification device for constructing priors.
+
+An important related observation: Natarajan \& Kass (2000, \emph{JASA}) showed
+that the commonly used inverse-gamma$(\varepsilon, \varepsilon)$ prior on
+individual variance components induces a bimodal prior on the ICC/VPC,
+concentrated near 0 and 1 --- an extremely informative (and usually
+unintended) implied prior on the variance partition. Specifying $\rho$ directly
+avoids this pathology entirely, because the partition is a fixed researcher
+choice rather than an emergent consequence of diffuse priors on individual
+variance components.
+
+
+\subsection{Variance proportions for prior specification}
+
+A recent and growing literature does use variance proportions as inputs for
+prior specification, rather than post-hoc diagnostics. This is the most
+relevant body of work.
+
+\subsubsection{Fuglstad, Hem, Knight, Rue \& Riebler (2020)}
+
+``Intuitive Joint Priors for Variance Parameters,'' \emph{Bayesian Analysis}
+15(4):1109--1137. This is the single closest existing paper.
+
+Fuglstad et al.\ reparameterise a model's variance components into a
+\emph{total variance} and a set of \emph{proportions} $(\omega_1, \ldots,
+\omega_K)$ that allocate variance to different model components along a tree
+structure. At each split in the tree, the analyst specifies either a Dirichlet
+prior (expressing ignorance about the split) or a penalised complexity (PC)
+prior (expressing a preference for one branch). The software implementation is
+the \texttt{makemyprior} R package (Hem, Fuglstad \& Riebler, 2024,
+\emph{Journal of Statistical Software}).
+
+\medskip
+\noindent\textbf{Three key differences from $\rho$:}
+
+\begin{enumerate}[label=(\alph*)]
+  \item \textbf{What is decomposed.} Fuglstad et al.\ decompose variance
+    \emph{across model components} at the same level of the hierarchy (e.g.,
+    spatial effect vs.\ temporal effect vs.\ residual). The paper's $\rho$
+    decomposes variance \emph{across hierarchical levels} via the law of total
+    variance identity $V = \Var[\E(\vartheta|\psi)] + \E[\Var(\vartheta|\psi)]$.
+    These are different decompositions: one is additive across components, the
+    other is the between/within split of the iterated expectations identity.
+
+  \item \textbf{Random vs.\ fixed.} In the HD prior framework, the proportions
+    $\omega_j$ are \emph{random variables} with their own priors (Dirichlet or
+    PC). In the paper, $\rho$ is a \emph{fixed researcher choice} --- a scalar
+    that, together with the direct prior moments, deterministically maps to
+    hyperprior parameters. This is a deliberate design decision: $\rho$
+    encodes a structural belief about the hierarchy, not a quantity to be
+    learned from the data.
+
+  \item \textbf{Starting point.} Fuglstad et al.\ specify priors directly on
+    the reparameterised variance components. They do not begin with a target
+    unconditional (direct) prior on an individual's quantity and solve backwards
+    for hyperprior parameters. The paper's approach uses the direct prior as the
+    anchor and derives everything else from it.
+\end{enumerate}
+
+\subsubsection{Aguilar \& B\"{u}rkner (2023)}
+
+``Intuitive Joint Priors for Bayesian Linear Multilevel Models: The R2D2M2
+Prior,'' \emph{Electronic Journal of Statistics} 17(1):1319--1374.
+
+The R2D2M2 prior extends the R2D2 shrinkage prior (Zhang et al., 2022,
+\emph{JASA}) to multilevel models. The user places a Beta prior on the model's
+$R^2$ (coefficient of determination), then decomposes explained variance across
+regression terms via a Dirichlet distribution. The hyperparameters are
+$\mu_{R^2}$ (expected $R^2$) and $\phi_{R^2}$ (precision/confidence in that
+expectation).
+
+\medskip
+\noindent\textbf{Relationship to the paper.}\quad The R2D2M2 framework shares
+the broad goal of making variance-related hyperparameters interpretable. The
+$\phi_{R^2}$ parameter captures ``how confident the user is about $R^2$,''
+which is conceptually adjacent to $\kappa$ (how confident the researcher is
+about the level of heterogeneity). However, R2D2M2 operates in the regression
+setting (decomposing explained variance across predictors), not in the
+hierarchical random-effects setting (decomposing unconditional variance across
+hierarchical levels). The objects being reparameterised are different.
+
+\subsubsection{Ferrari \& Ventrucci (2025)}
+
+``A Standardisation Procedure to Incorporate Variance Partitioning Based Priors
+in Latent Gaussian Models,'' arXiv:2501.16057. This very recent paper extends
+the Fuglstad et al.\ framework to a broader class of latent Gaussian models,
+confirming that variance-partition-based prior specification is an active
+research area. The same distinctions (model components vs.\ hierarchical
+levels, random proportions vs.\ fixed choices) apply.
+
+
+\section{The Coefficient of Variation of Heterogeneity $\kappa$}
+
+The specific construction
+\[
+  \kappa \coloneqq \frac{\SD[\sigma^2]}{\E{\sigma^2}}
+\]
+as a named, interpretable, distribution-free hyperparameter for specifying
+uncertainty about the level of population heterogeneity does not appear in
+the existing literature. This appears to be a genuinely novel contribution.
+
+\subsection{What is known}
+
+The mathematical fact that the inverse-gamma distribution $\IG(\alpha, \beta)$
+has coefficient of variation $1/\sqrt{\alpha - 2}$ (for $\alpha > 2$) is
+textbook material. It appears on the Wikipedia page for the inverse-gamma
+distribution and in standard references. The relationship
+$\kappa = 1/\sqrt{\alpha_0 - 2}$, equivalently $\alpha_0 = 2 + 1/\kappa^2$,
+is therefore well known \emph{as a property of the IG distribution}.
+
+What is new is:
+\begin{enumerate}[label=(\roman*)]
+  \item Defining $\kappa$ in a \textbf{distribution-free} way --- as
+    $\SD[\sigma^2]/\E{\sigma^2}$ without reference to any specific family for
+    $\sigma^2$ --- and then showing that it maps to $\alpha_0$ \emph{if} the IG
+    family is chosen.
+  \item Proposing $\kappa$ as a \textbf{primary specification device}: the
+    researcher thinks in terms of $\kappa$ (``how uncertain am I about the
+    level of heterogeneity?'') rather than $\alpha_0$ (``what are the
+    degrees-of-freedom of my inverse-gamma prior?'').
+  \item Providing an \textbf{interpretive scale}: $\kappa \to 0$ means
+    certainty about heterogeneity, $\kappa = 1$ means the standard deviation of
+    $\sigma^2$ equals its mean, and $\kappa > 1$ means very high uncertainty.
+\end{enumerate}
+
+\subsection{Closest parallels}
+
+\begin{itemize}
+  \item \textbf{$\phi_{R^2}$ in R2D2M2} (Aguilar \& B\"{u}rkner, 2023). A
+    precision parameter for the Beta prior on $R^2$, capturing confidence in the
+    expected $R^2$ value. Conceptually related (both capture ``meta-uncertainty''
+    about a variance-related quantity), but $\phi_{R^2}$ is a Beta precision
+    parameter in the regression setting, not a CV of a variance component in the
+    hierarchical setting.
+
+  \item \textbf{$\alpha_0$ as ``prior sample size.''} The standard textbook
+    interpretation of the IG shape parameter is as an effective sample size.
+    This is an interpretation of $\alpha_0$ itself, not a reparameterisation
+    into a unit-free, distribution-free quantity.
+
+  \item \textbf{The $I^2$ statistic} (Higgins \& Thompson, 2002). A
+    distribution-free heterogeneity measure in meta-analysis. However, $I^2$
+    measures the \emph{proportion} of total variance from heterogeneity
+    (analogous to $\rho$), not the \emph{uncertainty about the level of
+    heterogeneity} (which is what $\kappa$ captures). They are complementary
+    concepts.
+\end{itemize}
+
+
+\section{The Law of Total Variance as a Prior Specification Tool}
+
+The paper uses the law of total variance (equivalently, the law of iterated
+expectations combined with the variance decomposition identity) as an
+\emph{analytical tool} for deriving hyperprior parameters. Given a target
+unconditional variance $v^*$, the identity
+\[
+  v^* = \underbrace{\Var[\E(\vartheta_i|\psi)]}_{\rho\, v^*}
+      + \underbrace{\E[\Var(\vartheta_i|\psi)]}_{(1-\rho)\, v^*}
+\]
+is solved for the hyperprior parameters that produce the target moments. This
+use of the identity --- as a design equation, not a descriptive one --- does
+not appear in the existing literature.
+
+\subsection{Closest existing work}
+
+\subsubsection{Manderson \& Goudie (2023)}
+
+``Translating Predictive Distributions into Informative Priors,''
+arXiv:2303.08528. On first reading this appears to be the closest existing
+work. Three successive drafts of this note have revised the comparison, each
+time arriving at a sharper understanding. The current assessment follows.
+
+\medskip
+\noindent\textbf{Their setup.}\quad Manderson \& Goudie work with a
+\emph{single-level} model: an observable $Y$, parameters $\theta$, and
+hyperparameters $\lambda$ that parameterise the prior $P(\theta|\lambda)$.
+Their goal is to find $\lambda$ such that the \emph{prior predictive
+distribution}
+\[
+  P(Y|\lambda) = \int P(Y|\theta)\, P(\theta|\lambda)\, d\theta
+\]
+matches a target distribution $T(Y)$ elicited from a domain expert. There is
+one integration: over parameters $\theta$, given fixed hyperparameters
+$\lambda$. The quantity being matched is the distribution of \emph{observables}
+$Y$, not of parameters. Their examples are all single-level: a cure fraction
+survival model, an $R^2$ prior for linear regression, and a human growth curve
+model. None involves a hierarchical population structure.
+
+\medskip
+\noindent\textbf{The correct alignment.}\quad The present paper has two
+distinct steps, and Manderson \& Goudie correspond to the \emph{first} step,
+not the second:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Step} & \textbf{This paper} & \textbf{Manderson \& Goudie} \\
+\midrule
+Beliefs about quantities & Jacobian correction & Distribution matching \\
+$\to$ prior on $\theta$ & (analytical, \S3.1) & (numerical) \\
+\addlinespace
+Direct prior & Variance decomposition & \emph{Not addressed} \\
+$\to$ BHM hyperpriors & with $(\rho, \kappa)$ (\S3.2) & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Both the Jacobian correction and Manderson \& Goudie's distribution matching
+solve the same problem: ``I have beliefs about derived/observable quantities;
+translate these into a prior on model parameters.'' The Jacobian correction does
+this analytically when the mapping $g: \theta \to \vartheta$ is injective and
+differentiable. Manderson \& Goudie do it numerically for arbitrary models,
+matching the full prior predictive distribution via Bayesian optimisation. They
+are alternative solutions to the \emph{same} step.
+
+The paper's \emph{second} step --- the variance decomposition --- has no
+counterpart in Manderson \& Goudie. This is the step that takes a direct prior
+on $\vartheta$ for a single individual and derives hyperprior parameters $\xi$
+for a BHM's population distribution:
+\[
+  p^*(\vartheta) = \int p(\vartheta|\psi)\, p(\psi|\xi)\, d\psi
+\]
+Manderson \& Goudie do not address this integral at all. They have no
+population structure, no between/within decomposition, and no analogue of
+$\rho$ or $\kappa$.
+
+\medskip
+\noindent\textbf{The identifiability problem.}\quad Both approaches face
+non-uniqueness, but at different steps and for different reasons.
+
+Manderson \& Goudie face it at the quantity-to-prior step: they note that
+``there often are many optimal values $\lambda^*$ that yield values of
+$\tilde{D}(\lambda^*|\mathbf{X})$ that are practically
+indistinguishable\ldots with immensely differing prior distributions.'' Their
+resolution is generic regularisation (maximise prior variance) with
+multi-objective optimisation over a Pareto frontier. The paper's Jacobian
+correction avoids this entirely: given an injective $g$ and a density
+$p_\vartheta$, the induced prior $p_\theta$ is unique.
+
+The present paper faces the identifiability problem at the \emph{second} step:
+the direct prior $p^*(\vartheta)$ is characterised by two moments $(m^*, v^*)$,
+but the NIG hyperprior has four free parameters
+$(\mu_0, \tau_0^2, \alpha_0, \beta_0)$. Two equations in four unknowns --- the
+system is underdetermined. The paper's resolution is to supply two additional
+\emph{interpretable} constraints:
+\begin{itemize}
+  \item $\rho$ pins down the split between $\tau_0^2$ and $\E{\sigma^2}$:
+    how much of the direct prior variance comes from uncertainty about the
+    population mean vs.\ genuine heterogeneity.
+  \item $\kappa$ pins down $\SD[\sigma^2]/\E{\sigma^2}$: how confident the
+    researcher is about the level of heterogeneity.
+\end{itemize}
+Together, $(m^*, v^*, \rho, \kappa)$ provide exactly four constraints for four
+unknowns, and the solution is closed-form. This replaces regularisation with
+\emph{substantive meaning}: each degree of freedom corresponds to an
+interpretable belief about the population structure.
+
+\medskip
+\noindent\textbf{Composability.}\quad The two approaches operate at different
+levels and could in principle be composed into a full pipeline:
+\begin{enumerate}
+  \item Use Manderson \& Goudie (or the Jacobian correction) to go from beliefs
+    about observables/generated quantities to a direct prior on parameters.
+  \item Use the variance decomposition with $(\rho, \kappa)$ to go from the
+    direct prior to BHM hyperpriors.
+\end{enumerate}
+Neither paper alone covers both steps. Manderson \& Goudie stop after step~1;
+the present paper assumes step~1 is done (via the Jacobian correction or by
+direct specification) and provides step~2.
+
+\subsubsection{Kadane et al.\ (1980) and Gabry et al.\ (2019)}
+
+Kadane et al.\ (1980) established the principle that prior elicitation should
+be conducted on \emph{observable quantities} rather than abstract parameters.
+Gabry, Simpson, Vehtari, Betancourt \& Gelman (2019, ``Visualization in
+Bayesian Workflow'') advocate for prior predictive checks as a central part of
+Bayesian practice. Gelman's associated writing explicitly endorses the idea that
+``you can include prior information on quantities of interest, not just on
+parameters in your model.''
+
+Both articulate the \emph{principle} but operationalise it only through
+simulation and visual calibration. The paper provides the analytical complement:
+exact formulas for what hyperpriors must be, given the target marginal.
+
+\subsubsection{Gelman (2006) and Simpson et al.\ (2017)}
+
+Gelman (2006, ``Prior Distributions for Variance Parameters in Hierarchical
+Models,'' \emph{Bayesian Analysis}) addresses which \emph{family} of prior to
+use on variance parameters (half-Cauchy, half-$t$, uniform on SD), not how to
+determine the \emph{parameters} of a chosen family from a target unconditional
+distribution.
+
+Simpson, Rue, Riebler, Martins \& S{\o}rbye (2017, ``Penalising Model
+Component Complexity,'' \emph{Statistical Science}) define PC priors via KL
+divergence from a base model, with the user making a single tail probability
+statement. This is a prior specification method, but it operates on individual
+variance parameters directly (one-layer), not on a hierarchical decomposition.
+There is no ``meta-uncertainty'' parameter analogous to $\kappa$.
+
+Both are important references for the broader prior specification literature
+but address different questions from the paper.
+
+
+\section{A More Precise Account of Novelty}
+
+The earlier sections of this note, written during the initial literature search,
+overstated the novelty of the law of total variance as a prior specification
+tool, and incorrectly positioned Manderson \& Goudie (2023) as addressing the
+same problem. Successive revisions have sharpened the assessment. This section
+presents the current understanding.
+
+\subsection{The paper as a two-step pipeline}
+
+The paper's methodology has two distinct steps. The novelty is concentrated
+in the second.
+
+\medskip
+\noindent\textbf{Step 1: Quantity space $\to$ parameter space} (\S3.1). The
+Jacobian correction $p_\theta(\theta) =
+p_\vartheta(g(\theta))\sqrt{\det(J^\top J)}$ transforms a prior specified on
+generated quantities into a prior on model parameters. This is a well-known
+change-of-variables formula. Manderson \& Goudie (2023) solve the same problem
+numerically, via distribution matching, for models where $g$ may not be
+analytically tractable. \emph{Step 1 is not novel; the paper applies a known
+technique and cites Segert (2019) for the derivation.}
+
+\medskip
+\noindent\textbf{Step 2: Direct prior $\to$ BHM hyperpriors} (\S3.2). This is
+where the paper departs from existing work. Given a direct prior on $\vartheta$
+for a single individual --- whether obtained via the Jacobian correction or
+specified directly --- the researcher must now derive hyperpriors for the
+population distribution. The integral to be satisfied is:
+\[
+  p^*(\vartheta) = \int p(\vartheta|\psi)\, p(\psi|\xi)\, d\psi
+\]
+This is an underdetermined problem: the direct prior provides two constraints
+$(m^*, v^*)$, but the NIG hyperprior has four free parameters
+$(\mu_0, \tau_0^2, \alpha_0, \beta_0)$. No existing work addresses this step.
+Manderson \& Goudie stop after step~1. Fuglstad et al.\ (2020) decompose
+variance across model components at a single level, not across hierarchical
+levels. Kadane (1980) and Gabry et al.\ (2019) articulate the principle of
+quantity-space specification but provide no mechanism for the BHM extension.
+
+The paper resolves the underdetermination by introducing two interpretable
+researcher choices:
+\begin{itemize}
+  \item $\rho$: what fraction of the direct prior variance reflects uncertainty
+    about the population mean (vs.\ genuine heterogeneity).
+  \item $\kappa$: how uncertain the researcher is about the level of
+    heterogeneity itself.
+\end{itemize}
+Together, $(m^*, v^*, \rho, \kappa)$ provide four constraints for four unknowns,
+and the solution is closed-form via the law of total variance. The individual
+ingredients are known (the VPC/ICC ratio, the IG coefficient of variation, the
+law of total variance), but their assembly into a determined system for
+hyperprior derivation is new.
+
+\subsection{What is known vs.\ what is new}
+
+To be precise about each ingredient:
+
+\begin{enumerate}
+  \item \textbf{The law of total variance.} A textbook identity. Using it in the
+    forward direction --- deriving the marginal moments of a NIG hierarchy ---
+    is standard. Using it in the \emph{reverse} direction as a design equation
+    (``given target moments, solve for hyperprior parameters'') is
+    straightforward algebra but does not appear to have been written down as a
+    methodology for prior specification. \emph{The technique is known; its
+    application as a design tool for BHM priors is new.}
+
+  \item \textbf{The $\rho$ parameterisation.} Numerically the same object as the
+    VPC/ICC (Fisher 1925, Goldstein et al.\ 2002), which has been used
+    exclusively as a posterior diagnostic. Fuglstad et al.\ (2020) use variance
+    proportions as prior inputs, but in a different decomposition (across model
+    components, with the proportions as random variables). Using the VPC/ICC as
+    a \emph{fixed} design input for the between/within split in a BHM hierarchy
+    is new. \emph{New role for a known quantity.}
+
+  \item \textbf{The $\kappa$ parameterisation.} The CV of the IG distribution is
+    textbook. Defining $\kappa = \SD[\sigma^2]/\E{\sigma^2}$ in a
+    distribution-free way and proposing it as the primary specification device
+    is new. \emph{New framing of a known relationship.}
+
+  \item \textbf{The determined system.} The key observation is that $(\rho,
+    \kappa)$ are not just interpretive glosses on existing parameters --- they
+    are the two constraints needed to make the hyperprior derivation
+    \emph{determined}. Without them, the researcher faces an underdetermined
+    system (two moment equations in four unknowns) that can only be resolved by
+    ad hoc choices of $\alpha_0$ and the variance split, or by numerical
+    optimisation with regularisation. The paper replaces both with substantive
+    meaning. \emph{This assembly is new.}
+\end{enumerate}
+
+\subsection{Manderson \& Goudie as the numerical Jacobian correction}
+
+The initial drafts of this note contrasted Manderson \& Goudie (2023) with the
+variance decomposition, framing them as ``numerical vs.\ analytical'' solutions
+to the same problem. This was wrong --- twice. The first correction (Section
+4.1.1) recognised that they operate at different levels of the hierarchy. The
+second, sharper correction recognises that Manderson \& Goudie correspond to
+the paper's \emph{first} step (the Jacobian correction), not the second
+(the variance decomposition):
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Pipeline step} & \textbf{This paper} & \textbf{Manderson \& Goudie} \\
+\midrule
+Beliefs about quantities & Jacobian correction & Distribution matching \\
+$\;\to$ prior on $\theta$ & (analytical, \S3.1) & (numerical) \\
+\addlinespace
+Direct prior on $\vartheta$ & Variance decomposition & \emph{Not addressed} \\
+$\;\to$ BHM hyperpriors $\xi$ & with $(\rho, \kappa)$ (\S3.2) & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Both the Jacobian correction and Manderson \& Goudie solve the same
+problem: ``I have beliefs about derived/observable quantities; translate these
+into a prior on model parameters.'' The Jacobian correction does this
+analytically when $g$ is injective and differentiable; Manderson \& Goudie do
+it numerically for arbitrary models by matching the full prior predictive
+distribution.
+
+The paper's second step --- the variance decomposition with $(\rho, \kappa)$
+--- has \emph{no counterpart} in Manderson \& Goudie. This is the step that
+extends the methodology to BHMs, taking a single-individual direct prior and
+deriving population-level hyperpriors. Without this step, a researcher with a
+direct prior on $\vartheta$ would still face the $4p$ problem: how to specify
+$(\mu_0, \tau_0^2, \alpha_0, \beta_0)$ for each parameter.
+
+The two approaches \emph{could} be composed: Manderson \& Goudie (or the
+Jacobian correction) for step~1, the variance decomposition for step~2. Neither
+alone covers the full pipeline from quantity-space beliefs to BHM hyperpriors.
+
+\subsection{What is the paper actually contributing?}
+
+The paper makes two contributions of different character:
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Step 1 (quantity space $\to$ parameter space)} is a known
+    technique applied systematically to a new domain. The Jacobian correction is
+    standard; Manderson \& Goudie (2023) provide the numerical analogue for
+    non-conjugate models. The paper's contribution here is the careful
+    application to structural models of risk preferences (proving injectivity
+    of the CE mapping, handling the overdetermined case, etc.), not the
+    technique itself. This step is best framed as \emph{applying} existing
+    methodology.
+
+  \item \textbf{Step 2 (direct prior $\to$ BHM hyperpriors)} is the
+    methodological contribution. The problem it solves --- deriving hyperprior
+    parameters from a single-individual direct prior --- is not addressed by
+    any existing paper. The solution combines known ingredients (law of total
+    variance, VPC/ICC, IG coefficient of variation) into a determined system
+    via two interpretable parameters $(\rho, \kappa)$. This is more than a
+    synthesis: it identifies a specific underdetermined problem in BHM prior
+    specification and provides a principled, closed-form resolution. No
+    existing approach does this.
+\end{enumerate}
+
+\noindent The gap that Step~2 fills is real and specific. Without it, a
+researcher who has specified a direct prior on a generated quantity for a single
+individual has no systematic way to derive the $4p$ hyperprior parameters needed
+for a BHM. The available alternatives are:
+\begin{itemize}
+  \item \textbf{Ad hoc choices:} pick $\alpha_0$ and the variance split by
+    convention or convenience (e.g.\ $\alpha_0 = 2.001$, equal split). This is
+    common practice but provides no interpretive anchor.
+  \item \textbf{Visual calibration:} simulate the prior predictive and adjust
+    hyperparameters until the plots ``look right'' (Gabry et al., 2019). This
+    is useful as a check but does not scale to $4p$ dimensions and provides no
+    closed-form relationship.
+  \item \textbf{Numerical optimisation:} extend Manderson \& Goudie's approach
+    to the BHM setting. This is possible in principle but would face severe
+    non-uniqueness (the hyperprior predictive is now two integrations removed
+    from observables) and would require regularisation with no substantive
+    interpretation.
+\end{itemize}
+The paper's $(\rho, \kappa)$ parameterisation replaces all three with a
+determined, closed-form, interpretable derivation. Each degree of freedom in
+the hyperprior corresponds to either a moment of the direct prior (which
+encodes domain knowledge) or a structural belief about the hierarchy (which the
+researcher can reason about independently of the parameter scale).
+
+
+\section{Summary}
+
+The paper's contribution is best understood as two steps of different character:
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{Step} & \textbf{What it does} & \textbf{Closest prior art} & \textbf{Novelty} \\
+\midrule
+Jacobian & Quantity space & Manderson \& Goudie & Known technique; \\
+correction & $\to$ parameter & (2023): numerical & M\&G is the numerical \\
+(\S3.1) & space prior & analogue & analogue \\
+\addlinespace
+Variance & Direct prior & \emph{None} & New: resolves the \\
+decomposition & $\to$ BHM & & underdetermined \\
+with $(\rho, \kappa)$ & hyperpriors & & $4p$ problem with \\
+(\S3.2) & & & interpretable choices \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The individual ingredients of Step~2 have existing relatives:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Ingredient} & \textbf{Closest prior art} & \textbf{Nature of difference} \\
+\midrule
+$\rho$ (variance partition & VPC/ICC (Goldstein 2002); & Post-hoc diagnostic, not \\
+\quad ratio) & HD priors (Fuglstad 2020) & design input; Fuglstad \\
+ & & decomposes across model \\
+ & & components, not hier.\ levels \\
+\addlinespace
+$\kappa$ (CV of & IG shape parameter & Known math; new as a named, \\
+\quad heterogeneity) & (textbook) & distribution-free \\
+ & & specification device \\
+\addlinespace
+Determined system: & \emph{None} & The assembly of $(\rho, \kappa)$ \\
+$(m^*, v^*, \rho, \kappa)$ & & as the two constraints that \\
+$\to (\mu_0, \tau_0^2,$ & & make the system determined \\
+$\alpha_0, \beta_0)$ & & is new \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+\section{Recommendations for the Paper}
+
+\subsection{Framing the contribution}
+
+The paper should be framed as having two contributions of different character:
+
+\begin{enumerate}
+  \item \textbf{Step 1 (quantity-space prior specification, \S3.1):} An
+    application of the known Jacobian change-of-variables formula to structural
+    models of risk preferences, with careful treatment of injectivity and the
+    overdetermined case. This is best presented as \emph{applying} existing
+    methodology to a new domain, not as a methodological innovation. Manderson
+    \& Goudie (2023) should be cited as providing the numerical analogue for
+    models where the analytical Jacobian is not available.
+
+  \item \textbf{Step 2 (hyperprior derivation via variance decomposition,
+    \S3.2):} The methodological contribution. The paper identifies a specific
+    underdetermined problem in BHM prior specification --- the direct prior
+    provides two moment constraints but the hyperprior has four free parameters
+    --- and resolves it with two interpretable, unit-agnostic researcher
+    choices $(\rho, \kappa)$ that make the system determined and yield
+    closed-form hyperprior parameters. No existing paper addresses this
+    problem. The individual ingredients (law of total variance, VPC/ICC, IG
+    coefficient of variation) are known, but their assembly into a determined
+    system for hyperprior derivation is new.
+\end{enumerate}
+
+\subsection{Citations to add}
+
+\begin{enumerate}
+  \item \textbf{Manderson \& Goudie (2023).} ``Translating Predictive
+    Distributions into Informative Priors,'' arXiv:2303.08528. The numerical
+    analogue of the paper's Step~1 (Jacobian correction). They translate
+    beliefs about observables into prior parameters for single-level models via
+    distribution matching and Bayesian optimisation. Cite in \S3.1 or \S2 as
+    the numerical counterpart, noting that their approach applies to arbitrary
+    models while the Jacobian correction requires an analytically tractable
+    injective mapping. Note also that they face a non-uniqueness problem
+    (resolved via generic regularisation), which motivates the paper's
+    interpretable resolution via $(\rho, \kappa)$ at Step~2. The two
+    approaches could be composed: M\&G for Step~1, the variance decomposition
+    for Step~2.
+
+  \item \textbf{Fuglstad, Hem, Knight, Rue \& Riebler (2020).} ``Intuitive
+    Joint Priors for Variance Parameters,'' \emph{Bayesian Analysis}
+    15(4):1109--1137. The closest existing work to Step~2, and the most
+    important reference to cite and distinguish from. Likely reviewers may come
+    from this group. Suggested framing: ``Fuglstad et al.\ (2020)
+    reparameterise variance components into a total variance and proportions
+    allocated across model components along a tree structure. The present
+    approach differs in three respects: (i) it decomposes across hierarchical
+    levels via the law of total variance rather than across model components;
+    (ii) the proportion $\rho$ is a fixed researcher choice rather than a
+    random variable with its own prior; and (iii) the derivation starts from a
+    target unconditional distribution for a single individual.''
+
+  \item \textbf{Goldstein, Browne \& Rasbash (2002).} ``Partitioning Variation
+    in Multilevel Models,'' \emph{Understanding Statistics} 1(4):223--231. Cite
+    when $\rho$ is introduced in \S3.2, noting the relationship to the VPC/ICC:
+    same object, different role (design input vs.\ posterior diagnostic).
+
+  \item \textbf{Aguilar \& B\"{u}rkner (2023).} ``The R2D2M2 Prior,''
+    \emph{Electronic Journal of Statistics} 17(1):1319--1374. Cite in \S2 for
+    the shared goal of making variance hyperparameters interpretable. Note the
+    different domain (regression vs.\ hierarchical random effects) and the
+    different decomposition (explained variance across predictors vs.\
+    unconditional variance across hierarchical levels).
+
+  \item \textbf{Natarajan \& Kass (2000).} ``Reference Bayesian Methods for
+    Generalized Linear Mixed Models,'' \emph{JASA} 95:227--237. Cite for the
+    induced-prior pathology: standard $\IG(\varepsilon, \varepsilon)$ priors on
+    individual variance components induce bimodal, near-degenerate priors on
+    the ICC. This strengthens the motivation for specifying $\rho$ directly
+    rather than letting it emerge as an artefact of independent hyperprior
+    choices.
+\end{enumerate}
+
+\subsection{Where to integrate}
+
+\begin{enumerate}
+  \item \textbf{Section 2 (Literature).} The lit review currently organises the
+    prior specification literature into two camps. A third strand has emerged
+    since those camps were defined: recent work using variance proportions or
+    predictive distributions as inputs for prior specification (Fuglstad et al.\
+    2020, Aguilar \& B\"{u}rkner 2023, Manderson \& Goudie 2023). A short
+    paragraph positioning the paper relative to this strand would be valuable.
+    The framing should be additive: these are contributions the paper builds
+    alongside, not corrects. The paper's Step~1 is the analytical counterpart
+    of Manderson \& Goudie; Step~2 fills a gap none of them address (the BHM
+    extension).
+
+  \item \textbf{Section 3.1 (Quantity-Space Prior Specification).} Cite
+    Manderson \& Goudie as the numerical analogue of the Jacobian correction,
+    noting that their approach handles non-conjugate models at the cost of
+    requiring simulation and optimisation.
+
+  \item \textbf{Section 3.2 (Two Interpretable Parameters).} When $\rho$ is
+    introduced, a footnote noting the relationship to the VPC/ICC (Goldstein et
+    al., 2002): same ratio, different role. When $\kappa$ is introduced, note
+    that the underlying IG relationship is well known but the distribution-free
+    framing and its use as a primary specification device are new. Cite
+    Fuglstad et al.\ (2020) for the distinction: they decompose across model
+    components with random proportions; the present paper decomposes across
+    hierarchical levels with fixed choices.
+
+  \item \textbf{Discussion (Section 8).} Frame the paper's position in the
+    emerging toolkit:
+    \begin{itemize}
+      \item Manderson \& Goudie: beliefs about observables $\to$ prior
+        parameters (numerical, single-level).
+      \item Jacobian correction: beliefs about generated quantities $\to$ prior
+        on parameters (analytical, requires injective $g$).
+      \item Variance decomposition with $(\rho, \kappa)$: direct prior $\to$
+        BHM hyperpriors (analytical, requires moment-matchable hierarchy).
+      \item Fuglstad et al.: variance proportions across model components
+        (random, with PC or Dirichlet priors).
+    \end{itemize}
+    These are complementary, not competing. The paper provides one piece ---
+    the BHM extension --- that the others do not.
+\end{enumerate}
+
+\subsection{Terminology consideration}
+
+The paper uses ``variance partition ratio'' for $\rho$. The established term is
+``variance partition \emph{coefficient}'' (VPC). Two options:
+
+\begin{enumerate}[label=(\alph*)]
+  \item \textbf{Adopt ``coefficient.''} Gains instant familiarity for
+    multilevel modelling readers. Risk: readers may assume $\rho$ is the same
+    thing as the standard VPC (a posterior diagnostic), causing confusion about
+    its role as a prior specification input.
+  \item \textbf{Keep ``ratio.''} Signals that this is a distinct (though
+    related) concept. Introduce it with a note: ``The variance partition ratio
+    $\rho$ is numerically equivalent to the variance partition coefficient
+    (Goldstein et al., 2002) but serves a different purpose here: it is a fixed
+    researcher choice for prior construction, not a summary of a fitted model.''
+\end{enumerate}
+
+\noindent Option (b) is recommended. It avoids conflation while acknowledging
+the connection.
+
+\printbibliography
+
+\end{document}

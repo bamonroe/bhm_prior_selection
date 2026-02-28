@@ -1,0 +1,328 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\title{Paper Status Assessment and Recommendations\\[6pt]
+\large ``Quantity-Space Prior Specification for Bayesian Hierarchical Models''}
+\author{Technical Note}
+\date{February 28, 2026}
+
+\begin{document}
+\maketitle
+
+\section{Overview}
+
+This note is a follow-up to the assessment of February 25, 2026. It provides
+an updated status of all issues identified in that note, flags new issues
+discovered during this review, and refines the recommended order of operations.
+
+The assessment is based on a full read of \texttt{doc/main.tex} (1748 lines),
+\texttt{TODO.md}, and the February 25 technical note as of February 28, 2026.
+
+\subsection{Summary of Changes Since February 25}
+
+No substantive changes have been made to \texttt{doc/main.tex} since the
+February 25 assessment. All Priority~1 items (immediate text fixes) were
+completed during that session. The Priority~2 structural improvements,
+the simulation scope decision (Priority~3), and the posterior sensitivity
+analysis (Priority~4) remain open.
+
+On the code side, Phase~3 (CE-space priors) remains in progress: the CE
+Jacobian, CE-space posterior, CE-space prior selection, and CE-space sampling
+modules are implemented with Normal population distributions, but the
+Beta-Beta hierarchy for bounded CEs is still TODO. Phase~2 ($\kappa$
+parameterization and sensitivity grid) is complete.
+
+
+\section{Issues Carried Forward from February 25}
+
+The following table updates the status of all issues from the previous note.
+Items marked ``Fixed'' were resolved during the February 25 session; items
+marked ``Open'' remain unaddressed.
+
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+Location & Type & Severity & Status & Description \\
+\midrule
+Abstract & Clarity & Minor & Open & ``reduces \ldots to two'' ambiguity ($4p \to 2$ vs $4p \to 2p+2$) \\
+Abstract & Scope & Minor & Open & ``any distributional family'' claim \\
+\S2.2 (303--338) & Structure & Moderate & Open & Belief-elicitation detour \\
+\S3 title & Structure & Minor & Open & Title doesn't reflect both contributions \\
+\S3 ``no free lunch'' & Placement & Minor & Open & Paragraph at end of \S3.3 feels like afterthought \\
+\S4.1 (660--662) & Clarity & Minor & Open & Wilcox (2011) normalization unexplained \\
+\S4.2 (668--675) & Style & Minor & \textbf{New} & ``we'' $\to$ ``I'' (3 instances missed in Feb 25) \\
+\S4.3 & Length & Minor & Open & Injectivity could be condensed \\
+\S4.7 & Missing & Moderate & Open & No posterior sensitivity analysis \\
+\S7.3 & Argument & Minor & Open & BF ``perverse incentive'' needs citation \\
+App.\ E (1663, 1669) & Maintenance & Minor & Open & Hardcoded ``115 blocks'' \\
+\S5--6 & Completeness & Major & Open & Stub sections \\
+Figures & Captions & Minor & Open & Terse captions (see \S\ref{sec:captions}) \\
+Road map (201--213) & Consistency & Minor & Open & References stubs without caveat \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+\section{New Issues Found}
+
+\subsection{First-person inconsistencies in \S4.2 (lines 668--675)}
+
+The February 25 note fixed ``we'' on lines 421 and 450 but missed three
+instances in \S4.2 (``Quantity-Space Mapping for RDU''):
+
+\begin{enumerate}[label=(\alph*)]
+  \item Line 668: ``While we can follow \textbackslash textcite\{Gao2022\}''
+    $\to$ ``While one can follow'' or ``While it is possible to follow''
+  \item Line 673: ``we start instead by specifying'' $\to$ ``I start instead
+    by specifying''
+  \item Line 675: ``We discuss first'' $\to$ ``I discuss first''
+\end{enumerate}
+
+The remaining ``we'' instances (lines 496, 1449, 1451) are in mathematical
+exposition (``if we first define,'' ``suppose we wish to specify'') where the
+inclusive ``we'' is conventional and acceptable.
+
+
+\subsection{Figure captions are genuinely terse}
+\label{sec:captions}
+
+The \verb|\mycaption| command (defined in \texttt{packages.tex}, line 196) is a
+thin wrapper around \verb|\caption| that adjusts paragraph indentation. It adds
+no additional content. The actual caption strings in the paper are:
+
+\begin{enumerate}[label=(\alph*)]
+  \item ``Hyperparameter posteriors'' (Fig.\ \ref*{} line 960)
+  \item ``Hyper-posterior distribution'' (Fig.\ line 966)
+  \item ``Hyper-posterior predictive CE distributions'' (Fig.\ line 1014)
+  \item ``Posterior predictive CE: Least Affected (Subject \ldots)'' (Fig.\ line 1035)
+  \item ``Posterior predictive CE: Most Affected (Subject \ldots)'' (Fig.\ line 1041)
+\end{enumerate}
+
+JoE and most economics journals expect self-contained captions that summarize
+the key takeaway of the figure. For example, Figure 1 should read something
+like: ``Posterior densities of the eight hyperparameters under the informative
+prior (blue), diffuse prior (orange), and the informative hyperprior (grey
+dashed). The informative hyperprior concentrates posterior mass for all
+hyperparameters except $\mu_\lambda$.''
+
+This is a presentation issue, not a methodological one, but it will likely
+draw reviewer comments.
+
+
+\subsection{Road map references subsection label as section}
+
+The road map paragraph (lines 201--213) writes:
+
+\begin{quote}
+  ``Section~\verb|\ref{sec:variance_decomposition}| introduces the
+  distribution-free variance decomposition\ldots''
+\end{quote}
+
+The label \verb|sec:variance_decomposition| is attached to
+\verb|\subsection{Hyperprior Construction via Variance Decomposition}| (line
+455--456), which is \S3.2. LaTeX will render this as ``Section 3.2,'' which is
+technically correct but reads oddly in a road map that otherwise references
+top-level sections.
+
+This is harmless if the current structure is retained, but would become a
+problem if Section~3 is split (as recommended in Priority~2c of the Feb 25
+note). If Section~3 is split, the label should be promoted to a
+\verb|\section| and the road map will read naturally.
+
+
+\subsection{Abstract scope vs demonstrated generality}
+
+The abstract states that the direct prior and $(\rho, \kappa)$ ``fully
+determine the hyperprior for any distributional family.'' The theoretical claim
+is correct (moment matching applies to any family with finite first two
+moments), but the paper demonstrates this only for the Normal-Inverse-Gamma
+family, with the Skew-Normal extension in Appendix~B as a generalization
+example. A reviewer may flag the gap between claim and demonstration.
+
+Two options: (a) soften the abstract to ``for standard conjugate families,
+with extensions demonstrated for the Skew-Normal''; or (b) leave the claim
+and ensure the Skew-Normal appendix is explicitly cited in the abstract as
+evidence of generality.
+
+
+\section{Prioritized Recommendations (Updated)}
+
+\subsection{Priority 1: Text fixes (no computation) --- PARTIALLY COMPLETE}
+
+\begin{enumerate}
+  \item[{[x]}] All items from Feb 25 Priority 1 --- complete
+  \item[{[ ]}] Fix ``we'' $\to$ ``I'' on lines 668, 673, 675
+  \item[{[ ]}] Expand figure captions to be self-contained (5 figures)
+  \item[{[ ]}] Add one-sentence clarification of Wilcox (2011) normalization
+    in \S4.1 (or forward reference to Appendix E, line 1711)
+  \item[{[ ]}] Make ``115 blocks'' in Appendix E dynamic via
+    \verb|\py{int(Q.get('n_subjects', 0)) + 4}|
+\end{enumerate}
+
+These are all quick fixes that can be done in a single editing session.
+
+
+\subsection{Priority 2: Structural improvements --- UNCHANGED}
+
+These remain as recommended in the February 25 note:
+
+\begin{enumerate}[label=(\alph*)]
+  \item Condense belief-elicitation literature in \S2.2 to 2--3 sentences or a
+    footnote. Saves approximately 1 page.
+  \item Condense main-text injectivity discussion (\S4.3). Keep the
+    proposition and the practical recommendation; move compensation mechanism
+    details to Appendix~C.
+  \item Consider splitting Section~3 into two sections. If done, promote
+    \verb|sec:variance_decomposition| to a \verb|\section| label. The road map
+    paragraph would then reference full sections throughout.
+  \item Strengthen or shorten the Bayes factor discussion (\S7.3). Either add
+    a citation (Gelman \& Shalizi 2013, or the ``garden of forking paths''
+    literature) or shorten to a brief acknowledgment.
+\end{enumerate}
+
+
+\subsection{Priority 3: Decide simulation study scope --- DECISION STILL NEEDED}
+
+This remains the most consequential decision. The three options from the
+February 25 note are unchanged:
+
+\begin{enumerate}[label=(\alph*)]
+  \item \textbf{Option A (recommended): CPT simulation only.} Drop discounting
+    or reduce to a brief discussion. CPT has the strongest $4p$ motivation
+    (8--10 parameters, 32--40 hyperprior choices). Discounting can be added in
+    revision.
+  \item \textbf{Option B: Both simulations.} Retain current structure. Requires
+    implementing two model posteriors, DGP code, and hundreds of MCMC
+    replications.
+  \item \textbf{Option C: Real data only.} Drop both stubs. Reframe as a
+    methods paper with a single worked application. Requires strengthening the
+    sensitivity analysis to compensate.
+\end{enumerate}
+
+The recommendation remains Option~A. If this decision is made, the stub
+Section~7 (Discounting) and associated Appendix~F content can be removed, and
+the paper drops from 9 to 8 sections. The road map, introduction (line 196:
+``Two simulation studies''), and conclusion would need corresponding updates.
+
+
+\subsection{Priority 4: Posterior sensitivity analysis --- UNCHANGED}
+
+The current sensitivity table (Table~1) shows prior predictive invariance
+across the $(\rho, \kappa)$ grid, which is by construction. A posterior
+sensitivity table would demonstrate practical relevance.
+
+Two approaches remain viable:
+
+\begin{enumerate}[label=(\alph*)]
+  \item \textbf{Full MCMC grid:} Re-estimate at each $(\rho, \kappa)$ point.
+    Definitive but expensive. A reduced grid (e.g., 4 points: corners of the
+    $\rho \times \kappa$ space) would be a practical compromise.
+  \item \textbf{Analytical approximation:} For a Normal-Normal model, the
+    posterior mean is a precision-weighted average of prior and data. This gives
+    closed-form expressions for how posterior summaries shift with $(\rho,
+    \kappa)$, without re-running MCMC. The approximation quality depends on how
+    well the Normal-Normal model captures the actual posterior geometry.
+\end{enumerate}
+
+A third approach worth considering: \textbf{importance sampling reweighting.}
+The existing MCMC samples from the baseline $(\rho, \kappa)$ can be
+reweighted to approximate the posterior under alternative $(\rho, \kappa)$
+values, since only the hyperprior changes. This avoids new MCMC runs entirely
+and is exact up to the quality of the importance weights. It works well when
+the alternative hyperprior is not too different from the baseline, which is
+likely the case for moderate changes in $(\rho, \kappa)$.
+
+
+\subsection{Priority 5: CE-space implementation (Phase 3)}
+
+Phase 3 status per \texttt{TODO.md}:
+
+\begin{enumerate}
+  \item[{[x]}] CE Jacobian via \texttt{jax.jacfwd}
+  \item[{[x]}] CE-space posterior (\texttt{rdu\_bhm\_ce.py})
+  \item[{[x]}] CE-space prior selection
+  \item[{[x]}] CE-space sampling module
+  \item[{[x]}] Smoke test (10 iter, 40 chains)
+  \item[{[ ]}] Beta-Beta hierarchical moment-matching (code)
+  \item[{[ ]}] Beta population distribution in \texttt{rdu\_bhm\_ce.py}
+  \item[{[ ]}] Full MCMC run with CE-space priors
+  \item[{[ ]}] Comparison figures: parameter-space vs CE-space vs diffuse
+\end{enumerate}
+
+Completing this phase would allow the paper to demonstrate Contribution~1
+empirically. Currently only Contribution~2 (variance decomposition) is
+demonstrated with real data. This is important for the paper's credibility:
+the CE-space specification is the headline contribution, but the empirical
+application uses parameter-space priors.
+
+
+\subsection{Priority 6: Choice probability prior for $\lambda$ (Phase 4)}
+
+Deferrable to revision. Currently $\lambda$ uses a direct parameter-space
+prior, which is adequate for the paper's argument. The block-triangular
+Jacobian structure (\S4.2) is already described in the text.
+
+
+\section{Recommended Order of Operations}
+
+\begin{enumerate}
+  \item \textbf{Text fixes} (Priority 1 remaining items): $<$ 1 hour
+  \item \textbf{Simulation scope decision} (Priority 3): decision point,
+    no computation
+  \item \textbf{Structural editing} (Priority 2): half a day
+  \item \textbf{Posterior sensitivity} (Priority 4): 1--3 days depending on
+    approach (importance reweighting is fastest)
+  \item \textbf{CE-space implementation} (Priority 5): multi-day; can proceed
+    in parallel with text work
+  \item \textbf{Choice probability prior} (Priority 6): defer
+  \item \textbf{Simulation study execution} (Priority 3, post-decision): weeks
+  \item \textbf{Final polish} (Phase 6): after all above
+\end{enumerate}
+
+The simulation scope decision (item 2) gates everything downstream. If
+Option~A (CPT only) is selected, the critical path to a submittable draft is:
+text fixes $\to$ structural editing $\to$ posterior sensitivity $\to$ CPT
+simulation $\to$ CE-space implementation (can overlap with simulation) $\to$
+final polish.
+
+If Option~C (real data only) is selected, the path shortens to: text fixes
+$\to$ structural editing $\to$ posterior sensitivity $\to$ CE-space
+implementation $\to$ final polish. This would produce a submittable draft
+substantially faster, at the cost of controlled evidence.
+
+
+\section{Summary of All Open Issues}
+
+\begin{center}
+\small
+\begin{tabular}{lllll}
+\toprule
+Location & Type & Severity & Priority & Description \\
+\midrule
+\S4.2 (668--675) & Style & Minor & 1 & ``we'' $\to$ ``I'' (3 instances) \\
+Figs 1--5 & Captions & Minor & 1 & Terse captions need expansion \\
+\S4.1 (660--662) & Clarity & Minor & 1 & Wilcox normalization unexplained \\
+App.\ E (1663, 1669) & Maintenance & Minor & 1 & Hardcoded ``115 blocks'' \\
+Abstract & Clarity & Minor & 1--2 & ``reduces \ldots to two'' ambiguity \\
+Abstract & Scope & Minor & 1--2 & ``any distributional family'' claim \\
+\S2.2 (303--338) & Structure & Moderate & 2 & Belief-elicitation detour \\
+\S3 title / structure & Structure & Minor & 2 & Section 3 split consideration \\
+\S4.3 & Length & Minor & 2 & Injectivity discussion condensable \\
+\S7.3 & Argument & Minor & 2 & BF discussion needs citation or trim \\
+\S5--6 & Completeness & Major & 3 & Stub sections \\
+\S4.7 & Missing & Moderate & 4 & No posterior sensitivity analysis \\
+\S4.4--4.6 & Missing & Moderate & 5 & CE-space priors not demonstrated \\
+Road map (201--213) & Consistency & Minor & 2--3 & References stubs; subsection as section \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+\end{document}

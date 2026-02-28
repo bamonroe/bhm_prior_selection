@@ -1,0 +1,626 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{titlesec}
+\usepackage[stretch=15]{microtype}
+\usepackage{parskip}
+\usepackage{longtable}
+\usepackage{array}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries}{}{0em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{}{0em}{}
+
+\title{Technical Review Memo\\[6pt]
+\large ``Principled Hyperprior Selection for Bayesian Hierarchical Models\\
+of Risk Preferences''\\[6pt]
+\normalsize Target Journal: \textit{Journal of Business \& Economic Statistics}}
+\author{}
+\date{February 2026 (Updated)}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\vspace{1em}
+\hrule
+\vspace{1em}
+
+\section{Current State of the Paper}
+
+The paper has undergone significant development since the initial review.  The
+major structural gaps identified previously---an empty Appendix~A and a sparse
+Appendix~C---have been resolved.  Prose has been tightened throughout, with
+consistent first-person singular usage, improved figure captions, and more
+precise language in the Results and Discussion sections.
+
+\textbf{Resolved since last review:}
+\begin{itemize}[leftmargin=1.5em]
+\item \textbf{Appendix~A} (Full Covariance Derivation) is now complete.  It
+provides the full Normal-Inverse-Wishart extension: setup, NIW hierarchical
+structure, mean and covariance constraints via matrix law of total variance,
+variance partition with $\rho$, derived hyperparameters
+($\boldsymbol{\mu}_0$, $\kappa_0$, $\boldsymbol{\Psi}_0$, $\nu_0$),
+verification that the unconditional covariance recovers $\boldsymbol{\Sigma}^*$,
+the relationship to the independent case (showing IW reduces to independent
+IG), and a note on Cholesky parameterization for sampling.
+
+\item \textbf{Appendix~C} (MCMC Implementation Details) has been expanded from
+3 short paragraphs to 9 substantive subsections covering: the sampling
+algorithm (115 blocks, 452 parameters, coupled A/B chains), non-centered
+parameterization with funnel motivation, the coupled transform sampler with the
+full log-acceptance formula (Jacobian, epsilon prior ratio, likelihood
+cancellation), proposal adaptation via cross-chain covariance, run
+configuration (1000 chains, 6 runs, thinning, burn-in), convergence diagnostics
+($\hat{R}$), and JAX 64-bit precision.
+
+\item \textbf{Prose consistency:} ``we'' $\to$ ``I'' throughout, ``uninformative''
+$\to$ ``diffuse'' where appropriate, section titles improved (e.g.,
+``Hyper-parameter Comparison'' $\to$ ``Hyperparameter Posteriors''), more precise
+descriptions of figures and results.
+\end{itemize}
+
+\textbf{The paper now has a complete technical core.}  The remaining gaps are
+about positioning, robustness evidence, and the additional empirical content
+that JBES referees will expect.
+
+\vspace{0.5em}
+\hrule
+\vspace{0.5em}
+
+\section{1.\ Issues for JBES Submission}
+
+The following issues are organized by priority for a JBES submission.  Issues
+that were resolved are not repeated; only remaining gaps are listed.
+
+\subsection{1.1\quad Literature Positioning [Critical]}
+
+This remains the most critical gap.  The paper cites only Gao, Harrison \&
+Tchernis (2022) as the main comparator and does not engage with the substantial
+existing literature on hyperprior selection for hierarchical models.  A JBES
+referee will expect engagement with several strands of work.
+
+\subsubsection{Variance components and hyperprior pathologies.}
+
+The canonical reference is \textbf{Gelman (2006), ``Prior distributions for
+variance parameters in hierarchical models''} (\textit{Bayesian Analysis},
+1(3), 515--534).  Gelman argues against Inverse-Gamma priors for variance
+components and proposes half-Cauchy alternatives, demonstrating that the common
+``non-informative'' choice $\text{IG}(\varepsilon, \varepsilon)$ concentrates
+mass near zero.  Since the paper's framework is built on Normal--Inverse-Gamma
+conjugacy, it must engage with this critique and explain why the proposed
+variance decomposition avoids these pathologies.  The key defense---that the
+proposed method \emph{never} uses $\text{IG}(\varepsilon, \varepsilon)$ but
+instead derives $\alpha_0$ and $\beta_0$ from substantive beliefs---should be
+made explicit.
+
+Follow-ups: \textbf{Polson \& Scott (2012)} on half-Cauchy priors, and
+\textbf{Huang \& Wand (2013)} on half-$t$ priors for covariance matrices.
+Both offer alternative solutions to the same problem.
+
+\textbf{Berger, Strawderman \& Tang (2005)} establishes when hierarchical
+priors yield proper posteriors---directly motivating a principled approach.
+
+\subsubsection{Principled prior construction frameworks.}
+
+\textbf{Simpson et al.\ (2017), ``Penalising model component complexity''}
+proposes PC priors that penalize deviations from a base model.  The variance
+decomposition has conceptual kinship with this framework---both derive priors
+from interpretable principles.  A direct comparison would clarify the
+contribution.
+
+\textbf{Natarajan \& Kass (2000)} derives reference priors for variance
+components in GLMMs.  How does the paper's approach compare to formal reference
+priors?
+
+\textbf{Daniels \& Kass (1999)} develops hierarchical priors for covariance
+matrices---now directly relevant to the completed Appendix~A.
+
+\subsubsection{Prior elicitation and predictive checking.}
+
+\textbf{Gabry et al.\ (2019)} establishes prior predictive checking as a core
+Bayesian workflow component.  The paper effectively uses prior predictive
+distributions (the CE analysis) but does not connect this to the broader
+literature.
+
+\textbf{Mikkola et al.\ (2023)} reviews modern prior elicitation methods.  The
+paper's approach---eliciting individual-level beliefs and transforming to
+population-level hyperpriors---is a form of structured elicitation that should
+be positioned within this framework.
+
+\subsubsection{BHMs in experimental economics.}
+
+Beyond Gao et al.\ (2022): \textbf{Nilsson, Rieskamp \& Wagenmakers (2011)} on
+hierarchical CPT estimation; \textbf{Conte, Hey \& Moffatt (2011)} on mixture
+models for preference heterogeneity; \textbf{Hey \& Orme (1994)} on the
+experimental paradigm.
+
+\subsubsection{Model comparison alternatives.}
+
+The Discussion critiques Bayes factors.  This should engage with
+\textbf{Vehtari, Gelman \& Gabry (2017)} on LOO-CV as a practical alternative.
+
+\medskip
+
+Without this literature engagement, a JBES editor cannot assess novelty.  The
+contribution must be framed as the specific reparameterization and its
+interpretability---argued clearly against alternatives.
+
+\subsection{1.2\quad Sensitivity Analysis [Critical]}
+
+The paper claims $\rho$ and $\alpha_0$ are interpretable and that researchers
+can meaningfully choose them, but shows only one configuration ($\rho = 0.2$,
+$\alpha_0 = 20$).  A JBES methods paper must include:
+
+\begin{itemize}[leftmargin=1.5em]
+\item A grid of $(\rho, \alpha_0)$ values---e.g., $\rho \in \{0.05, 0.1, 0.2,
+0.5, 0.8\}$ and $\alpha_0 \in \{3, 10, 20, 50, 100\}$---showing how posterior
+summaries change.
+
+\item At minimum, a table showing hyperparameter posterior summaries and
+subject-level CE statistics for 3--4 different $(\rho, \alpha_0)$ pairs.
+
+\item This addresses the obvious referee question: ``How much do your
+conclusions depend on this choice?''  If the answer is ``very little,'' that is
+a powerful robustness result.
+\end{itemize}
+
+\textbf{Note:} Given the PythonTeX pipeline and the already-working sampling
+infrastructure, this is computationally expensive but structurally
+straightforward.  The sensitivity analysis does not require new code
+architecture---just additional sampling runs with different prior
+configurations.
+
+\subsection{1.3\quad Single Dataset [Important]}
+
+For a JBES methods paper, relying on a single empirical application with 111
+subjects is thin.  Two potential additions:
+
+\subsubsection{Simulation study.}
+Generate data from a known DGP with known population parameters.  Apply the
+method with correct and incorrect direct priors.  Show recovery of true
+parameters (bias, RMSE, coverage), comparison against diffuse priors, and
+degradation under misspecification.
+
+\subsubsection{Second empirical application.}
+The Andersen et al.\ (2008) dataset is already implemented in the code
+pipeline.  Running the same analysis on this dataset (501 subjects, binary
+lotteries, DKK currency) and showing consistent methodology behavior would
+strengthen the empirical contribution.
+
+\medskip
+
+Either one of these would substantially strengthen the paper for JBES.  Both
+together would make it very competitive.  Of the two, the simulation study is
+likely more valued by JBES referees for a methods paper.
+
+\subsection{1.4\quad The Diffuse Prior Comparison [Important]}
+
+The ``diffuse'' prior compared against---$N(0, 100^2)$ for means and
+$\text{IG}(0.001, 0.001)$ for variances---is known to be problematic (Gelman,
+2006).  Comparing a principled approach against a \emph{known-bad} prior does
+not fully demonstrate the method's value.
+
+A fairer comparison would add at least one ``reasonable'' alternative:
+\begin{itemize}[leftmargin=1.5em]
+\item A half-Cauchy$(0, 2.5)$ prior on $\sigma$ (Gelman's recommendation)
+\item A weakly informative but proper prior, e.g., $N(0, 5^2)$ on means,
+$\text{IG}(2, 1)$ on variances
+\end{itemize}
+
+\textbf{Counterargument:} The diffuse prior from Gao et al.\ (2022) is the one
+actually used in the published literature being replicated.  One could argue
+that comparing against the prior that was \emph{actually used} is the relevant
+comparison, even if that prior is now understood to be suboptimal.  If this
+framing is adopted, it should be stated explicitly, and the Gelman (2006)
+critique acknowledged.
+
+\subsection{1.5\quad Posterior Summary Table [Important]}
+
+The paper presents results entirely through figures.  A JBES submission needs:
+\begin{itemize}[leftmargin=1.5em]
+\item A table of posterior means, standard deviations, and 95\% credible
+intervals for all 8 hyperparameters under both specifications.
+
+\item Subject-level summary statistics (distribution of posterior mean $r$
+across subjects, fraction classified as risk-averse, etc.).
+
+\item Effective sample sizes and $\hat{R}$ statistics in a table, not just a
+footnote.
+\end{itemize}
+
+\vspace{0.5em}
+\hrule
+\vspace{0.5em}
+
+\section{2.\ Moderate Issues}
+
+\subsection{2.1\quad Direct Prior Specification Guidance}
+
+The paper still hand-waves past the most important step: ``These prior choices
+represent my a-priori belief about what a reasonable subject may look like.''
+The paper should:
+\begin{itemize}[leftmargin=1.5em]
+\item Discuss \emph{how} a researcher should specify the direct prior (published
+estimates, meta-analyses, expert elicitation).
+\item Provide guidance for common risk preference parameters---a brief survey of
+published CRRA $r$ estimates would be valuable.
+\item Discuss robustness to moderate misspecification (ties to the simulation
+study recommendation).
+\end{itemize}
+
+\subsection{2.2\quad Discussion Section Structure}
+
+The Discussion has two points: (1)~method defense and (2)~Bayes factor critique.
+The Bayes factor discussion takes up roughly half the section.  For JBES:
+\begin{itemize}[leftmargin=1.5em]
+\item Consider condensing the Bayes factor critique to one paragraph.
+\item Use the freed space for limitations, extensions (e.g., multivariate
+case---now supported by Appendix~A), and connections to the broader literature.
+\item A proper ``Conclusion'' section (separate from Discussion) would improve
+structure.  The paper currently ends abruptly.
+\item Mention LOO-CV (Vehtari et al., 2017) as a practical model comparison
+alternative when discussing Bayes factor limitations.
+\end{itemize}
+
+\subsection{2.3\quad Identification and Data Informativeness}
+
+The paper shows (via the most-affected subject) that prior choice matters when
+individual data are uninformative, but provides no formal analysis.  A brief
+discussion of:
+\begin{itemize}[leftmargin=1.5em]
+\item The information content of 80 binary choices for 4 parameters
+\item Whether some parameters are more weakly identified ($\phi$ and $\eta$
+likely compete through PWF curvature)
+\item How partial identification interacts with hierarchical structure
+\end{itemize}
+would strengthen the results interpretation.
+
+\subsection{2.4\quad Normal--Inverse-Gamma Assumption}
+
+The framework assumes Normal population distributions with IG variance
+hyperpriors.  The paper should briefly discuss:
+\begin{itemize}[leftmargin=1.5em]
+\item Why this is appropriate for transformed RDU parameters (log-transforms of
+$\phi$, $\eta$, $\lambda$)
+\item The Skew-Normal appendix (B) demonstrates extensibility, but includes no
+numerical verification---adding Monte Carlo results would strengthen it
+\end{itemize}
+
+\vspace{0.5em}
+\hrule
+\vspace{0.5em}
+
+\section{3.\ Minor Issues}
+
+\subsection{3.1\quad Writing}
+
+Most of the prose issues from the initial review have been addressed (``we''
+$\to$ ``I'', comma splices fixed).  Remaining:
+\begin{itemize}[leftmargin=1.5em]
+\item ``reign in'' should be ``rein in'' (if still present).
+\item Verify ``of during the COVID-19 pandemic'' $\to$ ``during the COVID-19
+pandemic'' (extraneous ``of'').
+\item Check all \texttt{\textbackslash py\{\}} calls produce sensible output
+(not ``0'' or ``N/A'') when the paper compiles with pythontex.
+\end{itemize}
+
+\subsection{3.2\quad Notation}
+
+\begin{itemize}[leftmargin=1.5em]
+\item The $\sigma^{2*}$ superscript notation becomes confusing with parameter
+superscripts in the derived hyperprior equations.  Consider $\sigma^2_d$ or
+tilde notation.
+\item $\Phi$ is used as the model function in eq.~(1) and as the normal CDF in
+the Skew-Normal appendix.  Avoid this collision.
+\end{itemize}
+
+\subsection{3.3\quad Figures}
+
+\begin{itemize}[leftmargin=1.5em]
+\item Figure captions have been improved (``Hyperparameter posteriors'' rather
+than ``Hyper-parameter comparison'') but are still terse.  JBES prefers
+self-contained captions (e.g., ``Posterior densities of the 8 hyperparameters
+under informative (blue) and diffuse (orange) priors, with the hyperprior
+density (grey) shown for reference.  The informative hyperprior is derived via
+the variance decomposition in Section~2.'').
+\item Ensure figures are legible in grayscale.
+\end{itemize}
+
+\subsection{3.4\quad Bibliography}
+
+\begin{itemize}[leftmargin=1.5em]
+\item The bibliography style (\texttt{IEEEtran} + \texttt{authoryear-comp}) is
+unusual for JBES\@.  Check JBES style requirements---JBES uses Chicago-style
+author-year citations.
+\item The paper is still light on citations (${\sim}$11 references).  The
+literature review expansion (\S1.1) would naturally bring this to 25--30.
+\end{itemize}
+
+\subsection{3.5\quad Reproducibility}
+
+\begin{itemize}[leftmargin=1.5em]
+\item Add a code/data availability statement.  JBES now requires this.
+\item The \texttt{bamcmc} sampler should be cited or described, with a plan for
+public availability.
+\end{itemize}
+
+\subsection{3.6\quad CE Equation}
+
+Equation~(14) [now the CE equation in the Results section] should be checked for
+consistency.  The $(1-r)$ denominators on LHS and RHS should cancel cleanly.
+As typeset, the first line retains $1/(1-r)$ on both sides, and the second line
+applies the exponent $1/(1-r)$.  Verify the algebra is presented consistently.
+
+\vspace{0.5em}
+\hrule
+\vspace{0.5em}
+
+\section{4.\ Prioritized Action Items for JBES}
+
+Given that Appendix~A and Appendix~C are now complete, the revised priority
+order for a JBES submission is:
+
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{Literature review and positioning} (\S1.1)---the most likely
+reason for a desk reject at JBES.  Without it, the editor cannot assess
+novelty.  This is the single highest-priority item.
+
+\item \textbf{Sensitivity analysis} (\S1.2)---the single most impactful
+empirical addition.  A table or figure showing posteriors under different
+$(\rho, \alpha_0)$ values.  JBES referees will ask for this.
+
+\item \textbf{Posterior summary table} (\S1.5)---basic requirement.  Numbers in
+a table, not just curves in figures.
+
+\item \textbf{Expand the diffuse prior comparison} (\S1.4)---either add a
+``reasonable'' comparator or explicitly frame the Gao et al.\ prior as the
+published benchmark.
+
+\item \textbf{Simulation study or second application} (\S1.3)---either would
+elevate the paper.  A simulation study is preferred for a methods-oriented
+journal like JBES.
+
+\item \textbf{Discussion restructuring and conclusion} (\S2.2)---condense Bayes
+factor critique, add limitations and extensions, add a conclusion section.
+
+\item \textbf{Direct prior specification guidance} (\S2.1)---a paragraph or two
+on how researchers should think about this step.
+
+\item \textbf{Figure captions, bibliography style, and remaining minor fixes}
+(\S\S3.1--3.6)---low effort, high signal of paper maturity.
+\end{enumerate}
+
+\textbf{Minimum for submission:} Items 1--3 are likely necessary to avoid a desk
+reject.  Items 4--5 would be expected after an R\&R.  Items 6--8 are polish.
+
+\vspace{0.5em}
+\hrule
+\vspace{0.5em}
+
+\section{5.\ JBES-Specific Considerations}
+
+\subsection{5.1\quad Scope and Fit}
+
+JBES publishes methodological contributions oriented toward applications in
+micro- and macroeconomics.  It regularly publishes Bayesian methods papers.
+The paper's balance of methodology (variance decomposition, cumulant matching)
+and application (RDU estimation with real experimental data) is an excellent fit.
+
+JBES values:
+\begin{itemize}[leftmargin=1.5em]
+\item Practical applicability of methods to real economic problems
+\item Clear notation and exposition (the paper reads well)
+\item Demonstrable consequences for inference (the CE analysis does this)
+\item Engagement with existing econometric methodology
+\end{itemize}
+
+\subsection{5.2\quad Expected Length}
+
+JBES has no strict word limit but typical articles are 15--25 pages.  The
+current paper is roughly 14--16 pages of body text (including appendices).
+With the additions above (literature review $+$ sensitivity analysis $+$ tables),
+the paper would reach 20--24 pages---comfortably within JBES norms.
+
+\subsection{5.3\quad Formatting Requirements}
+
+\begin{itemize}[leftmargin=1.5em]
+\item JBES uses Chicago-style author-year citations.  The current
+\texttt{IEEEtran} + \texttt{authoryear-comp} biblatex style may need
+adjustment.
+\item JBES requires a data/code availability statement.
+\item Double-spacing is already in place.
+\item Supplementary materials (appendices, additional tables/figures) can be
+submitted as online appendices.
+\end{itemize}
+
+\subsection{5.4\quad Positioning for JBES Audience}
+
+For JBES, the framing should emphasize:
+\begin{itemize}[leftmargin=1.5em]
+\item This is a \emph{practical tool} for applied researchers, not a theoretical
+exercise.  The variance decomposition reduces $4p$ difficult hyperprior choices
+to 2 interpretable ones.
+\item The method applies beyond risk preferences---any BHM with
+Normal-Inverse-Gamma (or NIW) hyperpriors.
+\item The comparison with Gao et al.\ (2022) shows that hyperprior choice has
+substantive consequences---not just for convergence, but for economic inference
+(the CE shifts are economically meaningful).
+\item The reparameterization has the attractive property of being unit-agnostic,
+which is important for multidimensional models where parameters live on
+different scales.
+\end{itemize}
+
+\vspace{0.5em}
+\hrule
+\vspace{0.5em}
+
+\section{6.\ What Has Been Accomplished}
+
+For reference, here is a summary of the progress against the original 8-item
+action list:
+
+\begin{center}
+\small
+\begin{tabular}{@{}clcc@{}}
+\toprule
+\textbf{\#} & \textbf{Item} & \textbf{Status} & \textbf{Priority} \\
+\midrule
+1 & Literature review and positioning & Not started & Critical \\
+2 & Sensitivity analysis & Not started & Critical \\
+3 & Complete Appendix~A & \textbf{Done} & --- \\
+4 & Posterior summary table & Not started & High \\
+5 & Expand uninformative comparison & Not started & High \\
+6 & Simulation study & Not started & Medium \\
+7 & Figure captions and typos & Partial & Low \\
+8 & Discussion restructuring & Not started & Medium \\
+\midrule
+  & Expand Appendix~C (MCMC details) & \textbf{Done} & --- \\
+  & Prose consistency (we $\to$ I) & \textbf{Done} & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+\hrule
+\vspace{0.5em}
+
+\section{7.\ Suggested Reading List}
+
+Unchanged from the initial review.  Papers marked with ${}^{\star}$ are
+essential reading before revising.
+
+\subsection{7.1\quad Must-Read (${}^{\star}$)}
+
+\begin{enumerate}[leftmargin=1.5em]
+\item[${}^{\star}$] Gelman, A.\ (2006).  Prior distributions for variance
+parameters in hierarchical models.  \textit{Bayesian Analysis}, 1(3), 515--534.
+
+\item[${}^{\star}$] Simpson, D., Rue, H., Riebler, A., Martins, T.\,G., \&
+S{\o}rbye, S.\,H.\ (2017).  Penalising model component complexity.
+\textit{Statistical Science}, 32(1), 1--28.
+
+\item[${}^{\star}$] Polson, N.\,G.\ \& Scott, J.\,G.\ (2012).  On the
+half-Cauchy prior for a global scale parameter.  \textit{Bayesian Analysis},
+7(4), 887--902.
+
+\item[${}^{\star}$] Gabry, J., Simpson, D., Vehtari, A., Betancourt, M., \&
+Gelman, A.\ (2019).  Visualization in Bayesian workflow.  \textit{JRSS-A},
+182(2), 389--402.
+
+\item[${}^{\star}$] Roos, M., Martins, T.\,G., Held, L., \& Rue, H.\ (2015).
+Sensitivity analysis for Bayesian hierarchical models.  \textit{Bayesian
+Analysis}, 10(2), 321--349.
+\end{enumerate}
+
+\subsection{7.2\quad Strongly Recommended}
+
+\begin{enumerate}[leftmargin=1.5em]
+\item[6.] Berger, J.\,O., Strawderman, W., \& Tang, D.\ (2005).  Posterior
+propriety and admissibility of hyperpriors in normal hierarchical models.
+\textit{Annals of Statistics}, 33(2), 606--646.
+
+\item[7.] Huang, A.\ \& Wand, M.\,P.\ (2013).  Simple marginally
+noninformative prior distributions for covariance matrices.  \textit{Bayesian
+Analysis}, 8(2), 439--452.
+
+\item[8.] Natarajan, R.\ \& Kass, R.\,E.\ (2000).  Reference Bayesian methods
+for generalized linear mixed models.  \textit{JASA}, 95(449), 227--237.
+
+\item[9.] Daniels, M.\,J.\ \& Kass, R.\,E.\ (1999).  Nonconjugate Bayesian
+estimation of covariance matrices.  \textit{JASA}, 94, 1254--1263.
+
+\item[10.] Nilsson, H., Rieskamp, J., \& Wagenmakers, E.-J.\ (2011).
+Hierarchical Bayesian parameter estimation for cumulative prospect theory.
+\textit{J.\ Mathematical Psychology}, 55, 84--93.
+
+\item[11.] Mikkola, P.\ et al.\ (2023).  Prior knowledge elicitation: The past,
+present, and future.  \textit{Bayesian Analysis}, advance publication.
+
+\item[12.] Vehtari, A., Gelman, A., \& Gabry, J.\ (2017).  Practical Bayesian
+model evaluation using leave-one-out cross-validation and WAIC.
+\textit{Statistics and Computing}, 27, 1413--1432.
+\end{enumerate}
+
+\subsection{7.3\quad Additional Context}
+
+\begin{enumerate}[leftmargin=1.5em]
+\item[13.] Conte, A., Hey, J.\,D., \& Moffatt, P.\,G.\ (2011).  Mixture models
+of choice under risk.  \textit{J.\ Econometrics}, 162(1), 79--88.
+
+\item[14.] Hey, J.\,D.\ \& Orme, C.\ (1994).  Investigating generalizations of
+expected utility theory using experimental data.  \textit{Econometrica}, 62(6),
+1291--1326.
+
+\item[15.] Betancourt, M.\ \& Girolami, M.\ (2015).  Hamiltonian Monte Carlo for
+hierarchical models.  In \textit{Current Trends in Bayesian Methodology with
+Applications}, 79--102.
+
+\item[16.] Browne, W.\,J.\ \& Draper, D.\ (2006).  A comparison of Bayesian and
+likelihood-based methods for fitting multilevel models.  \textit{Bayesian
+Analysis}, 1(3), 473--514.
+
+\item[17.] Chung, Y., Rabe-Hesketh, S., Dorie, V., Gelman, A., \& Liu, J.\
+(2013).  A nondegenerate penalized likelihood estimator for variance parameters
+in multilevel models.  \textit{Psychometrika}, 78(4), 685--709.
+
+\item[18.] Gelman, A.\ \& Hill, J.\ (2007).  \textit{Data Analysis Using
+Regression and Multilevel/Hierarchical Models}.  Cambridge University Press.
+
+\item[19.] Poirier, D.\,J.\ (1995).  \textit{Intermediate Statistics and
+Econometrics: A Comparative Approach}.  MIT Press.  (Chapter~10 on prior
+sensitivity.)
+
+\item[20.] Kass, R.\,E.\ \& Raftery, A.\,E.\ (1995).  Bayes factors.
+\textit{JASA}, 90(430), 773--795.
+\end{enumerate}
+
+\vspace{0.5em}
+\hrule
+\vspace{0.5em}
+
+\section{8.\ Summary Assessment}
+
+\textbf{Previous assessment:} Reject (incomplete appendix, insufficient
+literature engagement, no sensitivity analysis).
+
+\textbf{Current assessment:} The technical core is now complete and solid.  The
+paper is not yet ready for JBES submission, but the remaining gaps are
+addressable.
+
+\textbf{Path to JBES submission:}
+\begin{itemize}[leftmargin=1.5em]
+\item \textbf{Minimum viable submission} (items 1--3): Literature positioning,
+sensitivity analysis, posterior summary table.  This brings the paper to
+${\sim}$20 pages and addresses the most likely desk-reject triggers.
+
+\item \textbf{Competitive submission} (items 1--5): Add a ``reasonable'' prior
+comparator and either a simulation study or second application.  This brings
+the paper to ${\sim}$22--24 pages and gives referees the robustness evidence
+they will want.
+
+\item \textbf{Strong submission} (all items): Full polish including discussion
+restructuring, prior specification guidance, figure captions, and bibliography
+alignment.  This is a paper that should receive an R\&R.
+\end{itemize}
+
+\textbf{If JBES declines:} The paper can be submitted to \textit{Econometric
+Reviews} (Brief Report format, 15 pages) or \textit{Bayesian Analysis} with
+minimal changes.  The completed appendices give it the technical depth for
+either venue.
+
+The core idea---specify a prior for an individual, derive hyperpriors via
+variance decomposition so the unconditional BHM prior matches---is clean,
+practical, and potentially impactful.  With the literature positioning and
+sensitivity analysis, this is a competitive JBES submission.
+
+\end{document}

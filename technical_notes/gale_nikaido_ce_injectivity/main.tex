@@ -1,0 +1,1901 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{enumerate}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage[margin=1in]{geometry}
+\usepackage{tcolorbox}
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{remark}[theorem]{Remark}
+
+% Notation shortcuts
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Normal}{\mathcal{N}}
+\newcommand{\given}{\,|\,}
+\newcommand{\btheta}{\boldsymbol{\theta}}
+\newcommand{\bxi}{\boldsymbol{\xi}}
+\newcommand{\bpsi}{\boldsymbol{\psi}}
+\DeclareMathOperator{\CE}{CE}
+\DeclareMathOperator{\RDU}{RDU}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\tr}{tr}
+
+% Highlight box for key results
+\newtcolorbox{keyresult}[1][]{
+    colback=blue!5!white,
+    colframe=blue!50!black,
+    fonttitle=\bfseries,
+    title={#1},
+}
+
+\title{The Gale--Nikaido Univalence Theorem\\
+Applied to RDU Certainty Equivalent Mappings}
+\author{Technical Note}
+\date{February 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We apply the Gale--Nikaido univalence theorem to the certainty equivalent
+(CE) mapping arising from a general Rank-Dependent Utility (RDU) model.
+The mapping takes preference parameters---utility parameters
+$\btheta \in \R^{p_1}$ and probability weighting function (PWF) parameters
+$\bpsi \in \R^{p_2}$---to a vector of certainty equivalents
+$(\CE_1, \ldots, \CE_K)$ for $K = p_1 + p_2$ reference lotteries.
+We derive the Jacobian of this mapping in closed form for arbitrary
+utility $u(x;\btheta)$ and PWF $w(p;\bpsi)$, identify the P-matrix
+condition as the operative constraint for global injectivity, and show
+that \emph{prize diversity} across reference lotteries is the economic
+mechanism that generically delivers the P-matrix property.
+This corrects the companion paper's current statement that the
+Gale--Nikaido theorem ``does not directly apply'' to CE mappings:
+the theorem's domain requirement is a rectangular region (not
+properness, which is Hadamard's condition), and economic parameter
+spaces are naturally rectangular.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+
+%==============================================================================
+\section{The Gale--Nikaido Univalence Theorem}
+\label{sec:gn_theorem}
+%==============================================================================
+
+We begin with a precise statement of the theorem and the definitions it requires.
+
+\begin{definition}[P-matrix]
+\label{def:p_matrix}
+A real $n \times n$ matrix $A$ is a \textbf{P-matrix} if every principal minor
+of $A$ is strictly positive. That is, for every nonempty index set
+$I \subseteq \{1, \ldots, n\}$, the submatrix $A_{II}$ (obtained by selecting
+rows and columns indexed by $I$) satisfies $\det(A_{II}) > 0$.
+\end{definition}
+
+For an $n \times n$ matrix, the P-matrix condition requires $2^n - 1$ strict
+inequalities: one for each nonempty subset of $\{1, \ldots, n\}$. The conditions
+are nested: all $1 \times 1$ principal minors (the diagonal entries) must be
+positive, all $\binom{n}{2}$ of the $2 \times 2$ principal minors must be
+positive, and so on up to the full determinant.
+
+\begin{remark}[Equivalent characterizations]
+\label{rem:p_matrix_equiv}
+A matrix $A$ is a P-matrix if and only if, for every nonzero vector
+$x \in \R^n$, there exists an index $i$ such that $x_i (Ax)_i > 0$.
+This ``sign-reversal'' characterization~\cite{gale_nikaido_1965} is often
+more intuitive: no matter what direction you perturb the input, at least one
+output component moves in the \emph{same} direction as its corresponding
+input component.
+\end{remark}
+
+The central result is:
+
+\begin{theorem}[Gale--Nikaido, 1965]
+\label{thm:gale_nikaido}
+Let $\Omega \subseteq \R^n$ be an open \textbf{rectangular} region (i.e., a
+Cartesian product of open intervals: $\Omega = \prod_{i=1}^n (a_i, b_i)$
+where $-\infty \leq a_i < b_i \leq +\infty$). Let $\mathbf{g}: \Omega \to \R^n$
+be a $C^1$ mapping. If the Jacobian matrix $J_{\mathbf{g}}(\bxi)$ is a
+\textbf{P-matrix} for all $\bxi \in \Omega$, then $\mathbf{g}$ is
+\textbf{globally injective} (univalent) on $\Omega$.
+\end{theorem}
+
+Several features of this theorem deserve emphasis.
+
+\paragraph{Domain requirement: rectangular, not convex.}
+The original Gale--Nikaido theorem~\cite{gale_nikaido_1965} states the result
+for rectangular domains, which is a special case of convexity but carries an
+important distinction. A rectangular domain (product of intervals) is the
+natural shape of an economic parameter space: each parameter has its own range,
+independent of the others. The domain need not be bounded---each interval
+$(a_i, b_i)$ may extend to $\pm\infty$.
+
+\paragraph{No properness required.}
+The Gale--Nikaido theorem does \emph{not} require the mapping $\mathbf{g}$ to be
+proper (i.e., $\|\mathbf{g}(\bxi)\| \to \infty$ as $\|\bxi\| \to \infty$).
+This is a crucial distinction from Hadamard's global inverse function theorem,
+which does require properness. CE mappings are bounded (by the prize range)
+while parameter domains are typically unbounded, so properness fails
+generically for CE mappings. The Gale--Nikaido theorem bypasses this
+obstruction entirely by imposing a stronger algebraic condition (P-matrix) on
+the Jacobian instead.
+
+\paragraph{P-matrix vs.\ nonsingular Jacobian.}
+A P-matrix is nonsingular (since $\det A > 0$ is one of the conditions), but
+the converse is false. The P-matrix condition is strictly stronger than
+requiring $\det J \neq 0$ everywhere. Whereas a nonsingular Jacobian gives
+only local injectivity (by the inverse function theorem), the P-matrix condition
+bridges the gap to global injectivity on rectangular domains.
+
+\paragraph{The Gale--Nikaido--Inada refinement.}
+Inada~\cite{gale_nikaido_1965} showed that if $\Omega$ is a rectangular domain
+and $J_{\mathbf{g}}$ has all diagonal entries positive and is a \emph{weakly
+sign-symmetric} P-matrix, then weaker conditions on the off-diagonal entries
+suffice. We do not use this refinement here, but it is available for models
+where the full P-matrix condition is difficult to verify while sign structure
+is transparent.
+
+
+%==============================================================================
+\section{General RDU Model and the CE Mapping}
+\label{sec:model}
+%==============================================================================
+
+\subsection{Primitives}
+
+Consider a general RDU model with:
+\begin{itemize}
+    \item \textbf{Utility function:} $u(x; \btheta)$, where $x \geq 0$ is a
+    monetary outcome and $\btheta = (\theta_1, \ldots, \theta_{p_1}) \in
+    \Theta \subseteq \R^{p_1}$ are utility parameters. We assume $u$ is
+    strictly increasing in $x$ for all $\btheta \in \Theta$, i.e.,
+    $\partial u / \partial x > 0$.
+
+    \item \textbf{Probability weighting function (PWF):}
+    $w(p; \bpsi)$, where $p \in [0,1]$ is a cumulative probability and
+    $\bpsi = (\psi_1, \ldots, \psi_{p_2}) \in \Psi \subseteq \R^{p_2}$ are
+    PWF parameters. We assume $w(0;\bpsi) = 0$, $w(1;\bpsi) = 1$, and $w$ is
+    strictly increasing in $p$ for all $\bpsi \in \Psi$.
+\end{itemize}
+
+The combined parameter vector is $\bxi = (\btheta, \bpsi) \in
+\Xi = \Theta \times \Psi \subseteq \R^p$ where $p = p_1 + p_2$.
+
+\paragraph{Monotone influence assumptions.}
+We require:
+\begin{enumerate}
+    \item For each utility parameter $\theta_i$, $i = 1, \ldots, p_1$:
+    $\partial u(x; \btheta) / \partial \theta_i \neq 0$ for all
+    $x > 0$ and $\btheta \in \Theta$. That is, each $\theta_i$ has a
+    nontrivial effect on utility at every outcome level.
+
+    \item For each PWF parameter $\psi_j$, $j = 1, \ldots, p_2$:
+    $\partial w(p; \bpsi) / \partial \psi_j \neq 0$ for all
+    $p \in (0,1)$ and $\bpsi \in \Psi$. That is, each $\psi_j$ has a
+    nontrivial effect on the weighting function at every probability level.
+\end{enumerate}
+
+These are natural requirements: they simply say that each parameter
+\emph{does something}. A parameter that has zero marginal effect on utility (or
+weighting) everywhere is redundant and should be dropped from the model.
+
+\subsection{RDU Valuation}
+
+Consider $K$ reference lotteries $L_1, \ldots, L_K$. Each lottery $L_k$ has
+$M_k$ outcomes with prizes $x_{1k} < x_{2k} < \cdots < x_{M_k,k}$ and
+cumulative probabilities. Under RDU, the value of lottery $L_k$ is:
+\begin{equation}
+    \label{eq:rdu}
+    \RDU_k(\bxi) = \sum_{m=1}^{M_k} \pi_{mk}(\bpsi) \, u(x_{mk}; \btheta)
+\end{equation}
+where the decision weights $\pi_{mk}(\bpsi)$ are derived from the PWF applied
+to cumulative probabilities. For a lottery with outcomes ranked
+$x_{1k} < \cdots < x_{M_k,k}$:
+\begin{equation}
+    \pi_{mk}(\bpsi) = w\!\left(\sum_{j=m}^{M_k} p_{jk};\, \bpsi\right)
+    - w\!\left(\sum_{j=m+1}^{M_k} p_{jk};\, \bpsi\right)
+\end{equation}
+where $p_{jk}$ is the probability of outcome $x_{jk}$ in lottery $L_k$, and
+$w(\cdot;\bpsi)$ is the PWF. The weights satisfy $\pi_{mk} > 0$ (by strict
+monotonicity of $w$) and $\sum_m \pi_{mk} = 1$.
+
+\subsection{The CE Mapping}
+
+The certainty equivalent $\CE_k$ of lottery $L_k$ is defined implicitly by:
+\begin{equation}
+    \label{eq:ce_implicit}
+    u(\CE_k; \btheta) = \RDU_k(\bxi)
+\end{equation}
+Since $u$ is strictly increasing in $x$, for each $\bxi$ there is a unique
+$\CE_k \in [\min_m x_{mk}, \max_m x_{mk}]$ satisfying~\eqref{eq:ce_implicit}.
+We can write $\CE_k = u^{-1}(\RDU_k(\bxi); \btheta)$, where $u^{-1}$ denotes
+the inverse of $u$ with respect to its first argument.
+
+The \textbf{CE mapping} is the function:
+\begin{equation}
+    \label{eq:g_map}
+    g: \Xi \to \R^K, \qquad g(\bxi) = (\CE_1(\bxi), \ldots, \CE_K(\bxi))
+\end{equation}
+
+For the Jacobian correction methodology to be valid, we need $g$ to be
+injective on $\Xi$. A necessary condition is $K \geq p = p_1 + p_2$ (at
+least as many lotteries as parameters). In the square case $K = p$, we apply
+the Gale--Nikaido theorem.
+
+
+%==============================================================================
+\section{Jacobian of the CE Mapping}
+\label{sec:jacobian}
+%==============================================================================
+
+Our goal in this section is to compute how the certainty equivalents
+$(\CE_1, \ldots, \CE_K)$ change when we perturb the model parameters $\bxi =
+(\btheta, \bpsi)$. These rates of change are the entries of the Jacobian
+matrix $J_g$. We derive them by implicit differentiation of the defining
+equation $u(\CE_k; \btheta) = \RDU_k(\btheta, \bpsi)$, and then organize
+the result into a matrix factorization that will be convenient for the
+P-matrix analysis in Section~\ref{sec:p_matrix}.
+
+\subsection{Implicit Differentiation}
+
+Recall the defining equation for each CE (equation~\eqref{eq:ce_implicit}):
+\begin{equation}
+    u(\CE_k;\, \btheta) = \RDU_k(\btheta, \bpsi)
+    = \sum_{m=1}^{M_k} \pi_{mk}(\bpsi) \, u(x_{mk};\, \btheta)
+    \tag{\ref{eq:ce_implicit}$'$}
+\end{equation}
+This says: the utility of receiving $\CE_k$ for sure equals the
+decision-weighted average utility of lottery $L_k$'s outcomes.
+
+We need to differentiate both sides with respect to each parameter
+$\xi_\ell$. The two types of parameters---utility parameters $\theta_i$ and
+PWF parameters $\psi_j$---enter the equation differently, so we handle them
+separately.
+
+\subsubsection{Derivatives with respect to utility parameters $\theta_i$}
+
+Consider perturbing a utility parameter $\theta_i$ by a small amount. Both
+sides of the CE equation change, but for different reasons:
+\begin{itemize}
+    \item \textbf{Left-hand side} $u(\CE_k;\, \btheta)$: This changes in
+    \emph{two} ways. First, the utility function's shape changes (because
+    $\theta_i$ enters $u$ directly). Second, $\CE_k$ itself shifts (because
+    the RDU value changes, and the CE must adjust to keep the equation
+    balanced). By the chain rule:
+    \begin{equation}
+        \frac{d}{d\theta_i}\!\Big[u(\CE_k;\, \btheta)\Big]
+        = \underbrace{
+            \frac{\partial u}{\partial x}\bigg|_{x=\CE_k}
+            \cdot \frac{\partial \CE_k}{\partial \theta_i}
+        }_{\substack{\text{indirect effect:}\\\text{CE shifts}}}
+        \;+\;
+        \underbrace{
+            \frac{\partial u}{\partial \theta_i}\bigg|_{x=\CE_k}
+        }_{\substack{\text{direct effect:}\\\text{utility shape changes}}}
+    \end{equation}
+
+    \item \textbf{Right-hand side}
+    $\sum_m \pi_{mk}(\bpsi)\, u(x_{mk};\, \btheta)$: The decision weights
+    $\pi_{mk}$ depend only on $\bpsi$, not on $\btheta$, so they are
+    constants with respect to $\theta_i$. The prizes $x_{mk}$ are fixed data.
+    Only $u$ changes:
+    \begin{equation}
+        \frac{d}{d\theta_i}\!\left[\sum_m \pi_{mk}\, u(x_{mk};\, \btheta)
+        \right]
+        = \sum_{m=1}^{M_k} \pi_{mk}(\bpsi) \,
+        \frac{\partial u}{\partial \theta_i}(x_{mk};\, \btheta)
+    \end{equation}
+\end{itemize}
+
+Setting the two sides equal:
+\begin{equation}
+    \frac{\partial u}{\partial x}\bigg|_{x=\CE_k} \cdot
+    \frac{\partial \CE_k}{\partial \theta_i}
+    + \frac{\partial u}{\partial \theta_i}\bigg|_{x=\CE_k}
+    = \sum_{m=1}^{M_k} \pi_{mk}(\bpsi) \,
+    \frac{\partial u}{\partial \theta_i}(x_{mk}; \btheta)
+\end{equation}
+
+Solving for $\partial \CE_k / \partial \theta_i$ (move the direct effect to
+the right, divide by $\partial u / \partial x$):
+\begin{equation}
+    \label{eq:dCE_dtheta}
+    \frac{\partial \CE_k}{\partial \theta_i}
+    = \frac{
+        \overbrace{
+            \displaystyle\sum_{m=1}^{M_k} \pi_{mk}(\bpsi) \,
+            \frac{\partial u}{\partial \theta_i}(x_{mk}; \btheta)
+        }^{\substack{\text{weighted avg of } \partial u/\partial\theta_i\\
+        \text{across lottery outcomes}}}
+        \;-\;
+        \overbrace{
+            \frac{\partial u}{\partial \theta_i}(\CE_k; \btheta)
+        }^{\substack{\partial u/\partial\theta_i\\
+        \text{at the CE}}}
+    }{
+        \underbrace{
+            \dfrac{\partial u}{\partial x}(\CE_k; \btheta)
+        }_{> 0 \text{ (u increasing in } x\text{)}}
+    }
+\end{equation}
+
+The denominator is always positive (utility is strictly increasing in money),
+so the sign and magnitude of $\partial \CE_k / \partial \theta_i$ are
+determined entirely by the numerator.
+
+\paragraph{Interpreting the numerator.}
+The numerator compares two quantities:
+\begin{enumerate}
+    \item The decision-weighted average of ``how much $\theta_i$ affects
+    utility'' across the lottery outcomes $x_{1k}, \ldots, x_{M_k,k}$.
+    \item The same quantity evaluated at the single point $x = \CE_k$.
+\end{enumerate}
+
+If the function $x \mapsto \partial u / \partial \theta_i(x;\, \btheta)$ is
+\emph{linear} in $x$, then the weighted average over the lottery prizes
+equals the value at the CE (by definition of the CE as the certainty
+equivalent under $u$), and the numerator is zero---the CE does not respond to
+$\theta_i$.
+
+But if $\partial u / \partial \theta_i$ is \emph{nonlinear} in $x$ (which is
+the generic case for any interesting utility function), then a Jensen's
+inequality gap opens: the weighted average over prizes differs from the value
+at the CE, and the CE must shift in response to a change in $\theta_i$.
+This Jensen's inequality mechanism is what makes the utility parameter
+derivatives generically nonzero.
+
+\subsubsection{Derivatives with respect to PWF parameters $\psi_j$}
+
+Now consider perturbing a PWF parameter $\psi_j$. The story is simpler
+because $\psi_j$ does not affect the utility function directly---it only
+changes the decision weights $\pi_{mk}(\bpsi)$.
+
+\begin{itemize}
+    \item \textbf{Left-hand side} $u(\CE_k;\, \btheta)$: The utility function
+    $u$ does not depend on $\bpsi$, so the only change comes through the
+    CE shifting:
+    \begin{equation}
+        \frac{d}{d\psi_j}\!\Big[u(\CE_k;\, \btheta)\Big]
+        = \frac{\partial u}{\partial x}\bigg|_{x=\CE_k}
+        \cdot \frac{\partial \CE_k}{\partial \psi_j}
+    \end{equation}
+    There is no ``direct effect'' term because $u$ itself is unaffected by
+    $\psi_j$.
+
+    \item \textbf{Right-hand side}
+    $\sum_m \pi_{mk}(\bpsi)\, u(x_{mk};\, \btheta)$: Now the utility values
+    $u(x_{mk};\, \btheta)$ are fixed (they don't depend on $\bpsi$), but the
+    weights $\pi_{mk}(\bpsi)$ change:
+    \begin{equation}
+        \frac{d}{d\psi_j}\!\left[\sum_m \pi_{mk}\, u(x_{mk})
+        \right]
+        = \sum_{m=1}^{M_k}
+        \frac{\partial \pi_{mk}}{\partial \psi_j}(\bpsi) \, u(x_{mk};\, \btheta)
+    \end{equation}
+\end{itemize}
+
+Setting equal and solving:
+\begin{equation}
+    \label{eq:dCE_dpsi}
+    \frac{\partial \CE_k}{\partial \psi_j}
+    = \frac{
+        \displaystyle\sum_{m=1}^{M_k}
+        \frac{\partial \pi_{mk}}{\partial \psi_j}(\bpsi) \,
+        u(x_{mk}; \btheta)
+    }{
+        \dfrac{\partial u}{\partial x}(\CE_k; \btheta)
+    }
+\end{equation}
+
+\paragraph{Interpreting the numerator.}
+The key observation is that the decision weights always sum to one:
+$\sum_m \pi_{mk} = 1$ for all $\bpsi$. Differentiating this constraint gives
+$\sum_m \partial\pi_{mk}/\partial\psi_j = 0$. So the weight perturbations
+$(\partial\pi_{1k}/\partial\psi_j, \ldots,
+\partial\pi_{M_k,k}/\partial\psi_j)$ sum to zero: when $\psi_j$ increases
+weight on some outcomes, it must decrease weight on others by the same total
+amount.
+
+The numerator of~\eqref{eq:dCE_dpsi} is the inner product of these
+mean-zero weight perturbations with the utility values. In plain language:
+\emph{does $\psi_j$ shift weight toward high-utility outcomes or low-utility
+outcomes?} If $\psi_j$ shifts weight toward outcomes with above-average
+utility, the RDU value increases, and the CE must increase to match. If
+$\psi_j$ shifts weight toward low-utility outcomes, the CE decreases.
+
+The numerator is zero only if the weight perturbation is ``orthogonal'' to
+the utility vector---meaning $\psi_j$ reshuffles weight among outcomes with
+equal utility, which is non-generic.
+
+
+\subsection{Matrix Factorization: Separating the Common Denominator}
+
+Looking at equations~\eqref{eq:dCE_dtheta} and~\eqref{eq:dCE_dpsi}, every
+entry of the Jacobian $J_g$ (i.e., every $\partial \CE_k / \partial \xi_\ell$)
+has the same denominator: $\partial u / \partial x$ evaluated at $\CE_k$.
+This denominator depends on $k$ (different lotteries have different CEs) but
+not on $\ell$ (which parameter we differentiate with respect to). We can
+therefore factor it out row by row.
+
+Define the positive scalar for each lottery $k$:
+\begin{equation}
+    d_k(\bxi) \coloneqq \frac{\partial u}{\partial x}(\CE_k; \btheta) > 0
+\end{equation}
+This is positive because $u$ is strictly increasing in $x$---a dollar more
+always increases utility. Collect these into a diagonal matrix
+$D = \diag(d_1, \ldots, d_K)$.
+
+Every entry of the Jacobian can be written as
+$(\partial \CE_k / \partial \xi_\ell) = (\text{numerator}_{k\ell}) / d_k$.
+In matrix form:
+\begin{equation}
+    \label{eq:factorization}
+    J_g(\bxi) = D(\bxi)^{-1} \, \widetilde{J}(\bxi)
+\end{equation}
+where $\widetilde{J}$ is the ``unnormalized'' Jacobian whose entries are just
+the numerators:
+\begin{equation}
+    \widetilde{J}_{k,\ell} = d_k \cdot \frac{\partial \CE_k}{\partial \xi_\ell}
+    \qquad\text{(numerator of the $\partial\CE_k / \partial\xi_\ell$ formula)}
+\end{equation}
+
+The point of this factorization is that $D$ is a positive diagonal matrix,
+and---as we will show in Section~\ref{sec:p_matrix}---multiplying by a
+positive diagonal matrix does not affect the P-matrix property. This means
+we can forget about the denominators $d_k$ entirely and work with
+$\widetilde{J}$, which has simpler entries.
+
+In the square case $K = p$, we write $\widetilde{J}$ in block form
+corresponding to the two types of parameters:
+\begin{equation}
+    \label{eq:J_tilde_block}
+    \widetilde{J} = \begin{pmatrix} A & B \end{pmatrix}
+\end{equation}
+where $A \in \R^{K \times p_1}$ contains the numerators from the utility
+parameter derivatives, and $B \in \R^{K \times p_2}$ contains the numerators
+from the PWF parameter derivatives. Each row of $\widetilde{J}$ corresponds to
+one lottery; the first $p_1$ columns correspond to utility parameters and the
+last $p_2$ columns to PWF parameters.
+
+\subsection{The Utility Parameter Block $A$}
+
+From~\eqref{eq:dCE_dtheta}, the $(k, i)$ entry of $A$ is just the numerator
+of $\partial \CE_k / \partial \theta_i$:
+\begin{equation}
+    \label{eq:A_entry}
+    A_{ki} = \sum_{m=1}^{M_k} \pi_{mk}(\bpsi) \,
+    \frac{\partial u}{\partial \theta_i}(x_{mk}; \btheta)
+    - \frac{\partial u}{\partial \theta_i}(\CE_k; \btheta)
+\end{equation}
+
+Reading this in words: $A_{ki}$ is the \emph{gap} between the
+decision-weighted average of $\partial u / \partial \theta_i$ across lottery
+$L_k$'s prizes and the same derivative evaluated at the certainty equivalent.
+This is the Jensen's-inequality gap discussed above.
+
+\begin{remark}[When is $A_{ki}$ nonzero?]
+\label{rem:A_interp}
+$A_{ki} = 0$ would require a very specific cancellation: the weighted average
+of $\partial u / \partial \theta_i$ over the lottery prizes would need to
+\emph{exactly equal} the value at the CE. For a utility function where
+$\partial u / \partial \theta_i$ is nonlinear in $x$, this is a non-generic
+(knife-edge) condition. So generically, $A_{ki} \neq 0$ for all
+lottery-parameter pairs.
+
+As a concrete example: for CRRA utility $u(x; r) = x^{1-r}/(1-r)$, the
+derivative $\partial u / \partial r$ involves terms like $x^{1-r} \ln x$,
+which is nonlinear in $x$. The weighted average over prizes therefore
+differs from the value at the CE.
+\end{remark}
+
+\subsection{The PWF Parameter Block $B$}
+
+From~\eqref{eq:dCE_dpsi}, the $(k, j)$ entry of $B$ is just the numerator
+of $\partial \CE_k / \partial \psi_j$:
+\begin{equation}
+    \label{eq:B_entry}
+    B_{kj} = \sum_{m=1}^{M_k}
+    \frac{\partial \pi_{mk}}{\partial \psi_j}(\bpsi) \,
+    u(x_{mk}; \btheta)
+\end{equation}
+
+Reading this in words: $B_{kj}$ measures how the PWF parameter $\psi_j$
+\emph{reshuffles} the decision weights of lottery $L_k$'s outcomes, weighted
+by the utility of each outcome.
+
+\begin{remark}[When is $B_{kj}$ nonzero?]
+\label{rem:B_interp}
+Since the weight perturbation sums to zero
+($\sum_m \partial\pi_{mk}/\partial\psi_j = 0$), $B_{kj}$ is zero only if
+the perturbation is ``orthogonal'' to the utility vector---that is, if
+$\psi_j$ shifts weight between outcomes that happen to have exactly the same
+utility. With distinct prizes and a strictly monotone $u$, the utility values
+$u(x_{1k}) < u(x_{2k}) < \cdots < u(x_{M_k,k})$ are all different, so any
+nonzero weight reshuffling produces a nonzero $B_{kj}$.
+
+As a concrete example: for the Prelec PWF, increasing $\eta$ shifts weight
+away from high-probability outcomes toward low-probability outcomes (it
+compresses the weighting function toward zero). Whether this increases or
+decreases $B_{kj}$ depends on whether the low-probability outcomes are the
+high-utility or low-utility ones---which depends on the specific lottery
+design.
+\end{remark}
+
+
+%==============================================================================
+\section{The P-Matrix Condition}
+\label{sec:p_matrix}
+%==============================================================================
+
+With the Jacobian's structure in hand, we now connect it to the
+Gale--Nikaido theorem. The theorem requires the Jacobian to be a P-matrix
+at every point. This section shows that the factorization from
+Section~\ref{sec:jacobian} lets us ignore the denominators $d_k$ and work
+directly with the simpler matrix $\widetilde{J}$, then unpacks what the
+P-matrix condition actually requires of the entries.
+
+\subsection{Reduction to $\widetilde{J}$: the Denominators Do Not Matter}
+
+Recall that $J_g = D^{-1} \widetilde{J}$, where $D = \diag(d_1, \ldots, d_K)$
+with each $d_k > 0$. The following lemma says that this positive diagonal
+scaling is irrelevant for the P-matrix property.
+
+\begin{lemma}
+\label{lem:D_reduction}
+$J_g(\bxi)$ is a P-matrix if and only if $\widetilde{J}(\bxi)$ is a P-matrix.
+\end{lemma}
+
+\begin{proof}
+We need to show that multiplying on the left by $D^{-1}$ (a positive diagonal
+matrix) preserves the sign of every principal minor. Pick any nonempty index
+set $I \subseteq \{1, \ldots, K\}$ and consider the principal submatrix
+$(D^{-1}\widetilde{J})_{II}$---the submatrix obtained by selecting rows and
+columns indexed by $I$. Because $D^{-1}$ is diagonal, the rows of
+$D^{-1}\widetilde{J}$ are just the rows of $\widetilde{J}$ each scaled by
+$d_k^{-1}$. So the submatrix decomposes as:
+\begin{equation}
+    (D^{-1}\widetilde{J})_{II} = D_I^{-1} \cdot \widetilde{J}_{II}
+\end{equation}
+where $D_I^{-1} = \diag(d_k^{-1} : k \in I)$. Taking determinants:
+\begin{equation}
+    \det\!\big((D^{-1}\widetilde{J})_{II}\big)
+    = \underbrace{\prod_{k \in I} d_k^{-1}}_{> 0}
+    \;\cdot\; \det(\widetilde{J}_{II})
+\end{equation}
+The prefactor is a product of positive numbers, hence positive. So
+$\det((D^{-1}\widetilde{J})_{II}) > 0$ if and only if
+$\det(\widetilde{J}_{II}) > 0$. Since this holds for \emph{every} index set
+$I$, the two matrices have identical principal minor signs, and one is a
+P-matrix if and only if the other is.
+\end{proof}
+
+The practical upshot: we can forget about the denominators
+$d_k = \partial u / \partial x |_{\CE_k}$ and analyze the P-matrix property
+using $\widetilde{J} = [A \mid B]$ alone, which has the simpler entries
+derived in Section~\ref{sec:jacobian}.
+
+\subsection{What the P-Matrix Condition Requires: Unpacking the $2^p - 1$
+Conditions}
+
+For $K = p$ lotteries and $p$ parameters, the P-matrix condition on
+$\widetilde{J}$ requires all $2^p - 1$ principal minors to be strictly
+positive. To understand what this means concretely, it helps to think about
+the conditions layer by layer, from the simplest (order 1) to the most
+complex (order $p$).
+
+\paragraph{Layer 1: Diagonal entries ($p$ conditions).}
+The order-1 principal minors are just the diagonal entries:
+$\widetilde{J}_{kk} > 0$ for $k = 1, \ldots, p$. In the block
+structure $\widetilde{J} = [A \mid B]$, the diagonal entries come from both
+blocks depending on how lotteries are paired with parameters.
+
+To make this concrete, think of it as an ``assignment'': lottery $k$ is
+assigned to parameter $\xi_k$. The diagonal condition says each lottery must
+respond \emph{positively} to its assigned parameter---when $\xi_k$ increases,
+$\CE_k$ must increase (after accounting for the common denominator $d_k$).
+
+If even one diagonal entry is zero or negative, the P-matrix condition fails
+immediately.
+
+\paragraph{Layer 2: $2 \times 2$ principal minors ($\binom{p}{2}$ conditions).}
+For each pair of indices $(k, \ell)$, extract the $2 \times 2$ submatrix
+from rows and columns $k, \ell$:
+\begin{equation}
+    \begin{pmatrix}
+        \widetilde{J}_{kk} & \widetilde{J}_{k\ell} \\
+        \widetilde{J}_{\ell k} & \widetilde{J}_{\ell\ell}
+    \end{pmatrix}
+\end{equation}
+Its determinant must be positive:
+\begin{equation}
+    \widetilde{J}_{kk}\widetilde{J}_{\ell\ell} -
+    \widetilde{J}_{k\ell}\widetilde{J}_{\ell k} > 0
+\end{equation}
+
+In words: the product of the two ``own effects'' (lottery $k$'s response to
+parameter $k$, times lottery $\ell$'s response to parameter $\ell$) must
+exceed the product of the two ``cross effects'' (lottery $k$'s response to
+parameter $\ell$, times lottery $\ell$'s response to parameter $k$).
+
+This is a ``not too much cross-talk'' condition. It allows cross-effects to
+exist---changing a PWF parameter will generally affect all lotteries' CEs,
+not just the one ``assigned'' to it---but the cross-effects cannot be so
+large that they overwhelm the own-effects. The own-effects must dominate in a
+pairwise sense.
+
+\paragraph{Layer 3 and beyond: Higher-order principal minors.}
+The $3 \times 3$ minors, $4 \times 4$ minors, etc., impose increasingly
+complex constraints on the interactions among groups of three, four, or more
+lottery-parameter pairs. These are harder to interpret individually but
+follow the same logic: no subset of lotteries should be ``too coupled'' to
+each other's parameters relative to their own-parameter responses.
+
+The final condition (order $p$) is simply $\det \widetilde{J} > 0$---the
+full determinant of the unnormalized Jacobian must be positive.
+
+\subsection{Diagonal Entries in Detail: When Are They Positive?}
+\label{sec:diagonal_detail}
+
+Since the diagonal entries are the most basic necessary condition for a
+P-matrix, we examine what determines their sign.
+
+\paragraph{Utility parameter diagonal: $A_{kk}$.}
+From~\eqref{eq:A_entry}, specializing to the diagonal ($i = k$, meaning
+lottery $k$ is assigned to utility parameter $\theta_k$):
+\begin{equation}
+    A_{kk} = \sum_{m} \pi_{mk} \,
+    \frac{\partial u}{\partial \theta_k}(x_{mk}) -
+    \frac{\partial u}{\partial \theta_k}(\CE_k)
+\end{equation}
+
+To determine the sign, consider the function
+$h(x) = \partial u / \partial \theta_k(x;\, \btheta)$, viewed as a function
+of $x$ alone (holding $\btheta$ fixed). Then:
+\begin{equation}
+    A_{kk} = \sum_m \pi_{mk}\, h(x_{mk}) - h(\CE_k)
+    = \E_\pi[h(X)] - h(\CE_k)
+\end{equation}
+where $\E_\pi$ denotes the expectation under the decision weights.
+
+Now, recall that the CE satisfies $u(\CE_k) = \E_\pi[u(X)]$. The CE is a
+kind of ``weighted mean'' of the prizes, but in utility space rather than in
+dollar space. If $h = \partial u / \partial \theta_k$ is convex in $x$, then
+Jensen's inequality gives $\E_\pi[h(X)] > h(\CE_k)$, so $A_{kk} > 0$.
+If $h$ is concave, then $A_{kk} < 0$.
+
+The important point: $A_{kk} = 0$ requires $h$ to be \emph{affine} in $x$
+on the prize range, which is a non-generic condition. For any utility
+function where the marginal effect of $\theta_k$ on utility depends
+nonlinearly on the outcome level $x$, the diagonal entry $A_{kk}$ is
+generically nonzero. Its sign depends on the convexity/concavity of $h$, which
+is a property of the specific utility function.
+
+\paragraph{PWF parameter diagonal: $B_{kk}$.}
+From~\eqref{eq:B_entry}, specializing to the diagonal ($j = k$, meaning
+lottery $k$ is assigned to PWF parameter $\psi_k$):
+\begin{equation}
+    B_{kk} = \sum_{m} \frac{\partial \pi_{mk}}{\partial \psi_k} \,
+    u(x_{mk})
+\end{equation}
+
+Since the weight perturbations sum to zero
+($\sum_m \partial\pi_{mk}/\partial\psi_k = 0$), this is a \emph{mean-zero
+reweighting} of the utility values. Think of it as asking: when $\psi_k$
+increases, does it move decision weight toward the outcomes with
+\emph{higher} utility, or toward those with \emph{lower} utility?
+
+\begin{itemize}
+    \item If $\psi_k$ shifts weight toward high-utility outcomes (the
+    expensive prizes), then $B_{kk} > 0$: the CE increases because the
+    lottery is now ``valued more generously.''
+
+    \item If $\psi_k$ shifts weight toward low-utility outcomes (the cheap
+    prizes), then $B_{kk} < 0$: the CE decreases.
+\end{itemize}
+
+The sign is determined by the interaction between the PWF's parametric
+structure and the specific probability configuration of lottery $L_k$. Unlike
+$A_{kk}$, there is no single universal sign---it depends on the model. The
+researcher's job is to choose lottery designs (prize vectors and probability
+structures) such that the diagonal entries come out with a consistent sign
+that makes the P-matrix condition achievable.
+
+\subsection{Diagonal Dominance: A Simpler Sufficient Condition}
+
+Verifying all $2^p - 1$ principal minors individually can be tedious,
+especially as $p$ grows. Fortunately, there is a simpler condition that
+\emph{implies} the P-matrix property without checking each minor separately.
+
+The idea is intuitive: if every lottery's response to its \emph{own}
+parameter is much larger (in absolute value) than its combined responses to
+all \emph{other} parameters, then the cross-effects cannot overwhelm the
+own-effects at any order, and all principal minors are automatically positive.
+
+\begin{proposition}[Diagonal dominance implies P-matrix]
+\label{prop:diag_dom}
+If $\widetilde{J}$ has positive diagonal entries and is strictly diagonally
+dominant---meaning that for each row $k$, the diagonal entry exceeds the sum
+of the absolute values of all off-diagonal entries:
+\begin{equation}
+    \widetilde{J}_{kk} > \sum_{\ell \neq k} |\widetilde{J}_{k\ell}|
+    \qquad \text{for all } k = 1, \ldots, p
+\end{equation}
+---then $\widetilde{J}$ is a P-matrix.
+\end{proposition}
+
+\begin{proof}
+A strictly diagonally dominant matrix with positive diagonal entries is a
+(non-singular) M-matrix up to sign, and all its eigenvalues have positive real
+parts. Every such matrix is a P-matrix (see, e.g., Horn and
+Johnson~\cite{horn_johnson_2012}, Theorem 2.5.12, or Fiedler and
+Pt\'ak~\cite{fiedler_ptak_1962}).
+\end{proof}
+
+In economic terms, diagonal dominance says: \emph{each lottery is most
+informative about its own assigned parameter}. The CE of lottery $k$ moves
+more when you change parameter $\xi_k$ than it does when you change all other
+parameters combined. This is a natural design goal for the reference lotteries:
+choose each lottery so that it is ``maximally sensitive'' to one particular
+parameter.
+
+Diagonal dominance is strictly stronger than the P-matrix condition---there
+exist P-matrices that are not diagonally dominant. But it is much easier to
+check: only $p$ row-sum conditions instead of $2^p - 1$ minor conditions.
+For large $p$, this computational saving is decisive.
+
+Diagonal dominance says: each lottery $k$ is \emph{most sensitive} to its own
+assigned parameter $\xi_k$, in the sense that the own-effect dominates the sum
+of all cross-effects. This is the formal version of the intuition that each
+lottery should be ``most informative'' about one parameter.
+
+
+%==============================================================================
+\section{Prize Diversity and the P-Matrix}
+\label{sec:prize_diversity}
+%==============================================================================
+
+This section identifies the economic mechanism---prize diversity---that
+delivers the P-matrix property.
+
+\subsection{The Shared-Prize Problem}
+
+Suppose all $K$ lotteries use the \emph{same} prize vector
+$(x_1, \ldots, x_M)$ but differ only in their probability structures. Then:
+\begin{itemize}
+    \item The utility values $u(x_m; \btheta)$ and their parameter derivatives
+    $\partial u / \partial \theta_i(x_m; \btheta)$ are \emph{common} across
+    all lotteries.
+
+    \item The entries of the $A$-block become:
+    \begin{equation}
+        A_{ki} = \sum_{m=1}^M \pi_{mk} \,
+        \frac{\partial u}{\partial \theta_i}(x_m)
+        - \frac{\partial u}{\partial \theta_i}(\CE_k)
+    \end{equation}
+    The first sum, $\sum_m \pi_{mk} (\partial u / \partial \theta_i)(x_m)$,
+    differs across lotteries $k$ only through the decision weights $\pi_{mk}$.
+    The second term $(\partial u / \partial \theta_i)(\CE_k)$ differs across
+    lotteries because different probability structures produce different CEs.
+    However, both variations are driven by the \emph{same underlying function}
+    $\partial u / \partial \theta_i$ evaluated at points within the common
+    prize range $[x_1, x_M]$.
+\end{itemize}
+
+When there is only one utility parameter ($p_1 = 1$), the $A$-block is a
+single column, so proportionality is not an issue. But the $A$-block's
+contribution to the overall Jacobian structure is limited: all variation in
+$A_{k1}$ across lotteries $k$ comes from how different probability structures
+weight a single function $\partial u / \partial \theta_1$.
+
+For the $B$-block under shared prizes: since $u(x_m; \btheta)$ is common
+across lotteries, variation in $B_{kj}$ across $k$ comes entirely from
+$\partial\pi_{mk}/\partial\psi_j$, which depends on the probability structure
+of lottery $L_k$. If two lotteries have similar probability structures, their
+rows in $B$ are nearly proportional, and $2 \times 2$ principal minors
+involving those rows approach zero.
+
+\begin{example}[Failure with shared prizes: the 3-parameter Prelec case]
+\label{ex:shared_failure}
+In the companion paper's application, $p_1 = 1$ (CRRA parameter $r$) and
+$p_2 = 2$ (Prelec parameters $\phi, \eta$). Three lotteries on the same
+prizes $(x_1, x_2, x_3)$ give a $3 \times 3$ Jacobian $\widetilde{J} =
+[A \mid B]$ where $A$ is $3 \times 1$ and $B$ is $3 \times 2$.
+
+The Prelec PWF $w(p) = \exp(-\eta(-\ln p)^\phi)$ has the property that
+$\partial w / \partial \phi$ and $\partial w / \partial \eta$ are \emph{not}
+proportional functions of $p$ (since
+$(\partial w/\partial \phi) / (\partial w/\partial \eta) =
+\eta \cdot (-\ln p)^\phi \cdot \ln(-\ln p)$ depends on $p$). This means the
+$B$-block's two columns are generically linearly independent.
+
+However, the numerical analysis in the companion code
+(\texttt{injectivity\_analysis.py}) demonstrates that for three lotteries on
+\emph{shared} prizes, distinct parameter triples $(r, \phi, \eta)$ and
+$(r', \phi', \eta')$ can produce identical CE vectors. The $3 \times 3$
+Jacobian is nonsingular at most points (local injectivity), but the mapping
+folds---it is not globally injective. The P-matrix condition fails at some
+points in the parameter space, and \Cref{thm:gale_nikaido} does not
+certify injectivity.
+\end{example}
+
+\subsection{How Prize Diversity Restores the P-Matrix}
+
+Now suppose the lotteries have \emph{distinct prize vectors}: lottery $L_k$
+has prizes $(x_{1k}, \ldots, x_{M_k,k})$ that differ across $k$.
+
+\paragraph{Effect on the $A$-block.}
+With distinct prizes, the function $\partial u / \partial \theta_i$ is
+evaluated at \emph{different points} for different lotteries. The entries of
+column $i$ of $A$ become:
+\begin{equation}
+    A_{ki} = \sum_{m} \pi_{mk} \,
+    \frac{\partial u}{\partial \theta_i}(x_{mk})
+    - \frac{\partial u}{\partial \theta_i}(\CE_k)
+\end{equation}
+where the arguments $x_{mk}$ now vary with $k$. This gives each row of $A$
+its own ``fingerprint'' determined by the specific prizes of lottery $L_k$,
+breaking any proportionality between rows.
+
+\paragraph{Effect on the $B$-block.}
+With distinct prizes:
+\begin{equation}
+    B_{kj} = \sum_{m}
+    \frac{\partial \pi_{mk}}{\partial \psi_j} \, u(x_{mk})
+\end{equation}
+The utility values $u(x_{mk})$ now differ across lotteries, so even if
+$\partial\pi_{mk}/\partial\psi_j$ were similar across lotteries (which it
+generically is not, since probability structures also differ), the different
+utility values prevent proportionality of rows.
+
+\paragraph{Effect on cross-block interactions.}
+The $2 \times 2$ and higher-order principal minors involve entries from both
+$A$ and $B$. Prize diversity ensures that the mixed minors
+$A_{ki} B_{\ell j} - A_{\ell i} B_{kj}$ are generically nonzero, because the
+terms depend on prizes specific to lotteries $k$ and $\ell$.
+
+\begin{keyresult}[Prize diversity mechanism]
+Prize diversity delivers the P-matrix property through two channels:
+\begin{enumerate}
+    \item \textbf{Row differentiation:} Distinct prizes give each lottery its
+    own utility gradient profile, breaking proportionality between rows of
+    $\widetilde{J}$ (whether within $A$, within $B$, or across blocks).
+
+    \item \textbf{Approximate diagonal dominance:} With sufficiently diverse
+    prizes, each lottery can be designed so that its CE is ``most sensitive'' to
+    one designated parameter, creating approximate diagonal dominance of
+    $\widetilde{J}$.
+\end{enumerate}
+\end{keyresult}
+
+
+%==============================================================================
+\section{Formal Sufficient Conditions}
+\label{sec:main_theorem}
+%==============================================================================
+
+We now state the main result.
+
+\begin{theorem}[Global injectivity of the CE mapping]
+\label{thm:main}
+Let $u(x; \btheta)$ and $w(p; \bpsi)$ satisfy the primitives and
+monotone-influence assumptions of Section~\ref{sec:model}. Let
+$\Xi = \Theta \times \Psi$ be a rectangular domain (product of open
+intervals). Let $L_1, \ldots, L_K$ be $K = p_1 + p_2$ reference lotteries,
+and define the CE mapping $g: \Xi \to \R^K$ by~\eqref{eq:g_map}. If:
+\begin{enumerate}
+    \item[(i)] \textbf{Rectangular domain:} $\Xi = \prod_{i=1}^p (a_i, b_i)$
+    with $-\infty \leq a_i < b_i \leq +\infty$;
+
+    \item[(ii)] \textbf{Monotone influence:}
+    $\partial u / \partial \theta_i \neq 0$ and
+    $\partial w / \partial \psi_j \neq 0$ on $\Xi$ for all $i, j$;
+
+    \item[(iii)] \textbf{P-matrix Jacobian:}
+    $\widetilde{J}(\bxi)$ is a P-matrix for all $\bxi \in \Xi$;
+\end{enumerate}
+then $g$ is globally injective on $\Xi$.
+\end{theorem}
+
+\begin{proof}
+By \Cref{lem:D_reduction}, condition (iii) is equivalent to $J_g(\bxi)$
+being a P-matrix for all $\bxi \in \Xi$. Since $\Xi$ is rectangular by
+condition (i), the Gale--Nikaido theorem (\Cref{thm:gale_nikaido})
+applies directly, giving global injectivity of $g$ on $\Xi$.
+\end{proof}
+
+\begin{remark}[Roles of the conditions]
+Conditions (i) and (ii) are \emph{model properties}: the domain is rectangular
+by construction (each parameter has its own range), and monotone influence is
+a minimal requirement for each parameter to be identifiable. The operative
+condition is (iii)---the P-matrix property---which depends on the
+\emph{interaction} between the model, the parameter values, and the lottery
+designs.
+
+Prize diversity (discussed in Section~\ref{sec:prize_diversity}) is an
+instrument for achieving condition (iii): it is neither necessary nor
+sufficient in the abstract, but it is the economic mechanism that
+\emph{generically} delivers the P-matrix property. With sufficient prize
+diversity and well-separated probability structures, the Jacobian
+$\widetilde{J}$ is approximately diagonally dominant, hence a P-matrix.
+\end{remark}
+
+\begin{remark}[The role of lottery design]
+The researcher controls the choice of reference lotteries $L_1, \ldots, L_K$.
+This is a degree of freedom not present in most applications of the
+Gale--Nikaido theorem (where the mapping is given). The implication is that
+\emph{lottery design} is a tool for ensuring global injectivity: by choosing
+lotteries with appropriate prize vectors and probability structures, the
+researcher can engineer the Jacobian to satisfy the P-matrix condition.
+\end{remark}
+
+\subsection{The Overdetermined Case ($K > p$)}
+\label{sec:overdetermined}
+
+The main theorem (\Cref{thm:main}) treats the square case $K = p$. In
+practice, experimenters often have $K > p$ reference lotteries---more
+equations than parameters. This overdetermined case deserves separate
+treatment because the Jacobian is no longer square and the P-matrix concept
+does not directly apply.
+
+\paragraph{The non-square Jacobian.}
+When $K > p$, the Jacobian $J_g(\bxi) \in \R^{K \times p}$ is a tall matrix
+(more rows than columns). P-matrices are defined only for square matrices
+(principal minors require selecting the \emph{same} row and column indices),
+so one cannot check whether $J_g$ is a P-matrix. The Gale--Nikaido theorem
+does not apply to $J_g$ directly.
+
+\paragraph{The Gram matrix $G = J_g^\top J_g$.}
+A natural candidate for a square matrix is the Gram matrix
+$G(\bxi) = J_g(\bxi)^\top J_g(\bxi) \in \R^{p \times p}$. This matrix
+arises in least-squares analysis and determines local identification: $G$
+is positive definite if and only if $J_g$ has full column rank $p$, which
+is equivalent to local injectivity at $\bxi$.
+
+However, the Gram matrix does \textbf{not} plug into the Gale--Nikaido
+theorem for global injectivity. The theorem requires the Jacobian of the
+mapping itself to be a P-matrix---not a derived quantity. The Gram matrix
+$G = J_g^\top J_g$ is positive semidefinite by construction, and its
+principal minors are nonneg\-ative, but:
+\begin{enumerate}
+    \item $G$ is positive semidefinite, not necessarily a P-matrix (P-matrix
+    requires \emph{strict} positivity of all principal minors, plus a
+    structural condition beyond mere positive definiteness---though in fact,
+    every symmetric positive definite matrix \emph{is} a P-matrix).
+
+    \item More fundamentally, $G$ is not the Jacobian of any mapping
+    $\Xi \to \R^p$. The Gale--Nikaido theorem applies to
+    $J_{\mathbf{f}}(\bxi)$ where $\mathbf{f}: \R^p \to \R^p$ is the mapping
+    whose injectivity is in question. One cannot substitute an arbitrary
+    $p \times p$ matrix derived from the problem and invoke the theorem.
+\end{enumerate}
+
+\paragraph{Strategy 1: Extract a $p \times p$ sub-Jacobian.}
+The most direct approach is to \emph{select} $p$ of the $K$ lotteries to form
+a square subsystem. If lotteries $L_{k_1}, \ldots, L_{k_p}$ are selected,
+define the restricted mapping $g_S: \Xi \to \R^p$ by
+$g_S(\bxi) = (\CE_{k_1}(\bxi), \ldots, \CE_{k_p}(\bxi))$. Its Jacobian
+$J_{g_S}(\bxi)$ is the $p \times p$ submatrix of $J_g$ formed by selecting
+rows $k_1, \ldots, k_p$.
+
+If $J_{g_S}(\bxi)$ is a P-matrix for all $\bxi \in \Xi$, then $g_S$ is
+globally injective on $\Xi$ by \Cref{thm:main}. Since $g_S$ injective
+implies $g$ injective (if the restricted mapping is one-to-one, the full
+mapping with additional components is \emph{a fortiori} one-to-one), this
+gives:
+
+\begin{corollary}[Overdetermined case via subsystem selection]
+\label{cor:overdetermined_sub}
+If there exists a subset $S \subseteq \{1, \ldots, K\}$ with $|S| = p$ such
+that the $p \times p$ sub-Jacobian $J_{g_S}(\bxi)$ is a P-matrix for all
+$\bxi \in \Xi$, then the full CE mapping $g: \Xi \to \R^K$ is globally
+injective on $\Xi$.
+\end{corollary}
+
+The researcher's task is then to find a ``good'' subset $S$---one for which
+the P-matrix condition holds. Prize diversity helps here: with $K > p$
+lotteries, there are $\binom{K}{p}$ possible subsets, and it suffices for
+\emph{any one} of them to yield a P-matrix Jacobian.
+
+\paragraph{Strategy 2: Generic injectivity from overdetermination.}
+The overdetermined case also admits a simpler, more general argument.
+When $K > p$, the system of equations $g(\bxi) = \mathbf{c}$ (for a target CE
+vector $\mathbf{c} \in \R^K$) is overconstrained: $K$ equations in $p$
+unknowns. Generically, such a system has at most one solution---the extra
+equations eliminate the ``compensation'' degrees of freedom that allow
+non-injectivity in the square case. More precisely:
+
+\begin{proposition}[Generic injectivity from overdetermination]
+\label{prop:overdetermined_generic}
+Suppose $J_g(\bxi)$ has full column rank $p$ for all $\bxi \in \Xi$ (i.e.,
+the Gram matrix $G(\bxi) = J_g^\top J_g$ is positive definite everywhere).
+If $K > p$, then for a generic choice of $K$ lotteries, $g$ is globally
+injective on $\Xi$.
+\end{proposition}
+
+The word ``generic'' here means: the set of lottery designs for which $g$
+fails to be injective has measure zero in the space of possible lottery
+designs. This is a transversality argument---adding lotteries beyond $K = p$
+imposes additional constraints that generically prevent the coincidences
+needed for non-injectivity.
+
+\begin{remark}[When the Gram matrix is informative]
+\label{rem:gram_informative}
+Although $G = J_g^\top J_g$ does not feed into Gale--Nikaido, it plays two
+useful roles in the overdetermined case:
+\begin{enumerate}
+    \item \textbf{Local identification:} $G(\bxi)$ positive definite
+    (equivalently, $J_g$ has full column rank) is necessary and sufficient
+    for local injectivity at $\bxi$. If $G$ is singular at some $\bxi_0$,
+    there exists a direction $v \in \R^p$ with $J_g v = 0$, meaning the CE
+    vector does not change (to first order) when parameters move in direction
+    $v$---a failure of local identification.
+
+    \item \textbf{Condition number:} The condition number
+    $\kappa(G) = \lambda_{\max}(G) / \lambda_{\min}(G)$ measures how
+    ``close to singular'' the Jacobian is. A large $\kappa$ indicates that
+    some parameter combinations are poorly identified by the CE
+    mapping---even if technically injective, small CE differences correspond
+    to large parameter differences, making the inversion numerically
+    ill-conditioned.
+\end{enumerate}
+\end{remark}
+
+\paragraph{Comparison of approaches.}
+\Cref{tab:square_vs_over} summarizes the tools available for each case.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{lcc}
+    & $K = p$ (square) & $K > p$ (overdetermined) \\
+    \hline
+    Jacobian shape & $p \times p$ & $K \times p$ \\
+    P-matrix on $J_g$? & Yes (Gale--Nikaido) & Not defined \\
+    Gram matrix $J_g^\top J_g$ PD? & $\Leftrightarrow \det J_g \neq 0$
+        & Full rank (local ID) \\
+    Global injectivity tool & P-matrix $\Rightarrow$ injective
+        & Subsystem P-matrix, or generic argument \\
+    Prize diversity role & Delivers P-matrix & Delivers full rank +
+        overconstrained
+\end{tabular}
+\caption{Tools for global injectivity in the square vs.\ overdetermined case.}
+\label{tab:square_vs_over}
+\end{table}
+
+\paragraph{Practical recommendation.}
+When the researcher has $K > p$ reference lotteries (as is typical in
+experimental economics, where task counts far exceed parameter counts), the
+most robust strategy is:
+\begin{enumerate}
+    \item Verify $J_g$ has full column rank everywhere on the prior support
+    (i.e., $G = J_g^\top J_g$ is positive definite)---this confirms local
+    injectivity.
+    \item Select a subset $S$ of $p$ lotteries with maximal prize diversity
+    and verify the P-matrix condition on the $p \times p$ sub-Jacobian
+    $J_{g_S}$---this gives a rigorous Gale--Nikaido certificate for global
+    injectivity.
+    \item If the P-matrix check is infeasible, the combination of full column
+    rank and overdetermination provides strong (generically sufficient)
+    evidence for global injectivity.
+\end{enumerate}
+
+
+%==============================================================================
+\section{Practical Verification}
+\label{sec:verification}
+%==============================================================================
+
+Before discussing verification methods, it is worth emphasizing a fundamental
+point:
+
+\begin{keyresult}[Verification is a one-time cost]
+The P-matrix condition depends on the \emph{model specification} (utility
+function, PWF) and the \emph{reference lottery designs} (prize vectors,
+probability structures). It does \textbf{not} depend on the data, the prior
+hyperparameters, the number of subjects, or any other aspect of a specific
+empirical application.
+
+Once the P-matrix property has been established for a given model and lottery
+design, it holds for \emph{every} application using that model and those
+lotteries---regardless of the dataset, the sample size, or the prior
+specification. The verification cost is paid once per model-lottery
+combination, not once per estimation run or once per MCMC iteration.
+\end{keyresult}
+
+This means that even a computationally expensive verification (symbolic
+analysis, dense grid search, interval arithmetic) is entirely practical: the
+cost is amortized over all future applications of the model. For commonly
+used models like CRRA + Prelec, a single verification effort produces a
+permanent result that subsequent researchers can cite without re-deriving.
+
+\subsection{Enumerating Principal Minors}
+
+For a $p \times p$ matrix, there are $2^p - 1$ principal minors.
+\Cref{tab:minor_count} shows the count for small $p$.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{ccc}
+    $p$ & $2^p - 1$ & Breakdown by size \\
+    \hline
+    2 & 3 & $2 + 1$ \\
+    3 & 7 & $3 + 3 + 1$ \\
+    4 & 15 & $4 + 6 + 4 + 1$ \\
+    5 & 31 & $5 + 10 + 10 + 5 + 1$ \\
+    10 & 1023 & $10 + 45 + 120 + \cdots + 1$
+\end{tabular}
+\caption{Number of principal minors for the P-matrix condition.}
+\label{tab:minor_count}
+\end{table}
+
+For the companion paper's 3-parameter case ($p = 3$), there are only
+7 principal minors:
+\begin{itemize}
+    \item 3 diagonal entries (order 1)
+    \item 3 off-diagonal $2 \times 2$ minors (order 2)
+    \item 1 full determinant (order 3)
+\end{itemize}
+
+\subsection{Symbolic/Analytic Verification}
+\label{sec:symbolic}
+
+For any specific model (specific functional forms for $u$ and $w$), the
+strongest approach is to derive the principal minors \emph{symbolically} and
+prove analytically that they are positive on the parameter domain. A computer
+algebra system (CAS) such as SymPy, Mathematica, or Maple can:
+
+\begin{enumerate}
+    \item Compute the entries of $\widetilde{J}(\bxi)$ symbolically from the
+    closed-form expressions for $u(x;\btheta)$ and $w(p;\bpsi)$.
+
+    \item Extract all $2^p - 1$ principal minors as symbolic expressions in
+    $\bxi$.
+
+    \item Simplify each minor and determine its sign on the parameter domain.
+    For many utility/PWF combinations, the minors factor into products of
+    terms whose signs can be established individually (e.g., sums of positive
+    quantities, or terms that are manifestly positive by the monotonicity
+    assumptions on $u$ and $w$).
+
+    \item If a minor does not have a transparent sign, the CAS can search for
+    zeros: solve $M_I(\bxi) = 0$ for each minor $M_I$ and check whether any
+    solutions lie within the parameter domain $\Xi$. If none do, the minor is
+    sign-definite on $\Xi$. Tools like Gr\"obner bases and cylindrical
+    algebraic decomposition can handle this for polynomial or rational
+    expressions; for transcendental functions (like the Prelec PWF), numerical
+    root-finding over the bounded prior support can provide strong evidence.
+\end{enumerate}
+
+This approach yields a \emph{proof} (or, for transcendental cases, a
+near-proof backed by exhaustive numerical search) rather than merely
+numerical evidence. For small $p$---and $p = 3$ to $5$ covers most
+individual-level models in behavioral economics---the symbolic expressions
+are manageable.
+
+\begin{remark}[Existing symbolic infrastructure]
+\label{rem:sympy}
+The companion code (\texttt{injectivity\_analysis.py}, Analysis 1) already
+computes the Jacobian $\widetilde{J}$ symbolically using SymPy for the
+CRRA + Prelec case, including numerical evaluation of $\det \widetilde{J}$
+at test points. Extending this to compute and analyze all 7 principal minors
+(rather than just the full determinant) is straightforward: extract the three
+$1 \times 1$ and three $2 \times 2$ principal submatrices from the symbolic
+Jacobian and compute their determinants.
+\end{remark}
+
+\subsection{Numerical Grid Evaluation}
+
+When symbolic analysis is intractable (e.g., for complex utility functions
+that resist closed-form simplification), the most direct fallback is to
+evaluate all $2^p - 1$ principal minors of $\widetilde{J}(\bxi)$ on a grid
+covering the prior support $\Xi_0 \subset \Xi$:
+
+\begin{enumerate}
+    \item Define a grid $\{\bxi^{(1)}, \ldots, \bxi^{(N)}\}$ over $\Xi_0$
+    with spacing fine enough to detect sign changes.
+
+    \item At each grid point $\bxi^{(n)}$:
+    \begin{enumerate}
+        \item Compute $\widetilde{J}(\bxi^{(n)})$ (via automatic
+        differentiation or closed-form expressions).
+        \item Evaluate all $2^p - 1$ principal minors.
+        \item Record the minimum minor value.
+    \end{enumerate}
+
+    \item If all minors are positive at all grid points, this provides strong
+    numerical evidence for the P-matrix property on $\Xi_0$.
+\end{enumerate}
+
+\paragraph{Computational cost.} For a grid with $N$ points and $p$ parameters,
+the cost is $O(N \cdot 2^p \cdot p^3)$ (evaluating $2^p - 1$ determinants of
+submatrices up to size $p \times p$). For $p = 3$ and $N = 10{,}000$, this
+is $7 \times 10{,}000 = 70{,}000$ determinant evaluations, each of at most
+$3 \times 3$ matrices---a computation that takes seconds on a modern machine.
+Even for a dense grid with $N = 10^6$ points, the total is $7 \times 10^6$
+small determinants, which remains trivial.
+
+Since this is a one-time computation (see the key result box above), even an
+expensive grid search is entirely acceptable. One can afford to be thorough:
+use a very dense grid, cover a generous parameter range well beyond the prior
+support, and store the results for future reference.
+
+\subsection{Diagonal Dominance Check}
+
+When the full P-matrix verification is unwieldy (very large $p$, or when one
+wants a quick sanity check before investing in a full analysis), diagonal
+dominance (\Cref{prop:diag_dom}) provides a sufficient condition requiring
+only $p$ row-sum checks:
+\begin{equation}
+    \widetilde{J}_{kk} > \sum_{\ell \neq k}
+    |\widetilde{J}_{k\ell}|, \quad k = 1, \ldots, p
+\end{equation}
+This is $O(N \cdot p^2)$ per grid point---polynomial rather than exponential
+in $p$. However, diagonal dominance is a \emph{stronger} condition than
+P-matrix, so it may fail even when the P-matrix property holds. It is best
+used as a first-pass screening: if it succeeds, the verification is complete;
+if it fails, one proceeds to the full minor analysis.
+
+\subsection{Interval Arithmetic for Rigorous Certification}
+
+Grid evaluation provides strong evidence but not a proof: in principle, the
+minors could change sign between grid points. For rigorous certification
+(e.g., for a result stated as a theorem in a published paper), \emph{interval
+arithmetic} eliminates this gap:
+\begin{enumerate}
+    \item Partition $\Xi_0$ into boxes $B_1, \ldots, B_N$.
+    \item On each box $B_n$, compute an interval enclosure of each
+    principal minor using interval-arithmetic evaluation of $\widetilde{J}$.
+    \item If every interval enclosure has a strictly positive lower bound,
+    the P-matrix property is rigorously certified on $\Xi_0$.
+\end{enumerate}
+
+This approach requires an interval-arithmetic implementation of the CE
+mapping and its Jacobian. Tools such as \texttt{mpmath} (Python) or
+\texttt{IntervalArithmetic.jl} (Julia) provide the necessary infrastructure.
+
+Again, since verification is one-time, the computational cost of interval
+arithmetic---which is typically $10$--$100\times$ that of ordinary
+floating-point evaluation---is entirely acceptable.
+
+\subsection{Recommended Verification Strategy}
+
+For a specific model and lottery design, we recommend the following sequence:
+
+\begin{enumerate}
+    \item \textbf{Symbolic analysis (preferred).} Use a CAS to derive the
+    principal minors symbolically. If their positivity can be established
+    analytically (or if the CAS can certify no zeros in the domain), this
+    provides a complete proof. For the typical $p = 3$ to $5$ case in
+    behavioral economics, this is the most productive approach.
+
+    \item \textbf{Dense grid evaluation (fallback).} If symbolic analysis
+    stalls, evaluate all minors on a dense grid over the prior support.
+    Record the minimum minor value as a function of the parameter vector.
+    This is cheap (one-time, seconds to minutes) and provides strong
+    evidence.
+
+    \item \textbf{Interval arithmetic (certification).} If a formal proof is
+    needed and symbolic methods did not yield one, use interval arithmetic to
+    rigorously bound the minors from below on the prior support.
+\end{enumerate}
+
+At each stage, the result is permanent: once established for a given
+model-lottery pair, it applies to all future applications.
+
+
+%==============================================================================
+\section{Application: CRRA + Prelec (the Paper's Case)}
+\label{sec:application}
+%==============================================================================
+
+We specialize the general framework to the companion paper's model:
+$p_1 = 1$ (CRRA parameter $r$), $p_2 = 2$ (Prelec parameters $\phi, \eta$),
+$K = 3$ reference lotteries.
+
+\subsection{Model Specification}
+
+\begin{itemize}
+    \item \textbf{Utility:} $u(x; r) = x^{1-r} / (1-r)$ for $r \neq 1$,
+    $\ln x$ for $r = 1$.
+
+    \item \textbf{PWF:} $w(p; \phi, \eta) = \exp(-\eta(-\ln p)^\phi)$
+    (Prelec 2-parameter).
+
+    \item \textbf{Parameter domain:}
+    $\Xi = (r_{\min}, r_{\max}) \times (\phi_{\min}, \phi_{\max})
+    \times (\eta_{\min}, \eta_{\max})$, a rectangular domain.
+\end{itemize}
+
+The monotone-influence conditions are satisfied:
+\begin{itemize}
+    \item $\partial u / \partial r = -x^{1-r} \ln x / (1-r)
+    + x^{1-r} / (1-r)^2 \neq 0$ for $x > 0$ (can be verified to be
+    nonvanishing on the relevant domain, or one works directly with
+    the $B_k = (1-r) \cdot u(\CE_k; r)$ formulation where
+    $\partial B_k / \partial r$ is explicit).
+
+    \item $\partial w / \partial \phi =
+    -w(p) \cdot \eta \cdot (-\ln p)^\phi \cdot \ln(-\ln p) \neq 0$ for
+    $p \in (0, 1) \setminus \{e^{-1}\}$.
+
+    \item $\partial w / \partial \eta =
+    -w(p) \cdot (-\ln p)^\phi \neq 0$ for $p \in (0, 1)$.
+\end{itemize}
+
+\subsection{Lottery Design}
+\label{sec:lottery_design}
+
+We use $K = 3$ reference lotteries with distinct prize vectors.
+Each lottery is a three-outcome gamble with prizes $x_1 < x_2 < x_3$
+and probabilities $(p_1, p_2, p_3)$.
+Define cumulative probabilities from above:
+$q \coloneqq p_2 + p_3$ (probability of receiving $x_2$ or better)
+and $s_{\mathrm{cum}} \coloneqq p_3$ (probability of receiving $x_3$).
+The three decision weights under RDU are:
+\begin{align}
+    \pi_1 &= 1 - w(q), \qquad
+    \pi_2 = w(q) - w(s_{\mathrm{cum}}), \qquad
+    \pi_3 = w(s_{\mathrm{cum}})
+\end{align}
+
+The specific design assigns one lottery to each parameter
+$(r, \phi, \eta)$:
+\begin{center}
+\begin{tabular}{lccccl}
+    Lottery & Prizes & $q$ & $s_{\mathrm{cum}}$ & Assigned to & Sign of $\partial\CE/\partial\xi$ \\
+    \hline
+    $L_1$ & $(10, 30, 50)$ & $0.50$ & $0.50$ & $r$ & $-$ \\
+    $L_2$ & $(15, 35, 50)$ & $0.60$ & $0.90$ & $\phi$ & $+$ \\
+    $L_3$ & $(10, 20, 50)$ & $0.15$ & $0.25$ & $\eta$ & $-$
+\end{tabular}
+\end{center}
+
+\noindent
+Note that $L_1$ has $q = s_{\mathrm{cum}} = 0.50$, so $\pi_2 = w(0.50) - w(0.50) = 0$:
+lottery $L_1$ is effectively a \emph{binary} gamble on $\{10, 50\}$ with
+decision weights $\pi_1 = 1 - w(0.50)$ and $\pi_3 = w(0.50)$.
+This simplification will be useful below.
+
+The ``Sign'' column records the generic sign of $\partial\CE_k/\partial\xi_k$
+(the diagonal entry of the Jacobian for the assigned parameter).
+Since the P-matrix condition requires positive diagonal entries, we
+apply a \emph{sign reparameterization}: define $S = \diag(-1, +1, -1)$
+and consider the modified mapping $\tilde{g} = S \circ g$. Since $S$ is
+a fixed sign matrix, $g$ is injective if and only if $\tilde{g}$ is
+injective. The Jacobian of $\tilde{g}$ is $S \cdot J_g$, which negates
+the $r$ and $\eta$ columns of $J_g$. After this reparameterization, all
+diagonal entries of $\widetilde{J}$ are positive, as required.
+
+\subsection{The Power-Mean Representation}
+\label{sec:power_mean}
+
+For CRRA utility $u(x;r) = x^s/s$ where $s \coloneqq 1 - r$
+(with the convention $u = \ln x$ at $s = 0$), the CE has a
+closed-form \emph{power-mean} representation.
+Define the \textbf{power-mean body}:
+\begin{equation}
+    \label{eq:B_def}
+    B_k \;\coloneqq\; \sum_{m=1}^{M_k} \pi_{mk}(\phi,\eta)\; x_{mk}^{\,s}
+\end{equation}
+Then the RDU value is $\RDU_k = B_k / s$ and the certainty equivalent is:
+\begin{equation}
+    \label{eq:CE_power}
+    \CE_k \;=\; B_k^{\,1/s}
+\end{equation}
+This is simply the \emph{weighted power mean} of the prizes under
+decision weights $\pi_{mk}$.
+
+Because $B_k$ is a positive linear combination of $x_{mk}^s > 0$
+(since decision weights are positive), $B_k > 0$ for all parameter values.
+The CE is well-defined and positive.
+
+\subsection{The $3 \times 3$ Jacobian in Explicit Form}
+\label{sec:explicit_jacobian}
+
+To apply the Gale--Nikaido theorem, we need the Jacobian of the
+CE mapping. With the power-mean representation, we can express the
+derivatives of $\CE_k = B_k^{1/s}$ in terms of $B_k$ and its partial
+derivatives.
+
+\paragraph{Derivative with respect to $r$.}
+Since $s = 1-r$, we have $\partial/\partial r = -\partial/\partial s$.
+By logarithmic differentiation of $\CE_k = B_k^{1/s}$:
+\begin{equation}
+    \label{eq:dCE_dr}
+    \frac{\partial \CE_k}{\partial r}
+    \;=\; \frac{\CE_k}{s}
+    \left[
+        \frac{\ln B_k}{s}
+        - \frac{1}{B_k}\sum_{m} \pi_{mk}\, x_{mk}^s \ln x_{mk}
+    \right]
+\end{equation}
+The bracketed expression can be rewritten as:
+\begin{equation}
+    \frac{\partial \CE_k}{\partial r}
+    \;=\; \frac{\CE_k}{s}
+    \Big[\ln(\CE_k) - \E_\pi[\ln X_k]\Big]
+\end{equation}
+where $\E_\pi[\ln X_k] \coloneqq (1/B_k)\sum_m \pi_{mk}\, x_{mk}^s \ln x_{mk}$
+is a power-weighted average of $\ln x_{mk}$.
+By Jensen's inequality applied to the concave function $\ln$, we have
+$\ln(\CE_k) > \E_\pi[\ln X_k]$ (since the prizes are not all equal),
+so the bracket is positive. Combined with $\CE_k > 0$, the sign of
+$\partial\CE_k/\partial r$ is determined by the sign of $1/s = 1/(1-r)$:
+negative for $r < 1$, positive for $r > 1$.
+On any domain excluding $r = 1$ (a single point of Lebesgue
+measure zero where CRRA becomes $\ln x$), this derivative is
+sign-definite.
+
+\paragraph{Derivatives with respect to $\phi$ and $\eta$.}
+Since $\phi$ and $\eta$ enter only through the decision weights
+$\pi_{mk}$, the chain rule gives:
+\begin{equation}
+    \label{eq:dCE_dpsi}
+    \frac{\partial \CE_k}{\partial \psi_j}
+    \;=\; \frac{\CE_k}{s \cdot B_k}
+    \;\frac{\partial B_k}{\partial \psi_j},
+    \qquad \psi_j \in \{\phi, \eta\}
+\end{equation}
+where:
+\begin{equation}
+    \label{eq:dB_dpsi}
+    \frac{\partial B_k}{\partial \psi_j}
+    \;=\; \sum_{m=1}^{M_k}
+    \frac{\partial \pi_{mk}}{\partial \psi_j}\; x_{mk}^{\,s}
+\end{equation}
+The prefactor $\CE_k / (s \cdot B_k)$ is common to both PWF derivatives
+and is sign-definite (positive for $s > 0$, negative for $s < 0$).
+Therefore the sign of $\partial\CE_k/\partial\psi_j$ is determined
+entirely by $\partial B_k / \partial \psi_j$.
+
+\paragraph{Factorization.}
+From the general theory (Section~\ref{sec:jacobian}), the CE Jacobian
+factors as $J_g = D^{-1}\widetilde{J}$ with $D$ a positive diagonal
+matrix. After the sign reparameterization $S = \diag(-1, +1, -1)$
+from Section~\ref{sec:lottery_design}, we need $S \cdot J_g$ to be a
+P-matrix. Absorbing the positive diagonal $D^{-1}$ (which does not
+affect the P-matrix property by \Cref{lem:D_reduction}), it suffices
+to check that the \textbf{sign-adjusted unnormalized Jacobian}
+\begin{equation}
+    \label{eq:Jtilde_SA}
+    \widetilde{J}^{\,\mathrm{SA}}
+    \;\coloneqq\;
+    \begin{pmatrix}
+        -\widetilde{J}_{1,r}  & \widetilde{J}_{1,\phi}  & -\widetilde{J}_{1,\eta} \\[3pt]
+        -\widetilde{J}_{2,r}  & \widetilde{J}_{2,\phi}  & -\widetilde{J}_{2,\eta} \\[3pt]
+        -\widetilde{J}_{3,r}  & \widetilde{J}_{3,\phi}  & -\widetilde{J}_{3,\eta}
+    \end{pmatrix}
+\end{equation}
+is a P-matrix for all $(r, \phi, \eta) \in \Xi$.
+
+\subsection{Explicit Entries of $\widetilde{J}^{\,\mathrm{SA}}$ for the Lottery Design}
+
+We now write out each entry of $\widetilde{J}^{\,\mathrm{SA}}$ for the
+specific lottery design from Section~\ref{sec:lottery_design}.
+Throughout, $s = 1 - r$, and we write
+$t_p \coloneqq -\ln p$ and $w_p \coloneqq w(p;\phi,\eta) =
+\exp(-\eta\, t_p^{\,\phi})$.
+
+\paragraph{Prelec weight derivatives.}
+The decision weights $\pi_{mk}$ are differences of Prelec
+evaluations at cumulative probabilities. Their derivatives with
+respect to $\phi$ and $\eta$ follow from:
+\begin{align}
+    \label{eq:dw_dphi}
+    \frac{\partial w}{\partial \phi}(p)
+    &= -w(p)\;\eta\; t_p^{\,\phi}\;\ln t_p \\[4pt]
+    \label{eq:dw_deta}
+    \frac{\partial w}{\partial \eta}(p)
+    &= -w(p)\; t_p^{\,\phi}
+\end{align}
+Note the negative sign in~\eqref{eq:dw_dphi}: it arises from
+$\frac{d}{d\phi}\exp(-\eta\, t_p^{\,\phi})
+= \exp(-\eta\, t_p^{\,\phi}) \cdot (-\eta)\cdot t_p^{\,\phi}\ln t_p$.
+
+\paragraph{Notation for the entries.}
+For each lottery $L_k$, define the power-mean body $B_k$ as
+in~\eqref{eq:B_def}. The sign-adjusted unnormalized Jacobian entries
+are (up to positive row-dependent prefactors that do not affect the
+P-matrix property):
+\begin{itemize}
+    \item \textbf{$r$-column} (negated, from $-\partial\CE_k/\partial r$):
+    proportional to $\sum_m \pi_{mk}\,x_{mk}^s\,\ln x_{mk} - B_k\ln(\CE_k)$
+
+    \item \textbf{$\phi$-column} (from $\partial\CE_k/\partial\phi$):
+    proportional to $\partial B_k / \partial\phi$
+
+    \item \textbf{$\eta$-column} (negated, from $-\partial\CE_k/\partial\eta$):
+    proportional to $-\partial B_k / \partial\eta$
+\end{itemize}
+
+\paragraph{Row 1: Lottery $L_1$ (binary gamble on $\{10, 50\}$).}
+
+Since $q = s_{\mathrm{cum}} = 0.50$, the middle outcome has zero
+weight ($\pi_2 = 0$), giving:
+\begin{equation}
+    B_1 = (1 - w_{0.50})\cdot 10^s + w_{0.50}\cdot 50^s
+\end{equation}
+where $w_{0.50} \coloneqq w(0.50;\phi,\eta)
+= \exp(-\eta\,(\ln 2)^\phi)$.
+The derivative contributions simplify to two-term sums:
+\begin{align}
+    \frac{\partial B_1}{\partial\phi}
+    &= \frac{\partial w_{0.50}}{\partial\phi}\;(50^s - 10^s)
+    = -w_{0.50}\;\eta\;(\ln 2)^\phi\;\ln(\ln 2)\;(50^s - 10^s) \\[4pt]
+    \frac{\partial B_1}{\partial\eta}
+    &= \frac{\partial w_{0.50}}{\partial\eta}\;(50^s - 10^s)
+    = -w_{0.50}\;(\ln 2)^\phi\;(50^s - 10^s)
+\end{align}
+Since $50^s > 10^s$ for $s > 0$ (and $50^s < 10^s$ for $s < 0$), the
+factor $(50^s - 10^s)$ has the sign of $s$.
+
+\paragraph{Row 2: Lottery $L_2$ (prizes $15, 35, 50$; $q = 0.60$,
+$s_{\mathrm{cum}} = 0.90$).}
+
+The cumulative probabilities are $q = 0.60$ and $s_{\mathrm{cum}} = 0.90$,
+giving decision weights:
+\begin{align}
+    \pi_{1,2} &= 1 - w(0.60), \qquad
+    \pi_{2,2} = w(0.60) - w(0.90), \qquad
+    \pi_{3,2} = w(0.90)
+\end{align}
+The power-mean body is:
+\begin{equation}
+    B_2 = (1 - w_{0.60})\cdot 15^s
+    + (w_{0.60} - w_{0.90})\cdot 35^s
+    + w_{0.90}\cdot 50^s
+\end{equation}
+Its derivatives involve two PWF evaluation points:
+\begin{align}
+    \frac{\partial B_2}{\partial\phi}
+    &= -\frac{\partial w_{0.60}}{\partial\phi}\;(15^s - 35^s)
+    \;-\; \frac{\partial w_{0.90}}{\partial\phi}\;(35^s - 50^s) \\[4pt]
+    \frac{\partial B_2}{\partial\eta}
+    &= -\frac{\partial w_{0.60}}{\partial\eta}\;(15^s - 35^s)
+    \;-\; \frac{\partial w_{0.90}}{\partial\eta}\;(35^s - 50^s)
+\end{align}
+where $\partial w_p/\partial\phi$ and $\partial w_p/\partial\eta$
+are given by~\eqref{eq:dw_dphi}--\eqref{eq:dw_deta}.
+
+\paragraph{Row 3: Lottery $L_3$ (prizes $10, 20, 50$; $q = 0.15$,
+$s_{\mathrm{cum}} = 0.25$).}
+
+Decision weights:
+\begin{align}
+    \pi_{1,3} &= 1 - w(0.15), \qquad
+    \pi_{2,3} = w(0.15) - w(0.25), \qquad
+    \pi_{3,3} = w(0.25)
+\end{align}
+Power-mean body:
+\begin{equation}
+    B_3 = (1 - w_{0.15})\cdot 10^s
+    + (w_{0.15} - w_{0.25})\cdot 20^s
+    + w_{0.25}\cdot 50^s
+\end{equation}
+Derivatives:
+\begin{align}
+    \frac{\partial B_3}{\partial\phi}
+    &= -\frac{\partial w_{0.15}}{\partial\phi}\;(10^s - 20^s)
+    \;-\; \frac{\partial w_{0.25}}{\partial\phi}\;(20^s - 50^s) \\[4pt]
+    \frac{\partial B_3}{\partial\eta}
+    &= -\frac{\partial w_{0.15}}{\partial\eta}\;(10^s - 20^s)
+    \;-\; \frac{\partial w_{0.25}}{\partial\eta}\;(20^s - 50^s)
+\end{align}
+
+\paragraph{The $r$-column.}
+For each lottery, the $r$-column entry (after sign negation) is
+proportional to:
+\begin{equation}
+    \label{eq:r_col}
+    R_k \;\coloneqq\;
+    \sum_m \pi_{mk}\,x_{mk}^s\,\ln x_{mk}
+    \;-\; B_k\,\ln(B_k^{1/s})
+    \;=\;
+    \sum_m \pi_{mk}\,x_{mk}^s\,\ln x_{mk}
+    \;-\; \frac{B_k\,\ln B_k}{s}
+\end{equation}
+For the binary $L_1$, this reduces to:
+\begin{equation}
+    R_1 = (1 - w_{0.50})\cdot 10^s\,\ln 10
+    + w_{0.50}\cdot 50^s\,\ln 50
+    - \frac{B_1\,\ln B_1}{s}
+\end{equation}
+
+\subsection{The 7 Principal Minors}
+
+Denote the entries of $\widetilde{J}^{\,\mathrm{SA}}$ by
+$\widetilde{J}^{\,\mathrm{SA}}_{k\ell}$ where $k$ indexes the lottery
+(row) and $\ell$ indexes the parameter (column: $r$, $\phi$, or $\eta$).
+The P-matrix condition on $\widetilde{J}^{\,\mathrm{SA}}$ requires all 7
+principal minors to be strictly positive:
+\begin{enumerate}
+    \item \textbf{Order 1 (3 conditions):} The diagonal entries, each
+    representing the response of a lottery's CE to its assigned parameter
+    (after sign correction):
+    \begin{align}
+        M_1 &= \widetilde{J}^{\,\mathrm{SA}}_{1,r} > 0
+        &\quad&\text{($L_1$ responds to $r$)} \\
+        M_2 &= \widetilde{J}^{\,\mathrm{SA}}_{2,\phi} > 0
+        &\quad&\text{($L_2$ responds to $\phi$)} \\
+        M_3 &= \widetilde{J}^{\,\mathrm{SA}}_{3,\eta} > 0
+        &\quad&\text{($L_3$ responds to $\eta$)}
+    \end{align}
+
+    \item \textbf{Order 2 (3 conditions):} Each $2 \times 2$ principal
+    minor must be positive, meaning pairwise own-effects dominate
+    cross-effects:
+    \begin{align}
+        M_{12} &= \widetilde{J}^{\,\mathrm{SA}}_{1,r}\;
+                   \widetilde{J}^{\,\mathrm{SA}}_{2,\phi}
+                 - \widetilde{J}^{\,\mathrm{SA}}_{1,\phi}\;
+                   \widetilde{J}^{\,\mathrm{SA}}_{2,r} > 0 \\
+        M_{13} &= \widetilde{J}^{\,\mathrm{SA}}_{1,r}\;
+                   \widetilde{J}^{\,\mathrm{SA}}_{3,\eta}
+                 - \widetilde{J}^{\,\mathrm{SA}}_{1,\eta}\;
+                   \widetilde{J}^{\,\mathrm{SA}}_{3,r} > 0 \\
+        M_{23} &= \widetilde{J}^{\,\mathrm{SA}}_{2,\phi}\;
+                   \widetilde{J}^{\,\mathrm{SA}}_{3,\eta}
+                 - \widetilde{J}^{\,\mathrm{SA}}_{2,\eta}\;
+                   \widetilde{J}^{\,\mathrm{SA}}_{3,\phi} > 0
+    \end{align}
+
+    \item \textbf{Order 3 (1 condition):}
+    \begin{equation}
+        M_{123} = \det \widetilde{J}^{\,\mathrm{SA}} > 0
+    \end{equation}
+\end{enumerate}
+
+All entries of $\widetilde{J}^{\,\mathrm{SA}}$ are explicit functions of
+$(r, \phi, \eta)$ through the formulas of the preceding subsection:
+$B_k$ and its derivatives $\partial B_k/\partial\phi$,
+$\partial B_k/\partial\eta$ involve only elementary operations
+(powers $x^s$, exponentials, logarithms) applied to the fixed prize
+and probability data of each lottery. The $r$-column involves the
+additional quantity $R_k$ from~\eqref{eq:r_col}. There are no implicit
+equations to solve---unlike the general $\widetilde{J}$ of
+Section~\ref{sec:jacobian}, which requires computing CEs implicitly,
+the power-mean representation makes everything explicit.
+
+\subsection{Shared Prizes: P-Matrix Failure}
+
+When all three lotteries share prizes $(a, b, c)$, the companion paper's
+numerical analysis (the \texttt{injectivity\_analysis.py} code) has
+demonstrated:
+\begin{itemize}
+    \item $\det \widetilde{J} \neq 0$ at generic parameter values (local
+    injectivity).
+    \item The mapping is \emph{not} globally injective: distinct $(r, \phi,
+    \eta)$ triples produce identical CE vectors.
+\end{itemize}
+
+This is consistent with a failure of the P-matrix condition. Specifically, the
+$2 \times 2$ minor $M_{23}$ involving the two Prelec columns is vulnerable:
+with shared prizes, the $B$-block's rows differ only through the decision
+weights, and the Prelec derivatives
+$\partial w / \partial \phi$ and $\partial w / \partial \eta$ create a
+specific interaction pattern that allows $M_{23}$ to change sign across the
+parameter space. Where $M_{23} \leq 0$, the P-matrix condition fails, and
+the Gale--Nikaido theorem cannot certify injectivity. The numerical finding
+of non-injectivity confirms that this failure is genuine, not an artifact.
+
+\subsection{Prize Diversity: P-Matrix Restoration}
+
+The same numerical analysis demonstrates that using lotteries with
+\emph{different prize vectors} restores global injectivity. In the framework
+of this note, the mechanism is clear: different prizes give each row of
+$\widetilde{J}$ a distinct dependence on the utility function and its
+derivatives, which generically makes all principal minors positive.
+
+The companion code's ``lottery design analysis'' (Analysis 6 in
+\texttt{injectivity\_analysis.py}) shows that:
+\begin{itemize}
+    \item Adding a 4th lottery on the same prizes ($K > p$: overdetermination)
+    also restores injectivity, because the system is overconstrained.
+    \item Using even one lottery with different prizes suffices to break the
+    compensation mechanism.
+\end{itemize}
+
+Both findings are consistent with the P-matrix framework: overdetermination
+provides more constraints than degrees of freedom, while prize diversity
+differentiates the Jacobian rows.
+
+
+%==============================================================================
+\section{Limitations}
+\label{sec:limitations}
+%==============================================================================
+
+\paragraph{Rectangular domain requirement.}
+The Gale--Nikaido theorem requires a rectangular (product of intervals) domain.
+Economic parameter spaces are typically of this form---each parameter has its
+own range, independent of others---so this is rarely a binding constraint.
+However, if the model imposes \emph{joint} constraints on parameters (e.g.,
+$\theta_1 + \theta_2 < 1$), the domain is not rectangular and the theorem
+does not apply directly. In such cases, one may attempt to reparameterize to
+obtain a rectangular domain, or use alternative injectivity results (Hadamard,
+topological degree theory).
+
+\paragraph{Unbounded domains.}
+The theorem permits unbounded intervals ($a_i = -\infty$ or $b_i = +\infty$).
+However, verifying the P-matrix condition on an unbounded domain requires
+establishing that all principal minors remain positive as parameters approach
+their extremes. In practice, one truncates to a compact rectangle covering the
+prior support (e.g., a high-probability region under the prior) and verifies the
+P-matrix condition there. This gives injectivity on the truncated domain, which
+is sufficient for the Jacobian correction methodology since the prior assigns
+negligible mass outside the truncated region.
+
+\paragraph{Not a necessary condition.}
+The P-matrix condition is sufficient but not necessary for global injectivity.
+A mapping can be globally injective on a rectangular domain even if its
+Jacobian is not a P-matrix at every point. The theorem provides a one-way
+implication: P-matrix everywhere $\Rightarrow$ injective. The converse is
+false. Thus, failure to verify the P-matrix condition does not prove
+non-injectivity---it merely means this particular tool is inconclusive.
+
+\paragraph{Computational cost of verification.}
+The number of principal minors grows as $2^p - 1$, which is exponential in
+the number of parameters. For small $p$ (the companion paper's case with
+$p = 3$ has only 7 minors), this is trivial. For larger models (e.g., $p = 10$
+would require 1023 minors), direct verification becomes expensive. The
+diagonal dominance sufficient condition (\Cref{prop:diag_dom}) provides a
+polynomial-cost alternative, at the price of a stronger requirement.
+
+\paragraph{Dependence on lottery design.}
+The P-matrix property depends on the choice of reference lotteries. A poor
+choice of lotteries (e.g., all with identical prizes and similar probability
+structures) can cause the P-matrix condition to fail even when a better design
+would satisfy it. The researcher must therefore \emph{design} the reference
+lotteries with injectivity in mind---this is a feature, not a bug, as it
+provides actionable guidance for experimental design.
+
+
+%==============================================================================
+\section{Connection to the Paper's Appendix C}
+\label{sec:connection}
+%==============================================================================
+
+The companion paper's Appendix C currently states (paraphrasing lines
+1515--1519):
+
+\begin{quote}
+The classical sufficient conditions---Hadamard's theorem (properness) and the
+Gale--Nikaido theorem (P-matrix Jacobian)---do not directly apply because CE
+mappings are never proper (the codomain is bounded by prize values while the
+parameter domain is unbounded).
+\end{quote}
+
+This statement conflates two distinct requirements:
+\begin{itemize}
+    \item \textbf{Hadamard's theorem} requires properness (or coercivity):
+    $\|g(\bxi)\| \to \infty$ as $\|\bxi\| \to \infty$. CE mappings indeed
+    fail this condition, since CEs are bounded by the prize range. Thus
+    Hadamard's theorem genuinely does not apply.
+
+    \item \textbf{The Gale--Nikaido theorem} requires a P-matrix Jacobian on
+    a rectangular domain. It does \emph{not} require properness. The domain
+    requirement is naturally satisfied by economic parameter spaces, and the
+    P-matrix condition is a verifiable algebraic property of the Jacobian.
+\end{itemize}
+
+The corrected assessment is:
+\begin{keyresult}[Corrected assessment of classical theorems]
+\begin{itemize}
+    \item \textbf{Hadamard:} Does not apply (CE mappings are bounded, so
+    properness fails).
+    \item \textbf{Gale--Nikaido:} \emph{Can} apply. The theorem's domain
+    requirement (rectangular region) is satisfied by construction. The
+    operative condition is the P-matrix property of the Jacobian, which is
+    verifiable and is generically satisfied when reference lotteries have
+    sufficient prize diversity.
+\end{itemize}
+\end{keyresult}
+
+
+%==============================================================================
+\section{Summary}
+\label{sec:summary}
+%==============================================================================
+
+\begin{keyresult}[Main result]
+The Gale--Nikaido univalence theorem provides the formal link between
+\emph{prize diversity} (a lottery design choice controlled by the researcher)
+and \emph{global injectivity} (the mathematical requirement for the Jacobian
+correction to produce a valid probability density).
+
+The chain of reasoning is:
+\begin{enumerate}
+    \item The CE mapping $g: \Xi \to \R^K$ maps parameters to certainty
+    equivalents.
+    \item The Jacobian $J_g$ factors as $D^{-1} \widetilde{J}$ with $D$
+    positive diagonal.
+    \item $J_g$ is a P-matrix iff $\widetilde{J}$ is a P-matrix.
+    \item Prize diversity differentiates the rows of $\widetilde{J}$, generically
+    ensuring all $2^p - 1$ principal minors are positive.
+    \item By the Gale--Nikaido theorem, the P-matrix property on the rectangular
+    parameter domain $\Xi$ implies global injectivity of $g$.
+    \item Global injectivity validates the Jacobian correction formula
+    $p_{\bxi}(\bxi) = p_{\mathbf{Y}}(g(\bxi)) \, |\det J_g(\bxi)|$.
+\end{enumerate}
+\end{keyresult}
+
+\noindent
+Key points:
+\begin{itemize}
+    \item The Gale--Nikaido theorem \emph{does} apply to CE mappings, contrary
+    to the paper's current statement. The theorem's requirement is a rectangular
+    domain and a P-matrix Jacobian---not properness (which is Hadamard's
+    requirement).
+
+    \item The P-matrix condition is the operative constraint. It is verifiable
+    analytically (for small $p$) or numerically (via grid evaluation or interval
+    arithmetic).
+
+    \item Prize diversity is the economic mechanism that delivers the P-matrix
+    property: distinct prize vectors differentiate the Jacobian's rows, creating
+    the approximate diagonal dominance that implies the P-matrix condition.
+
+    \item For the paper's 3-parameter case ($r, \phi, \eta$), only 7 principal
+    minors need to be checked. The companion code's numerical analysis confirms
+    that shared prizes cause P-matrix failure (and non-injectivity), while prize
+    diversity restores it.
+
+    \item The theorem provides \emph{sufficient} conditions. Failure to verify
+    the P-matrix condition does not prove non-injectivity, but the companion
+    paper's numerical analysis provides independent evidence of non-injectivity
+    when the conditions fail.
+\end{itemize}
+
+
+%==============================================================================
+% References
+%==============================================================================
+
+\begin{thebibliography}{9}
+
+\bibitem{gale_nikaido_1965}
+Gale, D.\ and Nikaido, H.\ (1965).
+``The Jacobian matrix and global univalence of mappings.''
+\textit{Mathematische Annalen}, 159(2), 81--93.
+
+\bibitem{horn_johnson_2012}
+Horn, R.\,A.\ and Johnson, C.\,R.\ (2012).
+\textit{Matrix Analysis}, 2nd ed.
+Cambridge University Press.
+
+\bibitem{fiedler_ptak_1962}
+Fiedler, M.\ and Pt\'ak, V.\ (1962).
+``On matrices with non-positive off-diagonal elements and positive
+principal minors.''
+\textit{Czechoslovak Mathematical Journal}, 12(3), 382--400.
+
+\bibitem{parthasarathy_1983}
+Parthasarathy, T.\ (1983).
+\textit{On Global Univalence Theorems}.
+Lecture Notes in Mathematics, Vol.\ 977.
+Springer-Verlag.
+
+\bibitem{mas_colell_1979}
+Mas-Colell, A.\ (1979).
+``Homeomorphisms of compact, convex sets and the Jacobian matrix.''
+\textit{SIAM Journal on Mathematical Analysis}, 10(6), 1105--1109.
+
+\end{thebibliography}
+
+\end{document}

@@ -29,6 +29,18 @@ venv/
 *.pytxcode
 pythontex-files-*/
 *.pdf
+# But keep PDFs in literature and technical notes
+!lit/**/*.pdf
+!lit/*.pdf
+!technical_notes/**/*.pdf
+
+# Large data archives
+data/input/*.zip
+
+# LaTeX diff/reference artifacts
+doc/diff.tex
+doc/ref.tex
+doc/*-SAVE-ERROR
 
 # Output data (large files, regeneratable)
 data/output/

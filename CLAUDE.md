@@ -7,9 +7,9 @@ Instructions for Claude Code sessions in this workspace.
 **Current State:** Paper restructured for Journal of Econometrics. Phase 1 (paper structure) complete on feature branch.
 
 The paper has been restructured from an Economics Letter into a full JoE paper:
-- New title: "Observable-Space Prior Specification for Bayesian Hierarchical Models"
+- New title: "Quantity-Space Prior Specification for Bayesian Hierarchical Models"
 - 9 sections + 6 appendices (was 4 sections + 3 appendices)
-- Two contributions: (i) observable-space priors with Jacobian correction; (ii) variance decomposition with κ parameterization
+- Two contributions: (i) quantity-space priors with Jacobian correction; (ii) variance decomposition with κ parameterization
 - Three applications planned: RDU (real data, working), CPT (simulation, stub), discounting (simulation, stub)
 - Bibliography expanded from ~11 to ~30+ references
 - New material from technical notes integrated into main paper body and appendices
@@ -26,13 +26,13 @@ See `TODO.md` for detailed task tracking.
 
 ## Project Goal
 
-Working title: "Observable-Space Prior Specification for Bayesian Hierarchical Models: Theory and Applications to Risk Preferences"
+Working title: "Quantity-Space Prior Specification for Bayesian Hierarchical Models: Theory and Applications to Risk Preferences"
 
 Target: Journal of Econometrics, full-length paper (~30-35 pages with appendices).
 
 **Two Contributions:**
 
-1. **Observable-space prior specification** — Specify priors on interpretable
+1. **Quantity-space prior specification** — Specify priors on generated
    quantities (certainty equivalents, choice probabilities) and transform to
    parameter space via Jacobian correction: p(θ) = p_Y(g(θ)) |det J_g(θ)|
 
@@ -293,6 +293,14 @@ finance. I expect very detailed summaries of any issues where a technical note
 is asked for, not just a high level overview. These should be written in the
 style of a detailed report.
 
+### Next Steps Notes
+
+When asked to write a "next steps" note (or similar assessment of paper/project
+status), create a new timestamped file in `technical_notes/next_steps/` using
+the format `DD_MM_YYYY.tex` (e.g., `28_02_2026.tex`). Each note is a snapshot
+in time — never overwrite previous notes. Previous notes in the directory
+provide context on what has already been assessed and addressed.
+
 
 ## MCMC Configuration Guidelines
 
@@ -348,6 +356,29 @@ When planning new work:
 Keep TODO.md current so future sessions can quickly understand project status.
 
 
+## Writing Tone for the Paper
+
+The paper builds on the work of others and the tone must reflect that. The
+cited authors (Bland, Manderson, Segert, Gelman, Simpson, etc.) are the most
+likely reviewers. Do not characterize their methods negatively — avoid words
+like "informal," "black-box," "ad hoc," "naive," or "limited." Instead,
+describe what each contribution does and then state what the present paper adds
+as a complement or extension, not a correction. The framing is: "X did Y; I
+extend this by adding Z" — never "X is insufficient; I fix it."
+
+When contrasting approaches, use neutral language: "requires numerical
+optimization" rather than "requires black-box numerical optimization";
+"relies on visual calibration" rather than "relies on informal visual
+inspection." The goal is to position the contribution clearly without
+diminishing prior work.
+
+Do not use bullet-point lists (`\begin{itemize}`) anywhere in the paper.
+Use prose to present information, even when listing properties or conditions.
+
+Do not use `\textbf{}` for emphasis in the paper body. Use `\textit{}` or
+`\emph{}` sparingly, or let the structure speak for itself.
+
+
 ## Paper Document
 
 The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
@@ -355,7 +386,7 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 ### Main Sections
 1. **Introduction** - Two contributions, bridge between two literatures, three applications
 2. **Literature — Two Camps** - Camp 1 (uninformative), Camp 2 (knowledge-based), BHMs in economics
-3. **Observable-Space Prior Specification** - General framework, CE space, choice probability, block-triangular Jacobian, global injectivity
+3. **Quantity-Space Prior Specification** - General framework, CE space, choice probability, block-triangular Jacobian, global injectivity
 4. **Hyperprior Derivation via Variance Decomposition** - κ parameterization, NIG mapping, NIW extension
 5. **Application — RDU with Real Data** - Model, priors, H&N 2016 data, results (working, with pythontex)
 6. **Application — CPT** (simulation study, stub)

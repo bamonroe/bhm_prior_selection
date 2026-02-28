@@ -1,0 +1,382 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{titlesec}
+\usepackage[stretch=15]{microtype}
+\usepackage{parskip}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries}{}{0em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{}{0em}{}
+
+\title{Technical Note: Review of the Literature Section\\[6pt]
+\large ``Observable-Space Prior Specification for Bayesian Hierarchical
+Models''\\[6pt]
+\normalsize Current state on branch \texttt{feat/joe-restructure}}
+\author{}
+\date{February 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\vspace{1em}
+\hrule
+\vspace{1em}
+
+\section{Overview}
+
+This note reviews the literature section (Section~2) of the paper following its
+recent rewrite. The section was substantially expanded from the previous
+version, which had a concise, journal-article style with four subsections
+(Camp~1, Camp~2, BHMs in Economics, Positioning). The new version has two
+subsections (Camp~1, Camp~2) with considerably more text and a different
+rhetorical strategy.
+
+The note is organized as follows: \S1 assesses the structural changes, \S2
+reviews Camp~1, \S3 reviews Camp~2, \S4 identifies missing content from the
+previous version, \S5 catalogues writing issues, and \S6 flags bibliographic
+problems.
+
+
+\section{1.\ Structural Assessment}
+
+\subsection{What was gained}
+
+The rewrite makes several improvements:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item The new introductory paragraphs (lines 215--230) give a clear,
+    accessible framing of the two-camp distinction and explicitly state which
+    camp the paper contributes to.
+  \item Camp~1 is more thorough: the Jeffreys prior gets a proper paragraph
+    explaining invariance and improperness, the IG($\varepsilon$,
+    $\varepsilon$) pathology is described in more detail (with a footnote
+    tying it to Gao et al.), and the Gelman, Simpson \& Betancourt (2017)
+    reference is added.
+  \item Camp~2 is significantly expanded with a substantial survey of the
+    belief elicitation literature (proper scoring rules, risk-neutralization,
+    Becker--DeGroot--Marschak, etc.).
+\end{itemize}
+
+\subsection{What was lost}
+
+Two subsections from the previous version were removed entirely:
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{``BHMs in Experimental and Behavioral Economics''} ---
+    Previously cited Gao et al.\ (2022), Nilsson et al.\ (2011), Vincent
+    (2016), Del Negro \& Schorfheide (2008), and Villani (2009). This
+    provided context for BHMs in the paper's target field and connected to
+    macroeconometrics precedents for observable-space priors. All five
+    citations are now absent from the paper.
+  \item \textbf{``Positioning''} --- Previously stated the paper's
+    contribution sharply: ``the first systematic derivation of hyperpriors from
+    individual-level beliefs about observable quantities, combining Camp~2's
+    predictive insight with Camp~1's analytical rigor.'' This had a clear,
+    assertive claim of novelty that the new closing paragraphs (lines
+    357--367) do not replicate with the same force.
+\end{enumerate}
+
+\subsection{Assessment}
+
+The BHMs subsection should be restored in some form. The Del Negro \&
+Schorfheide and Villani references were genuinely useful for positioning ---
+they show the idea of observable-space priors has appeared in
+macroeconometrics, establishing that the contribution is the systematic
+derivation for hierarchical settings, not the idea itself. The Nilsson and
+Vincent references are needed because the paper claims three applications
+(RDU, CPT, discounting), and these are the primary BHM references in those
+fields.
+
+The Positioning subsection's assertive claim of novelty should be
+restored, either as a standalone paragraph at the end of Camp~2 or as a
+separate subsection. The current closing (lines 357--367) is too tentative ---
+it describes what the paper does procedurally rather than claiming what is new.
+
+
+\section{2.\ Camp 1: Detailed Review}
+
+\subsection{Content}
+
+The Camp~1 subsection is solid. It correctly covers:
+\begin{itemize}[leftmargin=1.5em]
+  \item Jeffreys/reference priors and their properties
+  \item The IG($\varepsilon$, $\varepsilon$) pathology (Gelman 2006)
+  \item Half-Cauchy priors (Polson \& Scott 2012)
+  \item Horseshoe prior (Carvalho et al.\ 2010)
+  \item PC priors (Simpson et al.\ 2017)
+  \item Gelman, Simpson \& Betancourt (2017) on prior selection when models
+    are developed while examining data
+\end{itemize}
+
+\subsection{Issues}
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{``observations grow'' (line 245):} Should be ``observations
+    grows'' (number\ldots grows) or rephrase to ``as the number of observations
+    increases.''
+
+  \item \textbf{``while trying to still minimize'' (line 267--268):} Awkward
+    split infinitive. Rewrite to ``while still trying to minimize'' or
+    ``while minimizing.''
+
+  \item \textbf{``domain specific knowledge'' (lines 275, 278, 280):}
+    Should be hyphenated: ``domain-specific knowledge.'' Appears three times
+    in the section.
+
+  \item \textbf{Loss of the ``gap'' motivation (lines 275--282):} The old
+    version's closing paragraph for Camp~1 was: ``These contributions solve
+    genuine problems\ldots However, they share a limitation: they do not
+    provide a mechanism for encoding substantive domain knowledge when it
+    exists. A researcher who knows from decades of experiments that CRRA
+    coefficients typically fall between 0.2 and 0.8 gains nothing from a
+    prior designed to express ignorance.'' This was rhetorically effective: it
+    acknowledged the value of Camp~1 while sharply motivating Camp~2. The new
+    closing paragraph is more diplomatic but less pointed. Consider restoring
+    the specific CRRA example --- it is concrete and memorable.
+
+  \item \textbf{Previous version said reference priors ``do not naturally
+    extend to hierarchical settings'':} This was a useful observation that
+    specifically motivated the paper's hierarchical contribution. The new
+    version drops it. Consider restoring.
+\end{enumerate}
+
+
+\section{3.\ Camp 2: Detailed Review}
+
+\subsection{Content}
+
+The Camp~2 subsection covers three threads:
+\begin{enumerate}[leftmargin=1.5em]
+  \item Predictive elicitation (Kadane 1980, Kadane \& Wolfson 1998)
+  \item Belief elicitation in economics and psychology (Juster, Winkler,
+    Murphy, Savage, Becker--DeGroot--Marschak, Harrison \& collaborators,
+    Offerman, Hossain \& Okui, Smith, Schlag, Garthwaite, Manski, O'Hagan,
+    Mikkola)
+  \item Prior predictive methods (Gabry et al., Bland, Manderson, Segert
+    et al.)
+\end{enumerate}
+
+\subsection{Major structural concern: the belief elicitation digression}
+
+The belief elicitation material (lines 297--335) --- proper scoring rules,
+risk-neutralization via utility payments, BDM auctions --- is a substantial
+digression that is not directly relevant to the paper's contribution.
+
+The paper does not elicit beliefs from experimental subjects. It helps
+\textit{researchers} encode \textit{their own} prior beliefs about model
+parameters into hyperprior distributions. The belief elicitation literature is
+about extracting subjective probabilities from lay individuals in
+experimental settings. These are related (both involve turning beliefs into
+distributions) but they are different problems, and the connection is not
+drawn explicitly.
+
+\textbf{Recommendation:} Either (a) cut the belief elicitation survey to 2--3
+sentences acknowledging its existence and citing Schlag (2015) or Manski
+(2004) as entry points, or (b) explicitly draw the connection: ``The same
+cognitive challenges that arise in eliciting beliefs from experimental
+subjects --- difficulty reasoning about probabilities, sensitivity to framing
+--- also arise when asking researchers to specify hyperprior parameters.
+The observable-space approach developed here addresses this by translating
+the specification task into domain quantities (dollars, probabilities) rather
+than abstract distribution parameters.''
+
+Without either treatment, the 2.5-paragraph survey reads as showing breadth
+of knowledge rather than serving the argument.
+
+\subsection{Issues}
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{``a substantial literature onto itself'' (line 297--298):}
+    Should be ``unto itself'' or ``in itself.''
+
+  \item \textbf{``has lead to techniques'' (line 312):} Should be ``has led
+    to techniques.''
+
+  \item \textbf{``Drawing connections\ldots are actively being explored''
+    (line 346--347):} Subject-verb disagreement. ``Drawing connections'' is a
+    gerund phrase (singular). Should be ``Drawing connections\ldots is actively
+    being explored'' or rephrase: ``Connections between prior predictive
+    distributions and prior distributions are actively being explored.''
+
+  \item \textbf{Missing contrast with Bland (2025) (lines 342--344):} The
+    previous version explicitly characterized Bland's approach as ``informal,
+    relying on visual inspection of prior predictive distributions and manual
+    adjustment, where the framework developed here provides closed-form
+    solutions.'' The new version just says Bland ``proposed calibrating priors
+    for structural models by examining their implications for certainty
+    equivalents'' without any contrast. The contrast is the whole point of
+    citing Bland --- it is the closest precursor. Restore it.
+
+  \item \textbf{Missing contrast with Manderson (2026) (lines 348--350):}
+    Same issue. The previous version noted Manderson ``requires black-box
+    numerical optimization where the framework developed here provides
+    closed-form solutions.'' The new version just describes what Manderson
+    does. The contrast is needed to establish the contribution.
+
+  \item \textbf{Missing characterization of Segert et al.\ (2019) (lines
+    351--355):} The previous version noted that Segert et al.\ ``established
+    the mathematical foundation that the present work extends to hierarchical
+    settings.'' The new version mentions they focus on non-informative
+    predictive distributions but drops the claim about extending their
+    foundation. This was a useful positioning statement.
+
+  \item \textbf{Closing paragraphs (lines 357--367):} ``There are many
+    threads being pulled'' is colloquial and vague. ``Far less insight about
+    what properties should be held by the hyperpriors'' is passive and
+    indirect. Compare to the old Positioning subsection's claim of ``the first
+    systematic derivation.'' The current closing does not make a clear novelty
+    claim. It should.
+
+  \item \textbf{``the literature of risky choice where expert beliefs about
+    the prior predictive of risk preferences are well-informed'' (lines
+    363--364):} This is imprecise. It is not the ``prior predictive of risk
+    preferences'' that is well-informed; it is researchers' beliefs about
+    observable quantities (CEs, choice probabilities) that are well-informed
+    by decades of experimental evidence. Clarify.
+
+  \item \textbf{``I begin by formally connecting'' (line 364):} This reads as
+    a transition to the next section but is placed at the end of the
+    literature review. It would fit better as the opening of Section~3, or
+    reworded as a statement of contribution rather than a procedural
+    announcement.
+\end{enumerate}
+
+
+\section{4.\ Missing Content from Previous Version}
+
+The following content was present in the previous version and should be
+restored or consciously replaced:
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{BHMs in experimental economics subsection:}
+    \begin{itemize}
+      \item Gao et al.\ (2022) as the specific comparison case (mentioned
+        in Camp~1 footnote but not positioned as the comparison benchmark)
+      \item Nilsson, Rieskamp \& Wagenmakers (2011) --- hierarchical CPT,
+        directly relevant to the planned CPT application
+      \item Vincent (2016) --- hierarchical discounting, directly relevant to
+        the planned discounting application
+    \end{itemize}
+
+  \item \textbf{Observable-space priors in macroeconometrics:}
+    \begin{itemize}
+      \item Del Negro \& Schorfheide (2008) --- DSGE priors from
+        model-implied moments matching pre-sample data
+      \item Villani (2009) --- steady-state priors for VARs, beliefs about
+        observables rather than coefficients
+    \end{itemize}
+    These were valuable because they show the idea has precedent in other
+    fields, which strengthens the positioning.
+
+  \item \textbf{Explicit novelty claim:} ``The present paper provides the
+    first systematic derivation of hyperpriors from individual-level beliefs
+    about observable quantities, combining Camp~2's predictive insight with
+    Camp~1's analytical rigor.''
+
+  \item \textbf{$\rho$ and $\kappa$ comparison to PC priors:} ``The $\rho$
+    and $\kappa$ parameters provide the same interpretability as PC priors'
+    threshold parameters while encoding positive beliefs rather than
+    penalizing complexity.'' This was a sharp and useful comparison.
+\end{enumerate}
+
+
+\section{5.\ Writing Issues (Catalogue)}
+
+In addition to the issues noted in context above:
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item Line 216: ``will result in proper posterior distribution'' --- missing
+    article: ``will result in \textit{a} proper posterior distribution.''
+  \item Line 238: ``\textbackslash enquote\{let the data speak.\}'' --- the
+    period should be outside the closing quote in British convention, or inside
+    in American. Be consistent with the rest of the paper. The previous
+    version used ``let the data speak'' with double-backtick quotes.
+  \item Line 293--294: ``\textbackslash enquote\{structural elicitation\}''
+    uses enquote but then ``\textbackslash textit\{predictive elicitation\}''
+    uses italics. Pick one convention for defined terms.
+  \item Lines 340--341: ``they suggest that prior predictive checking be used
+    iteratively to check the reasonableness'' --- ``check\ldots check'' is
+    repetitive. Rephrase: ``\ldots be used iteratively to assess the
+    reasonableness.''
+  \item Line 348: ``\textcite\{Manderson2026\}'' --- Verify this date. The
+    paper was a 2023 preprint. If it has been published in 2026, confirm the
+    venue and update the bib entry. If it is still a preprint, cite it as
+    such.
+  \item Line 351: ``\textcite\{Segert2019\}'' --- The previous version cited
+    this as ``SegertDavisStober2019.'' Verify the bib key is correct and that
+    the entry exists.
+\end{enumerate}
+
+
+\section{6.\ Bibliographic Issues}
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Bland2025 is undefined.} It is cited at lines 181 and 342 but
+    has no entry in \texttt{doc/library.bib}. The previous version cited it
+    as Bland2023. Either the paper has been published (add the bib entry) or
+    the date was changed speculatively (revert to the correct date and add the
+    entry).
+
+  \item \textbf{Missing bib entries from removed content.} The following
+    citations from the previous version are no longer in the paper and their
+    bib entries may not exist in \texttt{library.bib}:
+    \begin{itemize}
+      \item Vincent2016
+      \item DelNegroSchorfheide2008
+      \item Villani2009
+    \end{itemize}
+    If the BHMs subsection is restored, these entries will need to be added.
+
+  \item \textbf{Citation key changes.} The previous version used
+    ``SegertDavisStober2019''; the new version uses ``Segert2019''. Verify
+    which key actually exists in the bib file(s).
+
+  \item \textbf{Manderson date.} Previously cited as Manderson2023, now as
+    Manderson2026. Verify publication status.
+
+  \item \textbf{Bland date.} Previously Bland2023, now Bland2025. Verify.
+
+  \item \textbf{Many new citations lack bib entries.} The new Camp~2 content
+    cites Juster1966, Winkler1969, Murphy1970, Savage1971, Becker1964,
+    Harrison2017b, Harrison2019a, Offerman2009, Hossain2013, Smith1961,
+    Schlag2015, Manski2004, Manski2010. These all exist in
+    \texttt{library.bib} --- confirmed. But the entries should be
+    cross-checked for completeness (volume, pages, DOI).
+\end{enumerate}
+
+
+\section{7.\ Summary of Recommendations}
+
+In priority order:
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Fix Bland2025 bib entry} --- the paper won't compile with
+    biber until this is resolved.
+  \item \textbf{Restore the BHMs subsection} (or fold the key references into
+    Camp~2) --- Nilsson, Vincent, Del Negro \& Schorfheide, and Villani are
+    needed for positioning.
+  \item \textbf{Restore explicit contrasts} with Bland, Manderson, and Segert
+    et al.\ --- without these, the novelty claim is implicit rather than
+    explicit.
+  \item \textbf{Restore or rewrite the Positioning paragraph} --- the paper
+    needs a clear, assertive claim of what is new.
+  \item \textbf{Cut or connect the belief elicitation survey} --- either
+    shorten it substantially or draw the explicit connection to the paper's
+    contribution.
+  \item \textbf{Fix the grammatical and writing issues} catalogued in \S5.
+  \item \textbf{Resolve citation key discrepancies} (Segert, Manderson, Bland
+    dates/keys).
+\end{enumerate}
+
+\end{document}

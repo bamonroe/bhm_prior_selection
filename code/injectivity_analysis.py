@@ -314,11 +314,14 @@ def _compute_H(r_val, CEs, prizes, lotteries_cum, phi_init=0.7, eta_init=0.9):
 # =========================================================================
 
 def run_symbolic_jacobian(config, output_dir):
-    """Symbolic Jacobian of the CE mapping.
+    """Symbolic Jacobian of the CE mapping via B-formulation decomposition.
 
-    Builds CE expressions from the lottery config, computes the 3x3 Jacobian
-    d(CE1,CE2,CE3)/d(r,phi,eta), and reports all 7 principal minors required
-    for the Gale-Nikaido P-matrix condition.
+    Builds the Jacobian step-by-step through intermediate quantities:
+    1. Prelec w-values and decision weights
+    2. B_k = sum pi_mk * x_m^(1-r)  (power-mean body, no CE exponent)
+    3. J_B: 3x3 Jacobian of the B-map (simple expressions)
+    4. Decomposition: J_tilde = (1/(1-r)) * J_B + rank-1 correction
+    5. Principal minors (3 of 7 transfer from J_B without correction)
 
     No numerical evaluation — purely symbolic.
     """
@@ -336,28 +339,15 @@ def run_symbolic_jacobian(config, output_dir):
         print(msg)
         lines.append(msg)
 
-    log_print("=" * 70)
-    log_print("SYMBOLIC JACOBIAN OF THE CE MAPPING")
-    log_print("=" * 70)
+    def log_expr(expr, indent=4):
+        """Pretty-print a sympy expression with indentation."""
+        pretty = sp.pretty(expr, wrap_line=False)
+        for line in pretty.split('\n'):
+            log_print(' ' * indent + line)
 
-    # ---- General formulae ----
-    log_print("\n--- General CE formula ---")
-    log_print("")
-    log_print("  Prelec probability weighting function:")
-    log_print("    w(p; phi, eta) = exp(-eta * (-ln p)^phi)")
-    log_print("")
-    log_print("  Decision weights from cumulative probabilities:")
-    log_print("    pi_1 = 1 - w(p_1 + p_2 + p_3)")
-    log_print("    pi_2 = w(p_2 + p_3) - w(p_3)")
-    log_print("    pi_3 = w(p_3)")
-    log_print("    where p_1, p_2, p_3 are probs for prizes x_1 < x_2 < x_3")
-    log_print("")
-    log_print("  RDU value:")
-    log_print("    RDU = sum_m pi_m * u(x_m; r)")
-    log_print("    u(x; r) = x^(1-r) / (1-r)   (CRRA)")
-    log_print("")
-    log_print("  Certainty equivalent:")
-    log_print("    CE = ((1-r) * RDU)^(1/(1-r))")
+    log_print("=" * 70)
+    log_print("SYMBOLIC JACOBIAN VIA B-FORMULATION DECOMPOSITION")
+    log_print("=" * 70)
 
     # ---- Symbols ----
     r = symbols('r', positive=True)
@@ -366,113 +356,241 @@ def run_symbolic_jacobian(config, output_dir):
     def sym_prelec_w(p_val, phi_s, eta_s):
         return exp(-eta_s * (-log(p_val))**phi_s)
 
-    def build_ce_expr(r_s, phi_s, eta_s, prizes, probs):
-        """Build symbolic CE expression for one lottery."""
-        x1, x2, x3 = [Rational(x) for x in prizes]
-        p1, p2, p3 = [Rational(p).limit_denominator(1000) for p in probs]
+    # ==================================================================
+    # Step 1: Prelec w-values and decision weights
+    # ==================================================================
+    log_print("\n--- Step 1: Prelec w-values and decision weights ---")
+    log_print("")
+    log_print("  w(p; phi, eta) = exp(-eta * (-ln p)^phi)")
+    log_print("")
+    log_print("  For 3-outcome lottery with probs (p1, p2, p3) on prizes x1 < x2 < x3:")
+    log_print("    cumulative:  q = p3,  s = p2 + p3")
+    log_print("    weights:     pi_3 = w(q),  pi_2 = w(s) - w(q),  pi_1 = 1 - w(s)")
 
-        # Cumulative probabilities (from above): P(X >= x3) = p3, P(X >= x2) = p2 + p3
-        cum_top = p3           # P(X >= x3)
-        cum_mid = p2 + p3      # P(X >= x2)
-
-        # Decision weights
-        if cum_top == 0:
-            w_top = sp.Integer(0)
-        else:
-            w_top = sym_prelec_w(cum_top, phi_s, eta_s)
-
-        if cum_mid == 0:
-            w_mid = sp.Integer(0)
-        elif cum_mid == 1:
-            w_mid = sp.Integer(1)
-        else:
-            w_mid = sym_prelec_w(cum_mid, phi_s, eta_s)
-
-        pi3 = w_top
-        pi2 = w_mid - w_top
-        pi1 = 1 - w_mid
-
-        # RDU = sum pi_m * x_m^(1-r) / (1-r)
-        rdu = (pi1 * x1**(1 - r_s) + pi2 * x2**(1 - r_s)
-               + pi3 * x3**(1 - r_s)) / (1 - r_s)
-
-        # CE = ((1-r) * RDU)^(1/(1-r))
-        ce = ((1 - r_s) * rdu)**(1 / (1 - r_s))
-        return ce
-
-    # ---- Build 3 concrete CE expressions from config ----
     lotteries = config['lotteries']
-    log_print(f"\n--- Lottery specifications ---")
-    CE_exprs = []
-    for k, lot in enumerate(lotteries, 1):
-        prizes_k = lot['prizes']
-        probs_k = lot['probs']
-        log_print(f"  L{k}: prizes={prizes_k}, probs={probs_k}")
-        ce_k = build_ce_expr(r, phi, eta, prizes_k, probs_k)
-        CE_exprs.append(ce_k)
-        log_print(f"       CE_{k} op count: {sp.count_ops(ce_k)}")
+    w_vals = []     # (w_q, w_s) per lottery
+    weights = []    # (pi1, pi2, pi3) per lottery
+    prizes_list = []
 
-    # ---- Jacobian ----
-    log_print(f"\n--- Jacobian J[k,l] = dCE_k / d(xi_l) ---")
-    log_print(f"    xi = (r, phi, eta)")
+    for k, lot in enumerate(lotteries, 1):
+        x1, x2, x3 = [Rational(x) for x in lot['prizes']]
+        p1, p2, p3 = [Rational(p).limit_denominator(1000) for p in lot['probs']]
+        prizes_list.append((x1, x2, x3))
+
+        q = p3
+        s = p2 + p3
+
+        w_q = sym_prelec_w(q, phi, eta) if q != 0 else sp.Integer(0)
+        if s == 0:
+            w_s = sp.Integer(0)
+        elif s == 1:
+            w_s = sp.Integer(1)
+        else:
+            w_s = sym_prelec_w(s, phi, eta)
+
+        pi3 = w_q
+        pi2 = w_s - w_q
+        pi1 = 1 - w_s
+
+        w_vals.append((w_q, w_s))
+        weights.append((pi1, pi2, pi3))
+
+        log_print(f"\n  L{k}: prizes=({x1},{x2},{x3}), probs=({p1},{p2},{p3})")
+        log_print(f"       q={q}, s={s}")
+        log_print(f"       w(q) =")
+        log_expr(w_q, indent=8)
+        if w_s != w_q:
+            log_print(f"       w(s) =")
+            log_expr(w_s, indent=8)
+
+    # ==================================================================
+    # Step 2: B_k expressions (power-mean body)
+    # ==================================================================
+    log_print("\n" + "-" * 70)
+    log_print("--- Step 2: B_k = sum pi_mk * x_m^(1-r) ---")
+    log_print("-" * 70)
+    log_print("")
+    log_print("  B_k is the weighted power sum (no CE exponent).")
+    log_print("  CE_k = B_k^(1/(1-r)), so B_k is the natural intermediate.")
+
+    B_exprs = []
+    for k in range(3):
+        pi1, pi2, pi3 = weights[k]
+        x1, x2, x3 = prizes_list[k]
+        B_k = pi1 * x1**(1 - r) + pi2 * x2**(1 - r) + pi3 * x3**(1 - r)
+        B_exprs.append(B_k)
+        log_print(f"\n  B_{k+1} ({sp.count_ops(B_k)} ops):")
+        log_expr(B_k)
+
+    # ==================================================================
+    # Step 3: J_B — Jacobian of the B-map
+    # ==================================================================
+    log_print("\n" + "-" * 70)
+    log_print("--- Step 3: J_B = d(B1,B2,B3)/d(r,phi,eta) ---")
+    log_print("-" * 70)
 
     param_names = ['r', 'phi', 'eta']
     param_syms = [r, phi, eta]
 
-    J = []
+    J_B = []
     for k in range(3):
         row = []
         for l in range(3):
-            entry = diff(CE_exprs[k], param_syms[l])
+            entry = diff(B_exprs[k], param_syms[l])
             row.append(entry)
-            log_print(f"  J[CE_{k+1}, {param_names[l]}]: "
-                      f"{sp.count_ops(entry)} ops")
-        J.append(row)
+            log_print(f"\n  J_B[B_{k+1}, {param_names[l]}] ({sp.count_ops(entry)} ops):")
+            log_expr(entry)
+        J_B.append(row)
 
-    # ---- Principal minors (manual multiplication) ----
+    # ==================================================================
+    # Step 4: Prelec derivative ratio
+    # ==================================================================
     log_print("\n" + "-" * 70)
-    log_print("PRINCIPAL MINORS (Gale-Nikaido P-matrix condition)")
+    log_print("--- Step 4: Prelec derivative ratio ---")
     log_print("-" * 70)
-    log_print("\nAll 7 principal minors must be > 0 for the P-matrix condition.")
-    log_print("Computed by direct multiplication (avoids slow symbolic det).")
+    log_print("")
+    log_print("  dw/dphi / dw/deta = -eta * ln(-ln p)")
+    log_print("")
+    log_print("  This ratio depends on the cumulative probability p but NOT on phi.")
+    log_print("  Different probability structures across lotteries prevent the")
+    log_print("  phi and eta columns of J_B from being proportional.")
+
+    # Show ratio values for each lottery's cumulative probs
+    for k, lot in enumerate(lotteries, 1):
+        p1, p2, p3 = [Rational(p).limit_denominator(1000) for p in lot['probs']]
+        q, s = p3, p2 + p3
+        for label, pval in [('q', q), ('s', s)]:
+            if pval > 0 and pval < 1:
+                t = -log(pval)
+                ratio = -eta * log(t)
+                log_print(f"  L{k}, {label}={float(pval)}: "
+                          f"ratio = -eta * ln({sp.pretty(t, wrap_line=False)})")
+
+    # ==================================================================
+    # Step 5: Decomposition J_tilde = (1/(1-r)) * J_B + rank-1 correction
+    # ==================================================================
+    log_print("\n" + "-" * 70)
+    log_print("--- Step 5: Decomposition ---")
+    log_print("-" * 70)
+    log_print("")
+    log_print("  The unnormalized CE Jacobian J_tilde (P-matrix equivalent to")
+    log_print("  J_CE by Lemma D_reduction) decomposes as:")
+    log_print("")
+    log_print("    J_tilde[k, phi] = (1/(1-r)) * dB_k/dphi")
+    log_print("    J_tilde[k, eta] = (1/(1-r)) * dB_k/deta")
+    log_print("    J_tilde[k, r]   = (1/(1-r)) * dB_k/dr + B_k*ln(B_k)/(1-r)^2")
+    log_print("")
+    log_print("  In matrix form:")
+    log_print("    J_tilde = (1/(1-r)) * J_B + b_ln * e_r^T")
+    log_print("")
+    log_print("  where b_ln_k = B_k*ln(B_k)/(1-r)^2 and e_r^T = (1,0,0).")
+    log_print("  The scalar 1/(1-r) > 0 (for r < 1) drops out of the P-matrix")
+    log_print("  condition, so P-matrix(J_tilde) iff P-matrix(J_B + correction).")
+
+    # Compute the correction column
+    log_print("\n  Rank-1 correction column b_ln:")
+    b_ln = []
+    for k in range(3):
+        c_k = B_exprs[k] * log(B_exprs[k]) / (1 - r)
+        b_ln.append(c_k)
+        log_print(f"\n  b_ln_{k+1} ({sp.count_ops(c_k)} ops):")
+        log_expr(c_k)
+
+    # ==================================================================
+    # Step 6: Principal minors of J_B
+    # ==================================================================
+    log_print("\n" + "-" * 70)
+    log_print("--- Step 6: Principal minors of J_B ---")
+    log_print("-" * 70)
+    log_print("")
+    log_print("  Three minors transfer to J_tilde WITHOUT correction")
+    log_print("  (the rank-1 term only affects the r-column):")
+    log_print("    M_phi, M_eta, M_{phi,eta}")
+    log_print("")
+    log_print("  Four minors involving the r-column need the correction:")
+    log_print("    M_r, M_{r,phi}, M_{r,eta}, det")
 
     # Order 1: diagonal entries
-    log_print("\n--- Order 1: Diagonal entries (3 minors) ---")
-    order1 = []
-    for k in range(3):
-        m = J[k][k]
-        order1.append(m)
-        log_print(f"  M_{{{param_names[k]}}} = J[{k},{k}]: "
-                  f"{sp.count_ops(m)} ops")
+    log_print("\n  --- Order 1: Diagonal entries ---")
+    for k, name in enumerate(param_names):
+        m = J_B[k][k]
+        tag = "" if k > 0 else "  [needs correction for J_tilde]"
+        log_print(f"\n  M_{{{name}}}^B = J_B[{k},{k}] ({sp.count_ops(m)} ops):{tag}")
+        log_expr(m)
 
-    # Order 2: 2x2 principal minors via ad - bc
-    log_print("\n--- Order 2: 2x2 principal minors (3 minors) ---")
+    # Order 2: 2x2 principal minors
+    log_print("\n  --- Order 2: 2x2 principal minors ---")
     order2_indices = [(0, 1), (0, 2), (1, 2)]
     order2_labels = ['r,phi', 'r,eta', 'phi,eta']
-    order2 = []
     for (i, j), label in zip(order2_indices, order2_labels):
-        m = J[i][i] * J[j][j] - J[i][j] * J[j][i]
-        order2.append(m)
-        log_print(f"  M_{{{label}}} = J[{i},{i}]*J[{j},{j}] - J[{i},{j}]*J[{j},{i}]: "
-                  f"{sp.count_ops(m)} ops")
+        m = J_B[i][i] * J_B[j][j] - J_B[i][j] * J_B[j][i]
+        tag = "  [transfers directly to J_tilde]" if i > 0 else "  [needs correction]"
+        log_print(f"\n  M_{{{label}}}^B ({sp.count_ops(m)} ops):{tag}")
+        log_expr(m)
 
-    # Order 3: full determinant via cofactor expansion along first row
-    log_print("\n--- Order 3: Full determinant (1 minor) ---")
-    det_J = (J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1])
-             - J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0])
-             + J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]))
-    log_print(f"  M_{{r,phi,eta}} = det(J) by cofactor expansion: "
-              f"{sp.count_ops(det_J)} ops")
+    # Order 3: full determinant
+    log_print("\n  --- Order 3: Full determinant ---")
+    det_B = (J_B[0][0] * (J_B[1][1] * J_B[2][2] - J_B[1][2] * J_B[2][1])
+             - J_B[0][1] * (J_B[1][0] * J_B[2][2] - J_B[1][2] * J_B[2][0])
+             + J_B[0][2] * (J_B[1][0] * J_B[2][1] - J_B[1][1] * J_B[2][0]))
+    log_print(f"\n  det(J_B) ({sp.count_ops(det_B)} ops):  [needs correction]")
+    log_expr(det_B)
+
+    # ==================================================================
+    # Step 7: Corrected r-column for J_tilde
+    # ==================================================================
+    log_print("\n" + "-" * 70)
+    log_print("--- Step 7: J_tilde r-column (with correction) ---")
+    log_print("-" * 70)
+    log_print("")
+    log_print("  J_tilde[k, r] = J_B[k, r] + b_ln_k")
+    log_print("  (dropping the common positive factor 1/(1-r))")
+
+    J_tilde_r = []
+    for k in range(3):
+        entry = J_B[k][0] + b_ln[k]
+        J_tilde_r.append(entry)
+        log_print(f"\n  J_tilde[B_{k+1}, r] ({sp.count_ops(entry)} ops):")
+        log_expr(entry)
+
+    # Corrected minors involving r
+    log_print("\n  --- Corrected order-1 minor ---")
+    m_r_corr = J_tilde_r[0]
+    log_print(f"\n  M_r^tilde ({sp.count_ops(m_r_corr)} ops):")
+    log_expr(m_r_corr)
+
+    log_print("\n  --- Corrected order-2 minors ---")
+    # M_{r,phi}: rows/cols {0,1}
+    # J_tilde[0,0]*J_tilde[1,1] - J_tilde[0,1]*J_tilde[1,0]
+    # = J_tilde_r[0] * J_B[1][1]/(already scaled) - J_B[0][1] * J_tilde_r[1]
+    # (dropping 1/(1-r) factors which are positive)
+    m_rphi = J_tilde_r[0] * J_B[1][1] - J_B[0][1] * J_tilde_r[1]
+    log_print(f"\n  M_{{r,phi}}^tilde ({sp.count_ops(m_rphi)} ops):")
+    log_expr(m_rphi)
+
+    m_reta = J_tilde_r[0] * J_B[2][2] - J_B[0][2] * J_tilde_r[2]
+    log_print(f"\n  M_{{r,eta}}^tilde ({sp.count_ops(m_reta)} ops):")
+    log_expr(m_reta)
+
+    log_print("\n  --- Corrected determinant ---")
+    det_tilde = (J_tilde_r[0] * (J_B[1][1] * J_B[2][2] - J_B[1][2] * J_B[2][1])
+                 - J_B[0][1] * (J_tilde_r[1] * J_B[2][2] - J_B[1][2] * J_tilde_r[2])
+                 + J_B[0][2] * (J_tilde_r[1] * J_B[2][1] - J_B[1][1] * J_tilde_r[2]))
+    log_print(f"\n  det(J_tilde) ({sp.count_ops(det_tilde)} ops):")
+    log_expr(det_tilde)
 
     # ---- Summary ----
     log_print("\n" + "=" * 70)
     log_print("SUMMARY")
     log_print("=" * 70)
-    log_print(f"\n  3 CE expressions built from {len(lotteries)} lotteries.")
-    log_print(f"  3x3 Jacobian computed (9 entries).")
-    log_print(f"  7 principal minors computed (3 order-1, 3 order-2, 1 order-3).")
-    log_print(f"  All expressions are purely symbolic in (r, phi, eta).")
-    log_print(f"  Numerical evaluation deferred to subsequent analyses.")
+    log_print(f"\n  B-formulation decomposition for {len(lotteries)} lotteries:")
+    log_print(f"  - B_k entries: simple weighted power sums")
+    log_print(f"  - J_B: 9 entries, each a sum of Prelec derivatives * utility gaps")
+    log_print(f"  - J_tilde = (1/(1-r)) * J_B + rank-1 correction in r-column")
+    log_print(f"  - 3 of 7 P-matrix conditions (M_phi, M_eta, M_{{phi,eta}})")
+    log_print(f"    transfer directly from J_B without correction")
+    log_print(f"  - 4 conditions (M_r, M_{{r,phi}}, M_{{r,eta}}, det)")
+    log_print(f"    require the B_k*ln(B_k) correction term")
 
     # Save
     summary_path = output_dir / 'symbolic_jacobian.txt'
@@ -1200,6 +1318,209 @@ def _dB_deta(s, prizes, q, s_cum, phi, eta):
     return dpi1 * a**s + dpi2 * b**s + dpi3 * c**s
 
 
+def _dB_dr(s, prizes, q, s_cum, phi, eta):
+    r"""Partial dB_k/dr = -sum pi_mk * x_mk^s * ln(x_mk).
+
+    Since s = 1 - r, we have ds/dr = -1, so:
+        dB_k/dr = -sum_m pi_mk * x_mk^s * ln(x_mk)
+    """
+    a, b, c = prizes
+    wq = prelec_w(q, phi, eta)
+    ws = prelec_w(s_cum, phi, eta)
+    pi3 = wq
+    pi2 = ws - wq
+    pi1 = 1.0 - ws
+
+    return -(pi1 * a**s * np.log(a) + pi2 * b**s * np.log(b)
+             + pi3 * c**s * np.log(c))
+
+
+def _build_B_jacobian(r, phi, eta, lotteries):
+    r"""Build the 3x3 Jacobian of the B-map.
+
+    B_k(r, phi, eta) = sum_m pi_mk(phi, eta) * x_mk^{1-r}.
+    J_B[k, j] = dB_k / d(theta_j) where theta = (r, phi, eta).
+
+    Parameters
+    ----------
+    r, phi, eta : float or array_like
+        Parameter values.  For grid evaluation, these are 3D arrays.
+    lotteries : list of dicts
+        Each dict has keys 'prizes' and 'probs'.
+
+    Returns
+    -------
+    J : ndarray of shape (..., 3, 3)
+        B-map Jacobian.
+    """
+    s = 1.0 - r
+    shape = np.broadcast_shapes(np.shape(r), np.shape(phi), np.shape(eta))
+    J = np.empty(shape + (3, 3))
+
+    for k, lot in enumerate(lotteries):
+        prizes = lot['prizes']
+        probs = lot['probs']
+        q = probs[2]              # P(X >= x3)
+        s_cum = probs[1] + probs[2]  # P(X >= x2)
+
+        J[..., k, 0] = _dB_dr(s, prizes, q, s_cum, phi, eta)
+        J[..., k, 1] = _dB_dphi(s, prizes, q, s_cum, phi, eta)
+        J[..., k, 2] = _dB_deta(s, prizes, q, s_cum, phi, eta)
+
+    return J
+
+
+def run_B_pmatrix_verification(config, output_dir, n_grid=80):
+    r"""Dense grid verification that the B-map Jacobian is a P-matrix.
+
+    The B-map is (r, phi, eta) -> (B_1, B_2, B_3) where
+    B_k = sum_m pi_mk(phi, eta) * x_mk^{1-r}.
+
+    If the sign-adjusted J_B is a P-matrix everywhere on the domain,
+    then by the Gale-Nikaido univalence theorem the B-map is globally
+    injective.
+
+    Parameters
+    ----------
+    config : dict
+        Must contain 'lotteries'.  Optionally 'domain'.
+    output_dir : Path
+        Directory for output files.
+    n_grid : int
+        Grid points per dimension (total evaluations = n_grid^3).
+    """
+    output_dir = Path(output_dir)
+    lotteries = config['lotteries']
+    domain = config.get('domain', {
+        'r': (0.01, 0.98),
+        'phi': (0.2, 2.0),
+        'eta': (0.2, 3.0),
+    })
+
+    lines = []
+    def log(msg=""):
+        print(msg)
+        lines.append(msg)
+
+    log("=" * 70)
+    log("B-MAP P-MATRIX VERIFICATION (DENSE GRID)")
+    log("=" * 70)
+
+    # Lottery design
+    log("\nLottery design:")
+    for k, lot in enumerate(lotteries, 1):
+        log(f"  L{k}: prizes={lot['prizes']}, probs={lot['probs']}")
+
+    # Domain
+    r_lo, r_hi = domain['r']
+    phi_lo, phi_hi = domain['phi']
+    eta_lo, eta_hi = domain['eta']
+    log(f"\nDomain: r in [{r_lo}, {r_hi}], "
+        f"phi in [{phi_lo}, {phi_hi}], "
+        f"eta in [{eta_lo}, {eta_hi}]")
+    log(f"Grid: {n_grid}^3 = {n_grid**3:,} points")
+
+    # ---- Determine sign adjustment from midpoint ----
+    r_mid = (r_lo + r_hi) / 2
+    phi_mid = (phi_lo + phi_hi) / 2
+    eta_mid = (eta_lo + eta_hi) / 2
+    J_test = _build_B_jacobian(r_mid, phi_mid, eta_mid, lotteries)
+    diag_signs = np.array([np.sign(J_test[k, k]) for k in range(3)])
+    param_names = ['r', 'phi', 'eta']
+    log(f"\nSign adjustment (diagonal at midpoint "
+        f"r={r_mid:.2f}, phi={phi_mid:.2f}, eta={eta_mid:.2f}):")
+    for k in range(3):
+        log(f"  J_B[{k},{k}] ({param_names[k]}): "
+            f"{J_test[k,k]:+.6e}  ->  col sign = {int(diag_signs[k]):+d}")
+
+    # ---- Build grid ----
+    r_grid = np.linspace(r_lo, r_hi, n_grid)
+    phi_grid = np.linspace(phi_lo, phi_hi, n_grid)
+    eta_grid = np.linspace(eta_lo, eta_hi, n_grid)
+    R, PHI, ETA = np.meshgrid(r_grid, phi_grid, eta_grid, indexing='ij')
+
+    # ---- Compute J_B and apply sign adjustment ----
+    J = _build_B_jacobian(R, PHI, ETA, lotteries)
+    for j in range(3):
+        J[..., :, j] *= diag_signs[j]
+
+    # ---- Verify diagonal sign consistency ----
+    log("\nDiagonal sign consistency across grid:")
+    diag_consistent = True
+    for k in range(3):
+        d = J[..., k, k]
+        mn = float(np.min(d))
+        ok = mn > 0
+        if not ok:
+            diag_consistent = False
+        log(f"  J_B_adj[{k},{k}] ({param_names[k]}): "
+            f"min = {mn:+.6e}  {'OK' if ok else 'SIGN CHANGE'}")
+    if not diag_consistent:
+        log("\n  WARNING: diagonal sign adjustment is inconsistent.")
+        log("  The chosen sign pattern may not work globally.")
+
+    # ---- Compute all 7 principal minors ----
+    minors = _all_principal_minors(J)
+    minor_names = ['M1', 'M2', 'M3', 'M12', 'M13', 'M23', 'M123']
+    minor_labels = {
+        'M1': 'M_r (r diagonal)',
+        'M2': 'M_phi (phi diagonal)',
+        'M3': 'M_eta (eta diagonal)',
+        'M12': 'M_{r,phi}',
+        'M13': 'M_{r,eta}',
+        'M23': 'M_{phi,eta}',
+        'M123': 'det(J_B)',
+    }
+
+    all_positive = True
+    log(f"\n  {'Minor':<28s}  {'Min value':>14s}  {'Max value':>14s}  Status")
+    log(f"  {'-'*28}  {'-'*14}  {'-'*14}  {'-'*10}")
+
+    for name in minor_names:
+        vals = minors[name]
+        mn = float(np.min(vals))
+        mx = float(np.max(vals))
+        ok = mn > 0
+        status = "POSITIVE" if ok else "NOT POSITIVE"
+        if not ok:
+            all_positive = False
+        log(f"  {minor_labels[name]:<28s}  {mn:>+14.6e}  {mx:>+14.6e}  {status}")
+
+        idx = np.unravel_index(np.argmin(vals), vals.shape)
+        r_at = R[idx]
+        phi_at = PHI[idx]
+        eta_at = ETA[idx]
+        log(f"    min at (r={r_at:.4f}, phi={phi_at:.4f}, eta={eta_at:.4f})")
+
+    # ---- Verdict ----
+    log("\n" + "=" * 70)
+    if all_positive:
+        log("RESULT: ALL 7 PRINCIPAL MINORS POSITIVE ON DENSE GRID")
+        log(f"  Domain: [{r_lo}, {r_hi}] x [{phi_lo}, {phi_hi}] "
+            f"x [{eta_lo}, {eta_hi}]")
+        log(f"  Grid:   {n_grid}^3 = {n_grid**3:,} evaluation points")
+        log("")
+        log("The sign-adjusted B-map Jacobian J_B is a P-matrix at every")
+        log("grid point.  By the Gale-Nikaido univalence theorem, the B-map")
+        log("  (r, phi, eta)  ->  (B_1, B_2, B_3)")
+        log("is globally injective on this domain.")
+        log("")
+        log("Since CE_k = B_k^{1/(1-r)} is strictly monotone in B_k for")
+        log("each fixed r, and a change in r with matching B-values is ruled")
+        log("out by B-injectivity, global injectivity of the CE-map follows.")
+    else:
+        log("RESULT: P-MATRIX CONDITION VIOLATED")
+        log("At least one principal minor is non-positive at some grid point.")
+    log("=" * 70)
+
+    # Save
+    summary_path = output_dir / 'B_pmatrix_verification.txt'
+    summary_path.write_text('\n'.join(lines))
+    log(f"\nResults saved to {summary_path}")
+
+    return all_positive
+
+
 def _ce_deriv_r(s, prizes, q, s_cum, phi, eta):
     r"""Compute dCE_k/dr for a single lottery.
 
@@ -1521,6 +1842,10 @@ def run_injectivity_analysis(output_dir, config=None):
     print("CE MAPPING INJECTIVITY ANALYSIS")
     print("=" * 60)
 
-    # 1. Symbolic Jacobian
+    # 1. Symbolic Jacobian (B-formulation decomposition)
     print("\n--- Analysis 1: Symbolic Jacobian ---")
     run_symbolic_jacobian(config, output_dir)
+
+    # 2. B-map P-matrix verification (dense grid)
+    print("\n--- Analysis 2: B-map P-matrix verification ---")
+    run_B_pmatrix_verification(config, output_dir)

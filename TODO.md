@@ -1,13 +1,13 @@
 # TODO - Observable-Space Prior Specification for BHMs
 
-## Project Status: JoE Restructure — Phase 1 Complete
+## Project Status: JoE Restructure — Single-Application Paper
 
 Paper restructured from Economics Letter to Journal of Econometrics:
-- 9 sections + 6 appendices (was 4+3)
+- 7 sections + 5 appendices (was 4+3)
 - Bibliography expanded from ~11 to ~30+ references
 - Technical note material integrated into main paper
 - κ parameterization introduced (replaces α₀ as primary interface)
-- Sections 6, 7, and Appendix F are stubs awaiting future phases
+- CPT, discounting stub sections and Appendix F removed (future work)
 
 **Current branch:** `feat/joe-restructure` (Phase 1 complete, not yet merged)
 
@@ -17,13 +17,13 @@ Paper restructured from Economics Letter to Journal of Econometrics:
 
 ### Phase 1: Paper Structure (no new computation) — COMPLETE
 - [x] Create feature branch `feat/joe-restructure`
-- [x] Restructure `doc/main.tex` into 9 sections + 6 appendices
+- [x] Restructure `doc/main.tex` into 7 sections + 5 appendices
 - [x] Write Section 1: Introduction (broadened for JoE)
 - [x] Write Section 2: Literature — Two Camps of Prior Specification
 - [x] Write Section 3: Observable-Space Prior Specification
 - [x] Write Section 4: Hyperprior Derivation with κ parameterization
 - [x] Adapt Section 5: RDU Application from existing material
-- [x] Write stub Sections 6-7 (CPT, Discounting)
+- [x] Write stub Sections 6-7 (CPT, Discounting) — later removed
 - [x] Write Section 8: Discussion, Section 9: Conclusion
 - [x] Create Appendices C (Global Injectivity) and D (Jacobian Correction)
 - [x] Expand `doc/library.bib` from ~11 to ~30+ references
@@ -59,13 +59,9 @@ Paper restructured from Economics Letter to Journal of Econometrics:
 - [ ] Implement 4D joint specification with block-triangular Jacobian
 - [ ] Test on H&N 2016 data
 
-### Phase 5: Simulation Studies
-- [ ] Implement CPT model posterior (`code/posteriors/cpt_bhm.py`)
-- [ ] Implement discounting model posterior (`code/posteriors/discounting_bhm.py`)
-- [ ] Write simulation DGP code (`code/simulation/`)
-- [ ] Run CPT Monte Carlo: multiple DGPs × sample sizes × 100+ reps × 3 approaches
-- [ ] Run discounting Monte Carlo: same structure
-- [ ] Fill in Sections 6, 7, and Appendix F with results
+### Phase 5: Simulation Studies — DEFERRED (future paper)
+CPT and discounting stub sections cut from current paper scope.
+See "Ideas / Future Work" below.
 
 ### Phase 6: Polish
 - [ ] Expand bibliography further if needed (~40+ references)
@@ -142,6 +138,14 @@ Paper restructured from Economics Letter to Journal of Econometrics:
 | Discounting posterior | `code/posteriors/discounting_bhm.py` | 5 | |
 | Simulation DGP | `code/simulation/dgp.py` | 5 | |
 | Monte Carlo runner | `code/simulation/monte_carlo.py` | 5 | |
+
+---
+
+## Ideas / Future Work
+
+- **CPT simulation study** — Full Monte Carlo with 8-10 parameter CPT model; strongest motivating example for the framework (32-40 hyperprior choices). Would add as separate paper section with DGP × sample size × replication grid.
+- **Discounting simulation study** — Quasi-hyperbolic (β, δ) model; natural setting for quantity-space priors since generated quantities (present value equivalents) are directly elicited in experiments.
+- **Simulation infrastructure** — `code/posteriors/cpt_bhm.py`, `code/posteriors/discounting_bhm.py`, `code/simulation/dgp.py`, `code/simulation/monte_carlo.py`
 
 ---
 

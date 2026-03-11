@@ -8,9 +8,9 @@ Instructions for Claude Code sessions in this workspace.
 
 The paper has been restructured from an Economics Letter into a full JoE paper:
 - New title: "Quantity-Space Prior Specification for Bayesian Hierarchical Models"
-- 9 sections + 6 appendices (was 4 sections + 3 appendices)
+- 7 sections + 5 appendices (was 4 sections + 3 appendices)
 - Two contributions: (i) quantity-space priors with Jacobian correction; (ii) variance decomposition with κ parameterization
-- Three applications planned: RDU (real data, working), CPT (simulation, stub), discounting (simulation, stub)
+- Single application: RDU with real data (working)
 - Bibliography expanded from ~11 to ~30+ references
 - New material from technical notes integrated into main paper body and appendices
 
@@ -43,10 +43,9 @@ Target: Journal of Econometrics, full-length paper (~30-35 pages with appendices
    - **κ (kappa):** Coefficient of variation of heterogeneity — replaces α₀
      with a distribution-free measure: κ = SD[σ²]/E[σ²]
 
-**Three Applications:**
+**Application:**
 - RDU estimation with Harrison & Ng (2016) real data (working)
-- CPT simulation study (planned — Phase 5)
-- Temporal discounting simulation study (planned — Phase 5)
+- CPT and discounting simulation studies cut from current scope (future work)
 
 The paper bridges two prior specification literatures: "robust/uninformative"
 (Gelman 2006, Simpson 2017) and "prior predictive calibration" (Kadane 1980,
@@ -384,15 +383,13 @@ Do not use `\textbf{}` for emphasis in the paper body. Use `\textit{}` or
 The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 
 ### Main Sections
-1. **Introduction** - Two contributions, bridge between two literatures, three applications
+1. **Introduction** - Two contributions, bridge between two literatures
 2. **Literature — Two Camps** - Camp 1 (uninformative), Camp 2 (knowledge-based), BHMs in economics
 3. **Quantity-Space Prior Specification** - General framework, CE space, choice probability, block-triangular Jacobian, global injectivity
 4. **Hyperprior Derivation via Variance Decomposition** - κ parameterization, NIG mapping, NIW extension
 5. **Application — RDU with Real Data** - Model, priors, H&N 2016 data, results (working, with pythontex)
-6. **Application — CPT** (simulation study, stub)
-7. **Application — Discounting** (simulation study, stub)
-8. **Discussion** - Practical guidance, limitations, Bayes factor comparison
-9. **Conclusion**
+6. **Discussion** - Practical guidance, limitations, Bayes factor comparison
+7. **Conclusion**
 
 ### Appendices
 - **A**: Full Covariance (NIW derivation) — preserved from original
@@ -400,7 +397,6 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 - **C**: Global Injectivity — new, from technical notes
 - **D**: Jacobian Correction — new, from technical notes
 - **E**: MCMC Implementation Details — preserved/condensed
-- **F**: Simulation Study Details — placeholder stub
 
 To compile (with pythontex for dynamic data):
 ```bash

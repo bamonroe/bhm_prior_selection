@@ -1,0 +1,60 @@
+%==============================================================================
+\appsection{Jacobian Correction: Mathematical Details}
+\label{app:jacobian_details}
+%==============================================================================
+
+This appendix provides the mathematical foundation for the Jacobian correction
+used in quantity-space prior specification
+(Section~\ref{sec:gq_space}).
+
+\subsection{Why Only the Forward Map Is Needed}
+
+The prior density in parameter space is
+$p(\bth) = p_{\mathbf{Y}}(\bg(\bth))
+|\det J_{\bg}(\bth)|$.
+In MCMC sampling, proposals are made in $\bth$-space. At each
+proposed $\bth$:
+\begin{enumerate}
+  \item Evaluate the forward map: $\mathbf{Y} = \bg(\bth)$.
+  \item Evaluate the prior density at $\mathbf{Y}$:
+    $\log p_{\mathbf{Y}}(\mathbf{Y})$.
+  \item Compute the Jacobian: $J_{\bg}(\bth)$ via
+    automatic differentiation.
+  \item Compute the log-determinant:
+    $\log|\det J_{\bg}(\bth)|$.
+\end{enumerate}
+All computations start from $\bth$ and proceed forward.
+The inverse $\bg^{-1}$ would only be needed if sampling in
+$\mathbf{Y}$-space, where the likelihood would require solving
+$\bg(\bth) = \mathbf{Y}$ at every step.
+
+\subsection{Geometric Intuition}
+
+In one dimension, a small interval $d\theta$ maps to interval
+$|g'(\theta)| \cdot d\theta$ in $Y$-space. Probability conservation requires
+$p_\theta(\theta) \, d\theta = p_Y(g(\theta)) \cdot |g'(\theta)| \, d\theta$.
+A large $|g'|$ means the $\theta$-interval maps to a wide $Y$-interval,
+capturing more $Y$-probability, leading to higher $p_\theta$.
+
+In multiple dimensions, $|\det J_{\bg}|$ measures the $p$-dimensional
+volume scaling factor: the ratio of infinitesimal volumes in $\mathbf{Y}$-space
+to those in $\bth$-space.
+
+\subsection{When the Formula Fails: Non-Injectivity}
+
+The derivation of the Jacobian formula assumes each $\mathbf{Y}$-value is the
+image of exactly one $\bth$. When $\bg$ is not injective,
+multiple $\bth$-regions map to overlapping $\mathbf{Y}$-regions,
+and the naive formula double-counts probability:
+$\int p_{\mathbf{Y}}(\bg(\bth))
+|\det J_{\bg}(\bth)| \, d\bth \neq 1$.
+
+The forward evaluation is entirely local: at proposed $\bth$,
+one computes $\bg(\bth)$ and
+$J_{\bg}(\bth)$ but has no information about whether
+other $\bth'$ also satisfy
+$\bg(\bth') = \bg(\bth)$.
+This is why global injectivity must be established analytically or numerically
+\textit{before} sampling, not verified during sampling.
+
+

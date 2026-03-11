@@ -1,0 +1,800 @@
+\appsection{Global Injectivity: Detailed Analysis}
+\label{app:global_injectivity}
+%==============================================================================
+\label{sec:strategy}
+
+For a scalar map $f \colon \R \to \R$, global injectivity is equivalent to
+strict monotonicity, which can be checked from the sign of the derivative. For
+maps $f \colon \R^n \to \R^n$ with $n > 1$, no such elementary criterion
+exists: a nonvanishing Jacobian determinant guarantees only local injectivity,
+and global conclusions require stronger conditions. The goal of this appendix
+is to prove that the map from preference parameters to certainty equivalents
+(CEs) and choice probabilities is globally injective. Throughout,
+\enquote{injective} means globally injective unless otherwise qualified. I
+begin with two general propositions that are used to provide the
+proof.
+
+\begin{proposition}[Composition]
+\label{prop:composition}
+If $g \colon A \to B$ and $f \colon B \to C$ are both injective,
+then the composite $f \circ g \colon A \to C$ is injective.
+\end{proposition}
+
+\begin{proof}
+Suppose $f(g(y)) = f(g(y'))$. Injectivity of $f$ gives
+$g(y) = g(y')$. Injectivity of $g$ gives $y = y'$.
+\end{proof}
+
+\begin{proposition}[Sequential decomposition]
+\label{prop:sequential}
+Let $f \colon X \times Y \to Z$, and for each $x \in X$ define the
+conditional map $f_x \colon Y \to Z$ by $f_x(y) = f(x,y)$. Suppose:
+\begin{enumerate}[(i)]
+    \item For each $x \in X$, the conditional map $f_x$ is injective.
+    Write $y = g(x,z)$ for the unique pre-image of each $z$ in the
+    range of $f_x$.
+    \item For each $z$ in the range of $f$, the reduced map
+    $x \mapsto f(x,\, g(x,z))$ is injective.
+\end{enumerate}
+Then $f$ is injective.
+\end{proposition}
+
+\begin{proof}
+Suppose $f(x,y) = f(x',y') = z$. Since $f_x(y) = z$, condition~(i)
+gives $y = g(x,z)$; likewise $y' = g(x',z)$. Both $x$ and $x'$
+satisfy $f(x,\, g(x,z)) = z$, so $x = x'$ by~(ii). Then
+$y = g(x,z) = g(x',z) = y'$.
+\end{proof}
+
+The proposition reduces injectivity on a product space to two
+lower-dimensional problems: identify~$y$ conditional on~$x$, then
+identify~$x$ from the residual.
+
+
+\subsection{Model, Conditions, Theorem, and Proof}
+\label{sec:model}
+
+The RDU model has three groups of parameters:
+\begin{align}
+    \bth &\in \Theta \subseteq \R^p
+    &&\text{(utility parameters)}, \\
+    \bomega &\in \mathcal{W} \subseteq \R^q
+    &&\text{(PWF parameters)}, \\
+    \lambda &\in (0, \infty)
+    &&\text{(noise parameter)}.
+\end{align}
+The utility function $u(x; \bth)$ is strictly increasing and
+differentiable in $x$ for all $\bth \in \Theta$. Let $a$ and $b$
+denote the global minimum and maximum outcomes across all $K$
+lotteries. Normalize utility on this common scale:
+\begin{equation}\label{eq:normalization}
+    \tilde{u}(x;\, \bth)
+    = \frac{u(x;\, \bth) - u(a;\, \bth)}
+           {u(b;\, \bth) - u(a;\, \bth)},
+\end{equation}
+so that $\tilde{u}(a;\, \bth) = 0$ and
+$\tilde{u}(b;\, \bth) = 1$. Write
+$\mu_j(\bth) = \tilde{u}(x_j;\, \bth) \in [0,1]$
+for each outcome~$x_j$ appearing in any lottery.
+
+The probability weighting function $w(p; \bomega)$ is strictly
+increasing and differentiable in $p$ for all $\bomega \in \mathcal{W}$, with
+$w(0; \bomega) = 0$ and $w(1; \bomega) = 1$. For each lottery $L_k$
+with ranked outcomes and probabilities, the decumulative
+probabilities and RDU decision weights are
+\begin{align}
+    S_i^{(k)} &= \sum_{j \geq i} p_j^{(k)}, \\
+    \pi_i^{(k)}(\bomega) &= w(S_i^{(k)};\, \bomega)
+      - w(S_{i+1}^{(k)};\, \bomega),
+\end{align}
+with the convention $w(0) = 0$ and $w(1) = 1$.
+
+The normalized RDU value of lottery $k$ is
+\begin{equation}
+    V_k(\bth, \bomega)
+    = \sum_{i=1}^{N_k} \pi_i^{(k)}(\bomega) \cdot \mu_i(\bth),
+    \label{eq:rdu_value}
+\end{equation}
+where the sum runs over the outcomes of lottery~$k$, with
+$\mu_a = 0$ and $\mu_b = 1$. The
+certainty equivalent $c_k$ is the monetary amount satisfying
+$\tilde{u}(c_k;\, \bth) = V_k$, i.e.,
+$c_k = \tilde{u}^{-1}(V_k;\, \bth)$.
+
+In a binary choice task, the subject observes lotteries $A$ and~$B$ and chooses
+according to a noise model parameterized by~$\lambda$: the choice probability
+$P = \Lambda\bigl((V_A - V_B)/(\lambda\,\Delta u)\bigr)$ depends on $(\bth,
+\bomega)$ through the value difference and on~$\lambda$ through the noise
+scaling, where $\Lambda$ is a strictly increasing link function and $\Delta u =
+u(\xhi) - u(\xlo)$, where $\xhi$ and $\xlo$ are respectively the greatest and
+least outcomes in lottery $k$.
+
+The goal is to show that the extended map
+\begin{equation}
+    \widetilde{F} \colon (\bth, \bomega, \lambda) \;\mapsto\;
+    (c_1, \ldots, c_K,\, P_{K+1})
+\end{equation}
+is injective on $\Theta \times \mathcal{W} \times (0,\infty)$, where
+$P_{K+1}$ is a choice probability from an additional task.
+
+For the Prelec--CRRA model of Section~\ref{sec:application_rdu}, three binary
+lotteries and one choice probability suffice. Two binary lotteries with
+distinct probabilities on the higher outcome produce two unique decision
+weights, which is sufficient to identify the two Prelec parameters. With a
+change of variables to decision weights, a third binary lottery that shares a
+decision weight with $L_1$ or $L_2$ identifies the CRRA parameter. Because CRRA
+is invariant to multiplicative scaling of outcomes, the outcomes of $L_3$
+cannot be a multiplicative rescaling of the outcomes from the lottery with
+which it shares a decision weight. The noise parameter is identified from
+choice probabilities over any pair of the three lotteries. The remainder of
+this section establishes sufficient conditions for global injectivity generally
+for any utility function and probability weighting function (Conditions~A, B,
+and~C below), followed by proofs that the proposed design satisfies them
+(\cref{sec:condition_a_verification,sec:prelec_crra}) specifically for the CRRA
+and 2 parameter Prelec functions.
+
+\subsubsection{Lottery design}
+\label{sec:design}
+
+We use $K = p + q$ lotteries in two blocks:
+$q$~Block~I lotteries $L_1, \ldots, L_q$ ($k = 1, \ldots, q$)
+that identify the PWF parameters, and $p$~Block~II lotteries
+($k = q{+}1, \ldots, p{+}q$) that identify the utility parameters.
+Each lottery satisfies~\eqref{eq:rdu_value}; the partition into blocks
+determines which parameters each group identifies.
+
+The Block~I lotteries must collectively evaluate $w$ at $q$~distinct
+probability points, enabling the factoring $\Phi_\mu = L \circ W$
+(\cref{sec:same_cdf}). In the recommended \emph{all-binary design},
+each Block~I lottery is binary (two-outcome) and evaluates $w$ at
+exactly one probability point; with $q = 2$ binary lotteries having
+distinct probabilities $p_1 \neq p_2$, the $L$-matrix is
+diagonal and trivially invertible. Block~II provides additional
+lotteries whose CEs depend on the utility parameters through a
+channel not already captured by Block~I, identifying utility from
+the residual equations. A single additional binary choice task
+identifies the noise parameter~$\lambda$ (Condition~C).
+
+\subsubsection{Condition~A: PWF identification from Block~I}
+\label{sec:condition_a}
+
+When $\bth$ is fixed, the normalized utilities
+$\mu_j(\bth)$ are known constants, and the $q$~Block~I
+instances of~\eqref{eq:rdu_value} become $q$~equations in
+$q$~unknowns~$\bomega$. Condition~A requires that these
+equations determine $\bomega$ uniquely---condition~(i) of
+\cref{prop:sequential}.
+
+\begin{condition}[A]
+\label{cond:A}
+For each fixed $\bth \in \Theta$, the map
+$\Phi_\mu \colon \mathcal{W} \to \R^q$ defined by
+\begin{equation}
+    [\Phi_\mu(\bomega)]_k = \sum_i \pi_i^{(k)}(\bomega) \cdot \mu_i,
+    \quad k = 1, \ldots, q
+\end{equation}
+is injective.
+\end{condition}
+
+When Condition~A holds, each $\bth$ determines a unique
+$\bomega_A(\bth;\, \mathbf{c})$ solving the Block~I system.
+The condition depends only on the PWF family and the Block~I
+lottery structure, not on the observed CEs or the utility family.
+
+\subsubsection{Condition~B: Utility identification from Block~II}
+\label{sec:condition_b}
+
+Substituting $\bomega = \bomega_A(\bth;\, \mathbf{c})$ from
+Condition~A into the $p$~Block~II instances of~\eqref{eq:rdu_value}
+eliminates the PWF parameters, yielding $p$~equations in
+$\bth$ alone. Condition~B requires these residual equations
+to determine $\bth$ uniquely---condition~(ii) of
+\cref{prop:sequential}.
+
+\begin{condition}[B]
+\label{cond:B}
+For any $\mathbf{c}$ in the range of~$F$, the reduced map
+$H_{\mathbf{c}} \colon \Theta \to \R^p$ defined by
+\begin{equation}
+    [H_{\mathbf{c}}(\bth)]_k
+    = \sum_i \pi_i^{(k)}\bigl(\bomega_A(\bth;\, \mathbf{c})\bigr)
+      \cdot \mu_i(\bth)
+    - \tilde{u}(c_k;\, \bth),
+    \quad k = q+1, \ldots, p+q
+\end{equation}
+is injective.
+\end{condition}
+
+Unlike Condition~A, Condition~B depends on both the utility and PWF
+families and on the observed CEs. When $\bth$ changes, three
+things move simultaneously: the normalized utilities
+$\mu_i(\bth)$, the implied PWF
+$\bomega_A(\bth;\, \mathbf{c})$, and the left-hand side
+$\tilde{u}(c_k;\, \bth)$. Condition~B requires that these
+effects cannot cancel across all $p$ Block~II equations.
+
+Condition~A implies that $W$ is injective on the Block~I
+probability points (by contrapositive: identical decision weights
+produce identical Block~I CEs). One may therefore reparameterize,
+replacing $\bomega$ with the decision weights. This is most effective
+when Block~II probabilities coincide with Block~I probabilities, so
+that no inversion to PWF parameters is required.
+\Cref{sec:condition_a_verification} establishes Condition~A for the
+Prelec family, and \cref{sec:prelec_crra} exploits the resulting
+$(r, w_1, w_2)$ reparameterization with a shared-probability
+design ($p_3 = p_1$).
+
+Verifying Condition~B requires the implicit derivative
+$d\bomega_A/d\bth$, obtained by differentiating the Block~I
+system:
+\begin{equation}
+    \frac{d\bomega_A}{d\bth}
+    = -J_A^{-1}\,
+    \frac{\partial \Phi_\mu}{\partial \bth},
+    \label{eq:implicit_deriv}
+\end{equation}
+where $J_A = \partial \Phi_\mu / \partial \bomega$ (invertible by
+Condition~A).
+
+\subsubsection{Condition~C: Noise identification from a choice probability}
+\label{sec:condition_c}
+
+Once $(\bth, \bomega)$ are identified from the CEs, the value
+difference $\Delta V = V_A - V_B$ for any additional choice task
+is determined. Condition~C requires that the choice probability
+$P = \Lambda(\Delta V / (\lambda\,\Delta u))$ identifies~$\lambda$.
+
+\begin{condition}[C]
+\label{cond:C}
+For the identified $(\bth, \bomega)$, the choice task has
+$\Delta V \neq 0$.
+\end{condition}
+
+\begin{proposition}[Noise identification]
+\label{prop:noise}
+If $\Lambda$ is strictly increasing and $\Delta V \neq 0$, then
+$P = \Lambda(\Delta V / (\lambda\,\Delta u))$ is strictly monotone
+in~$\lambda$, and Condition~C holds.
+\end{proposition}
+
+\begin{proof}
+The argument $\Delta V / (\lambda\,\Delta u)$ is strictly monotone
+in~$\lambda$ when $\Delta V \neq 0$; composing with the strictly
+increasing~$\Lambda$ preserves strict monotonicity.
+\end{proof}
+
+Condition~C is pointwise, but the main text's
+change-of-variables prior
+$p(\bth,\bomega,\lambda)
+= p_Y\!\bigl(\widetilde{F}(\cdot)\bigr)\,
+\lvert\det J_{\widetilde{F}}\rvert$
+requires injectivity to hold almost everywhere. Define the
+indifference locus
+$\mathcal{I} = \{\,(\bth, \bomega) : \Delta V(\bth, \bomega)
+= 0\,\}$. For the prior density to be well defined,
+$\mathcal{I}$ must have Lebesgue measure zero.
+Degenerate designs---such as $A = B$, or pairs whose RDU values
+coincide for all $(\bth, \bomega)$---give
+$\mathcal{I} = \Theta \times \mathcal{W}$ and must be excluded. For
+non-degenerate designs where $\Delta V$ is analytic and not
+identically zero, $\mathcal{I}$ is a lower-dimensional analytic
+variety (hence has Lebesgue measure zero), and Condition~C holds on
+the full-measure complement. In practice, $A \neq B$ is sufficient
+for standard PWF and utility families.
+
+\subsubsection{Main theorem}
+\label{sec:theorem}
+
+\begin{theorem}
+\label{thm:main}
+If Conditions~A, B, and~C hold, then the extended map
+$\widetilde{F} \colon (\bth, \bomega, \lambda) \mapsto
+(c_1, \ldots, c_{p+q},\, P_{K+1})$
+is injective on $\Theta \times \mathcal{W} \times (0,\infty)$.
+\end{theorem}
+
+\begin{proof}
+The CEs do not depend on~$\lambda$, so the map has
+block-triangular structure: apply \cref{prop:sequential} with
+$X = (\bth, \bomega)$, $Y = \lambda$, and
+$Z = (c_1, \ldots, c_{p+q},\, P_{K+1})$.
+Suppose $\widetilde{F}(\bth, \bomega, \lambda)
+= \widetilde{F}(\bth', \bomega', \lambda')$.
+By Condition~A, fixing $\bth$ determines
+$\bomega = \bomega_A(\bth;\, \mathbf{c})$ uniquely, and likewise
+$\bomega' = \bomega_A(\bth';\, \mathbf{c})$. Substituting into
+the Block~II equations yields $p$~equations in $\bth$ alone;
+by Condition~B, $\bth = \bth'$, and then $\bomega = \bomega'$.
+With $(\bth, \bomega)$ identified, $\Delta V$ is determined and
+\cref{prop:noise} gives $\lambda = \lambda'$.
+\end{proof}
+
+
+\subsection{Verifying Condition~A: Two-Point Injectivity and the $L \circ W$ Factoring}
+\label{sec:condition_a_verification}
+
+Conditions~A and~B require verification for specific utility and
+PWF families; Condition~C requires a non-degenerate choice task
+($\Delta V \neq 0$). This section and the next verify all three
+conditions for Prelec--CRRA.
+
+For $q = 2$, the map $\Phi_\mu$ factors as $L \circ W$, where
+$W$ is the two-point evaluation map and $L$ is a $2 \times 2$
+matrix determined by the lottery structure. When $\det(L) \neq 0$,
+Condition~A reduces to injectivity of~$W$.
+
+\subsubsection{Two-point injectivity}
+\label{sec:two_point}
+
+For the Prelec PWF
+$w(p;\, \phi, \eta) = \exp\bigl(-\eta\, t^\phi\bigr)$ with
+$t = -\ln p > 0$, define the \emph{two-point evaluation map}
+$W \colon (\phi, \eta) \mapsto \bigl(w(p_1),\, w(p_2)\bigr)$
+for distinct $p_1 \neq p_2 \in (0,1)$, and write
+$t_i = -\ln p_i$, $w_i = w(p_i)$.
+
+\begin{lemma}[Prelec two-point injectivity]
+\label{lem:prelec_two_point}
+The two-point evaluation map $W$ is
+injective on $\R^2_{>0}$ for any $p_1 \neq p_2 \in (0,1)$.
+\end{lemma}
+
+\begin{proof}
+Write $t_i = -\ln p_i > 0$. Suppose
+$W(\phi_1, \eta_1) = W(\phi_2, \eta_2)$. Taking logarithms of both
+components:
+\begin{align}
+    \eta_1\, t_1^{\phi_1} &= \eta_2\, t_1^{\phi_2},
+    \label{eq:prelec_eq1} \\
+    \eta_1\, t_2^{\phi_1} &= \eta_2\, t_2^{\phi_2}.
+    \label{eq:prelec_eq2}
+\end{align}
+Dividing~\eqref{eq:prelec_eq1} by~\eqref{eq:prelec_eq2}:
+\begin{equation}
+    \left(\frac{t_1}{t_2}\right)^{\!\phi_1}
+    = \left(\frac{t_1}{t_2}\right)^{\!\phi_2}.
+    \label{eq:ratio}
+\end{equation}
+Since $p_1 \neq p_2$, the values $t_1 \neq t_2$, so
+$t_1/t_2 \neq 1$. The function $a^x$ is injective in~$x$ for any
+$a > 0$ with $a \neq 1$, so~\eqref{eq:ratio} implies
+$\phi_1 = \phi_2$. Substituting back
+into~\eqref{eq:prelec_eq1}: $\eta_1 = \eta_2$, since
+$t_1^{\phi_1} > 0$.
+\end{proof}
+
+The proof uses only the \emph{ratio property}: a logarithmic
+transformation separates the parameters multiplicatively, and the
+resulting basis functions form a ratio differing from~$1$ at
+distinct probability points. Any two-parameter PWF with this
+structure (e.g., Goldstein--Einhorn) satisfies two-point
+injectivity by the same argument.
+
+
+\subsubsection{$W$ is a bijection: the $(r, w_1, w_2)$ reparameterization}
+\label{sec:W_bijection}
+
+Injectivity of~$W$ alone enables the change of variables from
+$(\phi, \eta)$ to $(w_1, w_2)$: one works in the image
+$W(\R^2_{>0}) \subseteq (0,1)^2$, which may be a proper subset,
+and every statement about $(r, w_1, w_2)$ applies to the parameter
+values actually attained by the PWF family. The simplification
+from working in decision-weight space is substantial enough to
+justify this reparameterization even when the image $W(\R^2_{>0})$
+must be characterized explicitly. When $W$ is bijective, the image
+equals the full codomain and no such characterization is needed.
+
+For the Prelec family, $W$ is in fact \emph{bijective} onto
+$\{(w_1, w_2) : 0 < w_1, w_2 < 1,\; w_1 \neq w_2\}$.
+The proof of \cref{lem:prelec_two_point} provides the explicit
+inverse. Given observed values $w_1 = w(p_1)$ and
+$w_2 = w(p_2)$ with $t_i = -\ln p_i$:
+\begin{equation}\label{eq:W_inverse}
+    \phi = \frac{\ln(\ln w_1 / \ln w_2)}{\ln(t_1 / t_2)},
+    \qquad
+    \eta = \frac{-\ln w_1}{t_1^{\,\phi}}.
+\end{equation}
+Both expressions are well defined whenever $w_1, w_2 \in (0,1)$
+with $w_1 \neq w_2$, and they produce $(\phi, \eta) \in \R^2_{>0}$.
+(The condition $p_1 \neq p_2$ ensures $t_1 \neq t_2$ so the
+denominator is nonzero; $w_i \in (0,1)$ ensures $-\ln w_i > 0$.)
+This bijectivity is likely available for other common two-parameter
+PWF families (e.g., Goldstein--Einhorn). Because of this bijection,
+we conduct all subsequent analysis in $(r, w_1, w_2)$ space with no
+image-set restriction; the Prelec parameters do not appear again.
+
+For the all-binary design, each Block~I lottery $L_k$ is binary with
+probability $p_k$ on the better outcome. When $p_1 \neq p_2$,
+the $L$-matrix in the $L \circ W$ factoring is
+$L = \diag(\Delta\mu_1, \Delta\mu_2)$ with
+$\det(L) = \Delta\mu_1\,\Delta\mu_2 > 0$
+(\cref{sec:same_cdf} below), and Condition~A holds
+unconditionally.
+
+\begin{proposition}[All-binary Condition~A]
+\label{prop:binary}
+For the all-binary Block~I design with $p_1 \neq p_2$,
+Condition~A holds at all $(\phi, \eta) \in \R^2_{>0}$ and all
+utility parameters, with no restrictions on outcomes.
+\end{proposition}
+
+\begin{proof}
+Each binary lottery evaluates $w$ at one probability, giving
+$L = \diag(\Delta\mu_1, \Delta\mu_2)$ with $\det(L) > 0$.
+By \cref{lem:prelec_two_point} and the invertibility of $L$,
+Condition~A holds.
+\end{proof}
+
+\subsubsection{The $L \circ W$ factoring}
+\label{sec:same_cdf}
+
+For a binary lottery $L_k$ with outcomes $(\xlo_k, \xhi_k)$
+and probability $p_k$ on the better outcome, the normalized RDU
+value~\eqref{eq:rdu_value} is
+\begin{equation}\label{eq:binary_rdu}
+    V_k = \mu_{\xlo_k} + w(p_k)\,\Delta\mu_k,
+    \qquad
+    \Delta\mu_k \coloneqq \mu_{\xhi_k} - \mu_{\xlo_k} > 0.
+\end{equation}
+With two binary lotteries having $p_1 \neq p_2$:
+\begin{equation}
+    \begin{pmatrix} V_1 - \mu_{\xlo_1} \\ V_2 - \mu_{\xlo_2} \end{pmatrix}
+    = \underbrace{
+      \begin{pmatrix} \Delta\mu_1 & 0 \\ 0 & \Delta\mu_2 \end{pmatrix}
+    }_{L}
+    \underbrace{
+      \begin{pmatrix} w(p_1) \\ w(p_2) \end{pmatrix}
+    }_{W(\phi, \eta)},
+    \label{eq:factoring_binary}
+\end{equation}
+with $\det(L) = \Delta\mu_1\,\Delta\mu_2 > 0$. For fixed
+$\bth$, Condition~A reduces to injectivity of $W$, which holds
+by \cref{lem:prelec_two_point}.
+
+
+\subsection{Application: Prelec--CRRA in $(r, w_1, w_2)$ Space}
+\label{sec:prelec_crra}
+
+For the concrete case in the main text:
+$\bth = r$ (CRRA coefficient, $p = 1$) and
+$\bomega = (\phi, \eta)$ (Prelec parameters, $q = 2$), with utility
+$u(x; r) = x^{1-r}/(1-r)$ and PWF
+$w(p; \phi, \eta) = \exp\bigl(-\eta(-\ln p)^\phi\bigr)$.
+By the $W$-bijectivity of \cref{sec:W_bijection}, the model is
+reparameterized as $F \colon (r, w_1, w_2) \mapsto (c_1, c_2, c_3)$.
+All analysis in this section operates in $(r, w_1, w_2)$ space.
+
+
+\subsubsection{The CE map}
+\label{sec:ce_function}
+
+For a binary lottery $L_k = (\xlo_k, \xhi_k)$ with decision
+weight~$w_k$ on the better outcome, write $s = 1 - r$. The CRRA
+certainty equivalent is a power mean:
+\begin{equation}
+  \label{eq:ce_decomp}
+  c_k^{\,s} = w_k\, \xhi_k^s + (1 - w_k)\, \xlo_k^s,
+\end{equation}
+equivalently $c_k = [w_k\, \xhi_k^s + (1-w_k)\, \xlo_k^s]^{1/s}$.
+Since the right-hand side is strictly increasing in~$w_k$,
+Condition~A is immediate in $(r, w_1, w_2)$ space: given~$r$,
+each $c_k$ is uniquely determined by~$w_k$.
+
+\subsubsection{Condition~B: CRRA identification via shared probability}
+\label{sec:cond_b_crra}
+
+With $p = 1$, Condition~B reduces to the scalar condition
+$dc_3/dr\big|_{c_1} \neq 0$. The shared-probability design
+$p_3 = p_1$ eliminates the PWF parameters entirely:
+both $L_1$ and $L_3$ share the decision weight $w_3 = w_1$.
+
+Parameterize $L_3$'s outcomes relative to~$L_1$'s:
+\begin{equation}\label{eq:affine}
+    \xhi_3 = m\,\xhi_1 + b, \qquad \xlo_3 = m\,\xlo_1 + b,
+\end{equation}
+where $m = (\xhi_3 - \xlo_3)/(\xhi_1 - \xlo_1) > 0$ is the spread ratio
+and $b = \xlo_3 - m\,\xlo_1$ is the shift.
+Substituting into~\eqref{eq:ce_decomp} with $w_3 = w_1$:
+\begin{align}
+    c_1^{\,s} &= w_1\, \xhi_1^s + (1-w_1)\, \xlo_1^s,
+    \label{eq:c1_shared} \\
+    c_3^{\,s} &= w_1\, (m\,\xhi_1 + b)^s + (1-w_1)\, (m\,\xlo_1 + b)^s.
+    \label{eq:c3_shared}
+\end{align}
+Solving~(\ref{eq:c1_shared}) for $w_1$ in terms of $s$:
+\begin{align}
+  \label{eq:solved_w1}
+  w_1(s) &= \frac{c_1^{\,s} - \xlo_1^s}{\xhi_1^s - \xlo_1^s}.
+\end{align}
+Substituting into~(\ref{eq:c3_shared}) makes $c_3$ a function of $s$ alone:
+\begin{align}
+  \label{eq:c3_wr}
+  c_3^{\,s} &= w_1(s) \left[ (m\,\xhi_1 + b)^s - (m\,\xlo_1 + b)^s\right] + (m\,\xlo_1 + b)^s.
+\end{align}
+
+Setting $b = 0$ reveals a necessary condition. Expanding $w_1(s)$ and simplifying:
+\begin{align}
+  c_3^{\,s} &= w_1(s) \left[ m^s\,\xhi_1^s - m^s\,\xlo_1^s\right] + m^s\,\xlo_1^s \notag \\
+  c_3^{\,s} &= w_1(s) m^s\left[ \xhi_1^s - \xlo_1^s\right] + m^s\,\xlo_1^s \notag \\
+  c_3^{\,s} &= m^s \left[w_1(s) \left( \xhi_1^s - \xlo_1^s\right) + \xlo_1^s\right] \notag \\
+  c_3^{\,s} &= m^s \left[\frac{c_1^{\,s} - \xlo_1^s}{\, \xhi_1^s - \xlo_1^s} \left( \xhi_1^s - \xlo_1^s\right) + \xlo_1^s\right] \notag \\
+  c_3^{\,s} &= m^s \left[c_1^{\,s} - \xlo_1^s + \xlo_1^s\right] \notag \\
+  c_3^{\,s} &= (m\, c_1)^{\,s} \notag \\
+  c_3 &= m\, c_1
+\end{align}
+When $b = 0$, the CE $c_3 = m\,c_1$ is independent of~$s$, so $L_3$ provides
+no information about~$r$. This reflects the well-known scale invariance of
+CRRA utility. The remainder of this section shows that $b \neq 0$ is also
+\textit{sufficient} for identification.
+
+CRRA homogeneity $\CE(mL) = m \cdot \CE(L)$ implies that the scale
+factor~$m$ does not affect monotonicity of $c_3$ in~$r$, so we may
+normalize by dividing $L_3$'s outcomes by~$m$. Writing $e = b/m$, the
+condition $b \neq 0$ is equivalent to $e \neq 0$, and the CE equations become
+\begin{align}
+    c_1^{\,s} &= w_1\, \xhi_1^s + (1-w_1)\, \xlo_1^s,
+    \label{eq:c1_shift} \\
+    \tilde{c}_3^{\,s} &= w_1\, (\xhi_1 + e)^s
+      + (1-w_1)\, (\xlo_1 + e)^s,
+    \label{eq:c3_shift}
+\end{align}
+where $\tilde{c}_3$ is the CE of the normalized lottery (with
+$c_3 = m\,\tilde{c}_3$); write $c_3$ for $\tilde{c}_3$ hereafter.
+
+Implicitly differentiating~(\ref{eq:c3_shift}) with respect to~$s$:
+\begin{align}
+  \label{eq:idiff}
+  \begin{split}
+  c_3^{\,s}\!\left(\ln c_3 + \frac{s}{c_3}\frac{dc_3}{ds}\right) &=
+    w_1'(s)\,[(\xhi_1{+}e)^s - (\xlo_1{+}e)^s]
+    + w_1(s)\,[(\xhi_1{+}e)^s \ln(\xhi_1{+}e) - (\xlo_1{+}e)^s \ln(\xlo_1{+}e)] \\
+    &\quad + (\xlo_1{+}e)^s \ln(\xlo_1{+}e)
+  \end{split}
+\end{align}
+From~(\ref{eq:solved_w1}), the quotient rule gives:
+\begin{align}
+  w_1'(s) &= \frac{(c_1^{\,s}\!\ln c_1 - \xlo_1^s\!\ln\xlo_1)(\xhi_1^s - \xlo_1^s)
+    - (c_1^{\,s} - \xlo_1^s)(\xhi_1^s\!\ln\xhi_1 - \xlo_1^s\!\ln\xlo_1)}
+    {(\xhi_1^s - \xlo_1^s)^2} \notag \\[0.5em]
+  \label{eq:dw1ds}
+  -w_1'(s) &= \frac{w_1\,\xhi_1^s \ln \xhi_1
+    + (1-w_1)\,\xlo_1^s \ln \xlo_1
+    - c_1^s \ln c_1}{\xhi_1^s - \xlo_1^s}.
+\end{align}
+Solving~(\ref{eq:idiff}) for $dc_3/ds$:
+\begin{align}
+  \label{eq:dc3ds}
+  \frac{dc_3}{ds} = \frac{1}{s\, c_3^{\,s-1}}\Bigl[&\;
+    w_1'(s)\,[(\xhi_1{+}e)^s - (\xlo_1{+}e)^s] \notag \\
+    &\; + w_1(s)\,[(\xhi_1{+}e)^s \ln(\xhi_1{+}e)
+      - (\xlo_1{+}e)^s \ln(\xlo_1{+}e)]
+    + (\xlo_1{+}e)^s \ln(\xlo_1{+}e) - c_3^{\,s} \ln c_3
+  \Bigr]
+\end{align}
+Condition~B holds if $dc_3/ds \neq 0$ for all $s \neq 0$
+(equivalently $dc_3/dr \neq 0$, since $s = 1 - r$).
+To analyze the sign of the bracket in~(\ref{eq:dc3ds}),
+define the Jensen gap of $\phi(t) = t\ln t$ for lottery~$L_k$:
+\begin{equation}\label{eq:jensen_gap_def}
+  G_k
+  = w_1\,\phi(\xhi_k^s) + (1-w_1)\,\phi(\xlo_k^s)
+    - \phi(c_k^s),
+\end{equation}
+where $c_k^s = w_1\,\xhi_k^s + (1-w_1)\,\xlo_k^s$.
+Since $\phi$ is strictly convex, $G_k > 0$ for all $s$.
+Using $\phi(x^s) = x^s \ln(x^s) = s\, x^s \ln x$,
+the three non-$w_1'$ terms in the bracket
+of~(\ref{eq:dc3ds}) are
+\begin{equation}\label{eq:bracket_J3}
+  w_1\,(\xhi_1{+}e)^s \ln(\xhi_1{+}e)
+  + (1-w_1)\,(\xlo_1{+}e)^s \ln(\xlo_1{+}e)
+  - c_3^s \ln c_3
+  \;=\; \frac{G_3}{s}.
+\end{equation}
+Similarly, from~(\ref{eq:dw1ds}), the numerator of
+$-w_1'(s)$ is $G_1/s$ and the denominator is
+$\xhi_1^s - \xlo_1^s$, so
+\begin{equation}\label{eq:w1prime_J1}
+  -w_1'(s) = \frac{G_1}
+    {s\,(\xhi_1^s - \xlo_1^s)}.
+\end{equation}
+Substituting into~(\ref{eq:dc3ds}):
+\begin{equation}\label{eq:dc3ds_collapsed}
+  \frac{dc_3}{ds}
+  = \frac{1}{s\, c_3^{s-1}}
+    \left[
+      \frac{-G_1\bigl[(\xhi_1{+}e)^s - (\xlo_1{+}e)^s\bigr]}
+           {s\,(\xhi_1^s - \xlo_1^s)}
+    + \frac{G_3}{s}\right].
+\end{equation}
+Since $s^2 > 0$ and $c_3^{s-1} > 0$, the sign of
+$dc_3/ds$ is determined by the bracket, so
+Condition~B is equivalent to
+\begin{equation}\label{eq:condB_ratio}
+  \frac{w_1\,\xhi_1^s\ln\xhi_1^s
+    + (1{-}w_1)\,\xlo_1^s\ln\xlo_1^s
+    - c_1^s\ln c_1^s}
+       {\xhi_1^s - \xlo_1^s}
+  \;\neq\;
+  \frac{w_1\,(\xhi_1{+}e)^s\ln(\xhi_1{+}e)^s
+    + (1{-}w_1)\,(\xlo_1{+}e)^s\ln(\xlo_1{+}e)^s
+    - c_3^s\ln c_3^s}
+       {(\xhi_1{+}e)^s - (\xlo_1{+}e)^s}
+\end{equation}
+for all $s \neq 0$.
+Suppose for contradiction that equality holds
+in~(\ref{eq:condB_ratio}) for some $s \neq 0$ and
+$e \neq 0$.
+Using $x^s\ln(x^s) = s\,x^s\ln x$, a common factor
+of~$s$ appears in both numerators and cancels, giving
+\begin{equation}\label{eq:condB_s_cancelled}
+  \frac{w_1\,\xhi_1^s\ln\xhi_1
+    + (1{-}w_1)\,\xlo_1^s\ln\xlo_1
+    - c_1^s\ln c_1}
+       {\xhi_1^s - \xlo_1^s}
+  \;=\;
+  \frac{w_1\,(\xhi_1{+}e)^s\ln(\xhi_1{+}e)
+    + (1{-}w_1)\,(\xlo_1{+}e)^s\ln(\xlo_1{+}e)
+    - c_3^s\ln c_3}
+       {(\xhi_1{+}e)^s - (\xlo_1{+}e)^s}.
+\end{equation}
+Write $\rho_k = (\xlo_k/\xhi_k)^s$ and divide
+numerator and denominator on each side
+of~(\ref{eq:condB_s_cancelled}) by~$\xhi_k^s$. Since
+$\ln\xlo_k = \ln\xhi_k + \tfrac{1}{s}\ln\rho_k$
+and $\ln c_k = \ln\xhi_k
+  + \tfrac{1}{s}\ln[w_1{+}(1{-}w_1)\rho_k]$,
+the coefficient of~$\ln\xhi_k$ in each numerator is
+$w_1 + (1{-}w_1)\rho_k - [w_1{+}(1{-}w_1)\rho_k] = 0$.
+A common factor of~$\tfrac{1}{s}$ cancels, reducing~(\ref{eq:condB_s_cancelled}) to
+\begin{equation}\label{eq:ratio_of_rho}
+  \frac{(1{-}w_1)\,\rho_1\ln\rho_1
+    - [w_1 {+} (1{-}w_1)\rho_1]\,
+      \ln[w_1 {+} (1{-}w_1)\rho_1]}
+       {1 - \rho_1}
+  \;=\;
+  \frac{(1{-}w_1)\,\rho_3\ln\rho_3
+    - [w_1 {+} (1{-}w_1)\rho_3]\,
+      \ln[w_1 {+} (1{-}w_1)\rho_3]}
+       {1 - \rho_3}.
+\end{equation}
+Both sides are the same function of~$\rho_k$
+(with~$w_1$ fixed), evaluated at $\rho_1$
+and~$\rho_3$ respectively. We show this function is
+strictly decreasing, so the equality forces
+$\rho_1 = \rho_3$.
+
+Write $f(\rho)$ for the numerator
+of~(\ref{eq:ratio_of_rho}), so the ratio is
+$f(\rho)/(1-\rho)$. Differentiating $f$ term by
+term:
+\begin{align}
+  \frac{d}{d\rho}\bigl[(1{-}w_1)\,\rho\ln\rho\bigr]
+    &= (1{-}w_1)(\ln\rho + 1),
+  \notag\\[4pt]
+  \frac{d}{d\rho}
+  \bigl\{
+    {-}[w_1{+}(1{-}w_1)\rho]\,
+    \ln[w_1{+}(1{-}w_1)\rho]
+  \bigr\}
+    &= -(1{-}w_1)
+       \bigl(\ln[w_1{+}(1{-}w_1)\rho] + 1\bigr).
+  \notag
+\end{align}
+The constant terms $\pm(1{-}w_1)$ cancel, leaving
+\begin{equation}\label{eq:f_prime}
+  f'(\rho)
+  = (1{-}w_1)\,
+    \ln\frac{\rho}{w_1 + (1{-}w_1)\rho}.
+\end{equation}
+Since $\rho < w_1 + (1{-}w_1)\rho$ for all
+$w_1 \in (0,1)$ and $\rho > 0$, the logarithm is
+negative, so $f'(\rho) < 0$ everywhere.
+
+By the quotient rule, the derivative of
+$f(\rho)/(1-\rho)$ has the same sign as
+\begin{equation}\label{eq:qr_num}
+  f'(\rho)\,(1 - \rho) \;+\; f(\rho),
+\end{equation}
+since the denominator squared $(1-\rho)^2$ is
+positive. We claim~(\ref{eq:qr_num}) is negative for
+all $\rho \neq 1$.
+
+At $\rho = 1$, $f(1) = 0$ since both terms vanish
+($\ln 1 = 0$). Combined with $(1 - \rho) = 0$,
+expression~(\ref{eq:qr_num}) vanishes at $\rho = 1$.
+
+Differentiating~(\ref{eq:qr_num}):
+\begin{equation}\label{eq:qr_deriv}
+  \frac{d}{d\rho}\bigl[f'(\rho)(1{-}\rho) + f(\rho)\bigr]
+  = f''(\rho)(1{-}\rho)
+    \underbrace{{}-f'(\rho) + f'(\rho)}_{=\,0}
+  = f''(\rho)(1{-}\rho).
+\end{equation}
+From~(\ref{eq:f_prime}),
+\begin{equation}\label{eq:f_double_prime}
+  f''(\rho)
+  = (1{-}w_1)\biggl[
+      \frac{1}{\rho}
+      - \frac{1{-}w_1}{w_1{+}(1{-}w_1)\rho}
+    \biggr]
+  = \frac{w_1(1{-}w_1)}
+         {\rho\,[w_1{+}(1{-}w_1)\rho]}
+  \;>\; 0.
+\end{equation}
+So by~(\ref{eq:qr_deriv}), the derivative
+of~(\ref{eq:qr_num}) is $f''(\rho)(1-\rho)$: positive
+for $\rho < 1$, negative for $\rho > 1$.
+Expression~(\ref{eq:qr_num}) therefore has its unique
+maximum at $\rho = 1$ where it equals zero, hence is
+strictly negative for all $\rho \neq 1$, and
+$f(\rho)/(1-\rho)$ is strictly decreasing on
+$(0,\infty) \setminus \{1\}$.
+
+The equality in~(\ref{eq:ratio_of_rho}) thus forces
+$\rho_1 = \rho_3$, i.e.,
+\begin{equation}\label{eq:ratio_equality}
+  \biggl(\frac{\xlo_1}{\xhi_1}\biggr)^{\!s}
+  =
+  \biggl(\frac{\xlo_1 + e}{\xhi_1 + e}\biggr)^{\!s}.
+\end{equation}
+For $s \neq 0$,~(\ref{eq:ratio_equality}) gives
+$\xlo_1/\xhi_1 = (\xlo_1{+}e)/(\xhi_1{+}e)$.
+Cross-multiplying:
+$\xlo_1(\xhi_1{+}e) = \xhi_1(\xlo_1{+}e)$,
+which simplifies to $e\,(\xhi_1 - \xlo_1) = 0$.
+Since $\xhi_1 \neq \xlo_1$, this forces $e = 0$,
+contradicting our assumption.
+\label{prop:shared_prob_condB} % keep label for §4.3 cross-ref
+
+
+\subsubsection{Full three-parameter identification}
+\label{sec:full_identification}
+
+Combining the results: the $W$-bijectivity of
+\cref{sec:W_bijection} and the diagonal $L$-matrix establish
+Condition~A (\cref{prop:binary}) for any $p_1 \neq p_2$.
+The shared-probability design $p_3 = p_1$ with
+$\xhi_1/\xlo_1 \neq \xhi_3/\xlo_3$ establishes Condition~B
+(\cref{prop:shared_prob_condB}) on all of $\R_{>0}$.
+By \cref{thm:main}, the full CE map
+$F \colon (r, w_1, w_2) \mapsto (c_1, c_2, c_3)$
+is globally injective on $(0,\infty) \times (0,1)^2$.
+No bounded-domain restriction is required.
+
+
+\subsubsection{Condition~C: noise identification}
+\label{sec:noise}
+
+The main text uses a logistic Fechner model
+with $\Lambda(t) = 1/(1 + e^{-t})$. Condition~C
+(\cref{sec:condition_c}) holds for any choice task with
+$\Delta V \neq 0$.
+Combined with Conditions~A and~B, the full map
+$\widetilde{F} \colon (r, w_1, w_2, \lambda) \mapsto
+(c_1, c_2, c_3,\, P_4)$ is globally injective on
+$(0,\infty) \times (0,1)^2 \times (0,\infty)$.
+
+
+\subsection{Extensions and Discussion}
+\label{sec:inj_extensions}
+
+The sequential approach scales linearly: $q$ Block~I lotteries plus
+$p$ Block~II lotteries, plus one choice task for~$\lambda$.
+The all-binary design handles Block~I for
+$q = 2$ (covering Prelec, Goldstein--Einhorn, Tversky--Kahneman);
+Block~II lotteries are chosen freely to provide outcome-side
+variation. Condition~C requires one additional choice task with
+$\Delta V \neq 0$.
+For utility families with $p > 1$ (e.g., expo-power),
+Condition~B becomes a $p \times p$ injectivity condition.
+
+The change-of-variables computation in the main text requires the
+Jacobian of the Condition~A map, which factors as
+$J_A = L \cdot J_W$ by the chain rule. That computation uses the
+original $(\phi, \eta)$ parameterization and is carried out in
+Appendix~\ref{app:jacobian_details}.
+
+
+
+\pagebreak

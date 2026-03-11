@@ -1,0 +1,86 @@
+%==============================================================================
+\appsection{MCMC Implementation Details}
+\label{app:mcmc}
+%==============================================================================
+
+\subsection{Sampling Algorithm}
+
+The model is estimated using a block-wise Metropolis-Hastings within Gibbs
+sampler. The full parameter vector contains
+\py{Q.get('n_total_params', 'N/A')} parameters: 4 per subject ($r$, $\ln\phi$,
+$\ln\eta$, $\ln\lambda$) for \py{Q.get('n_subjects', 'N/A')} subjects, plus 8
+hyperparameters (a population mean and log-standard-deviation for each of the 4
+parameters).
+
+These parameters are divided into 115 blocks:
+\py{Q.get('n_subjects', 'N/A')} subject blocks, each containing the 4
+parameters for a single subject, and 4 hyperparameter blocks, each containing
+the population mean and log-standard-deviation for one parameter (e.g.,
+$\mu_r$ and $\ln\sigma_r$).
+
+\noindent Each iteration of the sampler cycles through all 115 blocks, proposing
+updates to each block conditional on the current values of all other blocks.
+Subject blocks are updated via standard Metropolis-Hastings, while
+hyperparameter blocks use the coupled transform sampler described below.
+
+\subsection{Non-Centered Parameterization}
+
+The model uses a non-centered parameterization (NCP) to improve MCMC mixing:
+\begin{align}
+  \varepsilon_i &\sim N(0, 1) \\
+  \theta_i &= \mu + \sigma \cdot \varepsilon_i
+\end{align}
+The sampler stores $\varepsilon_i$ rather than $\theta_i$. Since the
+$\varepsilon_i$ are \textit{a priori} independent of $(\mu, \sigma)$, the
+funnel geometry is eliminated in the transformed space.
+
+\subsection{Coupled Transform Sampler}
+
+When proposing $(\mu', \sigma')$, the epsilons are updated as:
+\begin{equation}
+  \varepsilon_i' = \frac{\mu + \sigma \varepsilon_i - \mu'}{\sigma'}
+\end{equation}
+Since $\theta_i' = \mu' + \sigma' \varepsilon_i' = \theta_i$ by construction,
+the data likelihood cancels from the acceptance ratio:
+\begin{equation}
+  \log \alpha =
+    \underbrace{\log q(\mu, \sigma \mid \mu', \sigma')
+    - \log q(\mu', \sigma' \mid \mu, \sigma)}_{\text{proposal ratio}}
+    + \underbrace{N(\log\sigma - \log\sigma')}_{\text{Jacobian}}
+    + \underbrace{-\tfrac{1}{2}\textstyle\sum_{i=1}^N
+      (\varepsilon_i'^2 - \varepsilon_i^2)}_{\text{epsilon prior ratio}}
+    + \underbrace{\log p(\mu', \sigma')
+    - \log p(\mu, \sigma)}_{\text{hyperprior ratio}}
+\end{equation}
+
+\subsection{Likelihood Function}
+
+The likelihood for subject $i$'s choice $y_{it} \in \{A, B\}$ uses the Fechner
+(logistic) error specification from (\ref{eq:likelihood}):
+\begin{equation}
+    P(y_{it} = A | \theta_i) = \frac{1}{1 + \exp\left(-\Delta_{it}\right)}
+\end{equation}
+where $\Delta_{it} = (U_A - U_B) / [\lambda_i (u(\bar{x}) - u(\underbar{x}))]$.
+
+\subsection{Run Configuration}
+
+The sampler runs \py{Q.get('n_chains', 'N/A')} parallel chains through 6
+sequential runs: 1 initial reset run followed by 5 resume runs. Each run
+collects 100 iterations with thinning factor 10. The first half is discarded
+as burn-in, leaving \py{total_samples} posterior samples for inference.
+
+\subsection{Convergence Diagnostics}
+
+Across all \py{Q.get('n_total_params', 'N/A')} parameters, the maximum
+$\hat{R}$ is \py{fmt(Q.get('rhat_max', 0), 3)}, indicating excellent
+convergence.
+
+\subsection{Software}
+
+Estimation uses the \texttt{bamcmc} package, a JAX-based MCMC sampler with
+GPU acceleration, running \py{Q.get('n_chains', 'N/A')} chains in parallel on
+an NVIDIA RTX 4070 GPU with 64-bit floating-point precision.
+
+
+\pagebreak
+

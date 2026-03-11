@@ -125,7 +125,7 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
   coefficient of variation $\kappa$ measuring confidence in the heterogeneity
   specification. These two researcher choices, combined with the direct prior,
   fully determine the hyperprior for any distributional family. I demonstrate
-  the approach with rank-dependent utility estimation using lottery choice data,
+  the approach with rank-dependent utility (RDU) estimation using lottery choice data,
   comparing informative hyperpriors derived from the methodology against
   diffuse alternatives. The framework bridges the gap between the
   ``uninformative prior'' and ``prior predictive calibration'' literatures,
@@ -153,7 +153,7 @@ elicitation, quantity-space priors, risk preferences, rank-dependent utility
 \label{sec:introduction}
 %==============================================================================
 
-Bayesian hierarchical models (BHMs) are becoming a standard tool for estimating
+BHMs are becoming a standard tool for estimating
 heterogeneous preferences in experimental economics
 \parencite{Gao2022,Nilsson2011}. These models jointly estimate individual-level
 parameters and the hyper-parameters that govern their population distribution.
@@ -170,7 +170,7 @@ a mean and variance. Each hyper-parameter then requires its own prior,
 typically also parameterized by 2 values. A model with $p$ parameters per
 subject therefore results in $4p$ hyperprior parameters requiring
 specification. Common models of risk preferences under Expected Utility Theory
-(EUT) involve 2--3 parameters, models assuming Rank Dependent Utility (RDU)
+(EUT) involve 2--3 parameters, models assuming RDU
 involve 3--5, and models assuming Cumulative Prospect Theory
 \parencite[CPT;][]{TverskyKahneman1992} can require up to 10
 parameters.\footnote{
@@ -214,7 +214,7 @@ parameters. The framework developed here provides this machinery: it starts
 from the predictive intuition of the second camp and delivers closed-form
 hyperpriors that avoid the pathologies identified by the first.
 
-I demonstrate the approach with rank-dependent utility estimation using
+I demonstrate the approach with RDU estimation using
 real lottery choice data from \textcite{Harrison2016}, comparing
 informative hyperpriors derived from the methodology against diffuse
 alternatives.
@@ -338,8 +338,7 @@ The complication of risk-aversion confounding direct inference of beliefs from
 observed behavior has lead to techniques to correct inference about beliefs
 from observed choices. \textcite{Harrison2017b}, \textcite{Harrison2019a}
 propose methods for correcting proper scoring rule elicitations given an
-individual conforms to Expected Utility Theory (EUT) or Rank Dependent Utility
-(RDU) \parencite{Quiggin1982} risk preferences. \textcite{Offerman2009}
+individual conforms to EUT or RDU \parencite{Quiggin1982} risk preferences. \textcite{Offerman2009}
 provides a method for eliciting beliefs that corrects for risk preferences, but
 can sometimes result in the inference of non-proper distributions.
 \textcite{Hossain2013} further develop and popularize the method of using a
@@ -469,7 +468,7 @@ selected individual from a population of exchangeable individuals. I call this
 specified individual-level prior a \enquote{direct prior.} For a model of a
 single random individual, with the direct prior in hand, the prior
 specification exercise would be over. However, I am primarily concerned with
-Bayesian Hierarchical Models (BHMs), and therefore must specify a
+BHMs, and therefore must specify a
 \textit{hyperprior} distribution.
 
 
@@ -652,7 +651,7 @@ probability weighting function (PWF):
 \noindent where $d_i$ is the decision weight associated with outcome $x_i$. For
 a lottery with $n$ outcomes ranked from worst ($x_1$) to best ($x_n$), let
 $p_i$ denote the probability of outcome $x_i$. The 2-parameter
-\textcite{Prelec1998} probability weighting function transforms probabilities
+\textcite{Prelec1998} PWF transforms probabilities
 into decision weights as follows:
 \begin{align}
   S_i &= \sum_{j=1}^{i} p_j \\
@@ -661,8 +660,8 @@ into decision weights as follows:
   \label{eq:decision_weight}
   d_i &= w_i - w_{i - 1}
 \end{align}
-with $w_0 = 0$ and $\phi, \eta > 0$. When $\phi = \eta = 1$, the probability
-weighting function is linear, resulting in $d_i = p_i$, the special case of
+with $w_0 = 0$ and $\phi, \eta > 0$. When $\phi = \eta = 1$, the PWF is linear,
+resulting in $d_i = p_i$, the special case of
 EUT\@.
 
 The likelihood that a lottery \textit{A} is chosen over \textit{B} follows the
@@ -1231,7 +1230,7 @@ beliefs---transparent.
 \label{sec:conclusion}
 %==============================================================================
 
-Bayesian hierarchical models require hyperprior specifications that are
+BHMs require hyperprior specifications that are
 difficult to construct from first principles. I have developed a two-part
 framework that addresses this challenge. First, quantity-space prior
 specification allows researchers to state beliefs about quantities they can

@@ -693,18 +693,17 @@ to set the 16 hyperprior parameters, each with consequences on prior predictive
 distribution of observable quantities. Following the method in Section
 \ref{sec:gq_space}, we start instead by specifying 4 direct priors on
 observable quantities about which a researcher would have strong beliefs: 3
-certainty equivalents (CEs) and one choice probability.\footnote{
-  As stated in section \ref{sec:gq_space}, the mapping from model parameters to
-  observed quantities must be globally injective, otherwise all roots of the
-  mapping must be accounted for. Proving that a map of parameters to quantities
-  is not trivial and puts design restrictions on the nature of the quantities.
-  Appendix~\ref{app:global_injectivity} provides sufficient conditions for
-  mapping $\bth$ to 3 CEs and a choice probability, and provides guidance for
-  design decisions.
-} We discuss first the derivation of each of these quantities in turn, and then
-present the resulting hyperprior.
+certainty equivalents (CEs) and one choice probability.
 
-\subsection{Certainty Equivalent Quantities}
+As stated in section \ref{sec:gq_space}, the mapping from model parameters to
+observed quantities must be globally injective, otherwise all roots of the
+mapping must be accounted for. Proving that a map of parameters to quantities
+is globally injective is not trivial and puts design restrictions on the nature
+of the quantities. Appendix~\ref{app:global_injectivity} provides sufficient
+conditions for mapping $\bth$ to 3 CEs and a choice probability, provides
+guidance for design decisions, and a proof that this map is globally injective
+for a RDU model with a CRRA utility function and the 2 parameter
+\textcite{Prelec1998} PWF.
 
 The preference parameters $\bth_{\text{pref}} = (r, \phi, \eta)$ determine the
 certainty equivalent (CE) of any lottery: the amount of money for certain that
@@ -750,11 +749,10 @@ $L_3$ & $(\$15,\, \$45)$ & $p_3 = 0.3$  \\
 For each lottery, a researcher specifies a probability distribution over the
 CEs for that lottery. Many economists would have an opinion about what this
 amount might be, or, equivalently what the risk premium for that lottery might
-be. These are statements about dollars, not about parameters. As discussed
-above, the direct prior in CE space needs to be specified as a probability
-distribution with defined moments. Since the CE is bounded by its lower and
-upper outcomes, a natural candidate distribution is the Beta, scaled and
-shifted so that $0\rightarrow \xlo_k$ and $1 \rightarrow \xhi_k$.
+be. The direct prior in CE space needs to be specified as a
+probability distribution with defined moments. Since the CE is bounded by its
+lower and upper outcomes, a natural candidate distribution is the Beta, scaled
+and shifted so that $0\rightarrow \xlo_k$ and $1 \rightarrow \xhi_k$.
 
 Formally, let $\xlo_k$ and $\xhi_k$ denote the lowest and highest
 outcomes of lottery $k$. The direct prior in CE space is:
@@ -766,34 +764,49 @@ outcomes of lottery $k$. The direct prior in CE space is:
 where the shape parameters $\alpha^{k*}$ and $\beta^{k*}$ are chosen to match
 the researcher's beliefs about the expected CE and its variance across
 individuals for reference lottery $k$. For a target mean $m^{k*}$ and variance
-$s^{2k*}$ expressed on the dollar scale, the Beta parameters are
-$\alpha^{k*} = \tilde{m}^k \nu^k$ and $\beta^{k*} = (1 - \tilde{m}^k) \nu^k$,
-where $\tilde{m}^k = (m^{k*} - \xlo_k)/(\xhi_k - \xlo_k)$
-is the normalized mean and
-$\nu^k = \tilde{m}^k(1 - \tilde{m}^k)/\tilde{s}^{2k} - 1$ with
-$\tilde{s}^{2k} = s^{2k*}/(\xhi_k - \xlo_k)^2$.
+$s^{2k*}$ expressed on the dollar scale, the Beta parameters are:
+\begin{align}
+  \alpha^{k*} &= \tilde{m}^k \nu^k \\
+  \beta^{k*} &= (1 - \tilde{m}^k) \nu^k
+\end{align}
+\noindent with mean and variance:
+\begin{align}
+  \tilde{m}^k &= (m^{k*} - \xlo_k)/(\xhi_k - \xlo_k) \\
+  \nu^k &= \tilde{m}^k(1 - \tilde{m}^k)/\tilde{s}^{2k} - 1 \\
+  \tilde{s}^{2k} &= s^{2k*}/(\xhi_k - \xlo_k)^2
+\end{align}
 
-\subsection{Choice probability for noise.}
-\label{sec:choice_prob}
 The noise parameter $\lambda$ governs the precision of choices but does not
 affect deterministic preferences (certainty equivalents). It can be
 incorporated into the quantity-space framework by specifying beliefs about a
 \textit{choice probability} for a reference lottery pair.
 
-Consider a lottery pair $(A, B)$ where lottery $A$ is clearly superior for a
-risk-neutral agent. The probability that an individual chooses $A$ is:
+The probability that an individual chooses $A$ from a lottery pair $(A, B)$ is:
 \begin{equation}
   P(\text{choose } A \mid \bth, \lambda) =
   \frac{1}{1 + \exp\!\left(-\Delta(\bth) / \lambda\right)}
 \end{equation}
-where $\Delta(\bth)$ is the normalized utility difference. For
-\textit{fixed} $\bth$, this is a monotone function of $\lambda$:
-larger $\lambda$ (more noise) pushes the choice probability toward $1/2$.
-
-The researcher might specify: ``For this pair where $A$ clearly dominates, I
-expect about 90\% of a typical agent's choices to be $A$, with standard
-deviation 10\%.'' This pins down the prior for $\lambda$ (or equivalently
-$\ln \lambda$) through the inverse of the choice probability function.
+where $\Delta(\bth)$ is the normalized utility difference. Rather than specify
+a prior over the noise parameter $\lambda$, a researcher specifies a prior over
+the choice probability. Since probabilities lie in $[0, 1]$, the
+Beta distribution is again a natural choice:
+\begin{equation}
+  \label{eq:choice_prob_prior}
+  P_i \sim \text{Beta}(\alpha_P^*, \beta_P^*)
+\end{equation}
+where the shape parameters are chosen to match beliefs about the expected
+choice probability and its variance across individuals for a reference lottery
+pair. For a target mean $m_P^*$ and variance $s_P^{2*}$:
+\begin{align}
+  \alpha_P^* &= m_P^* \nu_P, \\
+  \beta_P^* &= (1 - m_P^*) \nu_P, \\
+  \nu_P &= m_P^*(1 - m_P^*)/s_P^{2*} - 1.
+\end{align}
+Together, the three CE priors and the choice probability prior define a
+4-dimensional direct prior on generated quantities
+$\bv = (c_1, c_2, c_3, P)$, which maps to the structural parameters
+$\bth = (r, \phi, \eta, \lambda)$ via the Jacobian correction
+of equation~(\ref{eq:jacobian_prior}).
 
 
 \subsection{Global Injectivity}

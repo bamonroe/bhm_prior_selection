@@ -53,9 +53,27 @@ Theory and Applications to Risk Preferences}
 \newcommand{\bv}{\boldsymbol{\vartheta}}
 \newcommand{\bg}{\mathbf{g}}
 \newcommand{\hype}{\boldsymbol{\psi}}
-\newcommand{\bx}{\boldsymbol{\xi}}
+\newcommand{\hypem}{\boldsymbol{\psi}_m}
+\newcommand{\hypev}{\boldsymbol{\psi}_v}
+
+\newcommand{\dpm}{m^*}
+\newcommand{\dpv}{v^*}
+
+\newcommand{\hprior}{\boldsymbol{\xi}}
+\newcommand{\hpriorm}{\boldsymbol{\xi}_m}
+\newcommand{\hpriorv}{\boldsymbol{\xi}_v}
+\newcommand{\hpriormm}{\boldsymbol{\xi}_{mm}}
+\newcommand{\hpriormv}{\boldsymbol{\xi}_{mv}}
+\newcommand{\hpriorvm}{\boldsymbol{\xi}_{vm}}
+\newcommand{\hpriorvv}{\boldsymbol{\xi}_{vv}}
+
 \newcommand{\xlo}{\underline{x}}
 \newcommand{\xhi}{\bar{x}}
+\newcommand{\Ehpm}[1]{\E{#1 \mid \hpriormm, \hpriormv}}
+\newcommand{\Varhpm}[1]{\Var{#1 \mid \hpriormm, \hpriormv}}
+\newcommand{\Ehpv}[1]{\E{#1 \mid \hpriorvm, \hpriorvv}}
+\newcommand{\Varhpv}[1]{\Var{#1 \mid \hpriorvm, \hpriorvv}}
+\newcommand{\SDhpv}[1]{\text{SD}\!\left[#1 \mid \hpriorvm, \hpriorvv\right]}
 
 \begin{document}
 
@@ -453,7 +471,8 @@ computationally prohibitive.\footnote{
   $\bg(\bth)$ and $J_\bg{}$ directly without first having to solve their
   analytical form, further reducing the barriers for use of this method.
   Proving injectivity, however, can be challenging; something we address later.
-}
+} For example, the expected utility of a lottery evaluated with the humble CRRA
+utility function cannot be solved in terms of the single parameter $r$.
 
 \textcite{Manderson2026} solve the same problem numerically for models
 where the mapping $\bg$ may not be analytically tractable: they match the
@@ -468,8 +487,7 @@ selected individual from a population of exchangeable individuals. I call this
 specified individual-level prior a \enquote{direct prior.} For a model of a
 single random individual, with the direct prior in hand, the prior
 specification exercise would be over. However, I am primarily concerned with
-BHMs, and therefore must specify a
-\textit{hyperprior} distribution.
+BHMs, and therefore must specify a \textit{hyperprior} distribution.
 
 
 \subsection{Hyperprior Construction via Variance Decomposition}
@@ -485,151 +503,195 @@ apply to all individuals in the population. The direct prior therefore
 integrates over all possible heterogeneity in the population:
 \begin{align}
 \label{eq:dp_total}
-p^*_\vartheta(\bv{}) = \int p_\vartheta(\bv{} \mid \hype{})\, p(\hype{} \mid \bx{})\, d\hype{}
+p^*_\vartheta(\bv{}) = \int p_\vartheta(\bv{} \mid \hype{})\, p(\hype{} \mid \hprior{})\, d\hype{}
 \end{align}
 \noindent where $\hype{}$ are the \textit{hyperparameters} that govern the
-population distribution of the generated quantity $\bv{}$, and
-$p(\hype{} \mid \bx{})$ is the \textit{hyperprior}, a prior over $\hype{}$
-parameterized by $\bx{}$. The equality in (\ref{eq:dp_total}) specifies the
-primary restriction needed to transfer a prior about a random individual, the
-\textit{direct} prior, to hyperpriors over the population. The goal is to find
-hyperprior parameters $\bx{}$ such that (\ref{eq:dp_total}) holds.
+population distribution of the generated quantity $\bv{}$, and $p(\hype{} \mid
+\hprior{})$ is the \textit{hyperprior}, a prior over $\hype{}$ parameterized by
+$\hprior{}$. The equality in (\ref{eq:dp_total}) specifies the primary
+restriction needed to transfer a prior about a random individual, the
+\textit{direct} prior, to hyperpriors over the population.
 
-An intuitive path is to match the moments of the direct prior to those of the
-hyperprior predictive distribution of $\bv{}$. The most common distributions
-used to specify priors have 2 parameters that biject to the first two moments,
-which in turn fully determine all higher moments.\footnote{
-  For example, the Normal distribution is defined by its mean and standard
-  deviation, and all higher cumulants are zero. The Beta distribution has
-  $\alpha$ and $\beta$ parameters that biject to the first two moments. This
-  relationship holds for a wide class of commonly used distributions.
-} I focus for now on this common 2-parameter case, denoting the mean of the
-direct prior $m^*$ and the variance $v^*$.\footnote{
+While the notation in (\ref{eq:dp_total}) is kept deliberately general, it will
+be useful going forward to work through the specific, and common, scenario
+where a prior distribution has 2 hyperparameters, and each of those
+hyperparameters has a hyperprior which is itself defined by 2 more parameters.
+Thus, for any scalar $\bv$, $\hype$ is a vector of 2 hyperparameters that are
+to be estimated, and $\hprior$ is a vector of 4 unknown hyperprior parameters
+that need to be set by the researcher such that the constraint defined in
+(\ref{eq:dp_total}) is satisfied.
+
+An intuitive path to specifying the hyperprior parameters is to match the
+moments of the direct prior to those of the hyperprior predictive distribution
+of $\bv{}$. The most common distributions used to specify priors have 2
+parameters that biject to the first two moments, which in turn fully determine
+all higher moments. For example, the Normal distribution is defined by its mean
+and standard deviation, and all higher cumulants are zero. The Beta
+distribution has $\alpha$ and $\beta$ parameters that biject to the first two
+moments. This relationship holds for a wide class of commonly used
+distributions.
+
+I focus for now on the common 2-parameter case, denoting the mean of the direct
+prior $\dpm$ and its variance as $\dpv$. Assuming that the prior distribution
+for $\bv{}$ has two parameters that biject to the first two moments, we can
+label the mean hyperparameter as $\hypem{}$ and the variance hyperparameter as
+$\hypev{}$. Likewise, the hyperparameters $\hypem$ and $\hypev$ are defined by
+hyperpriors with a means $\hpriormm,\ \hpriormv$ and variances $\hpriorvm,\
+\hpriorvv$.\footnote{
   The method requires moments to \textit{exist}, not to be available in closed
   form. Distributions whose moments must be computed numerically, such as the
   Logit-Normal, are perfectly feasible. Unfortunately, this does rule out the
   popular Cauchy distribution, which has \textit{no} moments.
 }
 
-
 The law of total variance provides the bridge from moments of the direct prior
-to population-level hyperpriors. If we first define the conditional mean and
-variance as:
-\begin{align}
-  m(\hype) &= \E{\bv_i | \hype{}} \\
-  v(\hype) &= \Var{\bv_i | \hype{}}
-\end{align}
-\noindent then the unconditional mean and variance decompose as:
+to population-level hyperpriors. Since $\hypem{}$ and $\hypev{}$ biject to the
+conditional mean and variance of $\bv_i$, the unconditional moments decompose
+as:
 \begin{align}
   \label{eq:iterated_exp}
-  m^* = \E{\bv_i} &= \E{m(\hype)} \\
+  m^* = \E{\bv_i} &= \Ehpm{\hypem{}} \\
   \label{eq:total_var}
-  v^* = \Var{\bv_i} &= \E{v(\hype)} + \Var{m(\hype)}
+  v^* = \Var{\bv_i} &= \Ehpv{\hypev{}} + \Varhpm{\hypem{}}
 \end{align}
-Equations
-(\ref{eq:iterated_exp})-(\ref{eq:total_var}) hold for \textit{any} hyperprior
-family with defined first and second moments. They are consequences of the laws
-of iterated expectations and total variance, not properties of a particular
-distributional choice.\footnote{
+Equations (\ref{eq:iterated_exp})-(\ref{eq:total_var}) hold for \textit{any}
+hyperprior family with defined first and second moments. They are consequences
+of the laws of iterated expectations and total variance, not properties of a
+particular distributional choice.\footnote{
   This moment matching exercise can be extended to higher moments. If the
   direct prior has $n$ degrees of freedom, the expansion requires $n$ equations
   using the law of total cumulance. For the $n$-th cumulant $c_n$: $c_n(\theta)
   = \E{c_n(\theta|X)} + g_n(c_1, \ldots, c_{n-1})$ where $g_n$
-  involves lower-order cumulants. An example using the 3-parameter Skew-Normal
-  distribution, which requires matching three cumulants, is given in Appendix
-  \ref{app:skew_normal}.
+  involves lower-order cumulants.
 }
-As an example, for a normal hierarchical model with $\bv_i \sim N(\mu,
-\sigma^2)$, the hyperparameters are themselves the conditional mean and
-variance:
-\begin{align}
-  \begin{split}
-    \mu &= m(\mu, \sigma^2) \\
-    \sigma^2 &= v(\mu, \sigma^2) \\
-    m^* &= \E{\mu} \\
-    v^* &= \E{\sigma^2} + \Var{\mu}
-  \end{split}
-\end{align}
+These two equations provide two of the four constraints needed to determine
+$\hprior{}$; two additional constraints are needed.
 
-\subsection{Two Interpretable Parameters}
+
+%For example, in a normal
+%hierarchical model $\bv_i \sim N(\mu, \sigma^2)$, the hyperparameters are
+%simply $\hypem{} = \mu$ and $\hypev{} = \sigma^2$, and the equations read
+%\begin{align}
+%m^* &= \Ehpm{\mu} \\
+%v^* &= \Ehpv{\sigma^2} + \Varhpm{\mu}.
+%\end{align}
+
+
 
 The decomposition (\ref{eq:total_var}) separates the direct prior variance
-$v^*$ into two components. I parameterize this partition with a ratio:
+$v^*$ into two components: variation due to the expected level of inter-subject
+heterogeneity ($\Ehpv{\hypev{}}$), and variation due to uncertainty about the
+population mean ($\Varhpm{\hypem{}}$). While these two components could be
+specified separately, doing so would still require unit and distribution
+specific beliefs about what might be plausible values for these statistics, and
+additionally they would need to be specified such that the constraint in
+(\ref{eq:dp_total}) is satisfied. Even with well formed beliefs, the
+consistency constraint can be particularly difficult to satisfy directly.
+Instead, I parameterize this variance partition with a ratio:
 \begin{align}
   \label{eq:rho_def}
-  \rho \, v^* &= \Var{m(\hype{})} \\
+  \rho \, v^* &= \Varhpm{\hypem{}} \\
   \label{eq:one_minus_rho}
-  (1 - \rho) \, v^* &= \E{v(\hype{})}
+  (1 - \rho) \, v^* &= \Ehpv{\hypev{}}
 \end{align}
-where $\rho \in (0, 1)$ is the variance partition ratio: the fraction
-of direct prior variance attributable to uncertainty about the population
-mean, as opposed to the expected level of within-population
-heterogeneity.\footnote{
+where $\rho \in (0, 1)$ is the variance partition ratio, chosen by the
+researcher. This ratio represents the fraction of direct prior variance
+attributable to uncertainty about the population mean, as opposed to the
+expected level of within-population heterogeneity.\footnote{
   The ratio $\rho$ is numerically equivalent to the variance partition
   coefficient \parencite{Goldstein2002} and the intraclass correlation
   coefficient, which are widely used as posterior diagnostics in multilevel
   modelling. Here $\rho$ serves a different purpose: it is a fixed researcher
   choice for prior construction, not a summary of a fitted model.
   \textcite{Fuglstad2020} also use variance proportions as prior inputs, but
-  in a different decomposition: they partition variance across model
-  components, with the proportions treated as random variables.
-} Low $\rho$ reflects a belief in substantial heterogeneity; high $\rho$
-reflects a belief that most uncertainty would be resolved by learning the
-population mean.
+  they partition variance across model components, with the proportions treated
+  as random variables. In the proposed framework, this ratio is specified
+  by the researcher, not estimated.
+} Low $\rho$ values reflects a belief in elevated inter-subject
+heterogeneity, while high values $\rho$ reflects a belief that the population
+is largely homogeneous.
 
-With $\rho$ fixed, the expected population variance $\E{v(\hype{})} = (1-\rho)
-v^*$ involves the first moment of the variance hyperprior. Its \textit{second
-moment}---how uncertain the researcher is about the level of
-heterogeneity---requires a second parameter. I introduce the
-coefficient of variation of heterogeneity:
+Equations (\ref{eq:iterated_exp}) and (\ref{eq:rho_def}) together provide two
+moment conditions that uniquely determine $\hpriormm{}$ and $\hpriormv{}$:
+\begin{align}
+\label{eq:hyperm_solved}
+\Ehpm{\hypem{}} &= m^* \\
+\Varhpm{\hypem{}} &= \rho \, v^*
+\end{align}
+\noindent Since the right hand sides of these equations are known quantities
+specified by the researcher, and the hyperprior distribution over $\hypem$ is
+presumed to be bijective, this system has a unique solution $\hpriormm{}$ and
+$\hpriormv{}$.
+
+With $\rho$, $\dpm$, and $\dpv$ specified by the researcher, only one degree of
+freedom remains. Keeping with the unit-agnostic approach of $\rho$, I introduce
+the coefficient of variation of heterogeneity:
 \begin{align}
   \label{eq:kappa_def}
   \begin{split}
-    \kappa &\coloneqq \frac{\text{SD}[v(\hype{})]}{\E{v(\hype{})}} \\[.75em]
-    {} &\coloneqq \frac{\text{SD}[v(\hype{})]}{(1 - \rho) \, v^*}
+    \kappa &\coloneqq \frac{\SDhpv{\hypev{}}}{\Ehpv{\hypev{}}} \\[.75em]
+    {} &\coloneqq \frac{\SDhpv{\hypev{}}}{(1 - \rho) \, v^*}
   \end{split}
 \end{align}
-which measures relative uncertainty about the variance hyperparameter.\footnote{
-  The coefficient of variation of the inverse-gamma distribution
-  $\mathrm{IG}(\alpha, \beta)$ is well-known to be $1/\sqrt{\alpha - 2}$ for
-  $\alpha > 2$.
-} This parameterization is distribution-free: $\kappa$ is defined without
-reference to any specific family for $v(\hype{})$. As $\kappa \to 0$, the
-researcher is expressing near-certainty that population heterogeneity will be
-close to its expectation $(1-\rho)v^*$. As $\kappa$ grows, it expresses
-greater uncertainty: at $\kappa = 1$ the standard deviation of the variance
-equals its mean, and $\kappa > 1$ indicates very high uncertainty about
-heterogeneity.
+which measures relative uncertainty about the variance hyperparameter. As
+$\kappa \to 0$, the researcher is expressing near-certainty that population
+heterogeneity will be close to its expectation $(1-\rho)v^*$. As $\kappa$
+grows, it expresses greater uncertainty: at $\kappa = 1$ the standard deviation
+of the variance equals its mean, and $\kappa > 1$ indicates very high
+uncertainty about heterogeneity. Equations (\ref{eq:one_minus_rho}) and
+(\ref{eq:kappa_def}) together provide two moment conditions that uniquely
+determine $\hpriorvm{}$ and $\hpriorvv{}$:
+\begin{align}
+\label{eq:hyperv_solved}
+\Ehpv{\hypev{}} &= (1 - \rho) \, v^* \\
+\Varhpv{\hypev{}} &= \kappa^2 (1 - \rho)^2 (v^*)^2
+\end{align}
+\noindent As was the case in (\ref{eq:hyperm_solved}), the right hand side of
+(\ref{eq:hyperv_solved}) is comprised of researcher specified constants, and
+the hyperprior distribution over $\hypev$ is presumed byjective, so
+(\ref{eq:hyperv_solved}) has a unique solution $\hpriorvm{}$ and $\hpriorvv{}$.
+Thus, all four hyperprior parameters $(\hpriormm{}, \hpriormv{}, \hpriorvm{},
+\hpriorvv{})$ are now determined.
 
-The two parameters $\rho$ and $\kappa$ can therefore be interpreted as
-expressing the researcher's belief in the \textit{level} of heterogeneity in a
-population ($\rho$), and their \textit{confidence} in that level ($\kappa$).
-Both parameters do so in a way that is unit-agnostic: neither requires
-intuition about the scale of the parameters or generated quantities. That
-scale-specific information is already encoded in the direct prior $(m^*, v^*)$;
-the researcher choices $(\rho, \kappa)$ express structural beliefs about how
-that variance decomposes across the hierarchy. \textit{Any} value of $\rho \in
-(0, 1)$ and $\kappa > 0$ results in a hyperprior with a predictive prior
-distribution that matches the first two moments of the direct prior, inducing a
-consistency in researcher beliefs that must prevail given the assumption of
-exchangeability in the population.
+\subsection{The researcher's problem restated}
+
+All told, the researcher must still make 4 decisions characterizing their prior
+beliefs about the possible distribution of the quantity of interest. There is
+no free lunch in this process; this is exactly the same number of decision had
+they instead specified the hyperprior distribution directly. It's reasonable to
+ask \enquote{why bother?} The answer is twofold.
+
+First, the restriction in (\ref{eq:dp_total}) is not meant to be a shortcut, it
+is the restriction that enforces consistency in beliefs about a hyperprior over
+an exchangeable population. Specifying the hyperprior directly would still
+result in a posterior predictive distribution over the quantity of interest
+that would need to be \enquote{reasonable.} Rather than engage in an iterative
+process where different hyperpriors are proposed and the reasonableness of
+their predictions checked repeatedly \parencite{Gabry2019, Bland2025}, the
+direct prior approach encodes the reasonableness of the prior predictive
+distribution \textit{directly} without iteration.
+
+The second answer is that specifying a hyperprior directly such that both
+(\ref{eq:dp_total}) is satisfied, and the implications of that hyperprior with
+respect to the degree of implied heterogeneity in the prior predictive is clear
+\textit{is difficult}. With a direct prior specified, $\rho$ and $\kappa$
+provide a way to encode the researcher's beliefs about the \textit{level} of
+heterogeneity in a population ($\rho$) and their \textit{confidence} in that
+level ($\kappa$). \textit{Any} value of $\rho \in (0, 1)$ and $\kappa > 0$
+results in a hyperprior with a predictive prior distribution that matches the
+first two moments of the direct prior, inducing a consistency in researcher
+beliefs that must prevail given the assumption of exchangeability in the
+population.
 
 The two-step process for the definition of a hyperprior for a given model is
 therefore to first specify a quantity-space prior that has an injective mapping
 from parameter-space to quantity-space, for a single randomly selected
 individual from a population of exchangeable individuals, and then specify
 beliefs about the degree of heterogeneity that may exist in this population.
-There is no free lunch in this process. If the direct prior has $2p$ degrees of
-freedom, and each presumed hyperprior has 2 degrees of freedom, the researcher
-must still satisfy the full $4p$ degrees of freedom. The direct prior provides
-$2p$ constraints (the moments $m^*$ and $v^*$ for each parameter), and the
-researcher choices $(\rho, \kappa)$ provide the remaining $2p$, making the
-system exactly determined. However, as will be demonstrated subsequently,
-forming priors over generated quantities about a random individual and
-expressing a belief about the heterogeneity of a population can often be a
-substantially easier task for structural models of risk than specifying $4p$
-degrees of freedom directly.
 
+I now demonstrate this process for an RDU model estimated on real lottery
+choice data, where the generated quantities are certainty equivalents and a
+choice probability.
 
 %==============================================================================
 \section{Application: RDU with Real Data}

@@ -1,0 +1,247 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{titlesec}
+\usepackage[stretch=15]{microtype}
+\usepackage{parskip}
+\usepackage[
+	backend=biber,
+	style=authoryear,
+	maxcitenames=3,
+	mincitenames=1,
+	uniquelist=false,
+	sorting=nyt,
+	dashed=false,
+]{biblatex}
+\addbibresource{references.bib}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries}{}{0em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{}{0em}{}
+
+\title{Technical Note: Certainty Equivalents as a Lens for\\
+Characterizing Risk Preference Estimates\\[6pt]
+\large A Short Literature Review}
+\author{}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\section{Purpose}
+
+In Section~4.1 of the paper, just before defining the CE mapping, the text
+states:
+
+\begin{quote}
+``CEs of reference lotteries have been used to assess the post-estimation
+reasonableness of RDU and EUT estimates by Harrison et al.\ (2022, p.\
+807). They provide a natural way to understand the consequences of
+structural models of risk preferences.''
+\end{quote}
+
+The single citation is \textcite{Harrison2022}. This note compiles additional
+examples---both Harrison and non-Harrison---where certainty equivalents (or
+closely related generated quantities such as risk premia) have been used to
+characterize, assess, or communicate the implications of structurally estimated
+risk preference parameters.
+
+The uses fall into several categories: (i)~translating estimated structural
+parameters into CEs or risk premia to make results interpretable;
+(ii)~computing CEs from estimated preferences to perform welfare analysis;
+(iii)~using prior predictive CEs to calibrate or validate prior
+specifications; and (iv)~comparing CEs implied by alternative structural
+models (EUT vs.\ RDU vs.\ CPT) to evaluate model adequacy.
+
+\section{Welfare Evaluation via Certainty Equivalents}
+
+The most developed use of CEs as a post-estimation diagnostic is in behavioral
+welfare economics, where the CE of a risky prospect---computed from an
+individual's estimated preference parameters---provides a dollar-denominated
+measure of welfare that can be compared across individuals, models, and policy
+alternatives.
+
+\textcite{Harrison2016} introduced this approach explicitly. They estimate
+individual risk preferences (CRRA + Prelec PWF under RDU) from one
+experimental task and then compute the CE of risky insurance policies faced by
+each individual. Comparing this CE to the insurance premium yields an
+individual-specific measure of expected consumer surplus. Their central finding
+is that the metric of insurance take-up, which is widely used in policy
+evaluations, provides a qualitatively incorrect guide to welfare effects---a
+conclusion that is only visible when results are translated from parameter
+space to CE space.
+
+\textcite{Gao2022} extend this framework to a Bayesian hierarchical model.
+They compute the CE of insurance options for each individual from posterior
+draws of that individual's risk preference parameters, yielding a full
+posterior distribution over consumer surplus. The hierarchical structure
+provides informative priors for individuals with limited choice data, and the
+welfare conclusions are materially different from those obtained with diffuse
+priors. Again, the CE is the object through which estimated risk preferences
+are given economic meaning.
+
+\textcite{Barseghyan2013} use administrative data on insurance deductible
+choices to separately identify utility curvature and probability weighting
+within a structural model. While they do not use the Prelec parameterization
+specifically, their identification strategy exploits the fact that the CE
+implications of CRRA curvature and probability weighting differ across
+deductible levels. Implied risk premia from the estimated model are used to
+assess which component---diminishing marginal utility or probability
+distortion---drives observed risk aversion in the field.
+
+\section{CEs to Interpret and Communicate Structural Estimates}
+
+A second class of uses treats CEs as a more interpretable summary of what
+structural parameter estimates actually mean. Estimated values of $r$, $\phi$,
+and $\eta$ are difficult to evaluate in isolation---their economic content is
+opaque without translation into quantities with natural units. CEs provide that
+translation.
+
+\textcite{HarrisonRutstrom2008}, in their comprehensive methodological survey,
+use implied CEs and risk premia to illustrate what different CRRA coefficient
+estimates mean in practice. They compute the CE of specific reference lotteries
+at various values of $r$ to give readers a concrete sense of what ``$r = 0.67$''
+implies about economic behavior. This pedagogical use of CEs has been widely
+adopted in subsequent experimental economics research.
+
+\textcite{HarrisonSwarthout2023} compare EUT, RDU, Dual Theory, and CPT by
+computing the CE of each subject's choices under each estimated model. The
+comparison of model-implied CEs is used to assess which model best
+characterizes individual behavior: RDU-implied CEs are more consistent with
+observed choices than CPT-implied CEs, leading to their conclusion that RDU is
+the best single characterization of individual choice.
+
+\textcite{LauYoo2025}, in a recent \textit{Econometrica} paper on higher-order
+risk preferences, compute predicted risk premia under both EUT and RDU for
+higher-order risk apportionment tasks. They find that predicted risk premia
+under EUT and RDU gradually converge as the order of risk increases, with RDU
+predicting substantially larger first-order risk premia (mean 7.2\% vs.\ 1.4\%
+under EUT). The risk premium---which is the expected value minus the CE---is
+the vehicle through which these structural estimates are given economic content.
+
+\textcite{Andersen2008} use the structural model to compute the implied
+discount rate that is consistent with both estimated risk preferences and
+observed intertemporal choices. While the generated quantity here is a discount
+rate rather than a CE, the logic is identical: structural parameter estimates
+are translated into an economically interpretable quantity to assess whether
+the estimates are reasonable and to compare across specifications.
+
+\section{Prior Predictive CEs for Calibration}
+
+A third use treats CEs as a diagnostic for prior specification rather than
+posterior inference. Here, the researcher computes the CE implied by draws from
+the prior distribution and checks whether the prior predictive distribution of
+CEs is reasonable.
+
+\textcite{Bland2025} advocates this approach explicitly, proposing that priors
+for structural models in economic experiments should be calibrated by examining
+their implications for certainty equivalents. In a Monte Carlo exercise, he
+shows that a Bayesian estimator with a CE-calibrated prior estimates both
+structural parameters and certainty equivalents with smaller error than maximum
+likelihood or estimators with diffuse priors. The CE is used both as a
+calibration target (pre-estimation) and as an evaluation metric
+(post-estimation).
+
+The present paper extends this idea to the hierarchical setting: the prior
+predictive CE distribution is used to verify that the hyperprior specification
+implies reasonable beliefs about individual behavior, and the posterior
+predictive CE distribution is used to characterize what the model has learned
+from the data.
+
+\section{CEs in Non-Parametric and Semi-Parametric Elicitation}
+
+\textcite{Abdellaoui2000} developed a parameter-free method for eliciting
+utility and probability weighting functions under RDU. The procedure is
+grounded in certainty equivalents: subjects state the certain amount that
+makes them indifferent to a lottery, and these CEs are used to trace out the
+utility function and weighting function nonparametrically. This is
+conceptually the inverse of the post-estimation CE computation---rather than
+going from estimated parameters to implied CEs, one goes from elicited CEs to
+inferred preference components---but it rests on the same foundational
+insight: CEs are the natural observable through which risk preferences are
+revealed and characterized.
+
+\section{CEs Across Populations and Contexts}
+
+\textcite{BruhinFehrDudaEpper2010} estimate a finite mixture model for
+probability weighting using data from Swiss and Chinese experiments. They
+classify subjects into types based on the degree of probability distortion and
+then characterize the types partly through their implied CEs for reference
+lotteries. The CE provides a common metric for comparing what ``type 1'' and
+``type 2'' behavior means in economic terms, even though the types are defined
+in the parameter space.
+
+\textcite{Tanaka2010} estimate structural risk preferences for Vietnamese
+farmers and translate the estimated parameters into risk premia (equivalently,
+deviations of CEs from expected values) to assess the economic significance of
+the estimates and to link laboratory-estimated preferences to household survey
+data on real economic decisions.
+
+\textcite{vonGaudecker2011} structurally estimate utility curvature, loss
+aversion, and resolution timing preferences in a representative Dutch sample.
+They characterize heterogeneity partly through predicted choice probabilities
+and implied risk attitudes, using the structural estimates to compute
+quantities that reveal what the estimated parameter heterogeneity means for
+economic behavior.
+
+\section{Summary}
+
+The use of CEs to characterize risk preference estimates is pervasive, though
+it is rarely discussed as a methodological principle in its own right. The
+examples above can be grouped as follows:
+
+\begin{tabular}{p{4cm} p{5cm} p{5cm}}
+\toprule
+\textbf{Use} & \textbf{Examples} & \textbf{Role of CE} \\
+\midrule
+Welfare evaluation & \textcite{Harrison2016}; \textcite{Gao2022};
+  \textcite{Barseghyan2013} &
+  Dollar-valued consumer surplus from estimated preferences \\[6pt]
+Interpreting estimates & \textcite{HarrisonRutstrom2008};
+  \textcite{HarrisonSwarthout2023}; \textcite{LauYoo2025} &
+  Translate abstract parameters into economic quantities \\[6pt]
+Model comparison & \textcite{HarrisonSwarthout2023}; \textcite{LauYoo2025} &
+  Compare CEs/risk premia implied by EUT vs.\ RDU \\[6pt]
+Prior calibration & \textcite{Bland2025} &
+  Verify prior reasonableness via prior predictive CE \\[6pt]
+Nonparametric elicitation & \textcite{Abdellaoui2000} &
+  Infer preferences from observed CEs \\[6pt]
+Cross-population comparison & \textcite{BruhinFehrDudaEpper2010};
+  \textcite{Tanaka2010}; \textcite{vonGaudecker2011} &
+  Common metric for comparing types/populations \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+
+The paper currently cites only \textcite{Harrison2022} for this claim. The
+examples above---spanning welfare economics, model comparison, prior
+calibration, and nonparametric elicitation---demonstrate that the practice is
+far more widespread. I would suggest expanding the sentence to cite several of
+these, especially those from non-Harrison research groups, to convey the
+breadth of the practice. A possible revision:
+
+\begin{quote}
+``CEs of reference lotteries have been used to assess the post-estimation
+reasonableness of RDU and EUT estimates
+\parencite[807]{Harrison2022}, to evaluate the welfare
+implications of estimated risk preferences
+\parencite{Harrison2016, Gao2022, Barseghyan2013}, to compare the
+economic content of alternative structural models
+\parencite{HarrisonSwarthout2023, LauYoo2025}, and to calibrate
+prior specifications \parencite{Bland2025}. They provide a natural way to
+understand the consequences of structural models of risk preferences.''
+\end{quote}
+
+\printbibliography
+
+\end{document}

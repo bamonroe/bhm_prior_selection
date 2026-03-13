@@ -1,0 +1,313 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{titlesec}
+\usepackage[stretch=15]{microtype}
+\usepackage{parskip}
+\usepackage{longtable}
+\usepackage[
+	backend=biber,
+	style=authoryear,
+	maxcitenames=3,
+	mincitenames=1,
+	uniquelist=false,
+	sorting=nyt,
+	dashed=false,
+]{biblatex}
+\addbibresource{references.bib}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries}{}{0em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{}{0em}{}
+
+\title{Technical Note: The RDU--CRRA--Prelec Model as a Workhorse\\[6pt]
+\large A Short Literature Review Supporting the Claim in Section~4}
+\author{}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\section{Purpose}
+
+In Section~4 of the paper, after specifying the 4-parameter RDU model---CRRA
+utility $u(x) = x^{1-r}/(1-r)$, the 2-parameter \textcite{Prelec1998}
+probability weighting function $w(p) = \exp(-\eta(-\ln p)^\phi)$, and a Fechner
+noise parameter $\lambda$ with the \textcite{Wilcox2011} contextual utility
+normalization---the text states:
+
+\begin{quote}
+``This 4 parameter model is a common workhorse of structural models of risk
+preferences, used in a varied of applications.''
+\end{quote}
+
+This note compiles the evidence supporting that claim, organized by application
+domain. The model specification---RDU with CRRA utility, 2-parameter Prelec
+PWF, and a stochastic error specification (typically Fechner or contextual
+utility)---constitutes 4 individual-level parameters $(r, \phi, \eta, \lambda)$.
+Variants that omit the noise parameter or use a 1-parameter PWF are noted where
+they appear but are not the primary focus.
+
+\section{The Model's Core Components}
+
+Rank-Dependent Utility \parencite{Quiggin1982} generalizes Expected Utility
+Theory by allowing decision weights to differ from objective probabilities
+through a probability weighting function (PWF). The model nests EUT as a
+special case when the PWF is linear ($\phi = \eta = 1$ in the Prelec
+specification).
+
+The combination of CRRA utility with the 2-parameter Prelec PWF has become the
+dominant specification in structural estimation of risk preferences for several
+reasons. First, CRRA is the most widely used parametric utility function in the
+risk preference literature, owing to its single-parameter parsimony and the
+scale invariance it implies \parencite{HarrisonRutstrom2008}. Second, the
+\textcite{Prelec1998} 2-parameter function
+$w(p) = \exp(-\eta(-\ln p)^\phi)$ is the only axiomatically derived PWF, and
+it nests both the 1-parameter power function ($\phi = 1$) and linear
+probability weighting ($\phi = \eta = 1$) as special cases. Empirical
+comparisons across functional forms have found that the 2-parameter Prelec form
+is preferred to alternatives such as the \textcite{TverskyKahneman1992}
+specification \parencite{Stott2006, HarrisonSwarthout2023}. Third, the
+\textcite{Wilcox2011} contextual utility model provides a theoretically
+grounded heteroscedastic error specification that ensures estimated utility
+parameters correspond to a ``stochastically more risk averse'' ordering, which
+is not guaranteed by homoscedastic Fechner or Luce error models.
+
+\section{Applications by Domain}
+
+\subsection{Laboratory Estimation of Risk Preferences}
+
+The foundational application of this model is the structural estimation of
+individual risk preferences from incentivized lottery choice experiments.
+\textcite{Harrison2007} conducted a large-scale field experiment in Denmark
+with a representative sample of 253 subjects, estimating CRRA coefficients
+under EUT and then extending to RDU with probability weighting. Their estimates
+indicated an average CRRA coefficient of approximately 0.67 and could not
+reject CRRA as a characterization of behavior across demographic subgroups.
+This study established the methodological template that much subsequent work
+follows: elicit binary lottery choices, estimate the structural parameters of a
+stochastic choice model via maximum likelihood.
+
+\textcite{Andersen2008}, in an influential paper published in
+\textit{Econometrica}, designed experiments to jointly elicit risk and time
+preferences for the adult Danish population. The risk preference component used
+CRRA utility with probability weighting under RDU. Their central finding was
+that accounting for the curvature of the utility function (i.e., risk aversion)
+when estimating discount rates leads to substantially lower---and more
+plausible---estimated discount rates than when utility curvature is ignored.
+This paper demonstrated that the structural RDU model with CRRA utility is
+necessary not just for studying risk preferences in isolation, but for any
+domain where risk preferences confound other preference parameters.
+
+\subsection{Bayesian and Hierarchical Estimation}
+
+\textcite{Nilsson2011} implemented hierarchical Bayesian parameter estimation
+for Cumulative Prospect Theory (CPT), using the CRRA--Prelec specification as
+the core parametric model. Their approach estimates individual-level parameters
+drawn from group-level distributions, yielding more reliable estimates than
+individual maximum likelihood, especially for subjects with limited choice
+data. This paper established the feasibility and advantages of Bayesian
+hierarchical estimation for prospect-theoretic models and has been widely cited.
+
+\textcite{Gao2022} proposed a full Bayesian hierarchical model for RDU with
+CRRA utility and the 2-parameter Prelec PWF, applied to the normative
+evaluation of insurance purchase decisions. Their model estimates
+individual-level parameters $(r, \phi, \eta, \lambda)$ within a hierarchical
+structure where individual parameters are drawn from population distributions.
+They demonstrated that Bayesian estimation provides more systematic control
+over informative priors for individual risk preferences, and that these priors
+make a substantive difference to welfare evaluations. This is the direct
+predecessor of the model specification used in the present paper.
+
+\textcite{Harrison2025} extends the Bayesian hierarchical framework to
+accommodate \textit{mixtures} of risk preference models---allowing individuals
+to use some combination of EUT, RDU, and other models---while maintaining the
+CRRA--Prelec parameterization as the core specification within the RDU
+component.
+
+\subsection{Behavioral Welfare Economics}
+
+\textcite{Harrison2016} applied the RDU--CRRA--Prelec model to evaluate the
+expected welfare gain from insurance products. They estimated individual risk
+preferences from one experimental task and then used those estimated
+preferences to compute the certainty equivalent of risky insurance policies,
+comparing it to the certain insurance premium. Their finding---that the metric
+of take-up itself, widely used in policy evaluation, provides a qualitatively
+incorrect guide to welfare effects---depends critically on having a structural
+model rich enough to distinguish probability weighting from utility curvature.
+
+\textcite{HarrisonSwarthout2023} conducted a systematic comparison of EUT,
+RDU, Dual Theory, and CPT using laboratory data with real gains and losses. The
+CRRA--Prelec parameterization was used for all non-EUT models. Their central
+finding was that RDU is the best single characterization of individual and
+pooled choices, outperforming CPT, and that much of what has been attributed to
+``loss aversion'' in the CPT literature is better explained by probability
+weighting under RDU.
+
+\subsection{Joint Estimation of Risk and Time Preferences}
+
+\textcite{Andersen2014} used the RDU--CRRA--Prelec model to jointly estimate
+risk and time preferences of small business entrepreneurs in a Danish field
+experiment. The risk preference specification included the full 4-parameter
+model, with CRRA utility and the 2-parameter Prelec PWF estimated under RDU.
+They found that while entrepreneurs are not significantly more or less risk
+averse than the general population under EUT, they do exhibit different
+probability weighting patterns under RDU---specifically, greater optimism about
+the best outcomes. This application illustrates the model's use in
+characterizing heterogeneity across economically meaningful subpopulations.
+
+\subsection{Subjective Belief Elicitation}
+
+\textcite{Harrison2017} and \textcite{Harrison2022a} addressed the problem of
+recovering subjective probability distributions from incentivized scoring rule
+data. When an individual's preferences conform to RDU rather than EUT, their
+reported beliefs under a proper scoring rule are systematically distorted by
+probability weighting. The correction procedure requires structural estimation
+of the RDU--CRRA--Prelec model from a separate risk preference task, and then
+using those estimates to ``undo'' the distortion in reported beliefs. This
+application demonstrates that the model is not merely a tool for studying risk
+preferences in isolation, but is a necessary input to any elicitation procedure
+where risk preferences confound observed reports.
+
+\subsection{COVID-19 Pandemic and Background Risk}
+
+\textcite{Harrison2022b} applied the RDU--CRRA--Prelec model to an online,
+incentivized experiment conducted during the COVID-19 pandemic in the United
+States. They estimated EUT and RDU models using the standard CRRA utility
+function and 2-parameter Prelec PWF, finding that the atemporal risk premium
+changed significantly during the pandemic compared to pre-pandemic
+baselines---consistent with theoretical predictions about the effect of
+increased background risk on foreground risk attitudes. This application
+demonstrates the model's use in tracking preference stability (or instability)
+over time in response to naturally occurring shocks.
+
+\subsection{Field Experiments in Developing Countries}
+
+Research on risk preferences in developing countries has also adopted the
+RDU--CRRA--Prelec specification. \textcite{Tanaka2010} linked experimental and
+household survey data from Vietnam, using RDU with CRRA utility and a
+probability weighting function to jointly estimate utility curvature and
+probability weighting from incentivized lottery experiments. They found that a
+substantial fraction of subjects exhibit behavior consistent with RDU rather
+than EUT, and that restricting estimation to EUT with CRRA poorly predicts
+preferences for less risk-averse subjects. See also
+\textcite{HarrisonRutstrom2008} for discussion of related field experiments in
+developing countries using the same specification.
+
+\subsection{Insurance Markets and Field Data}
+
+\textcite{Barseghyan2013} used administrative data on insurance deductible
+choices to estimate structural models of risky choice that incorporate both
+``standard'' risk aversion (diminishing marginal utility, parameterized by
+CRRA) and probability distortions (parameterized by a PWF). They found that
+probability distortions---characterized by substantial overweighting of small
+probabilities---play an important role in explaining insurance deductible
+choices, beyond what utility curvature alone can account for.
+\textcite{Barseghyan2018} provide a comprehensive survey of field estimation of
+risk preferences using these models. While their specification uses a different
+PWF parameterization than the Prelec form, the underlying model
+structure---separating utility curvature from probability weighting within an
+RDU framework---is the same.
+
+Harrison and collaborators at CEAR have applied the full CRRA--Prelec--RDU
+specification to evaluate insurance experiments, examining both the expected
+welfare gain from insurance \parencite{Harrison2016} and the welfare effects of
+insurance contract non-performance. \textcite{Harrison2019} documents the
+extensive use of the RDU--CRRA--Prelec model in behavioral insurance economics.
+
+\subsection{Mixture Models and Model Comparison}
+
+\textcite{Conte2011}, published in the \textit{Journal of Econometrics}, used
+mixture models to address heterogeneity in preference functionals across
+individuals, comparing EUT and RDU specifications with CRRA utility. Their
+approach allows individuals to probabilistically use different decision
+theories across different choice problems, with the CRRA--PWF specification
+serving as the parametric core.
+
+\section{Summary Table of Applications}
+
+\begin{longtable}{p{4.5cm} p{5cm} p{4.5cm}}
+\toprule
+\textbf{Domain} & \textbf{Key References} & \textbf{Application} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Domain} & \textbf{Key References} & \textbf{Application} \\
+\midrule
+\endhead
+Laboratory risk elicitation & \textcite{Harrison2007} & Representative sample field experiment \\[4pt]
+Joint risk and time & \textcite{Andersen2008} & Correcting discount rate estimates \\[4pt]
+Hierarchical Bayesian & \textcite{Nilsson2011}; \textcite{Gao2022} & Individual-level estimation with shrinkage \\[4pt]
+Welfare economics & \textcite{Harrison2016} & Insurance welfare evaluation \\[4pt]
+Model comparison & \textcite{HarrisonSwarthout2023} & EUT vs.\ RDU vs.\ CPT \\[4pt]
+Entrepreneurship & \textcite{Andersen2014} & Entrepreneur risk/time preferences \\[4pt]
+Belief elicitation & \textcite{Harrison2017}; \textcite{Harrison2022a} & Scoring rule correction for PWF \\[4pt]
+Pandemic shocks & \textcite{Harrison2022b} & COVID-19 background risk effects \\[4pt]
+Developing countries & \textcite{Tanaka2010} & Smallholder farmer risk attitudes \\[4pt]
+Insurance field data & \textcite{Barseghyan2013}; \textcite{Barseghyan2018} & Deductible choice, PWF identification \\[4pt]
+Mixture models & \textcite{Conte2011} & Heterogeneous preference functionals \\[4pt]
+Mixture + hierarchical & \textcite{Harrison2025} & Bayesian mixture of risk models \\
+\bottomrule
+\end{longtable}
+
+\section{Assessment}
+
+The claim that the 4-parameter RDU--CRRA--Prelec model is a ``common workhorse
+of structural models of risk preferences'' is well supported by the literature.
+The model has been applied across at least a dozen distinct application domains
+over nearly two decades, by research groups spanning at least three continents,
+using both laboratory and field data, with both frequentist and Bayesian
+estimation methods. The CRRA utility function is the most common parametric
+utility specification in the literature, the 2-parameter Prelec PWF is the most
+common and best-justified probability weighting function, and RDU is
+increasingly recognized as the best single-model characterization of individual
+risky choice \parencite{HarrisonSwarthout2023}.
+
+The 4-parameter version---including the noise parameter $\lambda$---is
+specifically prominent in the structural estimation tradition associated with
+Harrison and collaborators at CEAR, which has produced the majority of applied
+work using this exact specification. Other research groups
+\parencite{Nilsson2011, Conte2011, Barseghyan2013} use closely related
+specifications that share the same parametric core. The model's reach into
+welfare economics, belief elicitation, joint preference estimation, and field
+applications in developing countries further attests to its status as a
+workhorse.
+
+\section{Suggested Revision for the Paper}
+
+The current sentence reads:
+
+\begin{quote}
+``This 4 parameter model is a common workhorse of structural models of risk
+preferences, used in a varied of applications.''
+\end{quote}
+
+A possible revision that is more precise and adds citations:
+
+\begin{quote}
+``This 4-parameter model is a workhorse of structural estimation of risk
+preferences, applied to welfare evaluation of insurance decisions (Harrison and
+Ng, 2016), joint estimation of risk and time preferences (Andersen et al.,
+2008), recovery of subjective belief distributions (Harrison et al., 2017),
+hierarchical Bayesian estimation (Gao et al., 2022; Nilsson et al., 2011), and
+field experiments in developing countries (Tanaka et al., 2010), among many
+others.''
+\end{quote}
+
+This version replaces the vague ``used in a varied of applications'' (which
+also contains a typo) with specific citations spanning distinct domains,
+allowing the reader to verify the breadth claim. The citations are chosen to
+span different research groups, journals, and application areas.
+
+\printbibliography
+
+\end{document}

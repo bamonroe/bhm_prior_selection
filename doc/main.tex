@@ -767,13 +767,15 @@ observable quantities about which a researcher would have strong beliefs: 3
 CEs and one choice probability.
 
 CEs of reference lotteries have been used to assess the post-estimation
-reasonableness of RDU and EUT estimates by \textcite[807]{Harrison2022}. They
+reasonableness of RDU and EUT estimates by \textcite[807]{Harrison2022}, to
+evaluate the welfare implications of estimated risk preferences
+\parencite{Harrison2016, Gao2022, Barseghyan2013}, to compare the economic
+content of alternative structural models \parencite{HarrisonSwarthout2023,
+LauYoo2025}, and to calibrate prior specifications \parencite{Bland2025}. They
 provide a natural way to understand the consequences of structural models of
-risk preferences.
-
-As stated in Section~\ref{sec:gq_space}, the mapping from model parameters to
-generated quantities must be globally injective, which places design
-restrictions on the choice of reference lotteries (Section~\ref{sec:injectivity}).
+risk preferences, translating opaque parameter estimates into
+dollar-denominated quantities about which researchers have direct intuition
+\parencite{Abdellaoui2000}.
 
 The preference parameters $\bth_{\text{pref}} = (r, \phi, \eta)$ determine the
 certainty equivalent (CE) of any lottery: the amount of money for certain that
@@ -792,10 +794,10 @@ characteristics defines the mapping:
 \begin{equation}
   \bg(r, \phi, \eta) = \left(\CE_1, \CE_2, \CE_3\right)
 \end{equation}
-The choice of $L_1, L_2$ and $L_3$ is not arbitrary---the lotteries must
-satisfy conditions that ensure global injectivity of the mapping
-(Section~\ref{sec:injectivity}). A simple set of binary lotteries that
-satisfies these conditions is given in Table~\ref{tab:lottery_design}.
+The choice of $L_1, L_2$ and $L_3$ is not arbitrary. The lotteries must satisfy
+conditions that ensure global injectivity of the mapping, discussed
+subsequently. A simple set of binary lotteries that satisfies these conditions
+is given in Table~\ref{tab:lottery_design}.
 \begin{pycode}
 # Reference lottery design (loaded from paper_data.npz)
 ref_lots = []
@@ -822,14 +824,15 @@ for k in [1, 2, 3]:
 
 For each lottery, a researcher specifies a probability distribution over the
 CEs for that lottery. Many economists would have an opinion about what this
-amount might be, or, equivalently what the risk premium for that lottery might
-be. The direct prior in CE space needs to be specified as a
-probability distribution with defined moments. Since the CE is bounded by its
-lower and upper outcomes, a natural candidate distribution is the Beta, scaled
-and shifted so that $0\rightarrow \xlo_k$ and $1 \rightarrow \xhi_k$.
+amount might be, or equivalently, what the risk premium for that lottery might
+be. The direct prior in CE space needs to be specified as a probability
+distribution with defined moments. Since the CE is bounded by its lower and
+upper outcomes, a natural candidate distribution is the Beta, scaled and
+shifted so that $0\rightarrow \xlo_k$ and $1 \rightarrow \xhi_k$, where
+$\xlo_k$ and $\xhi_k$ are the lowest and greatest outcomes, respectively, in
+lottery $k$.
 
-Formally, let $\xlo_k$ and $\xhi_k$ denote the lowest and highest
-outcomes of lottery $k$. The direct prior in CE space is:
+The direct prior in CE space is:
 \begin{equation}
   \label{eq:ce_prior}
   \frac{Y_i^k - \xlo_k}{\xhi_k - \xlo_k}
@@ -838,7 +841,8 @@ outcomes of lottery $k$. The direct prior in CE space is:
 where the shape parameters $\alpha^{k*}$ and $\beta^{k*}$ are chosen to match
 the researcher's beliefs about the expected CE and its variance across
 individuals for reference lottery $k$. For a target mean $m^{k*}$ and variance
-$s^{2k*}$ expressed on the dollar scale, the Beta parameters are:
+$s^{2k*}$ expressed on the dollar scale of the lottery, the Beta parameters
+are:
 \begin{align}
   \alpha^{k*} &= \tilde{m}^k \nu^k \\
   \beta^{k*} &= (1 - \tilde{m}^k) \nu^k
@@ -851,9 +855,9 @@ $s^{2k*}$ expressed on the dollar scale, the Beta parameters are:
 \end{align}
 
 The noise parameter $\lambda$ governs the precision of choices but does not
-affect deterministic preferences (certainty equivalents). It can be
-incorporated into the quantity-space framework by specifying beliefs about a
-\textit{choice probability} for a reference lottery pair.
+affect the valuation of the CEs. It can be incorporated into the quantity-space
+framework by specifying beliefs about a \textit{choice probability} for a
+reference lottery pair.
 
 The probability that an individual chooses $A$ from a lottery pair $(A, B)$ is:
 \begin{equation}
@@ -882,41 +886,16 @@ $\bv = (c_1, c_2, c_3, P)$, which maps to the structural parameters
 $\bth = (r, \phi, \eta, \lambda)$ via the Jacobian correction
 of equation~(\ref{eq:jacobian_prior}).
 
-
-\subsection{Global Injectivity}
-\label{sec:injectivity}
-
 The change-of-variables formula $p(\bth) = p_Y(\bg(\bth))\,|\!\det
 J_{\bg}(\bth)|$ requires that the mapping $\bg$ be globally injective: distinct
 parameter vectors must produce distinct generated quantities. A nonvanishing
 Jacobian determinant ($\det J_{\bg} \neq 0$ everywhere) establishes only
-\textit{local} invertibility---that the mapping is one-to-one in a neighborhood
-of each point. Global injectivity is a strictly stronger condition. For the
-RDU-Prelec model, the two properties do not coincide: lottery designs exist for
-which the Jacobian is everywhere nonsingular yet the CE mapping admits distinct
-parameter vectors with identical certainty equivalents.
-
-Proving global injectivity for the four-parameter mapping $\bg\colon (r, \phi,
-\eta, \lambda) \mapsto (\CE_1, \CE_2, \CE_3, P_{\text{choice}})$ is
-nontrivial but tractable. The proof exploits the block-triangular structure of
-the Jacobian---CEs do not depend on $\lambda$---to decompose the problem into
-a three-parameter CE identification step and a one-parameter noise
-identification step. Within the CE step, a reparameterization from Prelec
-parameters to decision weights reduces identification to verifiable monotonicity
-conditions on the lottery design.
-
-For the CRRA utility function with the \textcite{Prelec1998} PWF, the
-sufficient conditions on the reference lotteries are as follows. To identify
-the 2-parameter PWF, two binary lotteries must have distinct probabilities on
-their highest outcome. To identify the CRRA parameter, a third lottery must
-share the probability distribution of one of the first two but cannot have
-outcomes that are a scalar multiple of it, since CRRA is invariant to outcome
-scaling. Additionally, lotteries with overlapping outcome ranges should be
-chosen so that no lottery first order stochastically dominates another;
-dominance would require conditional prior distributions over CEs to preserve
-the ordering. The design in Table~\ref{tab:lottery_design} satisfies these
-conditions, and a complete analytical proof is given in
-Appendix~\ref{app:global_injectivity}.
+\textit{local} invertibility and is not sufficient for global injectivity.
+Proving global injectivity for the mapping in
+Table~\ref{tab:lottery_design} is nontrivial;
+Appendix~\ref{app:global_injectivity} provides a complete proof for the
+CRRA--Prelec model and guidance on what classes of reference lotteries satisfy
+the required conditions.
 
 \subsection{Prior Specification}
 
@@ -1101,7 +1080,7 @@ The variance decomposition is applied with $\rho = \py{ce_ps_rho}$ and $\kappa
 \approx \py{fmt(ce_ps_kappa, 2)}$, shared across all quantities. The
 quantity-space hierarchy defines a joint prior on $(\CE_1, \CE_2, \CE_3,
 P_{\text{choice}})$. The change-of-variables formula with the Jacobian of
-Section~\ref{sec:injectivity} transforms this to the parameter-space prior
+Appendix~\ref{app:global_injectivity} transforms this to the parameter-space prior
 $p(r, \phi, \eta, \lambda)$ used in sampling:
 \begin{equation}
   \label{eq:jacobian_prior_rdu}

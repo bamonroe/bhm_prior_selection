@@ -207,8 +207,8 @@ In this paper, I develop a two-part framework for constructing hyperpriors that
 addresses both the \textit{space} in which beliefs are specified and the
 \textit{structure} of the hyperprior itself. The first contribution is a
 quantity-space prior specification: the researcher states beliefs about
-quantities they can reason about directly---certainty equivalents, choice
-probabilities---rather than abstract structural parameters. An invertible
+quantities they can reason about directly---certainty equivalents (CEs),
+choice probabilities---rather than abstract structural parameters. An invertible
 mapping and a Jacobian correction translate these beliefs into parameter-space
 priors exactly, with no approximation. The second contribution is a
 distribution-free variance decomposition that reduces the remaining degrees of
@@ -246,7 +246,7 @@ variance decomposition, reducing the remaining degrees of freedom to the
 interpretable parameters $\rho$ and $\kappa$.
 Section~\ref{sec:application_rdu} applies both contributions to RDU estimation
 with real data, demonstrating the CE mapping, choice probability specification,
-and NIG hyperprior derivation.
+and Beta-Beta hyperprior derivation.
 Section~\ref{sec:discussion} discusses practical
 guidance and limitations. Section~\ref{sec:conclusion} concludes.
 
@@ -1313,8 +1313,8 @@ researchers specifying hyperpriors:
   \item \emph{Choose $\rho$ and $\kappa$.} Express beliefs about the degree
     of population heterogeneity ($\rho$) and confidence in that
     heterogeneity specification ($\kappa$). Default values of $\rho = 0.2$ and
-    $\kappa \approx 0.24$ (equivalently $\alpha_0 = 20$) express substantial
-    heterogeneity with moderate confidence.
+    $\kappa \approx 0.24$ express substantial heterogeneity with moderate
+    confidence.
 
   \item \emph{Verify via prior predictive checking.} Simulate from the
     implied prior predictive distribution and confirm that the predictive
@@ -1333,10 +1333,10 @@ researchers specifying hyperpriors:
 The framework has several limitations. First, the variance decomposition is
 \textit{moment-based}, matching the first two moments of the direct prior. If
 the researcher's beliefs are better captured by higher moments (skewness,
-heavy tails), the two-moment matching may be insufficient. The Skew-Normal
-extension (Appendix~\ref{app:skew_normal}) shows how the framework
-generalizes to three moments, but at the cost of an additional researcher
-choice and numerical rather than closed-form solutions.
+heavy tails), the two-moment matching may be insufficient. The framework
+does generalize to higher moments via the law of total cumulance (see footnote
+in Section~\ref{sec:variance_decomposition}), but at the cost of additional
+researcher choices and numerical rather than closed-form solutions.
 
 Second, the quantity-space specification requires an injective mapping from
 parameters to generated quantities. This constrains the design of reference
@@ -1402,7 +1402,6 @@ have decades of empirical evidence to draw upon.
 \titleformat*{\subsubsection}{\normalsize}
 
 \input{appendix_full_covariance}
-\input{appendix_skew_normal}
 \input{appendix_global_injectivity}
 \input{appendix_jacobian_correction}
 \input{appendix_mcmc}

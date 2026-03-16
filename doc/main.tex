@@ -781,40 +781,125 @@ to set the 16 hyperprior parameters, each with consequences on prior predictive
 distribution of observable quantities. Following the method in Section
 \ref{sec:gq_space}, we start instead by specifying 4 direct priors on
 observable quantities about which a researcher would have strong beliefs: 3
-CEs and one choice probability.
+certainty equivalents (CEs) and one choice probability.
 
-CEs of reference lotteries have been used to assess the post-estimation
-reasonableness of RDU and EUT estimates by \textcite[807]{Harrison2022}, to
-evaluate the welfare implications of estimated risk preferences
-\parencite{Harrison2016, Gao2022, Barseghyan2013}, to compare the economic
-content of alternative structural models \parencite{HarrisonSwarthout2023,
-LauYoo2025}, and to calibrate prior specifications \parencite{Bland2025}. They
-provide a natural way to understand the consequences of structural models of
-risk preferences, translating opaque parameter estimates into
-dollar-denominated quantities about which researchers have direct intuition
-\parencite{Abdellaoui2000}.
+The CE is the certain amount of money that results in the same utility as a
+lottery. A CE can alternatively be thought of as the minimum willingness to
+sell or maximum willingness to pay for a given lottery. CEs of reference
+lotteries have been used to assess the post-estimation reasonableness of RDU
+and EUT estimates by \textcite[807]{Harrison2022}, to evaluate the welfare
+implications of estimated risk preferences \parencite{Harrison2016, Gao2022,
+Barseghyan2013, Monroe2023}, to compare the economic content of alternative
+structural models \parencite{HarrisonSwarthout2023, LauYoo2025}, and to
+calibrate prior specifications \parencite{Bland2025}. They provide a natural
+way to understand the consequences of structural models of risk preferences,
+translating parameter values into dollar-denominated quantities about which
+researchers have direct intuition \parencite{Abdellaoui2000}.
 
 The preference parameters $\bth_{\text{pref}} = (r, \phi, \eta)$ determine the
-certainty equivalent (CE) of any lottery: the amount of money for certain that
-provides equivalent utility:
+CE of any lottery:
 \begin{equation}
   \label{eq:ce_definition}
   u(\CE; \bth) = \sum_k d_k(\bth) \,
   u(x_k; \bth)
 \end{equation}
-where $u(\cdot; \bth)$ is the utility function and
-$d_k(\bth)$ are decision weights. The noise parameter $\lambda$
-does not affect the CE and is handled separately below.
-
-Choosing three reference lotteries $L_1, L_2, L_3$ with suitably diverse
-characteristics defines the mapping:
+where $u(\cdot; \bth)$ is the utility function and $d_k(\bth)$ are decision
+weights. Choosing three reference lotteries $L_1, L_2, L_3$ with suitably
+diverse characteristics defines the mapping:
 \begin{equation}
   \bg(r, \phi, \eta) = \left(\CE_1, \CE_2, \CE_3\right)
 \end{equation}
-The choice of $L_1, L_2$ and $L_3$ is not arbitrary. The lotteries must satisfy
-conditions that ensure global injectivity of the mapping, discussed
-subsequently. A simple set of binary lotteries that satisfies these conditions
-is given in Table~\ref{tab:lottery_design}.
+The choice of reference lotteries is not arbitrary; conditions ensuring global
+injectivity of the mapping must be satisfied. The noise parameter $\lambda$
+does not affect CEs but governs choice precision. It is identified through a
+choice probability for a reference lottery pair $(A, B)$:
+\begin{equation}
+  P(\text{choose } A \mid \bth, \lambda) =
+  \frac{1}{1 + \exp\!\left(-\Delta(\bth) / \lambda\right)}
+\end{equation}
+where $\Delta(\bth)$ is the normalized utility difference from
+(\ref{eq:likelihood}). This extends the mapping to
+$\bg(r, \phi, \eta, \lambda) = (\CE_1, \CE_2, \CE_3, P_{\text{choice}})$.\footnote{
+  The change-of-variables formula $p(\bth) = p_Y(\bg(\bth))\,|\!\det
+  J_{\bg}(\bth)|$ requires that the mapping $\bg$ be globally injective: distinct
+  parameter vectors must produce distinct generated quantities. A nonvanishing
+  Jacobian determinant ($\det J_{\bg} \neq 0$ everywhere) establishes only
+  \textit{local} invertibility and is not sufficient for global injectivity.
+  Proving global injectivity for the mapping is nontrivial;
+  Appendix~\ref{app:global_injectivity} provides a complete proof for the
+  CRRA--Prelec model and guidance on what classes of reference lotteries satisfy
+  the required conditions.
+}
+
+All four generated quantities are bounded: CEs by lottery outcomes and choice
+probabilities by $[0,1]$. Since the generated quantities are bounded, the
+natural population hierarchy uses Beta distributions throughout. Let $z_i^k \in (0,1)$ denote the normalized value of
+quantity $k$ for individual $i$. The hierarchical model is:
+\begin{align}
+  z_i^k \mid \mu_k, \psi_k
+    &\sim \text{Beta}\!\left(
+      \mu_k \tfrac{1 - \psi_k}{\psi_k},\;
+      (1 - \mu_k) \tfrac{1 - \psi_k}{\psi_k}
+    \right) \label{eq:bb_individual} \\
+  \mu_k &\sim \text{Beta}(a_\mu^k, b_\mu^k)
+    \label{eq:bb_mu} \\
+  \psi_k &\sim \text{Beta}(a_\psi^k, b_\psi^k)
+    \label{eq:bb_psi}
+\end{align}
+where $\mu_k \in (0,1)$ is the population mean and $\psi_k \in (0,1)$ is a
+dispersion parameter: $\text{Var}[z_i^k \mid \mu_k, \psi_k] = \mu_k(1 -
+\mu_k)\psi_k$.
+
+This model requires the specification of 4 hyperprior parameters per quantity
+of interest. To specify these parameters, the moment matching and variance
+decomposition exercise proposed in Section \ref{sec:variance_decomposition} is
+used. For each quantity $k$, the researcher specifies a direct prior mean
+$\dpm_k$ and variance $\dpv_k$, and the heterogeneity prior parameters $\rho$
+and $\kappa$. The variance decomposition of
+Section~\ref{sec:variance_decomposition} maps the direct prior moments
+$(\tilde{m}^k, \tilde{v}^k)$ and the researcher choices $(\rho, \kappa)$ to
+Beta-Beta hyperprior parameters $(a_\mu^k, b_\mu^k, a_\psi^k, b_\psi^k)$. The
+law of total variance decomposes the direct prior variance:
+\begin{align}
+  \label{eq:bb_total_var}
+  \tilde{v}^k &= \Var{z_i^k}
+  = \Var{\mu_k}
+  + \E{\mu_k(1 - \mu_k)\psi_k} \\
+  \Var{\mu_k} &= \rho\,\tilde{v}^k \\
+  \E{\mu_k(1 - \mu_k)\psi_k} &= (1 - \rho)\,\tilde{v}^k
+\end{align}
+Matching $\E{\mu_k} = \tilde{m}^k$ and $\Var{\mu_k} = \rho\,\tilde{v}^k$
+by standard Beta moment-matching, and using the independence of $\mu_k$ and
+$\psi_k$ to solve the within-population term, the four hyperprior parameters
+are:
+\begin{align}
+  \label{eq:bb_mu_params}
+  a_\mu^k &= \tilde{m}^k
+    \left(\frac{\tilde{m}^k(1 - \tilde{m}^k)}{\rho\,\tilde{v}^k} - 1\right) \\
+  b_\mu^k &= (1 - \tilde{m}^k)
+    \left(\frac{\tilde{m}^k(1 - \tilde{m}^k)}{\rho\,\tilde{v}^k} - 1\right) \\[6pt]
+  \label{eq:bb_psi_params}
+  a_\psi^k &= \frac{(1-\rho)\,\tilde{v}^k}
+    {\tilde{m}^k(1 - \tilde{m}^k) - \rho\,\tilde{v}^k}
+    \left(
+      \frac{\tilde{m}^k(1-\tilde{m}^k) - \tilde{v}^k}
+           {\kappa^2(1-\rho)\,\tilde{v}^k} - 1
+    \right) \\
+  b_\psi^k &= \left(1 -
+    \frac{(1-\rho)\,\tilde{v}^k}
+         {\tilde{m}^k(1 - \tilde{m}^k) - \rho\,\tilde{v}^k}\right)
+    \left(
+      \frac{\tilde{m}^k(1-\tilde{m}^k) - \tilde{v}^k}
+           {\kappa^2(1-\rho)\,\tilde{v}^k} - 1
+    \right)
+\end{align}
+which requires $\tilde{v}^k < \tilde{m}^k(1 - \tilde{m}^k)$: the direct prior
+variance cannot exceed the Bernoulli bound. For each quantity, the researcher
+specifies a direct prior mean and variance $(\dpm_k, \dpv_k)$, along with
+shared values of $\rho$ and $\kappa$.
+
+\subsection{Prior Specification}
+
 \begin{pycode}
 # Reference lottery design (loaded from paper_data.npz)
 ref_lots = []
@@ -823,100 +908,7 @@ for k in [1, 2, 3]:
     hi = int(D.get(f'ref_lot_{k}_prize_2', [50, 40, 45][k-1]))
     p_hi = float(D.get(f'ref_lot_{k}_prob_2', [0.4, 0.5, 0.4][k-1]))
     ref_lots.append({'lo': lo, 'hi': hi, 'p_hi': p_hi})
-\end{pycode}
-\begin{table}[h!]
-  \centering
-  \begin{tabular}{lcc}
-    \toprule
-    Lottery & Outcomes & Probability on better outcome \\
-    \midrule
-    $L_1$ & $(\$\py{ref_lots[0]['lo']},\, \$\py{ref_lots[0]['hi']})$ & $p_1 = \py{ref_lots[0]['p_hi']}$  \\
-    $L_2$ & $(\$\py{ref_lots[1]['lo']},\, \$\py{ref_lots[1]['hi']})$ & $p_2 = \py{ref_lots[1]['p_hi']}$  \\
-    $L_3$ & $(\$\py{ref_lots[2]['lo']},\, \$\py{ref_lots[2]['hi']})$ & $p_3 = \py{ref_lots[2]['p_hi']}$  \\
-    \bottomrule
-  \end{tabular}
-  \caption{Reference lottery design for prior specification.}
-  \label{tab:lottery_design}
-\end{table}
 
-For each lottery, a researcher specifies a probability distribution over the
-CEs for that lottery. Many economists would have an opinion about what this
-amount might be, or equivalently, what the risk premium for that lottery might
-be. The direct prior in CE space needs to be specified as a probability
-distribution with defined moments. Since the CE is bounded by its lower and
-upper outcomes, a natural candidate distribution is the Beta, scaled and
-shifted so that $0\rightarrow \xlo_k$ and $1 \rightarrow \xhi_k$, where
-$\xlo_k$ and $\xhi_k$ are the lowest and greatest outcomes, respectively, in
-lottery $k$.
-
-The direct prior in CE space is:
-\begin{equation}
-  \label{eq:ce_prior}
-  \frac{Y_i^k - \xlo_k}{\xhi_k - \xlo_k}
-  \sim \text{Beta}(\alpha^{k*}, \beta^{k*}), \qquad k = 1, 2, 3
-\end{equation}
-where the shape parameters $\alpha^{k*}$ and $\beta^{k*}$ are chosen to match
-the researcher's beliefs about the expected CE and its variance across
-individuals for reference lottery $k$. For a target mean $m^{k*}$ and variance
-$s^{2k*}$ expressed on the dollar scale of the lottery, the Beta parameters
-are:
-\begin{align}
-  \alpha^{k*} &= \tilde{m}^k \nu^k \\
-  \beta^{k*} &= (1 - \tilde{m}^k) \nu^k
-\end{align}
-\noindent with mean and variance:
-\begin{align}
-  \tilde{m}^k &= (m^{k*} - \xlo_k)/(\xhi_k - \xlo_k) \\
-  \nu^k &= \tilde{m}^k(1 - \tilde{m}^k)/\tilde{s}^{2k} - 1 \\
-  \tilde{s}^{2k} &= s^{2k*}/(\xhi_k - \xlo_k)^2
-\end{align}
-
-The noise parameter $\lambda$ governs the precision of choices but does not
-affect the valuation of the CEs. It can be incorporated into the quantity-space
-framework by specifying beliefs about a \textit{choice probability} for a
-reference lottery pair.
-
-The probability that an individual chooses $A$ from a lottery pair $(A, B)$ is:
-\begin{equation}
-  P(\text{choose } A \mid \bth, \lambda) =
-  \frac{1}{1 + \exp\!\left(-\Delta(\bth) / \lambda\right)}
-\end{equation}
-where $\Delta(\bth)$ is the normalized utility difference. Rather than specify
-a prior over the noise parameter $\lambda$, a researcher specifies a prior over
-the choice probability. Since probabilities lie in $[0, 1]$, the
-Beta distribution is again a natural choice:
-\begin{equation}
-  \label{eq:choice_prob_prior}
-  P_i \sim \text{Beta}(\alpha_P^*, \beta_P^*)
-\end{equation}
-where the shape parameters are chosen to match beliefs about the expected
-choice probability and its variance across individuals for a reference lottery
-pair. For a target mean $m_P^*$ and variance $s_P^{2*}$:
-\begin{align}
-  \alpha_P^* &= m_P^* \nu_P, \\
-  \beta_P^* &= (1 - m_P^*) \nu_P, \\
-  \nu_P &= m_P^*(1 - m_P^*)/s_P^{2*} - 1.
-\end{align}
-Together, the three CE priors and the choice probability prior define a
-4-dimensional direct prior on generated quantities
-$\bv = (c_1, c_2, c_3, P)$, which maps to the structural parameters
-$\bth = (r, \phi, \eta, \lambda)$ via the Jacobian correction
-of equation~(\ref{eq:jacobian_prior}).
-
-The change-of-variables formula $p(\bth) = p_Y(\bg(\bth))\,|\!\det
-J_{\bg}(\bth)|$ requires that the mapping $\bg$ be globally injective: distinct
-parameter vectors must produce distinct generated quantities. A nonvanishing
-Jacobian determinant ($\det J_{\bg} \neq 0$ everywhere) establishes only
-\textit{local} invertibility and is not sufficient for global injectivity.
-Proving global injectivity for the mapping in
-Table~\ref{tab:lottery_design} is nontrivial;
-Appendix~\ref{app:global_injectivity} provides a complete proof for the
-CRRA--Prelec model and guidance on what classes of reference lotteries satisfy
-the required conditions.
-
-\subsection{Prior Specification}
-
-\begin{pycode}
 # CE-space direct prior beliefs (loaded from paper_data.npz)
 ce_beliefs = {
     1: {"mu": float(D.get("ce_mu_1", 22)),
@@ -935,7 +927,7 @@ ce_beliefs = {
 # Choice probability belief for noise
 pchoice_mu = float(D.get("pchoice_mu", 0.80))
 pchoice_sigma2 = float(D.get("pchoice_sigma2", 0.0025))
-pchoice_lo = float(D.get("pchoice_lo", 0.5))
+pchoice_lo = float(D.get("pchoice_lo", 0.0))
 pchoice_hi = float(D.get("pchoice_hi", 1.0))
 
 # CE-space researcher choices (loaded from paper_data.npz)
@@ -964,13 +956,22 @@ pc_hp = {
 }
 \end{pycode}
 
-I specify an informative prior using the quantity-space approach developed in
-Section \ref{sec:variance_decomposition}. The researcher expresses beliefs
-about the CE of each of the 3 lotteries in Table \ref{tab:lottery_design} for a
-randomly chosen individual from some sample frame, and the beliefs about the
-choice probability of choosing $L_2$ over $L_3$. Belief elicitation techniques
-are well known, but for now, we assume that a researcher can specify a Beta prior
-over all quantities.
+A simple set of binary lotteries that satisfies the injectivity conditions is
+given in Table~\ref{tab:lottery_design}.
+\begin{table}[h!]
+  \centering
+  \begin{tabular}{lcc}
+    \toprule
+    Lottery & Outcomes & Probability on better outcome \\
+    \midrule
+    $L_1$ & $(\$\py{ref_lots[0]['lo']},\, \$\py{ref_lots[0]['hi']})$ & $p_1 = \py{ref_lots[0]['p_hi']}$  \\
+    $L_2$ & $(\$\py{ref_lots[1]['lo']},\, \$\py{ref_lots[1]['hi']})$ & $p_2 = \py{ref_lots[1]['p_hi']}$  \\
+    $L_3$ & $(\$\py{ref_lots[2]['lo']},\, \$\py{ref_lots[2]['hi']})$ & $p_3 = \py{ref_lots[2]['p_hi']}$  \\
+    \bottomrule
+  \end{tabular}
+  \caption{Reference lottery design for prior specification.}
+  \label{tab:lottery_design}
+\end{table}
 
 For lottery $L_1 = (\$\py{ref_lots[0]['lo']}, \$\py{ref_lots[0]['hi']})$ at $p_1 = \py{ref_lots[0]['p_hi']}$, a mildly risk-averse
 individual under expected utility would have a CE below the expected value
@@ -978,120 +979,8 @@ of $\$\py{fmt(ref_lots[0]['lo'] * (1 - ref_lots[0]['p_hi']) + ref_lots[0]['hi'] 
 for $L_2 = (\$\py{ref_lots[1]['lo']}, \$\py{ref_lots[1]['hi']})$ at $p_2 = \py{ref_lots[1]['p_hi']}$ the spread is smaller and the
 CE closer to the expected value of $\$\py{fmt(ref_lots[1]['lo'] * (1 - ref_lots[1]['p_hi']) + ref_lots[1]['hi'] * ref_lots[1]['p_hi'], 0)}$;
 and for $L_3 = (\$\py{ref_lots[2]['lo']}, \$\py{ref_lots[2]['hi']})$ at $p_3 = \py{ref_lots[2]['p_hi']}$ the CE falls between the other two.
-These are statements about dollars,
-not about curvature parameters. Similarly, the noise belief is a statement
-about choice accuracy.
-
-Since each CE is bounded by the lottery's outcomes and the choice probability
-is bounded on $[1/2, 1]$, the direct prior uses scaled Beta distributions as in
-(\ref{eq:ce_prior}). The full direct prior for a single individual is:
-\begin{equation}
-\label{eq:d_prior}
-\begin{aligned}
-  \frac{Y_i^k - \xlo_k}{\xhi_k - \xlo_k}
-    &\sim \text{Beta}(\alpha^{k*}, \beta^{k*}),
-    &\quad k &= 1, 2, 3 \\[4pt]
-  2\bigl(P_i^{\text{ref}} - \tfrac{1}{2}\bigr)
-    &\sim \text{Beta}(\alpha^{P*}, \beta^{P*})
-\end{aligned}
-\end{equation}
-where the Beta shape parameters are determined by the researcher's stated mean
-and variance for each quantity, as described following (\ref{eq:ce_prior}). The
-choice probability $P_i^{\text{ref}}$ is the probability that the individual
-chooses the dominant option in a reference lottery pair, rescaled from $[1/2,
-1]$ to $[0, 1]$.
-
-\paragraph{Beta-Beta hierarchy.}
-Since the generated quantities are bounded, the natural population hierarchy
-uses Beta distributions throughout. Let $z_i^k = (Y_i^k - \xlo_k) /
-(\xhi_k - \xlo_k) \in (0,1)$ denote the normalized CE for individual $i$ on
-lottery $k$. The hierarchical model is:
-\begin{align}
-  z_i^k \mid \mu_k, \psi_k
-    &\sim \text{Beta}\!\left(
-      \mu_k \tfrac{1 - \psi_k}{\psi_k},\;
-      (1 - \mu_k) \tfrac{1 - \psi_k}{\psi_k}
-    \right) \label{eq:bb_individual} \\
-  \mu_k &\sim \text{Beta}(a_\mu^k, b_\mu^k)
-    \label{eq:bb_mu} \\
-  \psi_k &\sim \text{Beta}(a_\psi^k, b_\psi^k)
-    \label{eq:bb_psi}
-\end{align}
-where $\mu_k \in (0,1)$ is the population mean of the normalized CE and
-$\psi_k \in (0,1)$ is a dispersion parameter: $\text{Var}[z_i^k \mid \mu_k,
-\psi_k] = \mu_k(1 - \mu_k)\psi_k$. As $\psi_k \to 0$ the population becomes
-homogeneous; as $\psi_k \to 1$ the variance approaches the Bernoulli bound
-$\mu_k(1 - \mu_k)$. The same Beta-Beta hierarchy applies to the rescaled
-choice probability, with its own $(\mu_P, \psi_P)$ and hyperpriors
-$(a_\mu^P, b_\mu^P, a_\psi^P, b_\psi^P)$.
-
-\paragraph{Variance decomposition.}
-The variance decomposition of Section~\ref{sec:variance_decomposition} maps the
-direct prior moments and the researcher choices $(\rho, \kappa)$ to Beta-Beta
-hyperprior parameters. Let $\tilde{m}^k$ and $\tilde{v}^k$ denote the
-normalized mean and variance from~(\ref{eq:ce_prior}). The derivation proceeds
-in three steps: match the unconditional mean, partition the unconditional
-variance, and calibrate the dispersion hyperprior.
-
-The law of iterated expectations gives $\E{z_i^k} = \E{\mu_k} = \tilde{m}^k$,
-so the hyperprior on $\mu_k$ must be centered at the direct prior mean. The law
-of total variance decomposes the direct prior variance into two components:
-\begin{align}
-  \label{eq:bb_total_var}
-  \tilde{v}^k = \Var{z_i^k}
-  = \underbrace{\Var{\mu_k}}_{\rho\,\tilde{v}^k}
-  + \underbrace{\E{\mu_k(1 - \mu_k)\psi_k}}_{(1 - \rho)\,\tilde{v}^k}
-\end{align}
-where the first term is between-individual variance attributable to uncertainty
-about the population center, and the second is expected within-population
-heterogeneity. The researcher's choice of $\rho$ governs this split.
-
-Since $\mu_k \sim \text{Beta}(a_\mu^k, b_\mu^k)$, matching $\E{\mu_k} =
-\tilde{m}^k$ and $\Var{\mu_k} = \rho\,\tilde{v}^k$ by standard Beta
-moment-matching yields:
-\begin{align}
-  \nu_\mu^k &= \frac{\tilde{m}^k(1 - \tilde{m}^k)}{\rho\,\tilde{v}^k} - 1,
-  &\quad a_\mu^k &= \tilde{m}^k \nu_\mu^k,
-  &\quad b_\mu^k &= (1 - \tilde{m}^k)\nu_\mu^k
-  \label{eq:bb_mu_params}
-\end{align}
-where $\nu_\mu^k = a_\mu^k + b_\mu^k$ is the effective sample size of the
-hyperprior on $\mu_k$: smaller $\rho$ means more variance attributed to
-heterogeneity, which implies a more concentrated hyperprior on $\mu_k$ (larger
-$\nu_\mu^k$).
-
-The within-population term in~(\ref{eq:bb_total_var}) determines the expected
-dispersion. Since $\mu_k$ and $\psi_k$ are independent in the hierarchy,
-$\E{\mu_k(1 - \mu_k)\psi_k} = \E{\mu_k(1 - \mu_k)} \cdot \E{\psi_k}$.
-Using $\E{\mu_k(1 - \mu_k)} = \tilde{m}^k(1 - \tilde{m}^k) - \Var{\mu_k}
-= \tilde{m}^k(1 - \tilde{m}^k) - \rho\,\tilde{v}^k$ and setting the product
-equal to $(1 - \rho)\,\tilde{v}^k$ gives the target expected dispersion:
-\begin{align}
-  \psi^{k*} \coloneqq \E{\psi_k}
-  = \frac{(1-\rho)\,\tilde{v}^k}
-    {\tilde{m}^k(1 - \tilde{m}^k) - \rho\,\tilde{v}^k}.
-  \label{eq:bb_psi_star}
-\end{align}
-The denominator is positive whenever $\rho\,\tilde{v}^k < \tilde{m}^k(1 -
-\tilde{m}^k)$, which holds as long as the between-population variance does not
-exceed the Bernoulli bound on the mean. The requirement $\psi^{k*} < 1$ imposes
-the constraint $\tilde{v}^k < \tilde{m}^k(1 - \tilde{m}^k)$: the direct prior
-variance cannot exceed the variance of a Bernoulli random variable with the
-same mean.
-
-Finally, $\kappa = \text{SD}[\psi_k] / \E{\psi_k}$ determines the
-concentration of the hyperprior on $\psi_k$. Since $\psi_k \sim
-\text{Beta}(a_\psi^k, b_\psi^k)$, matching $\E{\psi_k} = \psi^{k*}$ and
-$\Var{\psi_k} = \kappa^2 (\psi^{k*})^2$:
-\begin{align}
-  \nu_\psi^k &= \frac{1 - \psi^{k*}}{\psi^{k*}\kappa^2} - 1,
-  &\quad a_\psi^k &= \psi^{k*}\nu_\psi^k,
-  &\quad b_\psi^k &= (1 - \psi^{k*})\nu_\psi^k.
-  \label{eq:bb_psi_params}
-\end{align}
-As $\kappa \to 0$ the researcher is certain about the level of heterogeneity
-and $\nu_\psi^k \to \infty$; as $\kappa$ grows, $\nu_\psi^k$ shrinks and the
-hyperprior on $\psi_k$ becomes diffuse.
+These are statements about dollars, not about curvature parameters. Similarly,
+the noise belief is a statement about choice accuracy.
 
 The variance decomposition is applied with $\rho = \py{ce_ps_rho}$ and $\kappa
 \approx \py{fmt(ce_ps_kappa, 2)}$, shared across all quantities. The

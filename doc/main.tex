@@ -653,6 +653,23 @@ the hyperprior distribution over $\hypev$ is presumed byjective, so
 Thus, all four hyperprior parameters $(\hpriormm{}, \hpriormv{}, \hpriorvm{},
 \hpriorvv{})$ are now determined.
 
+As an example, consider the standard Normal-Inverse-Gamma hierarchical model:
+\begin{align}
+\bv_i \mid \mu, \sigma^2 &\sim N(\mu, \sigma^2) \\
+\mu \mid \mu_0, \tau_0^2 &\sim N(\mu_0, \tau_0^2) \\
+\sigma^2 \mid \alpha_0, \beta_0 &\sim \text{IG}(\alpha_0, \beta_0)
+\end{align}
+Here $\hypem = \mu$ and $\hypev = \sigma^2$, so the hyperprior parameters are
+$\hprior = (\mu_0, \tau_0^2, \alpha_0, \beta_0)$.
+
+From (\ref{eq:hyperm_solved}) we have $\mu_0 = \dpm$ and $\tau_0^2 =
+\rho\,\dpv$ directly, since the Normal mean and variance are the distribution's
+parameters. For the Inverse-Gamma, $\E{\sigma^2} = \beta_0 / (\alpha_0 - 1)$
+and $\Var{\sigma^2} = \beta_0^2 / [(\alpha_0 - 1)^2(\alpha_0 - 2)]$, so
+equations (\ref{eq:hyperv_solved}) result in $\alpha_0 = 2 + 1/\kappa^2$ and
+$\beta_0 = (1 - \rho)\,\dpv\,(\alpha_0 - 1)$. The coefficient of variation
+$\kappa$ maps directly to the shape parameter $\alpha_0$.
+
 \subsection{The researcher's problem restated}
 
 All told, the researcher must still make 4 decisions characterizing their prior

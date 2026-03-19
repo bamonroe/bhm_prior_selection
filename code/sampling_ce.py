@@ -1,9 +1,10 @@
 """
-MCMC sampling for RDU BHM model with CE-space prior specification.
+MCMC sampling for RDU BHM model with quantity-space prior (Beta-Beta).
 
-Parallel to sampling.py but uses the rdu_bhm_ce posterior. The key difference
-is that reference lottery data is packed into data["float"] alongside the
-hyperprior array.
+Parallel to sampling.py but uses the rdu_bhm_ce posterior. The key differences:
+- Reference lottery data is packed into data["float"] alongside hyperprior array
+- Reference pair for choice probability is in a separate data slot
+- Hyperprior array is 24 floats (4 quantities x 6 params each)
 """
 
 import numpy as np
@@ -25,9 +26,29 @@ DEFAULT_CONFIG = {
 }
 
 
+def _pad_binary_to_3outcome(prizes, probs):
+    """
+    Pad a binary lottery to 3-outcome format for rdu_ce_3outcome.
+
+    Binary: [x_lo, x_hi] with probs [1-p, p]
+    Padded: [x_lo, x_lo, x_hi] with probs [1-p, 0, p]
+
+    The zero-probability middle outcome has prize = x_lo so u(x_lo) is
+    well-defined for CRRA, and the zero weight eliminates it.
+    """
+    if len(prizes) == 3:
+        return np.array(prizes, dtype=np.float64), np.array(probs, dtype=np.float64)
+    elif len(prizes) == 2:
+        padded_prizes = np.array([prizes[0], prizes[0], prizes[1]], dtype=np.float64)
+        padded_probs = np.array([probs[0], 0.0, probs[1]], dtype=np.float64)
+        return padded_prizes, padded_probs
+    else:
+        raise ValueError(f"Expected 2 or 3 prizes, got {len(prizes)}")
+
+
 def pack_ref_lotteries(ref_lotteries):
     """
-    Pack reference lotteries into a flat numpy array.
+    Pack reference lotteries into a flat numpy array (3-outcome padded format).
 
     Args:
         ref_lotteries: List of 3 dicts, each with 'prizes' and 'probs' keys.
@@ -37,21 +58,41 @@ def pack_ref_lotteries(ref_lotteries):
     """
     arr = np.zeros(18, dtype=np.float64)
     for i, lot in enumerate(ref_lotteries):
-        prizes = np.array(lot['prizes'], dtype=np.float64)
-        probs = np.array(lot['probs'], dtype=np.float64)
+        prizes, probs = _pad_binary_to_3outcome(lot['prizes'], lot['probs'])
         arr[i*6 : i*6+3] = prizes
         arr[i*6+3 : i*6+6] = probs
     return arr
 
 
-def run_sampling(output_dir, ref_lotteries, reset_runs=None, resume_runs=None,
-                 num_collect=None, config=None):
+def pack_ref_pair(ref_pair):
     """
-    Run MCMC sampling with CE-space BHM.
+    Pack reference pair into a flat numpy array (3-outcome padded format).
+
+    Args:
+        ref_pair: Dict with 'lottery_A' and 'lottery_B' keys, each having
+                  'prizes' and 'probs'.
+
+    Returns:
+        Flat array of shape (12,): [A_prizes(3), A_probs(3), B_prizes(3), B_probs(3)]
+    """
+    arr = np.zeros(12, dtype=np.float64)
+    for i, key in enumerate(['lottery_A', 'lottery_B']):
+        lot = ref_pair[key]
+        prizes, probs = _pad_binary_to_3outcome(lot['prizes'], lot['probs'])
+        arr[i*6 : i*6+3] = prizes
+        arr[i*6+3 : i*6+6] = probs
+    return arr
+
+
+def run_sampling(output_dir, ref_lotteries, ref_pair, reset_runs=None,
+                 resume_runs=None, num_collect=None, config=None):
+    """
+    Run MCMC sampling with quantity-space Beta-Beta BHM.
 
     Args:
         output_dir: Directory for output files
         ref_lotteries: List of 3 reference lottery dicts
+        ref_pair: Dict with 'lottery_A' and 'lottery_B' for choice probability
         reset_runs: Number of fresh/reset runs (default 1)
         resume_runs: Number of resume runs after reset runs (default 0)
         num_collect: Collection iterations per run (overrides config)
@@ -75,8 +116,13 @@ def run_sampling(output_dir, ref_lotteries, reset_runs=None, resume_runs=None,
     ref_lot_arr = pack_ref_lotteries(ref_lotteries)
     indexed_data['float'] = indexed_data['float'] + (ref_lot_arr,)
 
-    print(f"  Hyperprior array: {hyperprior_arr[:4]}")
+    # Add reference pair data to data["float"][9]
+    ref_pair_arr = pack_ref_pair(ref_pair)
+    indexed_data['float'] = indexed_data['float'] + (ref_pair_arr,)
+
+    print(f"  Hyperprior array (first 6): {hyperprior_arr[:6]}")
     print(f"  Ref lottery array (first 6): {ref_lot_arr[:6]}")
+    print(f"  Ref pair array (first 6): {ref_pair_arr[:6]}")
 
     n_subjects = indexed_data['static'][0]
     print(f"  Subjects: {n_subjects}")

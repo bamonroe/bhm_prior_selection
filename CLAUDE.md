@@ -4,23 +4,26 @@ Instructions for Claude Code sessions in this workspace.
 
 ## Project Status
 
-**Current State:** Paper restructured for Journal of Econometrics. Phase 1 (paper structure) complete on feature branch.
+**Current State:** Paper restructured for Journal of Econometrics. Single model: Beta-Beta CE-space hierarchy.
 
 The paper has been restructured from an Economics Letter into a full JoE paper:
-- New title: "Quantity-Space Prior Specification for Bayesian Hierarchical Models"
-- 7 sections + 5 appendices (was 4 sections + 3 appendices)
+- Title: "Quantity-Space Prior Specification for Bayesian Hierarchical Models"
+- 6 sections + 4 appendices
 - Two contributions: (i) quantity-space priors with Jacobian correction; (ii) variance decomposition with κ parameterization
 - Single application: RDU with real data (working)
 - Bibliography expanded from ~11 to ~30+ references
-- New material from technical notes integrated into main paper body and appendices
+- Technical notes integrated into main paper body and appendices
 
-The full estimation pipeline remains working with Harrison & Ng (2016) data:
-- RDU-BHM model with Prelec 2-parameter PWF: w(p) = exp(-η(-ln p)^φ)
-- 4 parameters per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), λ (noise)
-- MCMC sampling complete for both informative and uninformative priors (1000 chains, R-hat max 1.002)
-- All paper plots generated; pythontex dynamic data loading preserved
+**Active model: `rdu_bhm_ce`** (Beta-Beta, CE-space): Full pipeline implemented —
+prior selection, sampling, preprocessing, and diagnostic plotting. Uses
+logit-parameterized hyperparams internally; diagnostic plots display on
+natural scale (dollars for CEs, [0,1] for ψ).
 
-**Current branch:** `feat/joe-restructure` (Phase 1 complete, not yet merged to master)
+The previous NIG parameter-space model (`rdu_bhm`) has been removed from all
+pipelines. Its posterior file (`posteriors/rdu_bhm.py`) remains on disk for
+reference but is not imported or used.
+
+**Current branch:** `master`
 
 See `TODO.md` for detailed task tracking.
 
@@ -66,42 +69,42 @@ A copy is in the `lit/` directory.
 ### Core Implementation
 
 - **`code/prior_selection.py`** - The paper's core contribution
-  - `rdu_prelec_prior_selection()`: Define individual-level priors for RDU params
-  - `derive_hyperpriors(ps, rho=0.2, alpha_0=20.0)`: Variance decomposition
-  - `verify_hyperpriors()`: Confirm unconditional variance matches target
+  - `build_ce_direct_prior()`: Build direct prior from elicitation inputs
+  - `ce_space_prior_selection()`: Prior selection for 3 CEs + 1 choice probability
+  - `derive_hyperpriors_beta()`: Beta-Beta variance decomposition with (ρ, κ)
+  - `verify_hyperpriors_beta()`: Monte Carlo verification of variance targets
+  - `run_prior_selection_ce()`: Full pipeline: select → derive → verify → save
 
-- **`code/posteriors/rdu_bhm.py`** - BHM log posterior for bamcmc
+- **`code/posteriors/rdu_bhm_ce.py`** - Beta-Beta CE-space BHM log posterior
   - 4 params per subject: r (CRRA), φ (Prelec curvature), η (Prelec elevation), λ (noise)
-  - 8 hyperparameters: population mean + log-sdev for each
-  - Uses Prelec PWF: w(p) = exp(-η(-ln p)^φ)
-  - Non-Centered Parameterization (NCP) for better mixing
+  - 8 hyperparameters: logit_μ_k and logit_ψ_k for 4 quantities (CE1, CE2, CE3, P_choice)
+  - NPARAMS=4, N_HYPER=8, N_QUANTITIES=4, HYPERPRIOR_STRIDE=6
+  - Chain state stores logit-scale; generated quantities return sigmoid-transformed values
+  - Hyperprior array layout: [a_mu, b_mu, a_psi, b_psi, lo, hi] per quantity
 
 - **`code/posteriors/common_fns.py`** - Shared utility functions
   - CRRA utility with normalization, Prelec probability weighting, risk likelihood
 
-- **`code/prior_predictive_ce.py`** - CE distribution analysis
-  - Prior predictive: MC draws from hyperprior → subject params → CE
-  - Posterior predictive: loads MCMC history → extracts GQ params → CE
-  - Both informative and uninformative, with prior/posterior overlay plots
+- **`code/sampling_ce.py`** - CE-space model sampling setup
+  - Configures bamcmc for `rdu_bhm_ce` model
+  - Passes reference lottery data and hyperprior params to posterior
+
+- **`code/sensitivity.py`** - Sensitivity analysis over (ρ, κ) grid
+  - Beta-Beta hierarchy sampling for between/within population SD
+  - Three-panel LaTeX table generation
 
 - **`code/clean_data.py`** - Data preparation
   - Filters to RA task, creates indexed data structure for GPU efficiency
   - Flips choice encoding: raw 1=right/B → model 1=A
 
-- **`code/skew_normal_hyperprior.py`** - Appendix B example
-  - Demonstrates methodology for 3-parameter Skew-Normal distribution
-  - Monte Carlo integration for law of total cumulance
-  - Numerical root-finding for hyperprior parameters
-  - Comparison plots: direct prior vs unconditional distribution
+- **`code/gen_paper_data.py`** - Generate `paper_data.npz` for pythontex
+  - Data summaries (n_subjects, n_choices, prize/probability ranges)
+  - CE-space config: direct prior bounds, reference lotteries, reference pair, prior selection
+  - NPZ keys: `ce_mu_1`, `ce_lo_1`, `ref_lot_1_prize_1`, `ref_pair_A_prob_2`, `ce_ps_rho`, etc.
 
-### Running Sampling
-
-```bash
-source /workspace/pylib/bin/activate
-python runners/run_rdu_bhm.py --mode test --num-chains 800
-```
-
-Options: `--mode test|full`, `--num-chains N`, `--show-priors`
+- **`code/plotting.py`** - Diagnostic plotting for CE-space model
+  - CE hyperparameter plots apply sigmoid transform to display natural scale
+  - Two-stage preprocessing + parallel subject plot generation
 
 ### Model Parameters
 
@@ -115,21 +118,19 @@ Prelec probability weighting: `w(p) = exp(-η(-ln p)^φ)`
 - When φ = η = 1: linear PWF (Expected Utility)
 - φ < 1: inverse-S shape (overweight small p, underweight large p)
 
-### Variance Decomposition
+### Variance Decomposition (Beta-Beta)
 
-Variance decomposition: `V = τ₀² + E[σ²]` where:
-- τ₀² = ρ × V (uncertainty about population mean)
-- E[σ²] = (1-ρ) × V (population heterogeneity)
+For each quantity k on [lo, hi], normalized to z ∈ [0,1]:
+- μ_k ~ Beta(a_μ, b_μ) — population mean
+- ψ_k ~ Beta(a_ψ, b_ψ) — variance fraction
+- z_ik | μ_k, ψ_k ~ Beta(μ(1-ψ)/ψ, (1-μ)(1-ψ)/ψ)
 
-Default researcher choices: ρ = 0.2, α₀ = 20.0
-
-### κ Parameterization (new in JoE version)
-
-κ = SD[σ²] / E[σ²] — coefficient of variation of heterogeneity.
-- Distribution-free: defined without reference to IG or any specific family
-- For IG: κ = 1/√(α₀-2), so α₀ = 2 + 1/κ²
-- Interpretable as "confidence in heterogeneity specification"
-- κ = 0: certain about heterogeneity level; κ = 1: high uncertainty
+Researcher choices:
+- **ρ (rho):** Fraction of variance from uncertainty about population mean (default: 0.2)
+- **κ (kappa):** Coefficient of variation of heterogeneity (default: 0.25)
+  - Distribution-free: defined without reference to any specific family
+  - Interpretable as "confidence in heterogeneity specification"
+  - κ = 0: certain about heterogeneity level; κ = 1: high uncertainty
 
 ## Data
 
@@ -215,11 +216,14 @@ pylib/                  # python venv which contains all necessary packages
 bamcmc/                 # the git submodule of the bamcmc sampler
 runners/                # CLI scripts for sampling, diagnostics, data download
 data/input/             # Raw data from the paper
-data/output/$model/     # MCMC output (checkpoints/, history/full/)
+data/output/            # paper_data.npz, prior_params_ce.npz
+data/output/$model/     # MCMC output (checkpoints/, history/full/, preprocessed/)
 code/                   # Location of the python code used to estimate the data
+code/posteriors/        # Model-specific log posteriors (rdu_bhm_ce.py)
+doc/                    # Paper LaTeX (main.tex + appendix_*.tex)
 plots/{$model, paper}/  # generated plots used in the paper or for diagnostics
 technical_notes/$note/  # LaTeX technical documentation
-lit/                    # Published academic papers that are relevent
+lit/                    # Published academic papers that are relevant
 ```
 
 In the above `$model` stands in for the name of a model being used. We should
@@ -240,45 +244,29 @@ other python files.
 # main.py control flags:
 
 # --- Data Pipeline ---
-do_clean_data = False       # Shape raw data for bamcmc
-do_gen_paper_data = False   # Generate data summaries for paper (paper_data.npz)
+do_clean_data     = False
+do_gen_paper_data = False
 
 # --- Prior Selection & Analysis ---
-do_generate_prior = False       # Run prior selection methodology
-do_prior_predictive_ce = False  # Prior predictive CE distribution
+do_sensitivity          = False
 
 # --- MCMC Sampling ---
-do_sampling = False               # Run informative prior sampling
-do_sampling_uninformative = False # Run uninformative prior sampling
+do_sampling_ce             = False
 
 # --- Preprocessing (extract from history files) ---
-do_preprocess_hyper_info = False     # Preprocess hyperparameters (informative)
-do_preprocess_subjects_info = False  # Preprocess subjects (informative)
-do_preprocess_hyper_uninf = False    # Preprocess hyperparameters (uninformative)
-do_preprocess_subjects_uninf = False # Preprocess subjects (uninformative)
-
-# --- Posterior Analysis (compute summaries from preprocessed data) ---
-do_gen_paper_quantities = False          # Extract posterior summaries (paper_quantities.npz)
-do_posterior_predictive_ce_info = False   # Posterior predictive CE (informative)
-do_posterior_predictive_ce_uninf = False  # Posterior predictive CE (uninformative)
+do_generate_prior_ce       = False
+do_preprocess_hyper_ce     = False
+do_preprocess_subjects_ce  = False
 
 # --- Diagnostic Plots ---
-do_hyper_plots_info = False              # Hyperparameter diagnostic plots (informative)
-do_subject_plots_info = False            # Subject diagnostic plots (informative)
-do_hyper_plots_uninf = False             # Hyperparameter diagnostic plots (uninformative)
-do_subject_plots_uninf = False           # Subject diagnostic plots (uninformative)
-
-# --- Paper Plots ---
-do_paper_prior_comparison = False    # Prior distribution comparison
-do_paper_hyper_comparison = False    # Hyperparameter prior vs posterior (8-panel)
-do_paper_predictive_overlay = False  # Predictive CE and parameter overlay
-do_paper_subject_ce = False          # Subject most/least affected CE
+do_hyper_plots_ce          = False
+do_subject_plots_ce        = False
 
 # --- Appendix Examples ---
-do_skew_normal_example = False   # Run Skew-Normal hyperprior example
+do_injectivity_analysis    = False
 
-# --- Document ---
-do_compile_doc = False           # Compile LaTeX document
+# --- Document Compilation ---
+do_compile_doc          = False
 ```
 
 ## Technical Notes
@@ -384,51 +372,54 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 
 ### Main Sections
 1. **Introduction** - Two contributions, bridge between two literatures
-2. **Literature — Two Camps** - Camp 1 (uninformative), Camp 2 (knowledge-based), BHMs in economics
-3. **Quantity-Space Prior Specification** - General framework, CE space, choice probability, block-triangular Jacobian, global injectivity
-4. **Hyperprior Derivation via Variance Decomposition** - κ parameterization, NIG mapping, NIW extension
-5. **Application — RDU with Real Data** - Model, priors, H&N 2016 data, results (working, with pythontex)
-6. **Discussion** - Practical guidance, limitations, Bayes factor comparison
-7. **Conclusion**
+2. **Literature: Two Camps of Prior Specification** - Camp 1 (uninformative), Camp 2 (knowledge-based), BHMs in economics
+3. **General Hyperprior Specification from Generated Quantities** - Framework, CE space, choice probability, block-triangular Jacobian, variance decomposition, κ parameterization
+4. **Application: RDU with Real Data** - Model, priors, H&N 2016 data, results (working, with pythontex)
+5. **Discussion** - Practical guidance, limitations, Bayes factor comparison
+6. **Conclusion**
 
-### Appendices
-- **A**: Full Covariance (NIW derivation) — preserved from original
-- **B**: Skew-Normal 3-parameter extension — preserved from original
-- **C**: Global Injectivity — new, from technical notes
-- **D**: Jacobian Correction — new, from technical notes
-- **E**: MCMC Implementation Details — preserved/condensed
+### Appendices (4 total, loaded via `\input{}`)
+- **A**: Full Covariance (NIW derivation) — `appendix_full_covariance.tex`
+- **B**: Global Injectivity — `appendix_global_injectivity.tex`
+- **C**: Jacobian Correction — `appendix_jacobian_correction.tex`
+- **D**: MCMC Implementation Details — `appendix_mcmc.tex`
 
-To compile (with pythontex for dynamic data):
-```bash
-cd /workspace/doc
-pdflatex main.tex
-pythontex main.tex   # Processes \py{} calls
-pdflatex main.tex
-biber main           # Processes citations
-pdflatex main.tex
+### Compiling
+
+The paper uses pythontex to load data from NPZ files. Compilation is handled
+by `do_compile_doc` in `main.py`, which runs the full build sequence using the
+pylib Python environment:
+
+```
+pdflatex -> pythontex (with --interpreter=python:pylib/bin/python) -> pdflatex -> biber -> pdflatex
 ```
 
-The paper uses pythontex to load data from NPZ files:
-- `data/output/paper_data.npz` - Data summary (n_subjects, n_choices, etc.)
-- `data/output/paper_quantities.npz` - Posterior summaries (means, CIs, R-hat)
+Manual compilation:
+```bash
+cd /workspace/doc
+pdflatex -interaction=nonstopmode main.tex
+pythontex --interpreter=python:/workspace/pylib/bin/python main.tex
+pdflatex -interaction=nonstopmode main.tex
+biber main
+pdflatex -interaction=nonstopmode main.tex
+```
 
-In LaTeX, access via `\py{D['n_subjects']}` or `\py{fmt(Q.get('r_mean_mean', 0))}`.
+The paper uses pythontex to load data from `data/output/paper_data.npz`.
+
+In LaTeX, access via `\py{D['n_subjects']}`.
+
+The `paper_data.npz` is the single source of truth for all numeric values in the paper.
+Table 1 (lottery design) and CE-space prior descriptions are pythontex-driven, loading
+reference lottery probabilities, CE bounds, and prior selection choices (ρ, κ) from this file.
 
 
-## Informative vs Uninformative Priors
+## Prior Specification
 
-The project compares two prior specifications:
-
-**Informative Prior** (`DIRECT_PRIOR` in main.py):
-- Specifies a direct prior for a single individual (mu, sigma2 per param)
-- Gets transformed via variance decomposition to derive hyperpriors
-- Uses `rho` and `alpha_0` researcher choices
-
-**Uninformative Prior** (`UNINFORMATIVE_HYPERPRIOR` in main.py):
-- Directly specifies hyperprior parameters (mu_0, tau_0_sq, alpha_0, beta_0)
-- Bypasses variance decomposition entirely
-- Uses diffuse values: tau_0_sq=100, alpha_0=beta_0=0.001 (diffuse priors)
-
-This distinction is important: the uninformative case should NOT go through
-`derive_hyperpriors()` because that would impose structure on the variance.
+**CE-Space Prior** (`DIRECT_PRIOR_CE` + `rdu_bhm_ce`):
+- Specifies beliefs about certainty equivalents and choice probabilities
+- Beta-Beta hierarchy: (mu, sigma2, lo, hi) per quantity on bounded domain
+- 3 reference lotteries (`REFERENCE_LOTTERIES`) define CE quantities
+- 1 reference pair (`REFERENCE_PAIR`) identifies noise parameter λ
+- Uses `rho` and `kappa` for variance decomposition (`PRIOR_SELECTION_CE`)
+- Hyperparams are logit-scale internally; diagnostic plots show natural scale
 

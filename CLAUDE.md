@@ -365,6 +365,12 @@ Use prose to present information, even when listing properties or conditions.
 Do not use `\textbf{}` for emphasis in the paper body. Use `\textit{}` or
 `\emph{}` sparingly, or let the structure speak for itself.
 
+Do not use em-dashes (`---`) in the paper. Use colons, semicolons, or
+parenthetical commas instead.
+
+Do not place multiple equations side-by-side in a single `align` row. Each
+equation should be on its own line.
+
 
 ## Paper Document
 
@@ -373,7 +379,7 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 ### Main Sections
 1. **Introduction** - Two contributions, bridge between two literatures
 2. **Literature: Two Camps of Prior Specification** - Camp 1 (uninformative), Camp 2 (knowledge-based), BHMs in economics
-3. **General Hyperprior Specification from Generated Quantities** - Framework, CE space, choice probability, block-triangular Jacobian, variance decomposition, κ parameterization
+3. **General Hyperprior Specification from Predictive Quantities** - Framework, CE space, choice probability, block-triangular Jacobian, variance decomposition, κ parameterization
 4. **Application: RDU with Real Data** - Model, priors, H&N 2016 data, results (working, with pythontex)
 5. **Discussion** - Practical guidance, limitations, Bayes factor comparison
 6. **Conclusion**

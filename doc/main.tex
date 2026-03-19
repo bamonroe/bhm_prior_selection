@@ -664,19 +664,6 @@ equations (\ref{eq:hyperv_solved}) yield:
 The shape parameter $\alpha_0$ is determined solely by $\kappa$, with
 $\beta_0$ then following from $\rho$ and $\dpv$.
 
-To make the roles of $\rho$ and $\kappa$ concrete,
-Figure~\ref{fig:nig_sensitivity} extends this NIG example with a sensitivity
-analysis. Setting $\dpm = 0$ and $\dpv = 1$, each $(\rho, \kappa)$ pair
-uniquely determines the hyperprior parameters $(\mu_0, \tau_0^2, \alpha_0,
-\beta_0)$ through the moment conditions
-(\ref{eq:hyperm_solved})--(\ref{eq:hyperv_solved}). Drawing from the resulting
-hierarchy yields three statistics: the between-population SD ($\text{SD}[\mu]
-= \tau_0$), which measures how much the population center moves across
-hyperprior draws; the within-population SD ($\E{\sigma}$), which captures
-the typical spread of individuals around whatever population center was drawn;
-and the within-population SD IQR, which measures how variable the degree of
-heterogeneity is across draws.
-
 \begin{figure}[htbp]
   \centering
   \small (a) Between-population SD: $\text{SD}[\mu] = \tau_0$. \\
@@ -694,6 +681,20 @@ heterogeneity is across draws.
     $(\rho, \kappa)$, with $\dpm = 0$ and $\dpv = 1$.}
   \label{fig:nig_sensitivity}
 \end{figure}
+
+
+To make the roles of $\rho$ and $\kappa$ concrete,
+Figure~\ref{fig:nig_sensitivity} extends this NIG example with a sensitivity
+analysis. Setting $\dpm = 0$ and $\dpv = 1$, each $(\rho, \kappa)$ pair
+uniquely determines the hyperprior parameters $(\mu_0, \tau_0^2, \alpha_0,
+\beta_0)$ through the moment conditions
+(\ref{eq:hyperm_solved})--(\ref{eq:hyperv_solved}). Drawing from the resulting
+hierarchy yields three statistics: the between-population SD ($\text{SD}[\mu]
+= \tau_0$), which measures how much the population center moves across
+hyperprior draws; the within-population SD ($\E{\sigma}$), which captures
+the typical spread of individuals around whatever population center was drawn;
+and the within-population SD IQR, which measures how variable the degree of
+heterogeneity is across draws.
 
 
 Panel (a) of Figure~\ref{fig:nig_sensitivity} shows that the

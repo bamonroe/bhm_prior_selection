@@ -1,35 +1,27 @@
-# TODO - Observable-Space Prior Specification for BHMs
+# TODO - Quantity-Space Prior Specification for BHMs
 
-## Project Status: JoE Restructure — Single-Application Paper
+## Project Status: JoE Paper — Single-Application (RDU with Real Data)
 
-Paper restructured from Economics Letter to Journal of Econometrics:
-- 7 sections + 5 appendices (was 4+3)
+Paper restructured for Journal of Econometrics:
+- 6 sections + 4 appendices
+- Single model: Beta-Beta CE-space hierarchy (`rdu_bhm_ce`)
+- Full pipeline implemented: prior selection, sampling, preprocessing, plotting
 - Bibliography expanded from ~11 to ~30+ references
-- Technical note material integrated into main paper
+- Technical note material integrated into main paper body and appendices
 - κ parameterization introduced (replaces α₀ as primary interface)
-- CPT, discounting stub sections and Appendix F removed (future work)
+- Previous NIG parameter-space model (`rdu_bhm`) removed from all pipelines
 
-**Current branch:** `feat/joe-restructure` (Phase 1 complete, not yet merged)
+**Current branch:** `master`
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Paper Structure (no new computation) — COMPLETE
-- [x] Create feature branch `feat/joe-restructure`
-- [x] Restructure `doc/main.tex` into 7 sections + 5 appendices
-- [x] Write Section 1: Introduction (broadened for JoE)
-- [x] Write Section 2: Literature — Two Camps of Prior Specification
-- [x] Write Section 3: Observable-Space Prior Specification
-- [x] Write Section 4: Hyperprior Derivation with κ parameterization
-- [x] Adapt Section 5: RDU Application from existing material
-- [x] Write stub Sections 6-7 (CPT, Discounting) — later removed
-- [x] Write Section 8: Discussion, Section 9: Conclusion
-- [x] Create Appendices C (Global Injectivity) and D (Jacobian Correction)
+### Phase 1: Paper Structure — COMPLETE
+- [x] Restructure `doc/main.tex` for JoE
+- [x] Write Sections 1–6 (Introduction through Conclusion)
+- [x] Create Appendices A–D (Full Covariance, Global Injectivity, Jacobian Correction, MCMC)
 - [x] Expand `doc/library.bib` from ~11 to ~30+ references
-- [x] Update CLAUDE.md and TODO.md
-- [ ] Verify LaTeX compilation
-- [ ] Git commit on feature branch
 
 ### Phase 2: κ Parameterization + Sensitivity — COMPLETE
 - [x] Implement κ → α₀ mapping in `code/prior_selection.py`
@@ -38,32 +30,24 @@ Paper restructured from Economics Letter to Journal of Econometrics:
 - [x] Generate sensitivity tables for paper
 - [x] Update paper with sensitivity results
 
-### Phase 3: CE-Space Priors — IN PROGRESS
+### Phase 3: CE-Space Priors — COMPLETE
 - [x] Implement CE Jacobian computation via `jax.jacfwd` (`common_fns.py`)
 - [x] Implement CE-space posterior (`code/posteriors/rdu_bhm_ce.py`)
 - [x] Implement CE-space prior selection (`code/prior_selection.py`)
 - [x] Implement CE-space sampling module (`code/sampling_ce.py`)
 - [x] Add CE config and pipeline wiring (`main.py`, `pipelines.py`)
-- [x] Smoke test MCMC with CE-space priors (10 iter, 40 chains — passes)
-- [x] Technical note: over-determined CE priors / Gram determinant
-- [x] Technical note: cross-domain priors and data-uninformed parameters
-- [x] Technical note: Beta-Beta hierarchy for bounded CEs (prior predictive extension)
-- [ ] Derive Beta-of-Betas hierarchical moment-matching formulas (code implementation)
-- [ ] Implement Beta population distribution in `rdu_bhm_ce.py` (replacing Normal)
-- [ ] Run full MCMC with CE-space priors on H&N 2016 data
-- [ ] Generate comparison figures (parameter-space vs CE-space vs diffuse)
+- [x] Derive Beta-of-Betas hierarchical moment-matching formulas
+- [x] Implement Beta population distribution in `rdu_bhm_ce.py`
+- [x] Implement choice probability prior for λ (block-triangular Jacobian)
+- [x] Run full MCMC with CE-space priors on H&N 2016 data
+- [x] Generate comparison figures (informative vs diffuse hyperpriors)
+- [x] Remove NIG parameter-space model from all pipelines
 
-### Phase 4: Choice Probability Prior for λ
-- [ ] Derive ∂P/∂λ explicitly; verify monotonicity
-- [ ] Implement choice-prob mapping for λ identification
-- [ ] Implement 4D joint specification with block-triangular Jacobian
-- [ ] Test on H&N 2016 data
-
-### Phase 5: Simulation Studies — DEFERRED (future paper)
+### Phase 4: Simulation Studies — DEFERRED (future paper)
 CPT and discounting stub sections cut from current paper scope.
 See "Ideas / Future Work" below.
 
-### Phase 6: Polish
+### Phase 5: Polish
 - [ ] Expand bibliography further if needed (~40+ references)
 - [ ] Figure captions, notation consistency across sections
 - [ ] Code/data availability statement
@@ -74,15 +58,10 @@ See "Ideas / Future Work" below.
 
 ## Up Next (immediate)
 
-### Phase 3 Completion
-- [ ] Implement Beta-Beta hyperprior in code (replacing NIG for CE-space)
-- [ ] Update `rdu_bhm_ce.py` to use Beta population distribution
-- [ ] Full MCMC run with CE-space priors on H&N 2016 data
-- [ ] Compare posteriors: parameter-space vs CE-space priors
-
-### Convergence (ongoing)
-- [ ] Run longer sampling chains for H&N data if needed
-- [ ] Consider whether 500+500 chains is adequate
+### Paper Polish
+- [ ] Proofread all sections for typos and consistency
+- [ ] Verify LaTeX compilation with pythontex
+- [ ] Check all cross-references resolve correctly
 
 ### Testing
 - [ ] Write automated tests for core functions
@@ -101,43 +80,22 @@ See "Ideas / Future Work" below.
 - [x] Unified 3-outcome format in `clean_data.py`
 
 ### Model & Estimation
-- [x] RDU-BHM posterior with Prelec 2-param PWF, NCP, COUPLED_TRANSFORM
+- [x] RDU-BHM posterior with Prelec 2-param PWF
 - [x] Prior selection methodology (`prior_selection.py`)
-- [x] MCMC sampling (1000 chains, both informative and uninformative)
-- [x] Posterior summaries (R-hat max 1.002)
+- [x] MCMC sampling with both informative and diffuse hyperpriors
+- [x] Posterior summaries
 
 ### Paper Plots
-- [x] Prior distribution comparison (direct vs unconditional)
-- [x] Hyperparameter posterior comparison (8-panel)
-- [x] Predictive CE overlay (prior/informative/uninformative)
+- [x] Hyperparameter posterior comparison (informative vs diffuse vs hyperprior)
 - [x] Predictive parameter overlay (r, φ, η, λ)
+- [x] Predictive CE overlay (prior/informative/uninformative)
 - [x] Subject CE comparison (most/least affected)
 
 ### Infrastructure
-- [x] `main.py` hub with 22 do-flags
-- [x] Config consolidation (7 config dicts)
+- [x] `main.py` hub with do-flags
+- [x] Config consolidation
 - [x] pythontex integration for dynamic data
-- [x] Skew-Normal example for Appendix B
 - [x] Technical notes: BHM derivation, coupled transform, prior predictive extension, Jacobian correction, over-determined CE priors
-
----
-
-## New Code Required (Phases 2-5)
-
-| Component | File | Phase | Status |
-|-----------|------|-------|--------|
-| κ parameterization | `code/prior_selection.py` | 2 | Done |
-| Sensitivity grid | `code/sensitivity.py` | 2 | Done |
-| CE Jacobian | `code/posteriors/common_fns.py` | 3 | Done |
-| CE-space log-posterior | `code/posteriors/rdu_bhm_ce.py` | 3 | Done (Normal) |
-| CE-space prior selection | `code/prior_selection.py` | 3 | Done (Normal) |
-| CE-space sampling | `code/sampling_ce.py` | 3 | Done |
-| Beta hierarchy (code) | `code/posteriors/rdu_bhm_ce.py` | 3 | TODO |
-| Choice prob prior | `code/posteriors/rdu_bhm.py` | 4 | |
-| CPT posterior | `code/posteriors/cpt_bhm.py` | 5 | |
-| Discounting posterior | `code/posteriors/discounting_bhm.py` | 5 | |
-| Simulation DGP | `code/simulation/dgp.py` | 5 | |
-| Monte Carlo runner | `code/simulation/monte_carlo.py` | 5 | |
 
 ---
 

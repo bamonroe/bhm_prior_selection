@@ -1,75 +1,136 @@
 """
-Sensitivity Analysis: Hyperprior parameters and prior predictive CEs over (ρ, κ) grid.
+Sensitivity Analysis: Beta-Beta hierarchical variance allocation over (ρ, κ) grid.
 
 For each (ρ, κ) combination:
-1. Derive hyperprior parameters via variance decomposition
-2. Compute prior predictive CE distribution (MC sampling)
-3. Report summary statistics: mean, median, SD, IQR, P(CE < min_prize), P(CE > max_prize)
+1. Derive Beta-Beta hyperpriors via variance decomposition
+2. Sample prior predictive CEs from the hierarchy (pure Beta draws)
+3. Report between-population SD, within-population SD, and within-population SD IQR
+
+The marginal CE distribution is invariant to (ρ, κ) by construction. The
+interesting sensitivity is how the hierarchical structure allocates variance:
+  - Between-population SD: robust scale of population-mean CEs across MC draws
+    (measures uncertainty about the population center — governed by ρ)
+  - Within-population SD: median of within-draw CE SDs across MC draws
+    (measures typical individual heterogeneity — governed by 1−ρ)
+  - Within-population SD IQR: interquartile range of draw-level SDs
+    (measures variability in heterogeneity — governed by κ)
 
 Output: NPZ file with all grid results + formatted LaTeX table.
 """
 
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
+
+
+def _sample_beta_beta_ce(
+    hp,
+    quantity_idx: int,
+    n_mc_draws: int,
+    n_subjects: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """
+    Sample prior predictive CEs from the Beta-Beta hierarchy.
+
+    For a single quantity k:
+      μ_k ~ Beta(a_μ[k], b_μ[k])
+      ψ_k ~ Beta(a_ψ[k], b_ψ[k])
+      z_{ik} | μ_k, ψ_k ~ Beta(μ_k(1-ψ_k)/ψ_k, (1-μ_k)(1-ψ_k)/ψ_k)
+      Y_{ik} = lo_k + z_{ik} × (hi_k - lo_k)
+
+    Args:
+        hp: DerivedHyperpriorsBeta object
+        quantity_idx: Index into the quantity arrays (0=CE1, 1=CE2, 2=CE3, 3=P)
+        n_mc_draws: Number of population draws
+        n_subjects: Number of subjects per population
+        rng: numpy random Generator
+
+    Returns:
+        Array of shape (n_mc_draws, n_subjects) with CEs on natural scale
+    """
+    k = quantity_idx
+    a_mu = hp.a_mu[k]
+    b_mu = hp.b_mu[k]
+    a_psi = hp.a_psi[k]
+    b_psi = hp.b_psi[k]
+    lo = hp.bounds_lo[k]
+    hi = hp.bounds_hi[k]
+
+    # Draw population-level parameters: shape (n_mc_draws,)
+    mu = rng.beta(a_mu, b_mu, size=n_mc_draws)
+    psi = rng.beta(a_psi, b_psi, size=n_mc_draws)
+
+    # Conditional Beta parameters: shape (n_mc_draws,)
+    # z_i | mu, psi ~ Beta(mu*(1-psi)/psi, (1-mu)*(1-psi)/psi)
+    ratio = (1 - psi) / psi  # (n_mc_draws,)
+    a_z = mu * ratio         # (n_mc_draws,)
+    b_z = (1 - mu) * ratio   # (n_mc_draws,)
+
+    # Draw subjects: shape (n_mc_draws, n_subjects)
+    z = rng.beta(
+        a_z[:, None] * np.ones(n_subjects),
+        b_z[:, None] * np.ones(n_subjects),
+    )
+
+    # Scale to natural units
+    return lo + z * (hi - lo)
 
 
 def compute_sensitivity_grid(
-    direct_prior: Dict,
+    ce_direct_prior: Dict,
     rho_values: List[float],
     kappa_values: List[float],
-    prizes: np.ndarray,
-    n_mc_draws: int = 5000,
+    quantity_idx: int = 0,
+    n_mc_draws: int = 50000,
     n_subjects: int = 50,
     seed: int = 42,
 ) -> Dict:
     """
-    Compute hyperprior parameters and prior predictive CE statistics over (ρ, κ) grid.
+    Compute hierarchical variance structure over (ρ, κ) grid using Beta-Beta hierarchy.
+
+    For each grid point, MC sampling produces CEs of shape (n_mc_draws, n_subjects).
+    The key outputs are:
+
+    - between_sd: Robust SD of population-mean CEs (IQR/1.349 of draw-level
+      means). Measures uncertainty about the population center (governed by ρ).
+    - within_sd: Median of draw-level CE SDs. Measures typical individual
+      heterogeneity (governed by 1−ρ).
+    - within_iqr: IQR of draw-level CE SDs. Measures variability in the
+      heterogeneity level across populations (governed by κ).
 
     Args:
-        direct_prior: Direct prior specification (same format as main.py DIRECT_PRIOR)
+        ce_direct_prior: CE-space direct prior (same format as main.py DIRECT_PRIOR_CE)
         rho_values: List of ρ values to evaluate
         kappa_values: List of κ values to evaluate
-        prizes: Reference lottery prizes [min, mid, max]
-        n_mc_draws: MC draws per grid point for CE computation
+        quantity_idx: Which quantity to analyze (0=CE1, 1=CE2, 2=CE3, 3=pchoice)
+        n_mc_draws: MC draws per grid point
         n_subjects: Subjects per MC draw
         seed: Base random seed
 
     Returns:
         Dict with keys:
             'rho_values', 'kappa_values': 1D arrays
-            'alpha_0_values': 1D array (corresponding to kappa_values)
-            'ce_mean': (n_rho, n_kappa) array
-            'ce_median': (n_rho, n_kappa) array
-            'ce_sd': (n_rho, n_kappa) array
-            'ce_iqr': (n_rho, n_kappa) array (IQR = Q75 - Q25)
-            'ce_q05': (n_rho, n_kappa) array (5th percentile)
-            'ce_q95': (n_rho, n_kappa) array (95th percentile)
-            'tau_0_r': (n_rho, n_kappa) array (SD of population mean prior for r)
-            'expected_sigma_r': (n_rho, n_kappa) array (E[σ] for r)
+            'between_sd': (n_rho, n_kappa) — robust SD of population-mean CEs
+            'within_sd': (n_rho, n_kappa) — median within-population CE SD
+            'within_iqr': (n_rho, n_kappa) — IQR of within-population CE SDs
     """
-    from prior_selection import (
-        rdu_prelec_prior_selection, derive_hyperpriors, kappa_to_alpha0
-    )
-    from prior_predictive_ce import compute_prior_predictive_ce
+    from prior_selection import ce_space_prior_selection, derive_hyperpriors_beta
 
-    ps = rdu_prelec_prior_selection(direct_prior)
+    ps = ce_space_prior_selection(ce_direct_prior)
+
+    # Extract bounds
+    quantity_keys = ['ce1', 'ce2', 'ce3', 'pchoice']
+    bounds_lo = np.array([ce_direct_prior[k]['lo'] for k in quantity_keys])
+    bounds_hi = np.array([ce_direct_prior[k]['hi'] for k in quantity_keys])
 
     n_rho = len(rho_values)
     n_kappa = len(kappa_values)
 
-    # Pre-compute alpha_0 values
-    alpha_0_values = np.array([kappa_to_alpha0(k) for k in kappa_values])
-
     # Output arrays
-    ce_mean = np.zeros((n_rho, n_kappa))
-    ce_median = np.zeros((n_rho, n_kappa))
-    ce_sd = np.zeros((n_rho, n_kappa))
-    ce_iqr = np.zeros((n_rho, n_kappa))
-    ce_q05 = np.zeros((n_rho, n_kappa))
-    ce_q95 = np.zeros((n_rho, n_kappa))
-    tau_0_r = np.zeros((n_rho, n_kappa))
-    expected_sigma_r = np.zeros((n_rho, n_kappa))
+    between_sd = np.zeros((n_rho, n_kappa))
+    within_sd = np.zeros((n_rho, n_kappa))
+    within_iqr = np.zeros((n_rho, n_kappa))
 
     total = n_rho * n_kappa
     count = 0
@@ -77,185 +138,165 @@ def compute_sensitivity_grid(
     for i, rho in enumerate(rho_values):
         for j, kappa in enumerate(kappa_values):
             count += 1
-            print(f"  [{count}/{total}] ρ={rho:.2f}, κ={kappa:.3f} (α₀={alpha_0_values[j]:.1f})")
+            print(f"  [{count}/{total}] ρ={rho:.2f}, κ={kappa:.2f}")
 
-            # Derive hyperpriors
-            hp = derive_hyperpriors(ps, rho=rho, kappa=kappa)
+            # Derive Beta-Beta hyperpriors
+            hp = derive_hyperpriors_beta(ps, bounds_lo, bounds_hi,
+                                         rho=rho, kappa=kappa)
 
-            hyperprior_params = {
-                'mu_0': hp.mu_0,
-                'tau_0_sq': hp.tau_0_sq,
-                'alpha_0': hp.alpha_0,
-                'beta_0': hp.beta_0,
-            }
-
-            # Store hyperprior summaries (for r parameter, index 0)
-            tau_0_r[i, j] = np.sqrt(hp.tau_0_sq[0])
-            expected_sigma_r[i, j] = np.sqrt(hp.beta_0[0] / (hp.alpha_0 - 1))
-
-            # Compute prior predictive CE distribution
+            # Sample prior predictive CEs: shape (n_mc_draws, n_subjects)
             grid_seed = seed + i * n_kappa + j
-            ces = compute_prior_predictive_ce(
-                hyperprior_params, prizes, n_subjects,
-                n_mc_draws=n_mc_draws, seed=grid_seed,
-            )
-            ces_flat = np.array(ces).ravel()
+            rng = np.random.default_rng(grid_seed)
+            ces_2d = _sample_beta_beta_ce(
+                hp, quantity_idx, n_mc_draws, n_subjects, rng)
 
-            # Clip extreme CEs for robust statistics
-            valid = np.isfinite(ces_flat)
-            ces_valid = ces_flat[valid]
+            # Between-population SD: robust scale of draw-level means
+            draw_means = np.mean(ces_2d, axis=1)  # (n_mc_draws,)
+            q75_m, q25_m = np.percentile(draw_means, [75, 25])
+            between_sd[i, j] = (q75_m - q25_m) / 1.349
 
-            if len(ces_valid) > 0:
-                ce_mean[i, j] = np.mean(ces_valid)
-                ce_median[i, j] = np.median(ces_valid)
-                ce_sd[i, j] = np.std(ces_valid)
-                q05, q25, q75, q95 = np.percentile(ces_valid, [5, 25, 75, 95])
-                ce_iqr[i, j] = q75 - q25
-                ce_q05[i, j] = q05
-                ce_q95[i, j] = q95
-            else:
-                ce_mean[i, j] = np.nan
-                ce_median[i, j] = np.nan
-                ce_sd[i, j] = np.nan
-                ce_iqr[i, j] = np.nan
-                ce_q05[i, j] = np.nan
-                ce_q95[i, j] = np.nan
+            # Within-population: draw-level SDs
+            draw_sds = np.std(ces_2d, axis=1)  # (n_mc_draws,)
+            within_sd[i, j] = np.median(draw_sds)
+            q75_s, q25_s = np.percentile(draw_sds, [75, 25])
+            within_iqr[i, j] = q75_s - q25_s
 
     return {
         'rho_values': np.array(rho_values),
         'kappa_values': np.array(kappa_values),
-        'alpha_0_values': alpha_0_values,
-        'ce_mean': ce_mean,
-        'ce_median': ce_median,
-        'ce_sd': ce_sd,
-        'ce_iqr': ce_iqr,
-        'ce_q05': ce_q05,
-        'ce_q95': ce_q95,
-        'tau_0_r': tau_0_r,
-        'expected_sigma_r': expected_sigma_r,
+        'between_sd': between_sd,
+        'within_sd': within_sd,
+        'within_iqr': within_iqr,
     }
 
 
-def format_latex_table(results: Dict, prizes: np.ndarray) -> str:
+def format_latex_table(results: Dict, prizes: np.ndarray,
+                       probs: Optional[np.ndarray] = None) -> str:
     """
-    Format sensitivity results as a LaTeX table.
+    Format sensitivity results as a LaTeX table with three panels.
 
-    Produces a table with ρ in rows, κ in columns, showing
-    prior predictive CE median [90% CI].
+    Panel A: Between-population SD (uncertainty about population center).
+    Panel B: Within-population SD (typical individual heterogeneity).
+    Panel C: Within-population SD IQR (variability of heterogeneity).
 
     Args:
         results: Output from compute_sensitivity_grid()
         prizes: Reference lottery prizes for context
+        probs: Probabilities for each prize (for caption)
 
     Returns:
         LaTeX table string
     """
     rho_vals = results['rho_values']
     kappa_vals = results['kappa_values']
-    alpha_0_vals = results['alpha_0_values']
-
     n_kappa = len(kappa_vals)
+    ncol = n_kappa + 1
 
-    # Header
     col_spec = 'r' + 'c' * n_kappa
     lines = []
     lines.append(r'\begin{table}[htbp]')
     lines.append(r'\centering')
-    lines.append(r'\caption{Prior predictive CE distribution: median [90\% CI] across $(\rho, \kappa)$ grid.}')
+
+    if probs is None:
+        probs = np.ones(len(prizes)) / len(prizes)
+    ev = np.dot(prizes, probs)
+    prize_str = '/'.join(f'\\${p:.0f}' for p in prizes)
+    prob_str = '/'.join(f'{p:.1f}' for p in probs)
+    lines.append(f'\\caption{{Hierarchical variance allocation across '
+                 f'$(\\rho, \\kappa)$ grid. '
+                 f'Reference lottery: ${prize_str}$ with probabilities '
+                 f'$({prob_str})$, $\\text{{EV}} = \\${ev:.0f}$.}}')
     lines.append(r'\label{tab:sensitivity}')
     lines.append(r'\begin{tabular}{' + col_spec + '}')
     lines.append(r'\toprule')
 
-    # Column headers: kappa values with alpha_0 equivalent
     header = r'$\rho$'
-    for k, a0 in zip(kappa_vals, alpha_0_vals):
+    for k in kappa_vals:
         header += f' & $\\kappa = {k:.2f}$'
     header += r' \\'
     lines.append(header)
 
-    # Sub-header with alpha_0 equivalents
-    subheader = ''
-    for a0 in alpha_0_vals:
-        subheader += f' & $(\\alpha_0 = {a0:.0f})$'
-    subheader += r' \\'
-    lines.append(subheader)
-    lines.append(r'\midrule')
-
-    # Data rows
-    for i, rho in enumerate(rho_vals):
-        row = f'{rho:.2f}'
-        for j in range(n_kappa):
-            med = results['ce_median'][i, j]
-            q05 = results['ce_q05'][i, j]
-            q95 = results['ce_q95'][i, j]
-            row += f' & ${med:.1f}\\;[{q05:.1f},\\,{q95:.1f}]$'
-        row += r' \\'
-        lines.append(row)
+    for key, label in [
+        ('between_sd', 'Between-population SD'),
+        ('within_sd', 'Within-population SD'),
+        ('within_iqr', 'Within-population SD IQR'),
+    ]:
+        lines.append(r'\midrule')
+        lines.append(f'\\multicolumn{{{ncol}}}{{l}}{{\\textit{{{label}}}}} \\\\')
+        for i, rho in enumerate(rho_vals):
+            row = f'{rho:.2f}'
+            for j in range(n_kappa):
+                row += f' & ${results[key][i, j]:.2f}$'
+            row += r' \\'
+            lines.append(row)
 
     lines.append(r'\bottomrule')
     lines.append(r'\end{tabular}')
-    ev = np.mean(prizes)
-    lines.append(f'\\\\[2pt]\\footnotesize{{Reference lottery: prizes '
-                 f'\\${prizes[0]:.0f}/\\${prizes[1]:.0f}/\\${prizes[2]:.0f} '
-                 f'equally likely (EV = \\${ev:.0f}).}}')
     lines.append(r'\end{table}')
 
     return '\n'.join(lines)
 
 
 def run_sensitivity(
-    direct_prior: Dict,
-    data_dir: Path,
+    ce_direct_prior: Dict,
     output_dir: Path,
+    lottery: Optional[Dict] = None,
     rho_values: Optional[List[float]] = None,
     kappa_values: Optional[List[float]] = None,
-    n_mc_draws: int = 5000,
+    quantity_idx: int = 0,
+    n_mc_draws: int = 50000,
     n_subjects: int = 50,
     seed: int = 42,
 ):
     """
-    Run sensitivity analysis and save results.
+    Run sensitivity analysis using Beta-Beta hierarchy and save results.
 
     Args:
-        direct_prior: Direct prior specification
-        data_dir: Path to data directory (for loading prizes)
+        ce_direct_prior: CE-space direct prior specification
         output_dir: Path to save results
+        lottery: Dict with 'prizes' and 'probs' keys (for table caption)
         rho_values: ρ grid values (default: [0.05, 0.1, 0.2, 0.3, 0.5])
-        kappa_values: κ grid values (default: [0.15, 0.24, 0.5, 1.0])
+        kappa_values: κ grid values (default: [0.15, 0.25, 0.5, 1.0])
+        quantity_idx: Which quantity to analyze (0=CE1)
         n_mc_draws: MC draws per grid point
         n_subjects: Subjects per MC draw
         seed: Random seed
     """
-    from clean_data import load_clean_data
-
     if rho_values is None:
         rho_values = [0.05, 0.1, 0.2, 0.3, 0.5]
     if kappa_values is None:
-        kappa_values = [0.15, 0.24, 0.50, 1.00]
+        kappa_values = [0.15, 0.25, 0.50, 1.00]
 
-    # Load prizes from clean data
-    clean = load_clean_data()
-    all_prizes = np.concatenate([
-        np.asarray(clean['prizes_L']).ravel(),
-        np.asarray(clean['prizes_R']).ravel(),
-    ])
-    p_min = float(np.min(all_prizes))
-    p_max = float(np.max(all_prizes))
-    p_mid = (p_min + p_max) / 2.0
-    prizes = np.array([p_min, p_mid, p_max])
+    # Extract lottery info for caption
+    if lottery is not None:
+        prizes = np.array(sorted(lottery['prizes']))
+        probs = np.array([lottery['probs'][lottery['prizes'].index(p)]
+                          if isinstance(lottery['prizes'], list)
+                          else lottery['probs'][list(lottery['prizes']).index(p)]
+                          for p in sorted(lottery['prizes'])])
+    else:
+        prizes = np.array([
+            ce_direct_prior['ce1']['lo'],
+            ce_direct_prior['ce1']['hi'],
+        ])
+        probs = None
 
+    ev = np.dot(prizes, probs) if probs is not None else np.mean(prizes)
+    prob_str = ', '.join(f'{p:.1f}' for p in probs) if probs is not None else 'equal'
+    quantity_names = ['CE₁', 'CE₂', 'CE₃', 'P(choose L₁)']
     print(f"Sensitivity analysis over {len(rho_values)} × {len(kappa_values)} grid")
+    print(f"  Quantity: {quantity_names[quantity_idx]}")
     print(f"  ρ ∈ {rho_values}")
     print(f"  κ ∈ {kappa_values}")
-    print(f"  Reference lottery prizes: ${prizes[0]:.0f}, ${prizes[1]:.0f}, ${prizes[2]:.0f}")
+    print(f"  Reference lottery: prizes={prizes}, probs=({prob_str}), EV=${ev:.0f}")
     print(f"  MC draws: {n_mc_draws}, subjects/draw: {n_subjects}")
     print()
 
     results = compute_sensitivity_grid(
-        direct_prior=direct_prior,
+        ce_direct_prior=ce_direct_prior,
         rho_values=rho_values,
         kappa_values=kappa_values,
-        prizes=prizes,
+        quantity_idx=quantity_idx,
         n_mc_draws=n_mc_draws,
         n_subjects=n_subjects,
         seed=seed,
@@ -270,46 +311,57 @@ def run_sensitivity(
     print(f"\nSaved results to: {npz_path}")
 
     # Generate and save LaTeX table
-    latex_table = format_latex_table(results, prizes)
+    latex_table = format_latex_table(results, prizes, probs=probs)
     tex_path = output_dir / 'sensitivity_table.tex'
     with open(tex_path, 'w') as f:
         f.write(latex_table)
     print(f"Saved LaTeX table to: {tex_path}")
 
-    # Print hyperprior parameter summary (for r parameter)
+    # Print between-population SD
     print("\n" + "=" * 70)
-    print("Derived Hyperpriors for r (CRRA): τ₀ / E[σ]")
+    print("Between-Population SD (uncertainty about population center)")
     print("=" * 70)
     header = f"{'ρ':>6}"
     for k in kappa_values:
-        header += f"  {'κ=' + f'{k:.2f}':>20}"
+        header += f"  {'κ=' + f'{k:.2f}':>12}"
     print(header)
     print("-" * 70)
     for i, rho in enumerate(rho_values):
         row = f"{rho:>6.2f}"
         for j in range(len(kappa_values)):
-            t0 = results['tau_0_r'][i, j]
-            es = results['expected_sigma_r'][i, j]
-            row += f"  {t0:>8.3f} / {es:.3f}  "
+            row += f"  {results['between_sd'][i, j]:>10.2f}"
         print(row)
     print("=" * 70)
 
-    # Print CE summary
+    # Print within-population SD
     print("\n" + "=" * 70)
-    print("Prior Predictive CE: Median [90% CI]")
+    print("Within-Population SD (median individual heterogeneity)")
     print("=" * 70)
     header = f"{'ρ':>6}"
     for k in kappa_values:
-        header += f"  {'κ=' + f'{k:.2f}':>20}"
+        header += f"  {'κ=' + f'{k:.2f}':>12}"
     print(header)
     print("-" * 70)
     for i, rho in enumerate(rho_values):
         row = f"{rho:>6.2f}"
         for j in range(len(kappa_values)):
-            med = results['ce_median'][i, j]
-            q05 = results['ce_q05'][i, j]
-            q95 = results['ce_q95'][i, j]
-            row += f"  {med:>5.1f} [{q05:>5.1f},{q95:>5.1f}]"
+            row += f"  {results['within_sd'][i, j]:>10.2f}"
+        print(row)
+    print("=" * 70)
+
+    # Print within-population SD IQR
+    print("\n" + "=" * 70)
+    print("Within-Population SD IQR (variability of heterogeneity)")
+    print("=" * 70)
+    header = f"{'ρ':>6}"
+    for k in kappa_values:
+        header += f"  {'κ=' + f'{k:.2f}':>12}"
+    print(header)
+    print("-" * 70)
+    for i, rho in enumerate(rho_values):
+        row = f"{rho:>6.2f}"
+        for j in range(len(kappa_values)):
+            row += f"  {results['within_iqr'][i, j]:>10.2f}"
         print(row)
     print("=" * 70)
 

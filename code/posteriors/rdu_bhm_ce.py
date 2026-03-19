@@ -1,36 +1,33 @@
 """
-Rank-Dependent Utility (RDU) BHM with CE-Space Prior Specification.
+Rank-Dependent Utility (RDU) BHM with Quantity-Space Prior (Beta-Beta).
 
 This posterior implements an RDU model where the prior on individual-level
-parameters (r, phi_raw, eta_raw) is specified in certainty-equivalent space
-rather than parameter space. The Jacobian correction transforms:
+parameters (r, phi_raw, eta_raw, lambda_raw) is specified in quantity space
+(3 CEs + 1 choice probability) using a Beta-Beta hierarchical model with
+Jacobian correction:
 
-    p(theta) = p_CE(g(theta)) |det J_g(theta)|
+    p(theta) = p_Y(g(theta)) |det J_g(theta)|
 
-where g maps (r, phi_raw, eta_raw) -> (CE1, CE2, CE3) for three reference
-lotteries.
+where g maps (r, phi_raw, eta_raw, lambda_raw) -> (CE1, CE2, CE3, P_choice).
 
-Parameterization:
-- Subject params (r_i, phi_raw_i, eta_raw_i): CENTERED in parameter space.
-  Prior is defined in CE space with Jacobian correction.
-- Subject param (lambda_eps_i): NCP as in rdu_bhm.py. Lambda doesn't affect
-  CEs so it can stay non-centered.
+All 4 subject parameters are CENTERED (no NCP). All 4 generated quantities
+use the same Beta-Beta hierarchy.
 
-Hyperparameters (8 total):
-- ce1_mean, ce1_logsd: population mean/logsd for CE1
-- ce2_mean, ce2_logsd: population mean/logsd for CE2
-- ce3_mean, ce3_logsd: population mean/logsd for CE3
-- lambda_mean, lambda_logsd: population mean/logsd for log(lambda) (NCP)
+Hyperparameters (8 total, on logit scale):
+    [logit_mu_1, logit_psi_1,   # CE1 population mean & dispersion
+     logit_mu_2, logit_psi_2,   # CE2
+     logit_mu_3, logit_psi_3,   # CE3
+     logit_mu_P, logit_psi_P]   # P_choice
 
 Data format: Same as rdu_bhm, plus:
-- float[7]: hyperprior_arr (16 values) — NIG hyperprior for 4 dims
+- float[7]: hyperprior_arr (24 values) — Beta-Beta hyperprior for 4 quantities
 - float[8]: ref_lotteries (18 values) — 3 lotteries x (3 prizes + 3 probs)
+- float[9]: ref_pair (12 values) — 2 lotteries x (3 prizes + 3 probs)
 """
 
 import numpy as np
 import jax
 import jax.numpy as jnp
-import jax.scipy.stats as stats
 
 try:
     from bamcmc import (
@@ -48,8 +45,8 @@ except ImportError:
 from .common_fns import (
     crra_ufn,
     risk_likelihood,
-    ce_mapping_3lotteries,
-    ce_jacobian_logabsdet,
+    full_forward_map,
+    full_jacobian_logabsdet,
 )
 
 MODEL_ID = "rdu_bhm_ce"
@@ -58,9 +55,13 @@ MODEL_ID = "rdu_bhm_ce"
 # Model Constants
 # =============================================================================
 
-NPARAMS = 4  # r, phi_raw, eta_raw, lambda_eps per subject
-N_HYPER = 8  # (mean, logsd) for CE1, CE2, CE3, lambda
+NPARAMS = 4          # r, phi_raw, eta_raw, lambda_raw per subject
+N_HYPER = 8          # (logit_mu, logit_psi) for 4 quantities
 HYPER_BLOCK_SIZE = 2
+N_QUANTITIES = 4     # CE1, CE2, CE3, P_choice
+HYPERPRIOR_STRIDE = 6  # per-quantity: a_mu, b_mu, a_psi, b_psi, lo, hi
+
+QUANTITY_NAMES = ('ce1', 'ce2', 'ce3', 'pchoice')
 
 
 # =============================================================================
@@ -68,23 +69,17 @@ HYPER_BLOCK_SIZE = 2
 # =============================================================================
 
 def _get_indices(nids):
-    """Compute index offsets for the CE-space state vector."""
+    """Compute index offsets for the state vector."""
     first_hyper = nids * NPARAMS
 
-    # Hyperparameter layout:
-    # [ce1_mean, ce1_logsd, ce2_mean, ce2_logsd, ce3_mean, ce3_logsd,
-    #  lambda_mean, lambda_logsd]
-    ce1_hyper_start = first_hyper
-    ce2_hyper_start = first_hyper + HYPER_BLOCK_SIZE
-    ce3_hyper_start = first_hyper + 2 * HYPER_BLOCK_SIZE
-    lambda_hyper_start = first_hyper + 3 * HYPER_BLOCK_SIZE
+    # Hyperparameter layout (logit scale):
+    # [logit_mu_1, logit_psi_1, logit_mu_2, logit_psi_2,
+    #  logit_mu_3, logit_psi_3, logit_mu_P, logit_psi_P]
+    hyper_starts = [first_hyper + k * HYPER_BLOCK_SIZE for k in range(N_QUANTITIES)]
 
     return {
         'first_hyper': first_hyper,
-        'ce1_hyper_start': ce1_hyper_start,
-        'ce2_hyper_start': ce2_hyper_start,
-        'ce3_hyper_start': ce3_hyper_start,
-        'lambda_hyper_start': lambda_hyper_start,
+        'hyper_starts': hyper_starts,
     }
 
 
@@ -94,18 +89,16 @@ def _get_indices(nids):
 
 def batch_type(mcmc_config, data):
     """
-    CE-space BHM block specification.
+    Beta-Beta BHM block specification.
 
-    Subject blocks: (r, phi_raw, eta_raw, lambda_eps) per subject — MH.
-    CE hyper blocks (x3): (mean, logsd) — MH (no coupled transform).
-    Lambda hyper block: (mean, logsd) — COUPLED_TRANSFORM (NCP for lambda).
+    Subject blocks: (r, phi_raw, eta_raw, lambda_raw) per subject — MH.
+    Hyper blocks (x4): (logit_mu_k, logit_psi_k) per quantity — MH.
     """
     n_subjects = data["static"][0]
 
     proposal_type = ProposalType.MCOV_SMOOTH
     settings = {'k_alpha': 3.0, 'k_g': 12}
 
-    # Subject blocks: 4 params per subject, standard MH
     subject_specs = create_subject_blocks(
         n_subjects=n_subjects,
         params_per_subject=NPARAMS,
@@ -115,91 +108,75 @@ def batch_type(mcmc_config, data):
         label_prefix="Subj"
     )
 
-    # CE hyper blocks: standard MH (centered parameterization — no coupled transform)
-    ce_hyper_specs = [
+    hyper_labels = ["Hyper_CE1", "Hyper_CE2", "Hyper_CE3", "Hyper_Pchoice"]
+    hyper_specs = [
         BlockSpec(
             size=HYPER_BLOCK_SIZE,
             sampler_type=SamplerType.METROPOLIS_HASTINGS,
             proposal_type=proposal_type,
             settings=settings,
-            label="Hyper_CE1",
-        ),
-        BlockSpec(
-            size=HYPER_BLOCK_SIZE,
-            sampler_type=SamplerType.METROPOLIS_HASTINGS,
-            proposal_type=proposal_type,
-            settings=settings,
-            label="Hyper_CE2",
-        ),
-        BlockSpec(
-            size=HYPER_BLOCK_SIZE,
-            sampler_type=SamplerType.METROPOLIS_HASTINGS,
-            proposal_type=proposal_type,
-            settings=settings,
-            label="Hyper_CE3",
-        ),
+            label=label,
+        )
+        for label in hyper_labels
     ]
 
-    # Lambda hyper block: COUPLED_TRANSFORM (NCP for lambda_eps)
-    lambda_hyper_spec = [
-        BlockSpec(
-            size=HYPER_BLOCK_SIZE,
-            sampler_type=SamplerType.COUPLED_TRANSFORM,
-            proposal_type=proposal_type,
-            settings=settings,
-            label="Hyper_lambda",
-        ),
-    ]
-
-    return subject_specs + ce_hyper_specs + lambda_hyper_spec
+    return subject_specs + hyper_specs
 
 
 # =============================================================================
-# Hyperprior Functions
+# Beta-Beta Hyperprior Functions
 # =============================================================================
 
-def _hyperprior_mean_logsd(mean_val, logsd_val, mu_0, tau_0_sq, alpha_0, beta_0):
+def _log_beta_pdf(x, a, b):
+    """Log PDF of Beta(a, b) evaluated at x, without normalizing constant."""
+    return (a - 1) * jnp.log(x) + (b - 1) * jnp.log(1 - x)
+
+
+def _log_beta_pdf_normalized(x, a, b):
+    """Log PDF of Beta(a, b) with full normalizing constant."""
+    log_B = jax.scipy.special.gammaln(a) + jax.scipy.special.gammaln(b) \
+            - jax.scipy.special.gammaln(a + b)
+    return (a - 1) * jnp.log(x) + (b - 1) * jnp.log(1 - x) - log_B
+
+
+def _hyperprior_logit_beta(logit_val, a, b):
     """
-    Log hyperprior for a (mean, logsd) pair.
+    Log hyperprior for a logit-transformed Beta parameter.
 
-    Same as rdu_bhm._hyperprior_mean_logsd:
-        mean ~ Normal(mu_0, tau_0_sq)
-        sigma^2 ~ InverseGamma(alpha_0, beta_0)
-        logsd = 0.5 * log(sigma^2)
+    If x = sigmoid(logit_val) ~ Beta(a, b), then:
+        log p(logit_val) = log Beta(sigmoid(logit_val); a, b)
+                         + log sigmoid'(logit_val)
+    where sigmoid'(x) = sigmoid(x) * (1 - sigmoid(x)).
     """
-    lp_mean = stats.norm.logpdf(mean_val, loc=mu_0, scale=jnp.sqrt(tau_0_sq))
-
-    sigma_sq = jnp.exp(2 * logsd_val)
-    lp_var = (alpha_0 * jnp.log(beta_0) - jax.scipy.special.gammaln(alpha_0)
-              - (alpha_0 + 1) * jnp.log(sigma_sq) - beta_0 / sigma_sq)
-
-    lp_jacobian = jnp.log(2.0) + 2 * logsd_val
-
-    return lp_mean + lp_var + lp_jacobian
+    x = jax.nn.sigmoid(logit_val)
+    lp = _log_beta_pdf_normalized(x, a, b)
+    # Jacobian of logit -> x: d/d(logit) sigmoid(logit) = x * (1-x)
+    lp += jnp.log(x) + jnp.log(1 - x)
+    return lp
 
 
 def _compute_all_hyperpriors(chain_state, idx, hyperprior_arr):
     """
-    Compute sum of all hyperprior terms.
+    Compute sum of all hyperprior terms for 4 quantities.
 
-    Hyperprior array layout (16 values):
-    [ce1_mu_0, ce1_tau_0_sq, ce1_alpha_0, ce1_beta_0,
-     ce2_mu_0, ce2_tau_0_sq, ce2_alpha_0, ce2_beta_0,
-     ce3_mu_0, ce3_tau_0_sq, ce3_alpha_0, ce3_beta_0,
-     lambda_mu_0, lambda_tau_0_sq, lambda_alpha_0, lambda_beta_0]
+    Hyperprior array layout (24 values = 4 quantities x 6):
+    For each quantity k: [a_mu_k, b_mu_k, a_psi_k, b_psi_k, lo_k, hi_k]
     """
     lp = 0.0
 
-    hyper_keys = ['ce1_hyper_start', 'ce2_hyper_start',
-                  'ce3_hyper_start', 'lambda_hyper_start']
-    for i, hyper_key in enumerate(hyper_keys):
-        mean_val = chain_state[idx[hyper_key]]
-        logsd_val = chain_state[idx[hyper_key] + 1]
-        mu_0 = hyperprior_arr[i*4 + 0]
-        tau_0_sq = hyperprior_arr[i*4 + 1]
-        alpha_0 = hyperprior_arr[i*4 + 2]
-        beta_0 = hyperprior_arr[i*4 + 3]
-        lp += _hyperprior_mean_logsd(mean_val, logsd_val, mu_0, tau_0_sq, alpha_0, beta_0)
+    for k in range(N_QUANTITIES):
+        hs = idx['hyper_starts'][k]
+        logit_mu = chain_state[hs]
+        logit_psi = chain_state[hs + 1]
+
+        offset = k * HYPERPRIOR_STRIDE
+        a_mu = hyperprior_arr[offset + 0]
+        b_mu = hyperprior_arr[offset + 1]
+        a_psi = hyperprior_arr[offset + 2]
+        b_psi = hyperprior_arr[offset + 3]
+
+        lp += _hyperprior_logit_beta(logit_mu, a_mu, b_mu)
+        lp += _hyperprior_logit_beta(logit_psi, a_psi, b_psi)
 
     return lp
 
@@ -208,27 +185,57 @@ def _compute_all_hyperpriors(chain_state, idx, hyperprior_arr):
 # Subject Parameter Extraction
 # =============================================================================
 
-def _get_subject_params(chain_state, sid, idx):
-    """
-    Extract actual parameters for a subject.
-
-    For CE-space model:
-    - r, phi_raw, eta_raw are stored directly (centered parameterization)
-    - lambda_eps is NCP: lambda_raw = lambda_mean + exp(lambda_logsd) * lambda_eps
-    """
+def _get_subject_params(chain_state, sid):
+    """Extract parameters for a subject (all centered)."""
     subject_start = sid * NPARAMS
-
     r_val = chain_state[subject_start + 0]
     phi_raw = chain_state[subject_start + 1]
     eta_raw = chain_state[subject_start + 2]
-    lambda_eps = chain_state[subject_start + 3]
-
-    # NCP transform for lambda only
-    lambda_mean = chain_state[idx['lambda_hyper_start']]
-    lambda_sigma = jnp.exp(chain_state[idx['lambda_hyper_start'] + 1])
-    lambda_raw = lambda_mean + lambda_sigma * lambda_eps
-
+    lambda_raw = chain_state[subject_start + 3]
     return r_val, phi_raw, eta_raw, lambda_raw
+
+
+# =============================================================================
+# Population Prior (Beta-Beta on quantities)
+# =============================================================================
+
+def _subject_quantity_prior(quantities, chain_state, idx, hyperprior_arr):
+    """
+    Beta-Beta population prior on 4 generated quantities for one subject.
+
+    For each quantity k:
+        z_k = (Y_k - lo_k) / (hi_k - lo_k)  (normalized to [0,1])
+        z_k | mu_k, psi_k ~ Beta(mu_k*(1-psi_k)/psi_k, (1-mu_k)*(1-psi_k)/psi_k)
+    """
+    lp = 0.0
+
+    for k in range(N_QUANTITIES):
+        hs = idx['hyper_starts'][k]
+        mu_k = jax.nn.sigmoid(chain_state[hs])
+        psi_k = jax.nn.sigmoid(chain_state[hs + 1])
+
+        offset = k * HYPERPRIOR_STRIDE
+        lo_k = hyperprior_arr[offset + 4]
+        hi_k = hyperprior_arr[offset + 5]
+
+        # Normalize quantity to [0, 1]
+        z_k = (quantities[k] - lo_k) / (hi_k - lo_k)
+        z_k = jnp.clip(z_k, 1e-10, 1 - 1e-10)
+
+        # Beta population distribution parameters
+        alpha_pop = mu_k * (1 - psi_k) / psi_k
+        beta_pop = (1 - mu_k) * (1 - psi_k) / psi_k
+
+        # Clamp to avoid numerical issues
+        alpha_pop = jnp.maximum(alpha_pop, 1e-6)
+        beta_pop = jnp.maximum(beta_pop, 1e-6)
+
+        lp += _log_beta_pdf_normalized(z_k, alpha_pop, beta_pop)
+
+        # Jacobian for normalizing Y -> z: dz/dY = 1/(hi-lo)
+        lp -= jnp.log(hi_k - lo_k)
+
+    return lp
 
 
 # =============================================================================
@@ -236,9 +243,7 @@ def _get_subject_params(chain_state, sid, idx):
 # =============================================================================
 
 def log_posterior(chain_state, param_indices, data, beta=1.0):
-    """
-    Log posterior for RDU CE-space hierarchical model.
-    """
+    """Log posterior for RDU quantity-space Beta-Beta hierarchical model."""
     n_subjects = data["static"][0]
     idx = _get_indices(n_subjects)
     first_param = param_indices[0]
@@ -247,12 +252,13 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
     is_hyper = first_param >= first_hyper
 
     def compute_hyper_posterior():
-        """Log posterior for hyperparameter blocks."""
+        """Log posterior for hyperparameter blocks (requires all subjects)."""
         datai = data["int"]
         dataf = data["float"]
 
         hyperprior_arr = jnp.asarray(dataf[7])
         ref_lotteries = jnp.asarray(dataf[8])
+        ref_pair = jnp.asarray(dataf[9])
 
         lp_hyper = _compute_all_hyperpriors(chain_state, idx, hyperprior_arr)
 
@@ -260,73 +266,62 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
         dataf_jax = tuple(jnp.asarray(arr) for arr in dataf)
         unique_outcomes = dataf_jax[0]
 
-        # CE hyperparameters
-        ce1_mean = chain_state[idx['ce1_hyper_start']]
-        ce1_sd = jnp.exp(chain_state[idx['ce1_hyper_start'] + 1])
-        ce2_mean = chain_state[idx['ce2_hyper_start']]
-        ce2_sd = jnp.exp(chain_state[idx['ce2_hyper_start'] + 1])
-        ce3_mean = chain_state[idx['ce3_hyper_start']]
-        ce3_sd = jnp.exp(chain_state[idx['ce3_hyper_start'] + 1])
-
         def subject_ll_body(sid, acc):
             r_val, phi_raw, eta_raw, lambda_raw = _get_subject_params(
-                chain_state, sid, idx)
+                chain_state, sid)
 
-            # CE-space prior on (r, phi_raw, eta_raw):
-            # 1. Compute CEs via forward map
-            ces = ce_mapping_3lotteries(r_val, phi_raw, eta_raw, ref_lotteries)
-            # 2. Normal population prior on each CE
-            lp_ce = (stats.norm.logpdf(ces[0], ce1_mean, ce1_sd)
-                     + stats.norm.logpdf(ces[1], ce2_mean, ce2_sd)
-                     + stats.norm.logpdf(ces[2], ce3_mean, ce3_sd))
-            # 3. Jacobian correction
-            log_det_j = ce_jacobian_logabsdet(r_val, phi_raw, eta_raw, ref_lotteries)
-            lp_ce += log_det_j
+            # Forward map: theta -> (CE1, CE2, CE3, P_choice)
+            quantities = full_forward_map(
+                r_val, phi_raw, eta_raw, lambda_raw,
+                ref_lotteries, ref_pair)
 
-            # NCP prior on lambda_eps
-            lambda_eps = chain_state[sid * NPARAMS + 3]
-            lp_lambda = stats.norm.logpdf(lambda_eps, 0.0, 1.0)
+            # Beta-Beta population prior on quantities
+            lp_pop = _subject_quantity_prior(
+                quantities, chain_state, idx, hyperprior_arr)
+
+            # Jacobian correction
+            log_det_j = full_jacobian_logabsdet(
+                r_val, phi_raw, eta_raw, lambda_raw,
+                ref_lotteries, ref_pair)
 
             # Data likelihood
             phi = jnp.exp(phi_raw)
             eta = jnp.exp(eta_raw)
             lam = jnp.exp(lambda_raw)
             unique_utils = crra_ufn(unique_outcomes, r_val)
-            ll = risk_likelihood(unique_utils, phi, eta, datai_jax, dataf_jax, sid, lam)
+            ll = risk_likelihood(
+                unique_utils, phi, eta, datai_jax, dataf_jax, sid, lam)
 
-            return acc + lp_ce + lp_lambda + beta * ll
+            return acc + lp_pop + log_det_j + beta * ll
 
         total = jax.lax.fori_loop(0, n_subjects, subject_ll_body, 0.0)
 
         return lp_hyper + total
 
     def compute_subject_posterior():
-        """Log posterior for subject parameter blocks."""
+        """Log posterior for a single subject block."""
         sid = first_param // NPARAMS
         r_val, phi_raw, eta_raw, lambda_raw = _get_subject_params(
-            chain_state, sid, idx)
+            chain_state, sid)
 
         dataf = data["float"]
+        hyperprior_arr = jnp.asarray(dataf[7])
         ref_lotteries = jnp.asarray(dataf[8])
+        ref_pair = jnp.asarray(dataf[9])
 
-        # CE-space prior on (r, phi_raw, eta_raw)
-        ce1_mean = chain_state[idx['ce1_hyper_start']]
-        ce1_sd = jnp.exp(chain_state[idx['ce1_hyper_start'] + 1])
-        ce2_mean = chain_state[idx['ce2_hyper_start']]
-        ce2_sd = jnp.exp(chain_state[idx['ce2_hyper_start'] + 1])
-        ce3_mean = chain_state[idx['ce3_hyper_start']]
-        ce3_sd = jnp.exp(chain_state[idx['ce3_hyper_start'] + 1])
+        # Forward map
+        quantities = full_forward_map(
+            r_val, phi_raw, eta_raw, lambda_raw,
+            ref_lotteries, ref_pair)
 
-        ces = ce_mapping_3lotteries(r_val, phi_raw, eta_raw, ref_lotteries)
-        lp_ce = (stats.norm.logpdf(ces[0], ce1_mean, ce1_sd)
-                 + stats.norm.logpdf(ces[1], ce2_mean, ce2_sd)
-                 + stats.norm.logpdf(ces[2], ce3_mean, ce3_sd))
-        log_det_j = ce_jacobian_logabsdet(r_val, phi_raw, eta_raw, ref_lotteries)
-        lp_ce += log_det_j
+        # Beta-Beta population prior
+        lp_pop = _subject_quantity_prior(
+            quantities, chain_state, idx, hyperprior_arr)
 
-        # NCP prior on lambda_eps
-        lambda_eps = chain_state[sid * NPARAMS + 3]
-        lp_lambda = stats.norm.logpdf(lambda_eps, 0.0, 1.0)
+        # Jacobian correction
+        log_det_j = full_jacobian_logabsdet(
+            r_val, phi_raw, eta_raw, lambda_raw,
+            ref_lotteries, ref_pair)
 
         # Data likelihood
         phi = jnp.exp(phi_raw)
@@ -337,54 +332,16 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
         dataf_jax = tuple(jnp.asarray(arr) for arr in dataf)
         unique_outcomes = dataf_jax[0]
         unique_utils = crra_ufn(unique_outcomes, r_val)
-        log_like = risk_likelihood(unique_utils, phi, eta, datai_jax, dataf_jax, sid, lam)
+        log_like = risk_likelihood(
+            unique_utils, phi, eta, datai_jax, dataf_jax, sid, lam)
 
-        return lp_ce + lp_lambda + beta * log_like
+        return lp_pop + log_det_j + beta * log_like
 
     return jax.lax.cond(
         is_hyper,
         compute_hyper_posterior,
         compute_subject_posterior
     )
-
-
-# =============================================================================
-# Coupled Transform Dispatch (for lambda NCP only)
-# =============================================================================
-
-def coupled_transform_dispatch(key, chain_state, primary_indices, proposed_primary, data):
-    """
-    Dispatch function for COUPLED_TRANSFORM blocks.
-
-    Only lambda hyperparameters use coupled transform (NCP).
-    CE hyper blocks use standard MH — they should never reach here.
-    """
-    nids = data["static"][0]
-    idx = _get_indices(nids)
-
-    # Lambda hyper block: transform lambda_eps to preserve theta
-    hyper_start = primary_indices[0]
-
-    mu_old = chain_state[hyper_start]
-    logsd_old = chain_state[hyper_start + 1]
-    sigma_old = jnp.exp(logsd_old)
-
-    mu_new = proposed_primary[0]
-    logsd_new = proposed_primary[1]
-    sigma_new = jnp.exp(logsd_new)
-
-    # Lambda epsilon is at offset 3 within each subject's 4 params
-    subject_offsets = jnp.arange(nids) * NPARAMS
-    coupled_indices = subject_offsets + 3  # lambda_eps position
-
-    old_eps = chain_state[coupled_indices]
-    theta = mu_old + sigma_old * old_eps
-    new_eps = (theta - mu_new) / sigma_new
-
-    log_jacobian = nids * (jnp.log(sigma_old) - jnp.log(sigma_new))
-    log_prior_ratio = -0.5 * (jnp.sum(new_eps**2) - jnp.sum(old_eps**2))
-
-    return coupled_indices, new_eps, log_jacobian, log_prior_ratio, key
 
 
 # =============================================================================
@@ -396,15 +353,15 @@ def generated_quantities(chain_state, data):
     Generated quantities: transformed parameters on natural scale.
 
     Returns:
-    - r, phi, eta, lambda for each subject
-    - Population means and standard deviations (CE-space for first 3, lambda for 4th)
+    - r, phi, eta, lambda for each subject (4 * n_subjects values)
+    - Population mu_k, psi_k (natural scale) for 4 quantities (8 values)
     """
     n_subjects = data["static"][0]
     idx = _get_indices(n_subjects)
 
     def get_subject_theta(sid):
         r_val, phi_raw, eta_raw, lambda_raw = _get_subject_params(
-            chain_state, sid, idx)
+            chain_state, sid)
         phi = jnp.exp(phi_raw)
         eta = jnp.exp(eta_raw)
         lam = jnp.exp(lambda_raw)
@@ -416,63 +373,44 @@ def generated_quantities(chain_state, data):
     eta_subjects = subject_params[:, 2]
     lambda_subjects = subject_params[:, 3]
 
-    # Population parameters (CE-space means/SDs for first 3)
-    ce1_pop_mean = chain_state[idx['ce1_hyper_start']]
-    ce1_pop_sd = jnp.exp(chain_state[idx['ce1_hyper_start'] + 1])
-    ce2_pop_mean = chain_state[idx['ce2_hyper_start']]
-    ce2_pop_sd = jnp.exp(chain_state[idx['ce2_hyper_start'] + 1])
-    ce3_pop_mean = chain_state[idx['ce3_hyper_start']]
-    ce3_pop_sd = jnp.exp(chain_state[idx['ce3_hyper_start'] + 1])
-    lambda_pop_mean = chain_state[idx['lambda_hyper_start']]
-    lambda_pop_sd = jnp.exp(chain_state[idx['lambda_hyper_start'] + 1])
-
-    lambda_pop_mean_natural = jnp.exp(lambda_pop_mean)
+    # Population hyperparameters on natural scale
+    pop_params = []
+    for k in range(N_QUANTITIES):
+        hs = idx['hyper_starts'][k]
+        mu_k = jax.nn.sigmoid(chain_state[hs])
+        psi_k = jax.nn.sigmoid(chain_state[hs + 1])
+        pop_params.extend([mu_k, psi_k])
 
     return jnp.concatenate([
         r_subjects,
         phi_subjects,
         eta_subjects,
         lambda_subjects,
-        jnp.array([
-            ce1_pop_mean, ce1_pop_sd,
-            ce2_pop_mean, ce2_pop_sd,
-            ce3_pop_mean, ce3_pop_sd,
-            lambda_pop_mean_natural, lambda_pop_sd
-        ])
+        jnp.array(pop_params),
     ])
 
 
 def get_num_gq(mcmc_config, data):
     """Get number of generated quantities."""
     n_subjects = data["static"][0]
-    return 4 * n_subjects + 8
+    return 4 * n_subjects + 2 * N_QUANTITIES
 
 
 # =============================================================================
 # Hyperprior Array (from loaded specs)
 # =============================================================================
 
-# These can be overwritten by load_hyperpriors_from_file or set dynamically
+# Default specs — overwritten by load_hyperpriors_from_file
 HYPERPRIOR_SPECS = {
-    'ce1': {
-        'mu_0': 27.0, 'tau_0_sq': 5.0,
-        'alpha_0': 6.0, 'beta_0': 20.0,
-    },
-    'ce2': {
-        'mu_0': 22.0, 'tau_0_sq': 5.0,
-        'alpha_0': 6.0, 'beta_0': 20.0,
-    },
-    'ce3': {
-        'mu_0': 25.0, 'tau_0_sq': 5.0,
-        'alpha_0': 6.0, 'beta_0': 20.0,
-    },
-    'lambda_raw': {
-        'mu_0': -2.0, 'tau_0_sq': 0.3,
-        'alpha_0': 6.0, 'beta_0': 3.5,
-    },
+    'ce1':     {'a_mu': 2.0, 'b_mu': 2.0, 'a_psi': 2.0, 'b_psi': 8.0,
+                'bound_lo': 10.0, 'bound_hi': 50.0},
+    'ce2':     {'a_mu': 2.0, 'b_mu': 2.0, 'a_psi': 2.0, 'b_psi': 8.0,
+                'bound_lo': 20.0, 'bound_hi': 40.0},
+    'ce3':     {'a_mu': 2.0, 'b_mu': 2.0, 'a_psi': 2.0, 'b_psi': 8.0,
+                'bound_lo': 15.0, 'bound_hi': 45.0},
+    'pchoice': {'a_mu': 2.0, 'b_mu': 2.0, 'a_psi': 2.0, 'b_psi': 8.0,
+                'bound_lo': 0.0, 'bound_hi': 1.0},
 }
-
-PARAM_NAMES = ('ce1', 'ce2', 'ce3', 'lambda_raw')
 
 
 def load_hyperpriors_from_file(filepath):
@@ -486,20 +424,23 @@ def load_hyperpriors_from_file(filepath):
     data = np.load(filepath)
 
     new_specs = {}
-    for i, name in enumerate(PARAM_NAMES):
+    for name in QUANTITY_NAMES:
         new_specs[name] = {
-            'mu_0': float(data[f'{name}_mu_0']),
-            'tau_0_sq': float(data[f'{name}_tau_0_sq']),
-            'alpha_0': float(data[f'{name}_alpha_0']),
-            'beta_0': float(data[f'{name}_beta_0']),
+            'a_mu': float(data[f'{name}_a_mu']),
+            'b_mu': float(data[f'{name}_b_mu']),
+            'a_psi': float(data[f'{name}_a_psi']),
+            'b_psi': float(data[f'{name}_b_psi']),
+            'bound_lo': float(data[f'{name}_bound_lo']),
+            'bound_hi': float(data[f'{name}_bound_hi']),
         }
 
     HYPERPRIOR_SPECS.update(new_specs)
     print(f"Loaded CE hyperpriors from {filepath}")
-    for name in PARAM_NAMES:
+    for name in QUANTITY_NAMES:
         s = new_specs[name]
-        print(f"  {name}: mu_0={s['mu_0']:.2f}, tau_0_sq={s['tau_0_sq']:.4f}, "
-              f"alpha_0={s['alpha_0']:.2f}, beta_0={s['beta_0']:.4f}")
+        print(f"  {name}: a_mu={s['a_mu']:.3f}, b_mu={s['b_mu']:.3f}, "
+              f"a_psi={s['a_psi']:.3f}, b_psi={s['b_psi']:.3f}, "
+              f"bounds=[{s['bound_lo']:.1f}, {s['bound_hi']:.1f}]")
 
     return new_specs
 
@@ -508,19 +449,19 @@ def get_hyperprior_array():
     """
     Convert HYPERPRIOR_SPECS to a flat numpy array for passing through data.
 
-    Returns array of shape (16,) with layout:
-    [ce1_mu_0, ce1_tau_0_sq, ce1_alpha_0, ce1_beta_0,
-     ce2_mu_0, ce2_tau_0_sq, ce2_alpha_0, ce2_beta_0,
-     ce3_mu_0, ce3_tau_0_sq, ce3_alpha_0, ce3_beta_0,
-     lambda_mu_0, lambda_tau_0_sq, lambda_alpha_0, lambda_beta_0]
+    Returns array of shape (24,) with layout:
+    For each of 4 quantities: [a_mu, b_mu, a_psi, b_psi, lo, hi]
     """
-    arr = np.zeros(16, dtype=np.float64)
-    for i, param_name in enumerate(PARAM_NAMES):
-        spec = HYPERPRIOR_SPECS[param_name]
-        arr[i*4 + 0] = spec['mu_0']
-        arr[i*4 + 1] = spec['tau_0_sq']
-        arr[i*4 + 2] = spec['alpha_0']
-        arr[i*4 + 3] = spec['beta_0']
+    arr = np.zeros(N_QUANTITIES * HYPERPRIOR_STRIDE, dtype=np.float64)
+    for k, name in enumerate(QUANTITY_NAMES):
+        spec = HYPERPRIOR_SPECS[name]
+        offset = k * HYPERPRIOR_STRIDE
+        arr[offset + 0] = spec['a_mu']
+        arr[offset + 1] = spec['b_mu']
+        arr[offset + 2] = spec['a_psi']
+        arr[offset + 3] = spec['b_psi']
+        arr[offset + 4] = spec['bound_lo']
+        arr[offset + 5] = spec['bound_hi']
     return arr
 
 
@@ -532,9 +473,8 @@ def initial_vector(mcmc_config, data):
     """
     Generate initial parameter values for all chains.
 
-    Subject params: r near 0.5, phi_raw/eta_raw near 0, lambda_eps near 0.
-    CE hypers: near expected CE values.
-    Lambda hyper: near typical values.
+    Subject params: r near 0.5, phi_raw/eta_raw near 0, lambda_raw near -2.
+    Hyper params: logit_mu near 0 (mu=0.5), logit_psi near -2 (psi~0.12).
     """
     n_subjects = data["static"][0]
     total_params = n_subjects * NPARAMS + N_HYPER
@@ -545,29 +485,25 @@ def initial_vector(mcmc_config, data):
     init = np.zeros((num_chains, total_params))
     first_hyper = n_subjects * NPARAMS
 
-    # Subject parameters: initialize near reasonable values
+    # Subject parameters
     INIT_STD = 0.3
-    init[:, 0:first_hyper:NPARAMS] = rng.normal(0.5, INIT_STD, (num_chains, n_subjects))   # r
-    init[:, 1:first_hyper:NPARAMS] = rng.normal(0.0, INIT_STD, (num_chains, n_subjects))   # phi_raw
-    init[:, 2:first_hyper:NPARAMS] = rng.normal(0.0, INIT_STD, (num_chains, n_subjects))   # eta_raw
-    init[:, 3:first_hyper:NPARAMS] = rng.normal(0.0, 0.5, (num_chains, n_subjects))        # lambda_eps
+    init[:, 0:first_hyper:NPARAMS] = rng.normal(0.5, INIT_STD, (num_chains, n_subjects))    # r
+    init[:, 1:first_hyper:NPARAMS] = rng.normal(0.0, INIT_STD, (num_chains, n_subjects))    # phi_raw
+    init[:, 2:first_hyper:NPARAMS] = rng.normal(0.0, INIT_STD, (num_chains, n_subjects))    # eta_raw
+    init[:, 3:first_hyper:NPARAMS] = rng.normal(-2.0, 0.5, (num_chains, n_subjects))        # lambda_raw
 
-    # CE hyperparameters: initialize near prior means from HYPERPRIOR_SPECS
-    HYPER_INIT_STD = 0.02
-    ce1_init_mean = HYPERPRIOR_SPECS['ce1']['mu_0']
-    ce2_init_mean = HYPERPRIOR_SPECS['ce2']['mu_0']
-    ce3_init_mean = HYPERPRIOR_SPECS['ce3']['mu_0']
+    # Hyperparameters (logit scale)
+    HYPER_INIT_STD = 0.1
+    for k in range(N_QUANTITIES):
+        name = QUANTITY_NAMES[k]
+        spec = HYPERPRIOR_SPECS[name]
+        # Initialize logit_mu near logit of normalized target mean
+        mu_star = (spec.get('a_mu', 2.0)) / (spec.get('a_mu', 2.0) + spec.get('b_mu', 2.0))
+        logit_mu_init = np.log(mu_star / (1 - mu_star))  # logit(E[mu])
+        logit_psi_init = -2.0  # psi ~ 0.12
 
-    init[:, first_hyper + 0] = rng.normal(ce1_init_mean, HYPER_INIT_STD, num_chains)  # ce1_mean
-    init[:, first_hyper + 1] = rng.normal(0.5, HYPER_INIT_STD, num_chains)             # ce1_logsd
-    init[:, first_hyper + 2] = rng.normal(ce2_init_mean, HYPER_INIT_STD, num_chains)  # ce2_mean
-    init[:, first_hyper + 3] = rng.normal(0.5, HYPER_INIT_STD, num_chains)             # ce2_logsd
-    init[:, first_hyper + 4] = rng.normal(ce3_init_mean, HYPER_INIT_STD, num_chains)  # ce3_mean
-    init[:, first_hyper + 5] = rng.normal(0.5, HYPER_INIT_STD, num_chains)             # ce3_logsd
-
-    # Lambda hyperparameters (same as rdu_bhm)
-    init[:, first_hyper + 6] = rng.normal(-2.0, HYPER_INIT_STD, num_chains)  # lambda_mean
-    init[:, first_hyper + 7] = rng.normal(0.0, HYPER_INIT_STD, num_chains)   # lambda_logsd
+        init[:, first_hyper + k * 2 + 0] = rng.normal(logit_mu_init, HYPER_INIT_STD, num_chains)
+        init[:, first_hyper + k * 2 + 1] = rng.normal(logit_psi_init, HYPER_INIT_STD, num_chains)
 
     return init.flatten()
 
@@ -598,7 +534,6 @@ def register():
         'direct_sampler': direct_sampler,
         'generated_quantities': generated_quantities,
         'get_num_gq': get_num_gq,
-        'coupled_transform_dispatch': coupled_transform_dispatch,
     })
     print(f"Registered posterior: {MODEL_ID}")
 

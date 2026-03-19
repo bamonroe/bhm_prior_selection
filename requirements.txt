@@ -3,16 +3,13 @@
 # Install with:
 #   pip install -r requirements.txt
 #
-# Note: For GPU support, install jaxlib with CUDA:
-#   pip install jax[cuda12]
-
-# Core dependencies
+# Core dependencies (GPU via CUDA 13)
 numpy>=1.20
-jax>=0.4.0
-jaxlib>=0.4.0
+jax[cuda13]>=0.4.0
 
 # Scientific computing
 scipy>=1.7.0
+pandas>=1.3.0
 
 # Plotting
 matplotlib>=3.5.0

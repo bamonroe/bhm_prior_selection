@@ -69,108 +69,44 @@ from helpers import OUTPUTS, check_dependency, get_mcmc_dir, get_plots_dir
 
 
 # =============================================================================
-# Prior Selection Configuration
-# =============================================================================
-
-# Direct Prior for RDU-BHM Model
-# This defines the prior distribution for a single random individual.
-# The hyperprior derivation ensures the unconditional BHM distribution
-# matches this direct prior exactly.
-#
-# Parameters are specified as (mean, variance) pairs:
-# - r: CRRA coefficient (untransformed)
-# - phi_raw: log(phi) where phi is Prelec curvature
-# - eta_raw: log(eta) where eta is Prelec elevation
-# - lambda_raw: log(lambda) where lambda is Fechner noise
-DIRECT_PRIOR = {
-    'r': {
-        'mu': 0.5,       # Mild risk aversion
-        'sigma2': 0.25,  # sd=0.5, 95% CI roughly (-0.5, 1.5)
-    },
-    'phi_raw': {
-        'mu': 0.0,       # phi=1 (no curvature distortion)
-        'sigma2': 0.15,  # sd=0.3, phi 95% CI roughly (0.55, 1.8)
-    },
-    'eta_raw': {
-        'mu': 0.0,       # eta=1 (no elevation distortion)
-        'sigma2': 0.15,  # sd=0.3, eta 95% CI roughly (0.55, 1.8)
-    },
-    'lambda_raw': {
-        'mu': -2.4,      # lambda ~ 0.14 (moderate noise)
-        'sigma2': 1.0,   # sd=1.0, lambda 95% CI roughly (0.02, 1.0)
-    },
-}
-
-# BHM Hyperprior researcher choices:
-# - rho: Variance partition ratio (fraction from mean uncertainty vs population spread)
-#        0.2 means 20% from hyperprior mean uncertainty, 80% from population variance
-# - kappa: Coefficient of variation of heterogeneity (CV[sigma^2] = SD[sigma^2]/E[sigma^2])
-#          Distribution-free; maps to IG via alpha_0 = 2 + 1/kappa^2
-#          kappa ≈ 0.236 corresponds to alpha_0 = 20 (tight)
-#          kappa = 0.5 corresponds to alpha_0 = 6 (moderate)
-#          kappa = 1.0 corresponds to alpha_0 = 3 (diffuse)
-PRIOR_SELECTION = {
-    'rho': 0.2,
-    'kappa': 1.0 / (20.0 - 2.0)**0.5,  # ≈ 0.2357, equivalent to alpha_0 = 20
-}
-
-# Uninformative (diffuse) hyperprior for comparison
-# This directly specifies hyperprior parameters, NOT a direct prior to be transformed.
-# - mu_0: prior mean of population mean (centered at neutral values)
-# - tau_0_sq: prior variance of population mean (very large = uninformative about location)
-# - alpha_0, beta_0: InverseGamma params for population variance
-#   Small values (0.1, 0.1) give diffuse prior on sigma^2
-base_mu0 = 0
-base_tau0 = 100
-base_alpha0 = 0.001
-base_beta0 = 0.001
-
-UNINFORMATIVE_HYPERPRIOR = {
-    'r':          {'mu_0': base_mu0, 'tau_0_sq': base_tau0, 'alpha_0': base_alpha0, 'beta_0': base_beta0},
-    'phi_raw':    {'mu_0': base_mu0, 'tau_0_sq': base_tau0, 'alpha_0': base_alpha0, 'beta_0': base_beta0},
-    'eta_raw':    {'mu_0': base_mu0, 'tau_0_sq': base_tau0, 'alpha_0': base_alpha0, 'beta_0': base_beta0},
-    'lambda_raw': {'mu_0': base_mu0, 'tau_0_sq': base_tau0, 'alpha_0': base_alpha0, 'beta_0': base_beta0},
-}
-
-# =============================================================================
 # CE-Space Prior Configuration
 # =============================================================================
 
-# Reference lotteries for CE-space prior (prize diversity for injectivity)
+# Reference lotteries for CE-space prior (Table 1 in paper)
+# probs = [P(low outcome), P(high outcome)]
 REFERENCE_LOTTERIES = [
-    {'prizes': [10, 30, 50], 'probs': [1/3, 1/3, 1/3]},  # L1: equal-prob, all prizes
-    {'prizes': [10, 30, 50], 'probs': [0.5, 0.3, 0.2]},   # L2: skewed toward low prize
-    {'prizes': [10, 25, 50], 'probs': [1/3, 1/3, 1/3]},   # L3: different middle prize
+    {'prizes': [10, 50], 'probs': [0.6, 0.4]},   # L1: ($10,$50), p_hi=0.4
+    {'prizes': [20, 40], 'probs': [0.5, 0.5]},    # L2: ($20,$40), p_hi=0.5
+    {'prizes': [14, 44], 'probs': [0.6, 0.4]},    # L3: ($14,$44), p_hi=0.4
 ]
 
-# CE-space direct prior: beliefs about CEs for reference lotteries
-# These are set based on forward-mapping at reasonable parameter values.
-# A risk-averse individual (r~0.5, phi~1, eta~1) will have CE < EV.
-DIRECT_PRIOR_CE = {
-    'ce1': {'mu': 27.0, 'sigma2': 25.0},  # L1: EV=30, CE ~27 ± 5
-    'ce2': {'mu': 22.0, 'sigma2': 25.0},  # L2: EV=23, CE ~22 ± 5
-    'ce3': {'mu': 25.0, 'sigma2': 25.0},  # L3: EV=28.3, CE ~25 ± 5
+# Reference pair for choice probability identification (L1 over L3)
+# Same EV ($26), L1 riskier (wider spread). P(choose L1) > 0.5 iff risk-seeking.
+REFERENCE_PAIR = {
+    'lottery_A': {'prizes': [10, 50], 'probs': [0.6, 0.4]},   # L1
+    'lottery_B': {'prizes': [14, 44], 'probs': [0.6, 0.4]},   # L3
 }
+
+# CE-space direct prior: Beta beliefs about CEs for reference lotteries
+# and choice probability for lambda identification.
+# CE beliefs are elicited as (mean_frac, p_risk_seeking):
+#   mean_frac: mean CE as fraction of distance from lo to EV
+#   p_risk_seeking: P(CE > EV) for a random individual
+# These uniquely determine the Beta distribution (and therefore variance).
+from prior_selection import build_ce_direct_prior
+CE_MEAN_FRAC = 0.85        # mean CE = lo + 0.85 * (EV - lo)
+CE_P_RISK_SEEKING = 0.15   # 15% chance a random subject is risk-seeking
+DIRECT_PRIOR_CE = build_ce_direct_prior(
+    reference_lotteries=REFERENCE_LOTTERIES,
+    mean_frac=CE_MEAN_FRAC,
+    p_risk_seeking=CE_P_RISK_SEEKING,
+    pchoice_mu=0.40,         # mean P(choose riskier lottery)
+)
 
 # Researcher choices for CE-space variance decomposition
 PRIOR_SELECTION_CE = {
     'rho': 0.2,
-    'kappa': 1.0 / (20.0 - 2.0)**0.5,  # same as parameter-space version
-}
-
-# Skew-Normal example configuration (for Appendix B)
-# Direct prior: SN(ξ*, ω*, α*) - the target unconditional distribution
-SKEW_NORMAL_DIRECT_PRIOR = {
-    'xi': 0.0,      # location parameter
-    'omega': 1.0,   # scale parameter
-    'alpha': 2.0,   # shape parameter (positive = right skew)
-}
-
-# Researcher choices for Skew-Normal (3 degrees of freedom)
-SKEW_NORMAL_RESEARCHER = {
-    'rho': 0.2,           # variance partition (same interpretation as Normal case)
-    'alpha_omega': 20.0,   # scale concentration (analogous to alpha_0)
-    'tau_alpha_sq': 0.25, # shape uncertainty (new degree of freedom)
+    'kappa': 0.25,
 }
 
 # Injectivity analysis configuration (for Appendix C)
@@ -203,48 +139,8 @@ SEEDS = {
 N_WORKERS = 25  # Number of parallel workers for plotting, etc.
 
 # =============================================================================
-# Paper Plot Configuration
+# Plot and Sampling Configuration
 # =============================================================================
-
-# Style for overlay plots (shared across all paper overlay plots)
-OVERLAY_STYLE = {
-    'prior': {'label': 'Prior',   'color': '#999999'},        # gray
-    'info':  {'label': 'Info',    'color': '#A6B6F6'}, # blue
-    'uninf': {'label': 'No Info', 'color': '#FAB03B'}, #orange
-}
-
-# Predictive overlay plots (CE and parameter densities)
-PREDICTIVE_OVERLAY_CONFIG = {
-    'max_hyper_draws': 5000,   # Posterior hyper draws to use (subsampled if more)
-    'n_new': 50,               # New individuals per hyper draw
-    'n_mc_prior': 5000,        # MC draws from hyperprior for prior predictive
-    'subsample_seed': 99,      # Seed for subsampling hyper draws
-    'ce_figsize': (6.3, 3.5),          # CE overlay plot dimensions (inches)
-    'params_figsize': (4.75, 7.2),      # Parameter overlay plot dimensions (inches)
-    'ce_thresholds': {'below': [15], 'above': [40]},  # CE percentile thresholds
-    'style': OVERLAY_STYLE,
-}
-
-# Subject CE comparison plots (most/least affected)
-SUBJECT_CE_CONFIG = {
-    'figsize': (6.3, 3.5),    # Plot dimensions (width, height) in inches
-    'style': OVERLAY_STYLE,
-}
-
-# Hyperparameter comparison plot (prior vs informative vs uninformative posteriors)
-HYPER_COMPARISON_CONFIG = {
-    'figsize': (6.3, 7.2),    # Plot dimensions (width, height) in inches
-    'tail': 0.005,            # Tail probability for x-axis range (0.005 = 99% coverage)
-    'style': OVERLAY_STYLE,
-}
-
-# Prior predictive CE plot
-PRIOR_PREDICTIVE_CONFIG = {
-    'n_mc_draws': 10000,       # MC draws for prior predictive CE
-    'figsize': (8, 5),         # Plot dimensions (width, height) in inches
-    'bins': 150,               # Number of histogram bins
-    'ce_range': (0, 50),       # CE display range for x-axis
-}
 
 # Diagnostic plots (subject and hyperparameter)
 DIAGNOSTIC_PLOT_CONFIG = {
@@ -259,44 +155,12 @@ DIAGNOSTIC_PLOT_CONFIG = {
     'hyper_row_height': 2.8,             # Height per row in inches (hyper plots)
 }
 
-# Prior distribution comparison plots
-PRIOR_PLOT_CONFIG = {
-    'figsize': (10, 8),   # Figsize for prior comparison plots
-}
-
 # Sensitivity analysis grid
 SENSITIVITY_CONFIG = {
     'rho_values': [0.05, 0.1, 0.2, 0.3, 0.5],
-    'kappa_values': [0.15, 0.24, 0.50, 1.00],
-    'n_mc_draws': 5000,
+    'kappa_values': [0.15, 0.25, 0.50, 1.00],
+    'n_mc_draws': 50000,
     'n_subjects': 50,
-}
-
-# Paper quantities extraction
-PAPER_QUANTITIES_CONFIG = {
-    'burnin_fraction': 0.5,  # Fraction of iterations to discard as burn-in
-    'rhat_K': 20,            # Number of chain groups for R-hat
-}
-
-# =============================================================================
-# Sampling Options
-# =============================================================================
-
-sampling_opts = {
-    'model': 'rdu_bhm',
-    'output_dir': DATA_DIR / 'output',  # bamcmc creates {model}/ subdirectory
-    'plots_dir': PLOTS_DIR / 'rdu_bhm',
-    'clean': True,
-    'reset_runs': 1,
-    'resume_runs': 5,
-    'num_chains': 1000,  # Must be divisible by 16 (n_temperatures * 2) for PT
-    'num_collect': 100,
-    'thin_iteration': 10,
-    'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
-    'seed': SEEDS['sampling'],
-    # Parallel tempering (index process with DEO swaps)
-    'n_temperatures': 0,
-    'beta_min': 0.1,
 }
 
 sampling_opts_ce = {
@@ -321,48 +185,24 @@ sampling_opts_ce = {
 
 # --- Data Pipeline ---
 do_clean_data     = False
-do_gen_paper_data = False
+do_gen_paper_data = True
 
 # --- Prior Selection & Analysis ---
-do_generate_prior       = False
-do_prior_predictive_ce  = False
 do_sensitivity          = False
 
 # --- MCMC Sampling ---
-do_sampling               = False
-do_sampling_uninformative = False
+do_sampling_ce             = False
 
 # --- Preprocessing (extract from history files) ---
-do_preprocess_hyper_info     = False
-do_preprocess_subjects_info  = False
-do_preprocess_hyper_uninf    = False
-do_preprocess_subjects_uninf = False
-
-# --- Posterior Analysis (compute summaries from preprocessed data) ---
-do_gen_paper_quantities          = False
-do_posterior_predictive_ce_info  = False
-do_posterior_predictive_ce_uninf = False
-
-# --- Diagnostic Plots ---
-do_hyper_plots_info          = False
-do_subject_plots_info        = False
-do_hyper_plots_uninf         = False
-do_subject_plots_uninf       = False
-
-# --- Paper Plots ---
-do_paper_prior_comparison    = False   # Prior distribution comparison
-do_paper_hyper_comparison    = False   # Hyperparameter prior vs posterior (8-panel)
-do_paper_predictive_overlay  = False   # Predictive CE and parameter overlay
-do_paper_subject_ce          = False   # Subject most/least affected CE
-
-# --- CE-Space Prior ---
 do_generate_prior_ce       = False
-do_sampling_ce             = False
 do_preprocess_hyper_ce     = False
 do_preprocess_subjects_ce  = False
 
+# --- Diagnostic Plots ---
+do_hyper_plots_ce          = False
+do_subject_plots_ce        = False
+
 # --- Appendix Examples ---
-do_skew_normal_example     = False
 do_injectivity_analysis    = False
 
 # --- Document Compilation ---
@@ -401,67 +241,25 @@ if __name__ == '__main__':
         check_dependency('gen_paper_data', ['clean_data'])
         pipelines.run_gen_paper_data(
             DATA_DIR,
-            direct_prior=DIRECT_PRIOR,
-            prior_selection=PRIOR_SELECTION
+            ce_direct_prior=DIRECT_PRIOR_CE,
+            reference_lotteries=REFERENCE_LOTTERIES,
+            reference_pair=REFERENCE_PAIR,
+            prior_selection_ce=PRIOR_SELECTION_CE,
+            ce_mean_frac=CE_MEAN_FRAC,
+            ce_p_risk_seeking=CE_P_RISK_SEEKING,
         )
 
     # -------------------------------------------------------------------------
-    # Prior Selection and Plots
+    # Prior Selection and Sensitivity Analysis
     # -------------------------------------------------------------------------
-    if do_generate_prior:
-        pipelines.run_prior_selection(
-            DATA_DIR,
-            rho=PRIOR_SELECTION['rho'],
-            kappa=PRIOR_SELECTION['kappa'],
-            direct_prior=DIRECT_PRIOR
-        )
-
-    if do_prior_predictive_ce:
-        check_dependency('prior_predictive_ce', ['clean_data'])
-        pipelines.run_prior_predictive_ce(
-            direct_prior=DIRECT_PRIOR,
-            prior_selection=PRIOR_SELECTION,
-            data_dir=DATA_DIR,
-            output_dir=PLOTS_DIR / 'priors',
-            seed=SEEDS['sampling'],
-            config=PRIOR_PREDICTIVE_CONFIG,
-        )
-
     if do_sensitivity:
-        check_dependency('sensitivity', ['clean_data'])
         pipelines.run_sensitivity(
-            direct_prior=DIRECT_PRIOR,
-            data_dir=DATA_DIR,
+            ce_direct_prior=DIRECT_PRIOR_CE,
             output_dir=DATA_DIR / 'output',
+            lottery=REFERENCE_LOTTERIES[0],  # L1 (for caption)
             seed=SEEDS['sampling'],
             config=SENSITIVITY_CONFIG,
         )
-
-    # -------------------------------------------------------------------------
-    # MCMC Sampling (Informative Prior)
-    # -------------------------------------------------------------------------
-    if do_sampling:
-        check_dependency('sampling', ['clean_data', 'prior_params'])
-        prior_params_path = DATA_DIR / 'output' / 'prior_params.npz'
-        pipelines.run_sampling(sampling_opts, prior_params_path=prior_params_path)
-
-    # -------------------------------------------------------------------------
-    # MCMC Sampling (Uninformative Prior)
-    # -------------------------------------------------------------------------
-    if do_sampling_uninformative:
-        check_dependency('sampling_uninformative', ['clean_data'])
-
-        # Save uninformative hyperprior directly (no variance decomposition)
-        uninformative_prior_path = DATA_DIR / 'output' / 'prior_params_uninformative.npz'
-        from prior_selection import save_direct_hyperprior
-        save_direct_hyperprior(UNINFORMATIVE_HYPERPRIOR, uninformative_prior_path)
-
-        # Run sampling with uninformative prior
-        uninformative_opts = sampling_opts.copy()
-        uninformative_opts['output_dir'] = DATA_DIR / 'output_uninformative'
-        uninformative_opts['plots_dir'] = PLOTS_DIR / 'rdu_bhm_uninformative'
-        uninformative_opts['clean'] = True  # Clean previous uninformative runs
-        pipelines.run_sampling(uninformative_opts, prior_params_path=uninformative_prior_path)
 
     # -------------------------------------------------------------------------
     # CE-Space Prior Selection and Sampling
@@ -471,8 +269,6 @@ if __name__ == '__main__':
             DATA_DIR,
             ce_direct_prior=DIRECT_PRIOR_CE,
             prior_selection_ce=PRIOR_SELECTION_CE,
-            ref_lotteries=REFERENCE_LOTTERIES,
-            distribution='beta',
         )
 
     if do_sampling_ce:
@@ -481,40 +277,9 @@ if __name__ == '__main__':
         pipelines.run_sampling_ce(
             sampling_opts_ce,
             ref_lotteries=REFERENCE_LOTTERIES,
+            ref_pair=REFERENCE_PAIR,
             prior_params_path=prior_params_ce_path,
         )
-
-    # -------------------------------------------------------------------------
-    # Preprocessing (Informative Prior)
-    # -------------------------------------------------------------------------
-    history_dir_info = get_mcmc_dir('rdu_bhm') / 'history' / 'full'
-    preprocess_dir_info = get_mcmc_dir('rdu_bhm') / 'preprocessed'
-
-    if do_preprocess_hyper_info:
-        check_dependency('preprocess_hyper', ['clean_data'])
-        pipelines.run_preprocess_hyperparams(history_dir_info, preprocess_dir_info)
-
-    if do_preprocess_subjects_info:
-        check_dependency('preprocess_subjects', ['clean_data'])
-        pipelines.run_preprocess_subjects(history_dir_info, preprocess_dir_info / 'subjects')
-
-    # -------------------------------------------------------------------------
-    # Preprocessing (Uninformative Prior)
-    # -------------------------------------------------------------------------
-    history_dir_uninf = DATA_DIR / 'output_uninformative' / 'rdu_bhm' / 'history' / 'full'
-    preprocess_dir_uninf = DATA_DIR / 'output_uninformative' / 'rdu_bhm' / 'preprocessed'
-
-    if do_preprocess_hyper_uninf:
-        if history_dir_uninf.exists():
-            pipelines.run_preprocess_hyperparams(history_dir_uninf, preprocess_dir_uninf)
-        else:
-            print(f"Skipping uninformative preprocessing: {history_dir_uninf} not found")
-
-    if do_preprocess_subjects_uninf:
-        if history_dir_uninf.exists():
-            pipelines.run_preprocess_subjects(history_dir_uninf, preprocess_dir_uninf / 'subjects')
-        else:
-            print(f"Skipping uninformative subject preprocessing: {history_dir_uninf} not found")
 
     # -------------------------------------------------------------------------
     # Preprocessing (CE-Space Prior)
@@ -524,188 +289,45 @@ if __name__ == '__main__':
 
     if do_preprocess_hyper_ce:
         if history_dir_ce.exists():
-            pipelines.run_preprocess_hyperparams(history_dir_ce, preprocess_dir_ce)
+            pipelines.run_preprocess_hyperparams_ce(history_dir_ce, preprocess_dir_ce)
         else:
             print(f"Skipping CE preprocessing: {history_dir_ce} not found")
 
     if do_preprocess_subjects_ce:
         if history_dir_ce.exists():
-            pipelines.run_preprocess_subjects(history_dir_ce, preprocess_dir_ce / 'subjects')
+            pipelines.run_preprocess_subjects_ce(history_dir_ce, preprocess_dir_ce / 'subjects')
         else:
             print(f"Skipping CE subject preprocessing: {history_dir_ce} not found")
 
     # -------------------------------------------------------------------------
-    # Plotting (Informative Prior)
+    # Plotting (CE-Space Prior)
     # -------------------------------------------------------------------------
-    plots_dir_info = get_plots_dir('rdu_bhm')
+    plots_dir_ce = get_plots_dir('rdu_bhm_ce')
 
-    if do_gen_paper_quantities:
-        check_dependency('gen_paper_quantities', ['clean_data'])
-        pipelines.run_gen_paper_quantities(history_dir_info, DATA_DIR,
-                                            config=PAPER_QUANTITIES_CONFIG)
-
-    if do_hyper_plots_info:
-        check_dependency('hyper_plots', ['clean_data'])
-        from prior_selection import get_hyperprior_specs_for_plotting
-        hyperprior_specs = get_hyperprior_specs_for_plotting(
-            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], kappa=PRIOR_SELECTION['kappa']
-        )
-        # Use preprocessed data if available
-        hyper_preprocessed = preprocess_dir_info / 'hyperparams_preprocessed.npz'
-        if hyper_preprocessed.exists():
-            pipelines.run_hyperparameter_plots(history_dir_info, plots_dir_info,
-                                               hyperprior_specs=hyperprior_specs,
-                                               preprocessed_path=hyper_preprocessed,
-                                               config=DIAGNOSTIC_PLOT_CONFIG)
+    if do_hyper_plots_ce:
+        hyper_preprocessed_ce = preprocess_dir_ce / 'hyperparams_preprocessed.npz'
+        if hyper_preprocessed_ce.exists():
+            pipelines.run_hyperparameter_plots_ce(hyper_preprocessed_ce, plots_dir_ce,
+                                                   ce_direct_prior=DIRECT_PRIOR_CE,
+                                                   config=DIAGNOSTIC_PLOT_CONFIG)
         else:
-            pipelines.run_hyperparameter_plots(history_dir_info, plots_dir_info,
-                                               hyperprior_specs=hyperprior_specs,
-                                               config=DIAGNOSTIC_PLOT_CONFIG)
+            print(f"Skipping CE hyper plots: {hyper_preprocessed_ce} not found")
 
-    if do_subject_plots_info:
-        check_dependency('subject_plots', ['clean_data'])
-        ref_prizes = _load_reference_prizes()
-        # Use preprocessed data if available
-        subjects_preprocessed = preprocess_dir_info / 'subjects'
-        if subjects_preprocessed.exists() and (subjects_preprocessed / 'metadata.npz').exists():
-            pipelines.run_subject_plots(history_dir_info, plots_dir_info,
+    if do_subject_plots_ce:
+        subjects_preprocessed_ce = preprocess_dir_ce / 'subjects'
+        if subjects_preprocessed_ce.exists() and (subjects_preprocessed_ce / 'metadata.npz').exists():
+            ref_prizes_ce = _load_reference_prizes()
+            pipelines.run_subject_plots(history_dir_ce, plots_dir_ce,
                                         n_workers=N_WORKERS,
-                                        preprocessed_dir=subjects_preprocessed,
-                                        prizes=ref_prizes,
+                                        preprocessed_dir=subjects_preprocessed_ce,
+                                        prizes=ref_prizes_ce,
                                         config=DIAGNOSTIC_PLOT_CONFIG)
         else:
-            pipelines.run_subject_plots(history_dir_info, plots_dir_info, n_workers=N_WORKERS,
-                                        prizes=ref_prizes,
-                                        config=DIAGNOSTIC_PLOT_CONFIG)
-
-    if do_posterior_predictive_ce_info:
-        check_dependency('posterior_predictive_ce_info', ['clean_data'])
-        prior_ce_path = OUTPUTS['prior_predictive_ce']
-        pipelines.run_posterior_predictive_ce(
-            history_dir=history_dir_info,
-            data_dir=DATA_DIR,
-            output_dir=plots_dir_info,
-            label='informative',
-            prior_ce_path=prior_ce_path,
-        )
-
-    # -------------------------------------------------------------------------
-    # Plotting (Uninformative Prior)
-    # -------------------------------------------------------------------------
-    plots_dir_uninf = PLOTS_DIR / 'rdu_bhm_uninformative'
-
-    if do_hyper_plots_uninf:
-        if history_dir_uninf.exists():
-            # No prior reference lines for uninformative (diffuse prior not useful to display)
-            hyper_preprocessed_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
-            if hyper_preprocessed_uninf.exists():
-                pipelines.run_hyperparameter_plots(history_dir_uninf, plots_dir_uninf,
-                                                   preprocessed_path=hyper_preprocessed_uninf,
-                                                   config=DIAGNOSTIC_PLOT_CONFIG)
-            else:
-                pipelines.run_hyperparameter_plots(history_dir_uninf, plots_dir_uninf,
-                                                   config=DIAGNOSTIC_PLOT_CONFIG)
-        else:
-            print(f"Skipping uninformative hyper plots: {history_dir_uninf} not found")
-
-    if do_subject_plots_uninf:
-        if history_dir_uninf.exists():
-            ref_prizes_uninf = _load_reference_prizes()
-            # Use preprocessed data if available
-            subjects_preprocessed_uninf = preprocess_dir_uninf / 'subjects'
-            if subjects_preprocessed_uninf.exists() and (subjects_preprocessed_uninf / 'metadata.npz').exists():
-                pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf,
-                                            n_workers=N_WORKERS,
-                                            preprocessed_dir=subjects_preprocessed_uninf,
-                                            prizes=ref_prizes_uninf,
-                                            config=DIAGNOSTIC_PLOT_CONFIG)
-            else:
-                pipelines.run_subject_plots(history_dir_uninf, plots_dir_uninf, n_workers=N_WORKERS,
-                                            prizes=ref_prizes_uninf,
-                                            config=DIAGNOSTIC_PLOT_CONFIG)
-        else:
-            print(f"Skipping uninformative subject plots: {history_dir_uninf} not found")
-
-    if do_posterior_predictive_ce_uninf:
-        if history_dir_uninf.exists():
-            pipelines.run_posterior_predictive_ce(
-                history_dir=history_dir_uninf,
-                data_dir=DATA_DIR,
-                output_dir=plots_dir_uninf,
-                label='uninformative',
-            )
-        else:
-            print(f"Skipping uninformative posterior predictive CE: {history_dir_uninf} not found")
-
-    # -------------------------------------------------------------------------
-    # Paper Plots
-    # -------------------------------------------------------------------------
-    if do_paper_prior_comparison:
-        pipelines.run_prior_plots(
-            direct_prior=DIRECT_PRIOR,
-            prior_selection=PRIOR_SELECTION,
-            output_dir=PLOTS_DIR / 'priors',
-            seed=SEEDS['sampling'],
-            config=PRIOR_PLOT_CONFIG,
-        )
-
-    if do_paper_hyper_comparison:
-        check_dependency('paper_hyper_comparison', ['paper_quantities'])
-        from prior_selection import get_hyperprior_specs_for_plotting
-        info_hyper_path = preprocess_dir_info / 'hyperparams_preprocessed.npz'
-        uninf_hyper_path = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
-        hp_specs_info = get_hyperprior_specs_for_plotting(
-            DIRECT_PRIOR, rho=PRIOR_SELECTION['rho'], kappa=PRIOR_SELECTION['kappa']
-        )
-        pipelines.run_paper_plots(
-            OUTPUTS['paper_quantities'], PLOTS_DIR / 'paper',
-            info_hyper_path=info_hyper_path if info_hyper_path.exists() else None,
-            uninf_hyper_path=uninf_hyper_path if uninf_hyper_path.exists() else None,
-            hyperprior_specs_info=hp_specs_info,
-            hyperprior_specs_uninf=UNINFORMATIVE_HYPERPRIOR,
-            hyper_comparison_config=HYPER_COMPARISON_CONFIG,
-        )
-
-    if do_paper_predictive_overlay:
-        check_dependency('paper_predictive_overlay',
-                         ['prior_predictive_ce'])
-        hyper_pp_info = preprocess_dir_info / 'hyperparams_preprocessed.npz'
-        hyper_pp_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
-        pipelines.run_predictive_ce_overlay(
-            hyper_preprocessed_info=hyper_pp_info,
-            hyper_preprocessed_uninf=hyper_pp_uninf,
-            data_dir=DATA_DIR,
-            direct_prior=DIRECT_PRIOR,
-            prior_selection=PRIOR_SELECTION,
-            output_dir=PLOTS_DIR / 'paper',
-            seed=SEEDS['sampling'],
-            config=PREDICTIVE_OVERLAY_CONFIG,
-        )
-
-    if do_paper_subject_ce:
-        check_dependency('paper_subject_ce',
-                         ['posterior_predictive_ce_info',
-                          'posterior_predictive_ce_uninf'])
-        pipelines.run_posterior_ce_comparison(
-            data_dir=DATA_DIR,
-            output_dir=PLOTS_DIR / 'paper',
-            prior_ce_path=OUTPUTS['prior_predictive_ce'],
-            figsize=SUBJECT_CE_CONFIG['figsize'],
-            style=SUBJECT_CE_CONFIG['style'],
-        )
+            print(f"Skipping CE subject plots: preprocessed data not found")
 
     # -------------------------------------------------------------------------
     # Appendix Examples
     # -------------------------------------------------------------------------
-    if do_skew_normal_example:
-        pipelines.run_skew_normal_example(
-            direct_prior=SKEW_NORMAL_DIRECT_PRIOR,
-            researcher_choices=SKEW_NORMAL_RESEARCHER,
-            output_dir=PLOTS_DIR / 'skew_normal',
-            n_mc_samples=50000,
-            seed=SEEDS['sampling'],
-        )
-
     if do_injectivity_analysis:
         pipelines.run_injectivity_analysis(
             output_dir=PLOTS_DIR / 'injectivity',
@@ -721,17 +343,29 @@ if __name__ == '__main__':
         print("=" * 60)
         import subprocess
         doc_dir = PROJECT_ROOT / 'doc'
-        # Run pdflatex -> biber -> pdflatex -> pdflatex for full compilation
+        # Full build: pdflatex -> pythontex -> pdflatex -> biber -> pdflatex
+        pylib_python = str(PROJECT_ROOT / 'pylib' / 'bin' / 'python')
+        pythontex_script = '/usr/share/texmf-dist/scripts/pythontex/pythontex3.py'
         commands = [
-            ['latexmk', '-pdf', 'main.tex'],
+            ['pdflatex', '-interaction=nonstopmode', 'main.tex'],
+            [pylib_python, pythontex_script, f'--interpreter=python:{pylib_python}', 'main.tex'],
+            ['pdflatex', '-interaction=nonstopmode', 'main.tex'],
+            ['/usr/bin/vendor_perl/biber', 'main'],
+            ['pdflatex', '-interaction=nonstopmode', 'main.tex'],
         ]
+        import shutil
         for cmd in commands:
+            # Skip commands that aren't installed
+            if shutil.which(cmd[0]) is None:
+                print(f"  Skipping (not installed): {cmd[0]}")
+                continue
             print(f"  Running: {' '.join(cmd)}")
-            result = subprocess.run(cmd, cwd=doc_dir, capture_output=True, text=True)
-            if result.returncode != 0 and cmd[0] != 'biber':
-                print(f"  Warning: {cmd[0]} returned non-zero exit code")
-                if result.stderr:
-                    print(f"  stderr: {result.stderr[:500]}")
+            result = subprocess.run(cmd, cwd=doc_dir, capture_output=True)
+            if result.returncode != 0:
+                stderr = result.stderr.decode('utf-8', errors='replace')[:500]
+                print(f"  Warning: {cmd[0]} returned exit code {result.returncode}")
+                if stderr:
+                    print(f"  stderr: {stderr}")
         print("Done.\n")
 
     # -------------------------------------------------------------------------

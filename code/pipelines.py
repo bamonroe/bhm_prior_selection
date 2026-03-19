@@ -19,66 +19,58 @@ def run_clean_data(data_dir, dataset='hn2016'):
     print("Done.\n")
 
 
-def run_gen_paper_data(data_dir, direct_prior=None, prior_selection=None):
-    """Generate paper data summaries including direct prior specification."""
+def run_gen_paper_data(data_dir,
+                       ce_direct_prior=None, reference_lotteries=None,
+                       reference_pair=None, prior_selection_ce=None,
+                       ce_mean_frac=None, ce_p_risk_seeking=None):
+    """Generate paper data summaries."""
     print("\n" + "=" * 60)
     print("Running: Generate Paper Data Summaries")
     print("=" * 60)
     from gen_paper_data import gen_paper_data
-    gen_paper_data(direct_prior=direct_prior, prior_selection=prior_selection)
+    gen_paper_data(ce_direct_prior=ce_direct_prior,
+                   reference_lotteries=reference_lotteries,
+                   reference_pair=reference_pair,
+                   prior_selection_ce=prior_selection_ce,
+                   ce_mean_frac=ce_mean_frac,
+                   ce_p_risk_seeking=ce_p_risk_seeking)
     print("Done.\n")
 
 
-def run_prior_selection(data_dir, rho=0.3, alpha_0=None, kappa=None, direct_prior=None):
-    """Run prior selection and save hyperpriors."""
-    print("\n" + "=" * 60)
-    print("Running: Prior Selection")
-    print("=" * 60)
-    from prior_selection import run_prior_selection as _run_prior_selection
-    output_path = Path(data_dir) / 'output' / 'prior_params.npz'
-    _run_prior_selection(rho=rho, alpha_0=alpha_0, kappa=kappa,
-                         output_path=output_path, direct_prior=direct_prior)
-    print("Done.\n")
-
-
-def run_prior_selection_ce(data_dir, ce_direct_prior, prior_selection_ce,
-                           ref_lotteries=None, distribution='normal'):
-    """Run CE-space prior selection and save hyperpriors.
+def run_prior_selection_ce(data_dir, ce_direct_prior, prior_selection_ce):
+    """Run quantity-space prior selection (Beta-Beta) and save hyperpriors.
 
     Args:
         data_dir: Data directory root
-        ce_direct_prior: Dict with per-CE mu and sigma2
-        prior_selection_ce: Dict with rho and kappa/alpha_0
-        ref_lotteries: List of reference lottery dicts (required for distribution='beta')
-        distribution: 'normal' (NIG) or 'beta' (Beta-Beta)
+        ce_direct_prior: Dict with per-quantity mu, sigma2, lo, hi
+        prior_selection_ce: Dict with rho and kappa
     """
     print("\n" + "=" * 60)
-    print(f"Running: CE-Space Prior Selection (distribution={distribution})")
+    print("Running: Quantity-Space Prior Selection (Beta-Beta)")
     print("=" * 60)
     from prior_selection import run_prior_selection_ce as _run
     output_path = Path(data_dir) / 'output' / 'prior_params_ce.npz'
     _run(
         ce_direct_prior=ce_direct_prior,
         rho=prior_selection_ce['rho'],
-        kappa=prior_selection_ce.get('kappa'),
-        alpha_0=prior_selection_ce.get('alpha_0'),
+        kappa=prior_selection_ce['kappa'],
         output_path=output_path,
-        ref_lotteries=ref_lotteries,
-        distribution=distribution,
     )
     print("Done.\n")
 
 
-def run_sampling_ce(sampling_opts, ref_lotteries, prior_params_path=None):
-    """Run MCMC sampling with CE-space BHM.
+def run_sampling_ce(sampling_opts, ref_lotteries, ref_pair,
+                    prior_params_path=None):
+    """Run MCMC sampling with quantity-space Beta-Beta BHM.
 
     Args:
         sampling_opts: Sampling configuration dict
         ref_lotteries: List of 3 reference lottery dicts
+        ref_pair: Dict with 'lottery_A' and 'lottery_B' for choice probability
         prior_params_path: Path to prior_params_ce.npz to load hyperpriors from
     """
     print("\n" + "=" * 60)
-    print("Running: MCMC Sampling (CE-Space Prior)")
+    print("Running: MCMC Sampling (Quantity-Space Beta-Beta Prior)")
     print("=" * 60)
 
     # Clear kernel cache
@@ -108,6 +100,7 @@ def run_sampling_ce(sampling_opts, ref_lotteries, prior_params_path=None):
     _run_sampling(
         output_dir=sampling_opts['output_dir'],
         ref_lotteries=ref_lotteries,
+        ref_pair=ref_pair,
         reset_runs=sampling_opts.get('reset_runs', 1),
         resume_runs=sampling_opts.get('resume_runs', 0),
         num_collect=sampling_opts['num_collect'],
@@ -126,100 +119,28 @@ def run_sampling_ce(sampling_opts, ref_lotteries, prior_params_path=None):
     print("Done.\n")
 
 
-def run_sensitivity(direct_prior, data_dir, output_dir, seed=42, config=None):
-    """Run sensitivity analysis over (ρ, κ) grid."""
+def run_sensitivity(ce_direct_prior, output_dir, lottery=None,
+                    seed=42, config=None):
+    """Run sensitivity analysis over (ρ, κ) grid using Beta-Beta hierarchy."""
     print("\n" + "=" * 60)
-    print("Running: Sensitivity Analysis")
+    print("Running: Sensitivity Analysis (Beta-Beta)")
     print("=" * 60)
     from sensitivity import run_sensitivity as _run_sensitivity
     _run_sensitivity(
-        direct_prior=direct_prior,
-        data_dir=Path(data_dir),
+        ce_direct_prior=ce_direct_prior,
         output_dir=Path(output_dir),
+        lottery=lottery,
         rho_values=config.get('rho_values') if config else None,
         kappa_values=config.get('kappa_values') if config else None,
-        n_mc_draws=config.get('n_mc_draws', 5000) if config else 5000,
+        n_mc_draws=config.get('n_mc_draws', 50000) if config else 50000,
         n_subjects=config.get('n_subjects', 50) if config else 50,
         seed=seed,
     )
     print("Done.\n")
 
 
-def run_sampling(sampling_opts, prior_params_path=None):
-    """Run MCMC sampling.
-
-    Args:
-        sampling_opts: Sampling configuration dict
-        prior_params_path: Path to prior_params.npz to load hyperpriors from.
-                          If None, uses default hyperpriors.
-    """
-    print("\n" + "=" * 60)
-    print("Running: MCMC Sampling")
-    print("=" * 60)
-
-    # Clear bamcmc's in-memory kernel cache to ensure fresh compilation with new data
-    # This is necessary because the cache key only uses array shapes, not values
-    from bamcmc.mcmc.compile import get_compiled_kernel_cache
-    cache = get_compiled_kernel_cache()
-    if cache:
-        print(f"Clearing {len(cache)} cached kernel(s)...")
-        cache.clear()
-
-    # Load hyperpriors from file if specified
-    if prior_params_path is not None:
-        from posteriors.rdu_bhm import load_hyperpriors_from_file
-        load_hyperpriors_from_file(prior_params_path)
-
-    # Clean existing files if requested
-    if sampling_opts.get('clean', False):
-        from bamcmc import clean_model_files
-        output_dir = str(sampling_opts['output_dir'])
-        model_name = sampling_opts['model']
-        print(f"Cleaning existing files for {model_name}...")
-        result = clean_model_files(output_dir, model_name, mode='all')
-        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
-        print(f"  Deleted {len(result['deleted_histories'])} histories")
-
-    from sampling import run_sampling as _run_sampling
-    num_chains = sampling_opts['num_chains']
-    _run_sampling(
-        output_dir=sampling_opts['output_dir'],
-        reset_runs=sampling_opts.get('reset_runs', 1),
-        resume_runs=sampling_opts.get('resume_runs', 0),
-        num_collect=sampling_opts['num_collect'],
-        config={
-            'num_chains_a': num_chains,
-            'num_chains_b': num_chains,
-            'thin_iteration': sampling_opts['thin_iteration'],
-            'chunk_size': sampling_opts.get('chunk_size', 100),
-            'rng_seed': sampling_opts['seed'],
-            # Parallel tempering
-            'n_temperatures': sampling_opts.get('n_temperatures', 1),
-            'beta_min': sampling_opts.get('beta_min', 0.1),
-        },
-    )
-    print("Done.\n")
-
-
-def run_gen_paper_quantities(history_dir, data_dir, config=None):
-    """Extract posterior summaries for paper."""
-    print("\n" + "=" * 60)
-    print("Running: Generate Paper Quantities")
-    print("=" * 60)
-    if config is None:
-        config = {}
-    from gen_paper_quantities import gen_paper_quantities
-    output_path = Path(data_dir) / 'output' / 'paper_quantities.npz'
-    gen_paper_quantities(
-        history_dir, output_path,
-        burnin_fraction=config.get('burnin_fraction', 0.5),
-        rhat_K=config.get('rhat_K', 20),
-    )
-    print("Done.\n")
-
-
-def run_preprocess_hyperparams(history_dir, output_dir, force=False):
-    """Preprocess hyperparameter data from history files.
+def run_preprocess_hyperparams_ce(history_dir, output_dir, force=False):
+    """Preprocess CE-model hyperparameter data from history files.
 
     Args:
         history_dir: Directory containing history_*.npz files
@@ -230,16 +151,16 @@ def run_preprocess_hyperparams(history_dir, output_dir, force=False):
         Path to the preprocessed hyperparameter file
     """
     print("\n" + "=" * 60)
-    print("Running: Preprocess Hyperparameters")
+    print("Running: Preprocess CE Hyperparameters")
     print("=" * 60)
-    from plotting import preprocess_hyperparams
-    result = preprocess_hyperparams(history_dir, output_dir, force=force)
+    from plotting import preprocess_hyperparams_ce
+    result = preprocess_hyperparams_ce(history_dir, output_dir, force=force)
     print("Done.\n")
     return result
 
 
-def run_preprocess_subjects(history_dir, output_dir, force=False):
-    """Preprocess subject data from history files.
+def run_preprocess_subjects_ce(history_dir, output_dir, force=False):
+    """Preprocess CE-model subject data from history files.
 
     Args:
         history_dir: Directory containing history_*.npz files
@@ -250,39 +171,33 @@ def run_preprocess_subjects(history_dir, output_dir, force=False):
         tuple: (output_dir, iterations, batch_boundaries)
     """
     print("\n" + "=" * 60)
-    print("Running: Preprocess Subjects")
+    print("Running: Preprocess CE Subjects")
     print("=" * 60)
     from plotting import preprocess_subjects
-    result = preprocess_subjects(history_dir, output_dir, force=force)
+    from posteriors.rdu_bhm_ce import NPARAMS as NP, N_HYPER as NH
+    result = preprocess_subjects(history_dir, output_dir, force=force,
+                                  nparams=NP, n_hyper=NH)
     print("Done.\n")
     return result
 
 
-def run_hyperparameter_plots(history_dir, plots_dir, hyperprior_specs=None,
-                             preprocessed_path=None, config=None):
-    """Generate hyperparameter diagnostic plots.
+def run_hyperparameter_plots_ce(preprocessed_path, plots_dir,
+                                 ce_direct_prior=None, config=None):
+    """Generate CE-model hyperparameter diagnostic plots.
 
     Args:
-        history_dir: Directory containing history_*.npz files (used if preprocessed_path is None)
+        preprocessed_path: Path to preprocessed hyperparameter file
         plots_dir: Directory to save plots
-        hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
-        preprocessed_path: Path to preprocessed hyperparameter file. If provided,
-                          loads from this file instead of history_dir.
+        ce_direct_prior: Optional dict with per-quantity {lo, hi} bounds
         config: Optional dict with keys hyper_chain_subsample, hyper_params_per_page, hyper_row_height
     """
     print("\n" + "=" * 60)
-    print("Running: Hyperparameter Plots")
+    print("Running: CE Hyperparameter Plots")
     print("=" * 60)
-
-    if preprocessed_path is not None:
-        from plotting import plot_hyperparams_from_preprocessed
-        plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir,
-                                           hyperprior_specs=hyperprior_specs,
+    from plotting import plot_hyperparams_ce_from_preprocessed
+    plot_hyperparams_ce_from_preprocessed(preprocessed_path, plots_dir,
+                                           ce_direct_prior=ce_direct_prior,
                                            config=config)
-    else:
-        from plotting import plot_hyperparams_only
-        plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=hyperprior_specs,
-                              config=config)
     print("Done.\n")
 
 
@@ -302,7 +217,7 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
     print("\n" + "=" * 60)
     print("Running: Subject Plots")
     print("=" * 60)
-    from plotting import plot_subjects_only, preprocess_subjects, parallel_plot_subjects
+    from plotting import preprocess_subjects, parallel_plot_subjects
     from pathlib import Path
     import numpy as np
 
@@ -326,93 +241,18 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
                               batch_boundaries, n_workers=n_workers,
                               prizes=prizes, config=config)
     else:
-        # Use the combined preprocess + plot function
-        plot_subjects_only(history_dir, plots_dir, n_workers=n_workers,
-                           prizes=prizes, config=config)
-    print("Done.\n")
-
-
-def run_paper_plots(quantities_path, plots_dir,
-                    info_hyper_path=None, uninf_hyper_path=None,
-                    hyperprior_specs_info=None, hyperprior_specs_uninf=None,
-                    hyper_comparison_config=None):
-    """Generate paper plots."""
-    print("\n" + "=" * 60)
-    print("Running: Paper Plots")
-    print("=" * 60)
-    from plotting import paper_plots
-    paper_plots(quantities_path, plots_dir,
-                info_hyper_path=info_hyper_path,
-                uninf_hyper_path=uninf_hyper_path,
-                hyperprior_specs_info=hyperprior_specs_info,
-                hyperprior_specs_uninf=hyperprior_specs_uninf,
-                hyper_comparison_config=hyper_comparison_config)
-    print("Done.\n")
-
-
-def run_skew_normal_example(direct_prior, researcher_choices, output_dir,
-                             n_mc_samples=50000, seed=42):
-    """Run Skew-Normal hyperprior selection example for appendix."""
-    print("\n" + "=" * 60)
-    print("Running: Skew-Normal Hyperprior Example")
-    print("=" * 60)
-    from skew_normal_hyperprior import run_skew_normal_example as _run
-    _run(direct_prior, researcher_choices, output_dir,
-         n_mc_samples=n_mc_samples, seed=seed)
-    print("Done.\n")
-
-
-def run_prior_predictive_ce(direct_prior, prior_selection, data_dir,
-                             output_dir, n_mc_draws=10000, seed=42,
-                             config=None):
-    """Run prior predictive CE analysis."""
-    print("\n" + "=" * 60)
-    print("Running: Prior Predictive CE Distribution")
-    print("=" * 60)
-    if config is None:
-        config = {}
-    from prior_predictive_ce import run_prior_predictive_ce as _run
-    _run(direct_prior, prior_selection, data_dir, output_dir,
-         n_mc_draws=config.get('n_mc_draws', n_mc_draws), seed=seed,
-         config=config)
-    print("Done.\n")
-
-
-def run_posterior_predictive_ce(history_dir, data_dir, output_dir, label,
-                                 prior_ce_path=None):
-    """Run posterior predictive CE analysis."""
-    print("\n" + "=" * 60)
-    print(f"Running: Posterior Predictive CE Distribution ({label})")
-    print("=" * 60)
-    from prior_predictive_ce import run_posterior_predictive_ce as _run
-    _run(history_dir, data_dir, output_dir, label,
-         prior_ce_path=prior_ce_path)
-    print("Done.\n")
-
-
-def run_posterior_ce_comparison(data_dir, output_dir, prior_ce_path=None,
-                                figsize=(6.3, 3.5), style=None):
-    """Compare per-subject posterior predictive CE across prior specifications."""
-    print("\n" + "=" * 60)
-    print("Running: Posterior CE Comparison (Informative vs Uninformative)")
-    print("=" * 60)
-    from prior_predictive_ce import run_posterior_ce_comparison as _run
-    _run(data_dir, output_dir, prior_ce_path=prior_ce_path,
-         figsize=figsize, style=style)
-    print("Done.\n")
-
-
-def run_predictive_ce_overlay(hyper_preprocessed_info, hyper_preprocessed_uninf,
-                               data_dir, direct_prior, prior_selection,
-                               output_dir, seed=123, config=None):
-    """Run population-level predictive CE and parameter overlay plots."""
-    print("\n" + "=" * 60)
-    print("Running: Predictive CE & Parameter Overlay (Prior + Both Posteriors)")
-    print("=" * 60)
-    from prior_predictive_ce import run_predictive_ce_overlay as _run
-    _run(hyper_preprocessed_info, hyper_preprocessed_uninf, data_dir,
-         direct_prior, prior_selection, output_dir,
-         seed=seed, config=config or {})
+        # Preprocess then plot
+        history_dir = Path(history_dir)
+        params_dir = history_dir.parent / 'subject_params'
+        print("  Stage 1: Preprocessing subject data...")
+        params_dir, iterations, batch_boundaries = preprocess_subjects(
+            history_dir, params_dir, force=False
+        )
+        print("  Stage 2: Parallel plotting...")
+        parallel_plot_subjects(
+            params_dir, subjects_dir, iterations, batch_boundaries,
+            n_workers=n_workers, prizes=prizes, config=config
+        )
     print("Done.\n")
 
 
@@ -426,33 +266,3 @@ def run_injectivity_analysis(output_dir, config=None):
     print("Done.\n")
 
 
-def run_prior_plots(direct_prior, prior_selection, output_dir, seed=42,
-                    config=None):
-    """Generate prior distribution plots."""
-    print("\n" + "=" * 60)
-    print("Running: Prior Distribution Plots")
-    print("=" * 60)
-    if config is None:
-        config = {}
-    figsize = config.get('figsize', (10, 8))
-
-    from plotting import plot_direct_prior, plot_unconditional_prior, plot_prior_comparison
-
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    print("  Plotting direct prior...")
-    plot_direct_prior(direct_prior, output_dir / 'direct_prior.pdf', seed=seed,
-                      figsize=figsize)
-
-    print("  Plotting unconditional prior (BHM)...")
-    plot_unconditional_prior(direct_prior, prior_selection,
-                              output_dir / 'unconditional_prior.pdf', seed=seed,
-                              figsize=figsize)
-
-    print("  Plotting prior comparison...")
-    plot_prior_comparison(direct_prior, prior_selection,
-                           output_dir / 'prior_comparison.pdf', seed=seed,
-                           figsize=figsize)
-
-    print("Done.\n")

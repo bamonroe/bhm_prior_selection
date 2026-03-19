@@ -317,7 +317,8 @@ def ce_mapping_3lotteries(r, phi_raw, eta_raw, ref_lotteries):
         r: CRRA coefficient (scalar)
         phi_raw: log(phi), Prelec curvature on log scale (scalar)
         eta_raw: log(eta), Prelec elevation on log scale (scalar)
-        ref_lotteries: Flat array of shape (18,) encoding 3 lotteries:
+        ref_lotteries: Flat array of shape (18,) encoding 3 lotteries in
+            3-outcome format (binary lotteries padded with zero-prob middle):
             [prizes1(3), probs1(3), prizes2(3), probs2(3), prizes3(3), probs3(3)]
 
     Returns:
@@ -356,4 +357,114 @@ def ce_jacobian_logabsdet(r, phi_raw, eta_raw, ref_lotteries):
     sign, logabsdet = jnp.linalg.slogdet(J)
     # We need log|det J|; sign can be negative (orientation-reversing map is fine)
     # Only reject if det is exactly zero (sign == 0)
+    return jnp.where(sign != 0, logabsdet, -jnp.inf)
+
+
+# =============================================================================
+# Choice Probability for Reference Pair
+# =============================================================================
+
+def choice_probability_ref(r, phi_raw, eta_raw, lambda_raw, ref_pair):
+    """
+    Compute P(choose A | theta) for a reference lottery pair.
+
+    Uses Contextual Utility (Wilcox 2011):
+        Delta = (RDU_A - RDU_B) / (lambda * u_range)
+        P = sigmoid(Delta)
+
+    Args:
+        r: CRRA coefficient (scalar)
+        phi_raw: log(phi) (scalar)
+        eta_raw: log(eta) (scalar)
+        lambda_raw: log(lambda) (scalar)
+        ref_pair: Flat array of shape (12,) encoding 2 lotteries in 3-outcome
+            padded format:
+            [A_prizes(3), A_probs(3), B_prizes(3), B_probs(3)]
+
+    Returns:
+        P(choose A) in (0, 1) (scalar)
+    """
+    phi = jnp.exp(phi_raw)
+    eta = jnp.exp(eta_raw)
+    lam = jnp.exp(lambda_raw)
+
+    # Compute utilities for all outcomes
+    u_A = crra_ufn(ref_pair[0:3], r)
+    u_B = crra_ufn(ref_pair[6:9], r)
+
+    # RDU values via decision weights (3-outcome formula)
+    p_A = ref_pair[3:6]
+    p_B = ref_pair[9:12]
+
+    def rdu_val(u, p):
+        C3 = p[2]
+        C2 = p[1] + p[2]
+        w_C3 = prelec_pwf(C3, phi, eta)
+        w_C2 = prelec_pwf(C2, phi, eta)
+        pi3 = w_C3
+        pi2 = w_C2 - w_C3
+        pi1 = 1.0 - w_C2
+        return pi1 * u[0] + pi2 * u[1] + pi3 * u[2]
+
+    rdu_A = rdu_val(u_A, p_A)
+    rdu_B = rdu_val(u_B, p_B)
+
+    # Contextual utility: normalize by utility range
+    all_u = jnp.concatenate([u_A, u_B])
+    u_range = jnp.maximum(jnp.max(all_u) - jnp.min(all_u), 1e-10)
+
+    delta = (rdu_A - rdu_B) / (lam * u_range)
+    return jax.nn.sigmoid(delta)
+
+
+# =============================================================================
+# Full 4D Forward Map and Jacobian
+# =============================================================================
+
+def full_forward_map(r, phi_raw, eta_raw, lambda_raw, ref_lotteries, ref_pair):
+    """
+    Full 4D forward map: (r, phi_raw, eta_raw, lambda_raw) -> (CE1, CE2, CE3, P_choice).
+
+    Args:
+        r, phi_raw, eta_raw, lambda_raw: Model parameters (scalars)
+        ref_lotteries: Flat (18,) array for 3 reference lotteries
+        ref_pair: Flat (12,) array for the reference pair
+
+    Returns:
+        Array of shape (4,) with [CE1, CE2, CE3, P_choice]
+    """
+    ces = ce_mapping_3lotteries(r, phi_raw, eta_raw, ref_lotteries)
+    p_choice = choice_probability_ref(r, phi_raw, eta_raw, lambda_raw, ref_pair)
+    return jnp.concatenate([ces, jnp.array([p_choice])])
+
+
+def full_jacobian_logabsdet(r, phi_raw, eta_raw, lambda_raw,
+                            ref_lotteries, ref_pair):
+    """
+    Compute log|det J| of the full 4D forward map.
+
+    The Jacobian is block-triangular since dCE_k/d(lambda) = 0:
+        J = [[dCE/d(r,phi,eta)   0        ],
+             [dP/d(r,phi,eta)    dP/dlambda]]
+    so det J = det(J_CE) * dP/dlambda.
+
+    JAX autodiff computes this correctly via the full 4x4 Jacobian.
+
+    Args:
+        r, phi_raw, eta_raw, lambda_raw: Model parameters (scalars)
+        ref_lotteries: Flat (18,) array
+        ref_pair: Flat (12,) array
+
+    Returns:
+        log|det J| (scalar). Returns -inf if det is zero.
+    """
+    def f(theta):
+        return full_forward_map(
+            theta[0], theta[1], theta[2], theta[3],
+            ref_lotteries, ref_pair,
+        )
+
+    theta = jnp.array([r, phi_raw, eta_raw, lambda_raw])
+    J = jax.jacfwd(f)(theta)  # (4, 4)
+    sign, logabsdet = jnp.linalg.slogdet(J)
     return jnp.where(sign != 0, logabsdet, -jnp.inf)

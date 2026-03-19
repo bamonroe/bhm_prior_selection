@@ -133,7 +133,7 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
   $4p$ hyperprior choices that lack direct interpretation, where $p$ is the
   number of individual-level parameters. I develop a framework that replaces
   these with substantively meaningful inputs. First, researchers specify prior
-  beliefs on generated quantities---such as certainty equivalents---rather than
+  beliefs on predictive quantities---such as certainty equivalents---rather than
   structural parameters, using a Jacobian correction to translate between
   spaces. Second, a distribution-free variance decomposition reduces the
   remaining degrees of freedom to two interpretable parameters: a variance
@@ -219,7 +219,7 @@ priors, penalized complexity priors---and has identified important pathologies
 in common choices like the Inverse-Gamma($\varepsilon$, $\varepsilon$) prior.
 The other camp, following \textcite{Kadane1980} and developed more recently by
 \textcite{Gabry2019} and \textcite{Bland2025}, advocates specifying priors
-through their implications for generated quantities, but has lacked the
+through their implications for predictive quantities, but has lacked the
 analytical machinery to translate predictive beliefs into hyperprior
 parameters. The framework developed here provides this machinery: it starts
 from the predictive intuition of the second camp and delivers closed-form
@@ -233,15 +233,15 @@ alternatives.
 The paper proceeds as follows. Section \ref{sec:literature} reviews the two
 camps of the prior specification literature.
 Section \ref{sec:gq_space} develops the quantity-space prior
-specification via injective mappings and Jacobian corrections.
-Section \ref{sec:variance_decomposition} introduces the distribution-free
-variance decomposition, reducing the remaining degrees of freedom to the
-interpretable parameters $\rho$ and $\kappa$.
+specification via injective mappings and Jacobian corrections, and introduces
+the distribution-free variance decomposition that reduces the remaining degrees
+of freedom to the interpretable parameters $\rho$ and $\kappa$.
 Section \ref{sec:application_rdu} applies both contributions to RDU estimation
 with real data, demonstrating the CE mapping, choice probability specification,
 and Beta-Beta hyperprior derivation.
-Section \ref{sec:discussion} discusses practical
-guidance and limitations. Section \ref{sec:conclusion} concludes.
+Section \ref{sec:estimation} presents the experimental data and estimation
+results. Section \ref{sec:discussion} discusses practical guidance and
+limitations. Section \ref{sec:conclusion} concludes.
 
 
 %==============================================================================
@@ -400,7 +400,7 @@ distributions. What has not yet been addressed is how to extend these ideas to
 the hierarchical setting --- where the $4p$ problem is most acute --- and how
 to do so analytically, yielding closed-form hyperprior parameters from
 interpretable inputs. The present paper provides this extension: starting from
-a researcher's beliefs about generated quantities for a single individual, I
+a researcher's beliefs about predictive quantities for a single individual, I
 derive the full hyperprior through a Jacobian correction and a
 distribution-free variance decomposition. This process places the emerging
 consensus that prior predictive distributions ought to be a primary criteria
@@ -410,7 +410,7 @@ process to hierarchical settings.
 
 
 %==============================================================================
-\section{General Hyperprior Specification from Generated Quantities}
+\section{General Hyperprior Specification from Predictive Quantities}
 \label{sec:gq_space}
 %==============================================================================
 
@@ -424,7 +424,7 @@ extend this later into the risk preference domain.
 Consider a model with $p$ structural parameters $\bth =
 (\theta^1, \ldots, \theta^p) \in \Omega \subseteq \R^p$ and an
 injective mapping $\bg: \Omega \to \R^k$ that takes parameters
-to $k \geq p$ generated quantities $\bv{} = \bg(\bth)$.\footnote{
+to $k \geq p$ predictive quantities $\bv{} = \bg(\bth)$.\footnote{
   This is a weaker requirement than bijectivity, and permits a wider range of
   predictive quantities to be used in prior setting. The function $\bg$
   must be one-to-one on its domain $\Omega$, but it does not need to map onto
@@ -464,24 +464,22 @@ computationally prohibitive.\footnote{
   $\bg(\bth)$ and $J_\bg{}$ directly without first having to solve their
   analytical form, further reducing the barriers for use of this method.
   Proving injectivity, however, can be challenging; something we address later.
-} For example, the expected utility of a lottery evaluated with the humble CRRA
+} For example, the expected utility of a lottery evaluated with the CRRA
 utility function cannot be solved in terms of the single parameter $r$.
-
-\textcite{Manderson2026} solve the same problem numerically for models
-where the mapping $\bg$ may not be analytically tractable: they match the
-full prior predictive distribution to an elicited target via Bayesian
-optimisation, without requiring a closed-form Jacobian.
+For models where even the Jacobian is not analytically tractable,
+\textcite{Manderson2026} provide a numerical alternative, matching the full
+prior predictive distribution to an elicited target via Bayesian optimisation.
 
 Equation (\ref{eq:jacobian_prior}) is the starting point of the proposed
 method. I presume that a researcher can specify proper probability
-distributions over $k \geq p$ generated quantities that are related to the $p$
+distributions over $k \geq p$ predictive quantities that are related to the $p$
 model parameters through a provably injective mapping $\bg$, for some randomly
 selected individual from a population of exchangeable individuals. I call this
 specified individual-level prior a \enquote{direct prior.} For a model of a
-single random individual, with the direct prior in hand, the prior
-specification exercise would be over. However, I am primarily concerned with
-BHMs, and therefore must specify a \textit{hyperprior} distribution.
-
+single random individual, the direct prior completes the prior specification
+exercise. For a BHM, however, a hyperprior is needed to fully parameterize a
+BHM. I now turn to the relationship between a hyperprior and the stated direct
+prior.
 
 \subsection{Hyperprior Construction via Variance Decomposition}
 \label{sec:variance_decomposition}
@@ -499,14 +497,14 @@ integrates over all possible heterogeneity in the population:
 p^*_\vartheta(\bv{}) = \int p_\vartheta(\bv{} \mid \hype{})\, p(\hype{} \mid \hprior{})\, d\hype{}
 \end{align}
 \noindent where $\hype{}$ are the \textit{hyperparameters} that govern the
-population distribution of the generated quantity $\bv{}$, and $p(\hype{} \mid
+population distribution of the predictive quantity $\bv{}$, and $p(\hype{} \mid
 \hprior{})$ is the \textit{hyperprior}, a prior over $\hype{}$ parameterized by
 $\hprior{}$. The equality in (\ref{eq:dp_total}) specifies the primary
 restriction needed to transfer a prior about a random individual, the
 \textit{direct} prior, to hyperpriors over the population.
 
 While the notation in (\ref{eq:dp_total}) is kept deliberately general, it will
-be useful going forward to work through the specific, and common, scenario
+be useful going forward to work through a specific and common scenario
 where a prior distribution has 2 hyperparameters, and each of those
 hyperparameters has a hyperprior which is itself defined by 2 more parameters.
 Thus, for any scalar $\bv$, $\hype$ is a vector of 2 hyperparameters that are
@@ -528,13 +526,15 @@ I focus for now on the common 2-parameter case, denoting the mean of the direct
 prior $\dpm$ and its variance as $\dpv$. Assuming that the prior distribution
 for $\bv{}$ has two parameters that biject to the first two moments, we can
 label the mean hyperparameter as $\hypem{}$ and the variance hyperparameter as
-$\hypev{}$. Likewise, the hyperparameters $\hypem$ and $\hypev$ are defined by
-hyperpriors with a means $\hpriormm,\ \hpriormv$ and variances $\hpriorvm,\
-\hpriorvv$.\footnote{
+$\hypev{}$. Likewise, $\hypem$ has a hyperprior with mean $\hpriormm$ and variance
+$\hpriormv$, and $\hypev$ has a hyperprior with mean $\hpriorvm$ and variance
+$\hpriorvv$.\footnote{
   The method requires moments to \textit{exist}, not to be available in closed
   form. Distributions whose moments must be computed numerically, such as the
   Logit-Normal, are perfectly feasible. Unfortunately, this does rule out the
-  popular Cauchy distribution, which has \textit{no} moments.
+  popular Cauchy distribution, which has \textit{no} moments. Instead of
+  matching moments, this exercise could be rearranged to instead match
+  quantiles, which would allow for the Cauchy to be used.
 }
 
 The law of total variance provides the bridge from moments of the direct prior
@@ -559,17 +559,6 @@ particular distributional choice.\footnote{
 }
 These two equations provide two of the four constraints needed to determine
 $\hprior{}$; two additional constraints are needed.
-
-
-%For example, in a normal
-%hierarchical model $\bv_i \sim N(\mu, \sigma^2)$, the hyperparameters are
-%simply $\hypem{} = \mu$ and $\hypev{} = \sigma^2$, and the equations read
-%\begin{align}
-%m^* &= \Ehpm{\mu} \\
-%v^* &= \Ehpv{\sigma^2} + \Varhpm{\mu}.
-%\end{align}
-
-
 
 The decomposition (\ref{eq:total_var}) separates the direct prior variance
 $v^*$ into two components: variation due to the expected level of inter-subject
@@ -600,9 +589,9 @@ expected level of within-population heterogeneity.\footnote{
   they partition variance across model components, with the proportions treated
   as random variables. In the proposed framework, this ratio is specified
   by the researcher, not estimated.
-} Low $\rho$ values reflects a belief in elevated inter-subject
-heterogeneity, while high values $\rho$ reflects a belief that the population
-is largely homogeneous.
+} Low $\rho$ reflects a belief in elevated inter-subject
+heterogeneity, while high $\rho$ reflects a belief that the population is
+largely homogeneous.
 
 Equations (\ref{eq:iterated_exp}) and (\ref{eq:rho_def}) together provide two
 moment conditions that uniquely determine $\hpriormm{}$ and $\hpriormv{}$:
@@ -640,13 +629,16 @@ determine $\hpriorvm{}$ and $\hpriorvv{}$:
 \Varhpv{\hypev{}} &= \kappa^2 (1 - \rho)^2 (v^*)^2
 \end{align}
 \noindent As was the case in (\ref{eq:hyperm_solved}), the right hand side of
-(\ref{eq:hyperv_solved}) is comprised of researcher specified constants, and
-the hyperprior distribution over $\hypev$ is presumed byjective, so
+(\ref{eq:hyperv_solved}) is composed of researcher specified constants, and
+the hyperprior distribution over $\hypev$ is presumed bijective, so
 (\ref{eq:hyperv_solved}) has a unique solution $\hpriorvm{}$ and $\hpriorvv{}$.
 Thus, all four hyperprior parameters $(\hpriormm{}, \hpriormv{}, \hpriorvm{},
 \hpriorvv{})$ are now determined.
 
-As an example, consider the standard Normal-Inverse-Gamma hierarchical model:
+\subsection{Example: Normal-Inverse-Gamma}
+\label{sec:nig_example}
+
+Consider the standard Normal-Inverse-Gamma hierarchical model:
 \begin{align}
 \bv_i \mid \mu, \sigma^2 &\sim N(\mu, \sigma^2) \\
 \mu \mid \mu_0, \tau_0^2 &\sim N(\mu_0, \tau_0^2) \\
@@ -655,21 +647,82 @@ As an example, consider the standard Normal-Inverse-Gamma hierarchical model:
 Here $\hypem = \mu$ and $\hypev = \sigma^2$, so the hyperprior parameters are
 $\hprior = (\mu_0, \tau_0^2, \alpha_0, \beta_0)$.
 
-From (\ref{eq:hyperm_solved}) we have $\mu_0 = \dpm$ and $\tau_0^2 =
-\rho\,\dpv$ directly, since the Normal mean and variance are the distribution's
-parameters. For the Inverse-Gamma, $\E{\sigma^2} = \beta_0 / (\alpha_0 - 1)$
+From (\ref{eq:hyperm_solved}), the mean hyperprior parameters follow
+immediately, since the Normal mean and variance are the distribution's
+parameters:
+\begin{align}
+  \mu_0 &= \dpm \\
+  \tau_0^2 &= \rho\,\dpv
+\end{align}
+For the Inverse-Gamma, $\E{\sigma^2} = \beta_0 / (\alpha_0 - 1)$
 and $\Var{\sigma^2} = \beta_0^2 / [(\alpha_0 - 1)^2(\alpha_0 - 2)]$, so
-equations (\ref{eq:hyperv_solved}) result in $\alpha_0 = 2 + 1/\kappa^2$ and
-$\beta_0 = (1 - \rho)\,\dpv\,(\alpha_0 - 1)$. The coefficient of variation
-$\kappa$ maps directly to the shape parameter $\alpha_0$.
+equations (\ref{eq:hyperv_solved}) yield:
+\begin{align}
+  \alpha_0 &= 2 + \frac{1}{\kappa^2} \\
+  \beta_0 &= (1 - \rho)\,\dpv\,(\alpha_0 - 1)
+\end{align}
+The shape parameter $\alpha_0$ is determined solely by $\kappa$, with
+$\beta_0$ then following from $\rho$ and $\dpv$.
+
+To make the roles of $\rho$ and $\kappa$ concrete,
+Figure~\ref{fig:nig_sensitivity} extends this NIG example with a sensitivity
+analysis. Setting $\dpm = 0$ and $\dpv = 1$, each $(\rho, \kappa)$ pair
+uniquely determines the hyperprior parameters $(\mu_0, \tau_0^2, \alpha_0,
+\beta_0)$ through the moment conditions
+(\ref{eq:hyperm_solved})--(\ref{eq:hyperv_solved}). Drawing from the resulting
+hierarchy yields three statistics: the between-population SD ($\text{SD}[\mu]
+= \tau_0$), which measures how much the population center moves across
+hyperprior draws; the within-population SD ($\E{\sigma}$), which captures
+the typical spread of individuals around whatever population center was drawn;
+and the within-population SD IQR, which measures how variable the degree of
+heterogeneity is across draws.
+
+\begin{figure}[htbp]
+  \centering
+  \small (a) Between-population SD: $\text{SD}[\mu] = \tau_0$. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_sensitivity_between.pdf}\\[-.75em]
+
+  \vspace{0.8em}
+  \small (b) Within-population SD: $\E{\sigma}$. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_sensitivity_within.pdf}\\[-.75em]
+
+  \vspace{0.8em}
+  \small (c) Within-population SD IQR. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_sensitivity_iqr.pdf}\\[-.75em]
+
+  \caption{Hierarchical variance allocation for the NIG model across
+    $(\rho, \kappa)$, with $\dpm = 0$ and $\dpv = 1$.}
+  \label{fig:nig_sensitivity}
+\end{figure}
+
+
+Panel (a) of Figure~\ref{fig:nig_sensitivity} shows that the
+between-population SD depends only on $\rho$, as the horizontal color bands
+confirm: $\kappa$ plays no role. This follows directly from the moment
+condition $\tau_0 = \sqrt{\rho\,\dpv}$, which involves only the variance
+partition ratio. Panel (b) shows the within-population SD, $\E{\sigma}$:
+higher $\rho$ allocates more variance to population-mean uncertainty, leaving
+less for heterogeneity, so the within-population SD decreases as $\rho$
+increases. Panel (c) reveals the role of $\kappa$. At low $\kappa$ the
+within-population SD is tightly concentrated (the IQR is small), reflecting
+near-certainty about the level of heterogeneity. As $\kappa$ grows the IQR
+increases, reflecting greater uncertainty about how heterogeneous the
+population is. The marginal prior on individual quantities is invariant across
+the grid by construction; only the hierarchical allocation changes. The
+specific numerical values are family-dependent, but these qualitative patterns
+hold for any distributional choice satisfying the moment conditions.
+
+
 
 \subsection{The researcher's problem restated}
 
-All told, the researcher must still make 4 decisions characterizing their prior
-beliefs about the possible distribution of the quantity of interest. There is
-no free lunch in this process; this is exactly the same number of decision had
-they instead specified the hyperprior distribution directly. It's reasonable to
-ask \enquote{why bother?} The answer is twofold.
+When $p > 1$, the decomposition applies independently to each of the $p$
+predictive quantities: each quantity $k$ requires a direct prior mean $\dpm_k$
+and variance $\dpv_k$, a variance partition ratio $\rho_k$, and a
+heterogeneity confidence $\kappa_k$, yielding $4p$ researcher inputs in total.
+There is no free lunch in this process; this is the same number of choices
+required to specify the hyperprior directly. It's reasonable to ask
+\enquote{why bother?} The answer is twofold.
 
 First, the restriction in (\ref{eq:dp_total}) is not meant to be a shortcut, it
 is the restriction that enforces consistency in beliefs about a hyperprior over
@@ -681,10 +734,11 @@ their predictions checked repeatedly \parencite{Gabry2019, Bland2025}, the
 direct prior approach encodes the reasonableness of the prior predictive
 distribution \textit{directly} without iteration.
 
-The second answer is that specifying a hyperprior directly such that both
-(\ref{eq:dp_total}) is satisfied, and the implications of that hyperprior with
-respect to the degree of implied heterogeneity in the prior predictive is clear
-\textit{is difficult}. With a direct prior specified, $\rho$ and $\kappa$
+The second answer is that specifying a hyperprior directly is difficult:
+the researcher must simultaneously satisfy (\ref{eq:dp_total}) and ensure
+that the implied degree of population heterogeneity is reasonable, with no
+transparent link between hyperprior parameters and either goal. With a direct
+prior specified, $\rho$ and $\kappa$
 provide a way to encode the researcher's beliefs about the \textit{level} of
 heterogeneity in a population ($\rho$) and their \textit{confidence} in that
 level ($\kappa$). \textit{Any} value of $\rho \in (0, 1)$ and $\kappa > 0$
@@ -700,7 +754,7 @@ individual from a population of exchangeable individuals, and then specify
 beliefs about the degree of heterogeneity that may exist in this population.
 
 I now demonstrate this process for an RDU model estimated on real lottery
-choice data, where the generated quantities are certainty equivalents and a
+choice data, where the predictive quantities are certainty equivalents and a
 choice probability.
 
 %==============================================================================
@@ -808,7 +862,7 @@ This extends the mapping to
 $\bg(r, \phi, \eta, \lambda) = (\CE_1, \CE_2, \CE_3, P)$.\footnote{
   The change-of-variables formula $p(\bth) = p_Y(\bg(\bth))\,|\!\det
   J_{\bg}(\bth)|$ requires that the mapping $\bg$ be globally injective:
-  distinct parameter vectors must produce distinct generated quantities. A
+  distinct parameter vectors must produce distinct predictive quantities. A
   nonvanishing Jacobian determinant ($\det J_{\bg} \neq 0$ everywhere)
   establishes only \textit{local} invertibility and is necessary but not
   sufficient for global injectivity. Proving global injectivity for the mapping
@@ -818,7 +872,7 @@ $\bg(r, \phi, \eta, \lambda) = (\CE_1, \CE_2, \CE_3, P)$.\footnote{
   satisfy the required conditions.
 }
 
-All four generated quantities are bounded: CEs by lottery outcomes and the
+All four predictive quantities are bounded: CEs by lottery outcomes and the
 choice probability by $[0,1]$. Each CE can be rescaled to $(0,1)$ by the
 linear transformation $z = (Y - \xlo)/(\xhi - \xlo)$ without loss of
 generality, so the natural population hierarchy uses Beta distributions
@@ -1036,7 +1090,7 @@ for each quantity, as shown in Table~\ref{tab:prior_beliefs}.
     $P$     & $\py{fmt(D['pchoice_mu'], 2)}$ & $0.50$ & $\py{fmt(D['ce_p_risk_seeking'], 2)}$ & $\py{fmt(D['pchoice_var'], 4)}$ & $\py{fmt(D['pchoice_sd'], 4)}$ \\
     \bottomrule
   \end{tabular}
-  \caption{Direct prior beliefs for all four generated quantities. For CEs, the
+  \caption{Direct prior beliefs for all four predictive quantities. For CEs, the
     mean is set at \py{fmt(float(D['ce_mean_frac']) * 100, 0)}\% of the
     distance from the lower bound to the expected value; the reference point
     separating risk-averse from risk-seeking is the lottery's EV. For the
@@ -1062,79 +1116,8 @@ with different natural units. I set $\kappa_k =
 within-population variance is \py{fmt(ce_ps_kappa * 100, 0)}\%. This reflects
 moderately high confidence in the heterogeneity specification: the prior places
 most of its mass near the target level of heterogeneity while still permitting
-the data to move it.
-
-Table~\ref{tab:sensitivity} shows how $\rho$ and $\kappa$ control the
-hierarchical structure of the prior, using the $\CE_1$ quantity as an example.
-The between-population SD measures how much the population center can wander
-across different hyperprior draws, reflecting uncertainty about where the
-typical individual falls. The within-population SD captures the typical spread
-of individual preferences around whatever population center was drawn. The
-within-population SD IQR measures how variable the degree of heterogeneity is
-across draws.
-
-Higher $\rho$ allocates more variance to population-mean uncertainty, increasing
-the between-population SD while reducing within-population heterogeneity. The
-parameter $\kappa$ governs confidence in the heterogeneity level: at
-$\kappa = 0.15$ the within-population SD is tightly concentrated (IQR
-$\approx \$0.35$), while at $\kappa = 1.00$ it varies widely (IQR $\approx
-\$1.40$), reflecting genuine uncertainty about how heterogeneous the population
-is. The marginal prior on individual CEs is invariant across the grid by
-construction---only the hierarchical allocation changes.
-
-\label{sec:sensitivity}
-\begin{pycode}
-if S:
-    rho_vals = S['rho_values']
-    kappa_vals = S['kappa_values']
-    n_rho, n_kappa = len(rho_vals), len(kappa_vals)
-
-    col_spec = 'r' + 'c' * n_kappa
-    kappa_header = ' & '.join(f'$\\kappa = {k:.2f}$' for k in kappa_vals)
-    header = f'$\\rho$ & {kappa_header} \\\\'
-
-    # Build rows for each panel
-    panels = [
-        ('between_sd', 'Between-population SD'),
-        ('within_sd', 'Within-population SD'),
-        ('within_iqr', 'Within-population SD IQR'),
-    ]
-    panel_bodies = {}
-    for key, _ in panels:
-        rows = []
-        for i in range(n_rho):
-            cells = [f'{rho_vals[i]:.2f}']
-            for j in range(n_kappa):
-                cells.append(f'${S[key][i, j]:.2f}$')
-            rows.append(' & '.join(cells) + ' \\\\')
-        panel_bodies[key] = '\n'.join(rows)
-
-    # Reference lottery from paper_data
-    lo = int(D['ref_lot_1_prize_1'])
-    hi = int(D['ref_lot_1_prize_2'])
-    p_lo = float(D['ref_lot_1_prob_1'])
-    p_hi = float(D['ref_lot_1_prob_2'])
-    ev = lo * p_lo + hi * p_hi
-    ncol = n_kappa + 1
-
-    print(r'\begin{table}[htbp]')
-    print(r'\centering')
-    print(f'\\caption{{Hierarchical variance allocation for $\\CE_1$ '
-          f'across $(\\rho, \\kappa)$ grid. '
-          f'Reference lottery: $L_1$ (\\${lo}/\\${hi} with probabilities '
-          f'{p_lo}/{p_hi}, $\\text{{EV}} = \\${ev:.0f}$).}}')
-    print(r'\label{tab:sensitivity}')
-    print(r'\begin{tabular}{' + col_spec + '}')
-    print(r'\toprule')
-    print(header)
-    for key, label in panels:
-        print(r'\midrule')
-        print(f'\\multicolumn{{{ncol}}}{{l}}{{\\textit{{{label}}}}} \\\\')
-        print(panel_bodies[key])
-    print(r'\bottomrule')
-    print(r'\end{tabular}')
-    print(r'\end{table}')
-\end{pycode}
+the data to move it. Figure~\ref{fig:nig_sensitivity} illustrates how these
+choices control the hierarchical structure of the prior.
 
 The quantity-space hierarchy defines a joint prior on $(\CE_1, \CE_2, \CE_3,
 P)$. The change-of-variables formula with the Jacobian of
@@ -1300,7 +1283,7 @@ researchers specifying hyperpriors:
 \begin{enumerate}
   \item \emph{Choose the specification space.} Decide whether to specify
     beliefs about structural parameters directly (the identity case) or about
-    generated quantities (certainty equivalents, choice probabilities,
+    predictive quantities (certainty equivalents, choice probabilities,
     indifference amounts). Use the quantity space when the researcher has
     stronger intuition about quantities in experimental units.
 
@@ -1338,7 +1321,7 @@ in Section \ref{sec:variance_decomposition}), but at the cost of additional
 researcher choices and numerical rather than closed-form solutions.
 
 Second, the quantity-space specification requires an injective mapping from
-parameters to generated quantities. This constrains the design of reference
+parameters to predictive quantities. This constrains the design of reference
 lotteries---prize diversity is needed for global injectivity---and means that
 not all experimental designs are equally suitable for prior specification.
 

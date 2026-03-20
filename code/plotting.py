@@ -870,3 +870,1088 @@ def _plot_hyperparameters_direct(hyper_history, iterations, batch_boundaries, ou
             plt.tight_layout()
             pdf.savefig(fig)
             plt.close(fig)
+
+
+# =============================================================================
+# NIG (PARAMETER-SPACE) MODEL SUPPORT
+#
+# The functions below were extracted from commit 4ac7847 to support the
+# "diffuse" / uninformative NIG comparison plots.  They operate on the
+# NIG hyperparameter layout (mu_j, logsd_j) and should NOT be confused
+# with the CE-space (Beta-Beta) functions above.
+# =============================================================================
+
+# NIG hyperparameter display info: (state_name, latex_label)
+HYPERPARAM_INFO_NIG = [
+    ('r_mean', r'$\mu_r$'),
+    ('r_logsd', r'$\ln\sigma_r$'),
+    ('phi_mean', r'$\mu_{\phi}$ (log scale)'),
+    ('phi_logsd', r'$\ln\sigma_{\phi}$'),
+    ('eta_mean', r'$\mu_{\eta}$ (log scale)'),
+    ('eta_logsd', r'$\ln\sigma_{\eta}$'),
+    ('lambda_mean', r'$\mu_{\lambda}$ (log scale)'),
+    ('lambda_logsd', r'$\ln\sigma_{\lambda}$'),
+]
+
+# Alias used by legacy callers that reference HYPERPARAM_INFO
+HYPERPARAM_INFO = HYPERPARAM_INFO_NIG
+
+# NIG model constants (match posteriors/rdu_bhm.py)
+_NIG_NPARAMS = 4
+_NIG_N_HYPER = 8
+
+# Parameter display info for prior plots: (key, label, transform_exp)
+# transform_exp=True means samples are on log scale and should be exp-transformed for display
+PRIOR_PARAM_INFO = [
+    ('r', r'$r$', False),
+    ('phi_raw', r'$\phi$', True),
+    ('eta_raw', r'$\eta$', True),
+    ('lambda_raw', r'$\lambda$', True),
+]
+
+
+def compute_hyperprior_quantiles(hyperprior_specs):
+    """
+    Compute median and 95% CI for each NIG hyperparameter's prior distribution.
+
+    Args:
+        hyperprior_specs: Dict with keys 'r', 'phi_raw', 'eta_raw', 'lambda_raw',
+                         each containing 'mu_0', 'tau_0_sq', 'alpha_0', 'beta_0'
+
+    Returns:
+        Dict mapping hyperparameter name to (median, lower_95, upper_95)
+    """
+    from scipy.stats import invgamma
+
+    quantiles = {}
+
+    for param_name in ['r', 'phi_raw', 'eta_raw', 'lambda_raw']:
+        spec = hyperprior_specs[param_name]
+        mu_0 = spec['mu_0']
+        tau_0 = np.sqrt(spec['tau_0_sq'])
+        alpha_0 = spec['alpha_0']
+        beta_0 = spec['beta_0']
+
+        # Mean parameter: mu ~ N(mu_0, tau_0^2)
+        mean_median = mu_0
+        mean_lower = mu_0 - 1.96 * tau_0
+        mean_upper = mu_0 + 1.96 * tau_0
+
+        # Map to state names used in HYPERPARAM_INFO
+        if param_name == 'r':
+            mean_key = 'r_mean'
+            logsd_key = 'r_logsd'
+        elif param_name == 'phi_raw':
+            mean_key = 'phi_mean'
+            logsd_key = 'phi_logsd'
+        elif param_name == 'eta_raw':
+            mean_key = 'eta_mean'
+            logsd_key = 'eta_logsd'
+        else:  # lambda_raw
+            mean_key = 'lambda_mean'
+            logsd_key = 'lambda_logsd'
+
+        quantiles[mean_key] = (mean_median, mean_lower, mean_upper)
+
+        # Logsd parameter: sigma^2 ~ InvGamma(alpha_0, beta_0)
+        sigma_sq_median = invgamma.ppf(0.5, alpha_0, scale=beta_0)
+        sigma_sq_lower = invgamma.ppf(0.025, alpha_0, scale=beta_0)
+        sigma_sq_upper = invgamma.ppf(0.975, alpha_0, scale=beta_0)
+
+        logsd_median = 0.5 * np.log(sigma_sq_median)
+        logsd_lower = 0.5 * np.log(sigma_sq_lower)
+        logsd_upper = 0.5 * np.log(sigma_sq_upper)
+
+        quantiles[logsd_key] = (logsd_median, logsd_lower, logsd_upper)
+
+    return quantiles
+
+
+def preprocess_hyperparams(history_dir, output_dir, force=False):
+    """
+    Load full history and save NIG hyperparameter data to a single file.
+
+    Args:
+        history_dir: Directory with history files
+        output_dir: Directory to save preprocessed hyperparameter file
+        force: If True, overwrite existing data
+
+    Returns:
+        Path to the preprocessed hyperparameter file
+    """
+    history_dir = Path(history_dir)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = output_dir / 'hyperparams_preprocessed.npz'
+
+    # Load history files
+    history_files = sorted(history_dir.glob('history_*.npz'))
+    if not history_files:
+        raise FileNotFoundError(f"No history files in {history_dir}")
+
+    # Check if preprocessed data already exists and is up-to-date
+    if output_path.exists() and not force:
+        newest_history = max(f.stat().st_mtime for f in history_files)
+        preprocessed_time = output_path.stat().st_mtime
+
+        if newest_history <= preprocessed_time:
+            print(f"  Hyperparameter data up-to-date: {output_path}")
+            return output_path
+
+    print(f"  Loading {len(history_files)} history files...")
+    history, iterations, _, metadata = load_and_filter_history(history_files)
+    print(f"  Combined shape: {history.shape}")
+
+    n_samples, n_chains, n_total_params = history.shape
+
+    # Calculate hyperparameter indices
+    n_raw_params = n_total_params // 2
+    n_subjects = (n_raw_params - _NIG_N_HYPER) // _NIG_NPARAMS
+    hyper_start = n_subjects * _NIG_NPARAMS
+
+    print(f"  Extracting {_NIG_N_HYPER} hyperparameters (subjects={n_subjects})...")
+
+    # Extract hyperparameter samples
+    hyper_data = {}
+    for param_idx, (state_name, latex_label) in enumerate(HYPERPARAM_INFO_NIG):
+        hyper_data[state_name] = history[:, :, hyper_start + param_idx]
+
+    # Calculate batch boundaries
+    batch_boundaries = [0]
+    if metadata and 'batch_sizes' in metadata:
+        cumsum = 0
+        for size in metadata['batch_sizes']:
+            cumsum += size
+            batch_boundaries.append(cumsum)
+
+    # Save preprocessed data
+    np.savez_compressed(
+        output_path,
+        iterations=iterations,
+        batch_boundaries=np.array(batch_boundaries),
+        n_subjects=n_subjects,
+        **hyper_data
+    )
+
+    print(f"  Saved hyperparameter data to {output_path}")
+    return output_path
+
+
+def plot_hyperparameters(history, iterations, batch_boundaries, output_path,
+                         hyperprior_specs=None, chain_subsample=100,
+                         params_per_page=5, row_height=2.8):
+    """
+    Generate NIG hyperparameter diagnostic PDF.
+
+    Layout: 2-column (traces left, densities right), up to params_per_page
+    params per page.
+
+    Args:
+        history: MCMC history array
+        iterations: Iteration numbers
+        batch_boundaries: Run boundaries
+        output_path: Path to save PDF
+        hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        chain_subsample: Max chains to show in traces (default 100)
+        params_per_page: Hyperparams per PDF page (default 5)
+        row_height: Height per row in inches (default 2.8)
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    n_samples, n_chains, n_total_params = history.shape
+    burn_idx = n_samples // 2
+
+    n_raw_params = n_total_params // 2
+    n_subjects = (n_raw_params - _NIG_N_HYPER) // _NIG_NPARAMS
+    hyper_start = n_subjects * _NIG_NPARAMS
+
+    # Compute prior quantiles if specs provided
+    prior_quantiles = None
+    if hyperprior_specs is not None:
+        prior_quantiles = compute_hyperprior_quantiles(hyperprior_specs)
+
+    # Subsample chains for traces
+    n_chains_plot = min(chain_subsample, n_chains)
+    chain_indices = np.linspace(0, n_chains - 1, n_chains_plot, dtype=int)
+    chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, n_chains_plot)))
+
+    with PdfPages(output_path) as pdf:
+        n_params = len(HYPERPARAM_INFO_NIG)
+
+        for page_start in range(0, n_params, params_per_page):
+            page_end = min(page_start + params_per_page, n_params)
+            n_on_page = page_end - page_start
+
+            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, row_height * n_on_page))
+            if n_on_page == 1:
+                axes = axes.reshape(1, 2)
+
+            for i, param_idx in enumerate(range(page_start, page_end)):
+                state_name, latex_label = HYPERPARAM_INFO_NIG[param_idx]
+                ax_trace = axes[i, 0]
+                ax_density = axes[i, 1]
+
+                param_samples = history[:, :, hyper_start + param_idx]
+
+                # Trace plot
+                for j, chain_idx in enumerate(chain_indices):
+                    color = chain_colors[j % len(chain_colors)]
+                    ax_trace.plot(iterations, param_samples[:, chain_idx],
+                                  color=color, alpha=0.4, lw=0.3)
+
+                # Run boundaries
+                for boundary in batch_boundaries[1:]:
+                    if boundary < len(iterations):
+                        ax_trace.axvline(iterations[boundary], color='gray',
+                                         linestyle=':', alpha=0.7, lw=1)
+
+                if batch_boundaries and len(batch_boundaries) > 1:
+                    last_batch_start = batch_boundaries[-2]
+                    last_batch_samples = param_samples[last_batch_start:, :]
+                else:
+                    last_batch_samples = param_samples[burn_idx:, :]
+                median_val = np.median(last_batch_samples)
+                ax_trace.axhline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=1.5,
+                                label='Posterior median (last run)')
+
+                # Prior reference lines on trace plot
+                if prior_quantiles and state_name in prior_quantiles:
+                    prior_med, prior_lo, prior_hi = prior_quantiles[state_name]
+                    ax_trace.axhline(prior_med, color=COLOR_PRIOR, linestyle='--', lw=1.5,
+                                    label='Prior median')
+                    ax_trace.axhline(prior_lo, color=COLOR_PRIOR, linestyle=':', lw=1.0,
+                                    alpha=0.7)
+                    ax_trace.axhline(prior_hi, color=COLOR_PRIOR, linestyle=':', lw=1.0,
+                                    alpha=0.7, label='Prior 95% CI')
+
+                ax_trace.set_ylabel(latex_label)
+                ax_trace.set_xlabel('Iteration')
+                ax_trace.set_title(f'{state_name} - Trace')
+                ax_trace.legend(loc='upper right', fontsize=7)
+
+                # Density plot (per run)
+                if batch_boundaries and len(batch_boundaries) > 1:
+                    for run_idx in range(len(batch_boundaries) - 1):
+                        start = max(batch_boundaries[run_idx], burn_idx)
+                        end = batch_boundaries[run_idx + 1]
+                        if start < end:
+                            run_samples = param_samples[start:end, :].flatten()
+                            try:
+                                kde = stats.gaussian_kde(run_samples)
+                                x_range = np.linspace(run_samples.min(), run_samples.max(), 200)
+                                color = RUN_COLORS[run_idx % len(RUN_COLORS)]
+                                ax_density.fill_between(x_range, kde(x_range),
+                                                       alpha=0.3, color=color,
+                                                       label=f'Run {run_idx + 1}')
+                                ax_density.plot(x_range, kde(x_range), color=color, lw=1)
+                            except Exception:
+                                pass
+                else:
+                    flat_samples = param_samples[burn_idx:, :].flatten()
+                    try:
+                        kde = stats.gaussian_kde(flat_samples)
+                        x_range = np.linspace(flat_samples.min(), flat_samples.max(), 200)
+                        ax_density.fill_between(x_range, kde(x_range),
+                                               color=COLOR_DATA, alpha=0.6)
+                        ax_density.plot(x_range, kde(x_range), color=COLOR_DATA, lw=1.5)
+                    except Exception:
+                        ax_density.hist(flat_samples, bins=50, density=True,
+                                       color=COLOR_DATA, alpha=0.6)
+
+                ax_density.axvline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                                  label='Posterior median (last run)')
+
+                # Prior reference lines on density plot
+                if prior_quantiles and state_name in prior_quantiles:
+                    prior_med, prior_lo, prior_hi = prior_quantiles[state_name]
+                    ax_density.axvline(prior_med, color=COLOR_PRIOR, linestyle='--', lw=2,
+                                      label='Prior median')
+                    ax_density.axvline(prior_lo, color=COLOR_PRIOR, linestyle=':', lw=1.5,
+                                      alpha=0.7)
+                    ax_density.axvline(prior_hi, color=COLOR_PRIOR, linestyle=':', lw=1.5,
+                                      alpha=0.7, label='Prior 95% CI')
+                ax_density.legend(loc='upper right', fontsize=8)
+                ax_density.set_xlabel(latex_label)
+                ax_density.set_title(f'{state_name} - Posterior')
+
+            plt.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+    print(f"  Saved: {output_path}")
+
+
+def plot_hyperparams_from_preprocessed(preprocessed_path, plots_dir, hyperprior_specs=None,
+                                        config=None):
+    """
+    Generate NIG hyperparameter plots from preprocessed data file.
+
+    Args:
+        preprocessed_path: Path to hyperparams_preprocessed.npz file
+        plots_dir: Directory to save plots
+        hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        config: Optional dict with keys hyper_chain_subsample, hyper_params_per_page, hyper_row_height
+    """
+    if config is None:
+        config = {}
+    preprocessed_path = Path(preprocessed_path)
+    plots_dir = Path(plots_dir)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    if not preprocessed_path.exists():
+        raise FileNotFoundError(f"Preprocessed file not found: {preprocessed_path}")
+
+    print(f"  Loading preprocessed hyperparameters from {preprocessed_path}...")
+    data = np.load(preprocessed_path)
+
+    iterations = data['iterations']
+    batch_boundaries = list(data['batch_boundaries'])
+
+    first_state = HYPERPARAM_INFO_NIG[0][0]
+    n_samples, n_chains = data[first_state].shape
+    n_hyper = len(HYPERPARAM_INFO_NIG)
+
+    hyper_history = np.zeros((n_samples, n_chains, n_hyper), dtype=np.float64)
+    for param_idx, (state_name, _) in enumerate(HYPERPARAM_INFO_NIG):
+        hyper_history[:, :, param_idx] = data[state_name]
+
+    print(f"  Shape: ({n_samples}, {n_chains}, {n_hyper})")
+
+    # Plot hyperparameters
+    print("  Generating hyperparameter plots...")
+    hyper_path = plots_dir / 'rdu_bhm_hyperparams.pdf'
+    _plot_hyperparameters_direct_nig(hyper_history, iterations, batch_boundaries, hyper_path,
+                                     hyperprior_specs=hyperprior_specs,
+                                     chain_subsample=config.get('hyper_chain_subsample', 100),
+                                     params_per_page=config.get('hyper_params_per_page', 5),
+                                     row_height=config.get('hyper_row_height', 2.8))
+    print(f"  Saved: {hyper_path}")
+
+
+def _plot_hyperparameters_direct_nig(hyper_history, iterations, batch_boundaries, output_path,
+                                      hyperprior_specs=None, chain_subsample=100,
+                                      params_per_page=5, row_height=2.8):
+    """
+    Plot NIG hyperparameters from a direct hyperparameter array.
+
+    Unlike the CE-model version, this uses HYPERPARAM_INFO_NIG and supports
+    hyperprior_specs for overlaying prior reference lines.
+
+    Args:
+        hyper_history: Array of shape (n_samples, n_chains, n_hyper)
+        iterations: Iteration numbers
+        batch_boundaries: Run boundaries
+        output_path: Path to save PDF
+        hyperprior_specs: Optional dict with NIG hyperprior specs
+        chain_subsample: Max chains to show in traces (default 100)
+        params_per_page: Hyperparams per PDF page (default 5)
+        row_height: Height per row in inches (default 2.8)
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    n_samples, n_chains, n_hyper = hyper_history.shape
+    burn_idx = n_samples // 2
+
+    # Compute prior quantiles if specs provided
+    prior_quantiles = None
+    if hyperprior_specs is not None:
+        prior_quantiles = compute_hyperprior_quantiles(hyperprior_specs)
+
+    # Subsample chains for traces
+    n_chains_plot = min(chain_subsample, n_chains)
+    chain_indices = np.linspace(0, n_chains - 1, n_chains_plot, dtype=int)
+    chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, n_chains_plot)))
+
+    with PdfPages(output_path) as pdf:
+        n_params = len(HYPERPARAM_INFO_NIG)
+
+        for page_start in range(0, n_params, params_per_page):
+            page_end = min(page_start + params_per_page, n_params)
+            n_on_page = page_end - page_start
+
+            fig, axes = plt.subplots(n_on_page, 2, figsize=(14, row_height * n_on_page))
+            if n_on_page == 1:
+                axes = axes.reshape(1, 2)
+
+            for i, param_idx in enumerate(range(page_start, page_end)):
+                state_name, latex_label = HYPERPARAM_INFO_NIG[param_idx]
+                ax_trace = axes[i, 0]
+                ax_density = axes[i, 1]
+
+                param_samples = hyper_history[:, :, param_idx]
+
+                # Trace plot
+                for j, chain_idx in enumerate(chain_indices):
+                    color = chain_colors[j % len(chain_colors)]
+                    ax_trace.plot(iterations, param_samples[:, chain_idx],
+                                  color=color, alpha=0.4, lw=0.3)
+
+                for boundary in batch_boundaries[1:]:
+                    if boundary < len(iterations):
+                        ax_trace.axvline(iterations[boundary], color='gray',
+                                         linestyle=':', alpha=0.7, lw=1)
+
+                if batch_boundaries and len(batch_boundaries) > 1:
+                    last_batch_start = batch_boundaries[-2]
+                    last_batch_samples = param_samples[last_batch_start:, :]
+                else:
+                    last_batch_samples = param_samples[burn_idx:, :]
+                median_val = np.median(last_batch_samples)
+                ax_trace.axhline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=1.5,
+                                label='Posterior median (last run)')
+
+                if prior_quantiles and state_name in prior_quantiles:
+                    prior_med, prior_lo, prior_hi = prior_quantiles[state_name]
+                    ax_trace.axhline(prior_med, color=COLOR_PRIOR, linestyle='--', lw=1.5,
+                                    label='Prior median')
+                    ax_trace.axhline(prior_lo, color=COLOR_PRIOR, linestyle=':', lw=1.0,
+                                    alpha=0.7)
+                    ax_trace.axhline(prior_hi, color=COLOR_PRIOR, linestyle=':', lw=1.0,
+                                    alpha=0.7, label='Prior 95% CI')
+
+                ax_trace.set_ylabel(latex_label)
+                ax_trace.set_xlabel('Iteration')
+                ax_trace.set_title(f'{state_name} - Trace')
+                ax_trace.legend(loc='upper right', fontsize=7)
+
+                if batch_boundaries and len(batch_boundaries) > 1:
+                    for run_idx in range(len(batch_boundaries) - 1):
+                        start = max(batch_boundaries[run_idx], burn_idx)
+                        end = batch_boundaries[run_idx + 1]
+                        if start < end:
+                            run_samples = param_samples[start:end, :].flatten()
+                            try:
+                                kde = stats.gaussian_kde(run_samples)
+                                x_range = np.linspace(run_samples.min(), run_samples.max(), 200)
+                                color = RUN_COLORS[run_idx % len(RUN_COLORS)]
+                                ax_density.fill_between(x_range, kde(x_range),
+                                                       alpha=0.3, color=color,
+                                                       label=f'Run {run_idx + 1}')
+                                ax_density.plot(x_range, kde(x_range), color=color, lw=1)
+                            except Exception:
+                                pass
+                else:
+                    flat_samples = param_samples[burn_idx:, :].flatten()
+                    try:
+                        kde = stats.gaussian_kde(flat_samples)
+                        x_range = np.linspace(flat_samples.min(), flat_samples.max(), 200)
+                        ax_density.fill_between(x_range, kde(x_range),
+                                               color=COLOR_DATA, alpha=0.6)
+                        ax_density.plot(x_range, kde(x_range), color=COLOR_DATA, lw=1.5)
+                    except Exception:
+                        ax_density.hist(flat_samples, bins=50, density=True,
+                                       color=COLOR_DATA, alpha=0.6)
+
+                ax_density.axvline(median_val, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                                  label='Posterior median (last run)')
+
+                if prior_quantiles and state_name in prior_quantiles:
+                    prior_med, prior_lo, prior_hi = prior_quantiles[state_name]
+                    ax_density.axvline(prior_med, color=COLOR_PRIOR, linestyle='--', lw=2,
+                                      label='Prior median')
+                    ax_density.axvline(prior_lo, color=COLOR_PRIOR, linestyle=':', lw=1.5,
+                                      alpha=0.7)
+                    ax_density.axvline(prior_hi, color=COLOR_PRIOR, linestyle=':', lw=1.5,
+                                      alpha=0.7, label='Prior 95% CI')
+
+                ax_density.set_xlabel(latex_label)
+                ax_density.set_title(f'{state_name} - Density')
+                ax_density.legend(loc='upper right', fontsize=7)
+
+            plt.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+
+def plot_hyperparams_only(history_dir, plots_dir, hyperprior_specs=None, config=None):
+    """
+    Generate NIG hyperparameter plots directly from history files (no preprocessing).
+
+    Args:
+        history_dir: Directory containing history_*.npz files
+        plots_dir: Directory to save plots
+        hyperprior_specs: Optional dict with hyperprior specs for prior reference lines
+        config: Optional dict with keys hyper_chain_subsample, hyper_params_per_page, hyper_row_height
+    """
+    if config is None:
+        config = {}
+    history_dir = Path(history_dir)
+    plots_dir = Path(plots_dir)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    history_files = sorted(history_dir.glob('history_*.npz'))
+    if not history_files:
+        raise FileNotFoundError(f"No history files found in {history_dir}")
+
+    print(f"  Found {len(history_files)} history files")
+
+    print("  Loading history for hyperparameters...")
+    history, iterations, _, metadata = load_and_filter_history(history_files)
+    print(f"  Shape: {history.shape}")
+
+    batch_boundaries = [0]
+    if metadata and 'batch_sizes' in metadata:
+        cumsum = 0
+        for size in metadata['batch_sizes']:
+            cumsum += size
+            batch_boundaries.append(cumsum)
+
+    print("  Generating hyperparameter plots...")
+    hyper_path = plots_dir / 'rdu_bhm_hyperparams.pdf'
+    plot_hyperparameters(history, iterations, batch_boundaries, hyper_path,
+                        hyperprior_specs=hyperprior_specs,
+                        chain_subsample=config.get('hyper_chain_subsample', 100),
+                        params_per_page=config.get('hyper_params_per_page', 5),
+                        row_height=config.get('hyper_row_height', 2.8))
+    print(f"  Saved: {hyper_path}")
+
+
+def plot_subjects_only(history_dir, plots_dir, max_subjects=None, n_workers=1,
+                       prizes=None, config=None):
+    """
+    Generate only per-subject diagnostic plots (NIG model).
+
+    Args:
+        history_dir: Directory containing history_*.npz files
+        plots_dir: Directory to save plots
+        max_subjects: Limit subjects for testing
+        n_workers: Number of parallel workers
+        prizes: Array of 3 reference prizes for CE page (None to skip)
+        config: Optional dict with plotting config
+    """
+    history_dir = Path(history_dir)
+    plots_dir = Path(plots_dir)
+    subjects_dir = plots_dir / 'subjects'
+    params_dir = history_dir.parent / 'subject_params'
+
+    print("  Stage 1: Preprocessing subject data...")
+    params_dir, iterations, batch_boundaries = preprocess_subjects(
+        history_dir, params_dir, force=False,
+        nparams=_NIG_NPARAMS, n_hyper=_NIG_N_HYPER
+    )
+
+    print("  Stage 2: Parallel plotting...")
+    parallel_plot_subjects(
+        params_dir, subjects_dir, iterations, batch_boundaries,
+        n_workers=n_workers, max_subjects=max_subjects,
+        prizes=prizes, config=config
+    )
+
+
+# =============================================================================
+# HYPERPRIOR PDF / MEDIAN / RANGE HELPERS (NIG model)
+# =============================================================================
+
+def _hyperprior_pdf(x, state_name, hyperprior_specs):
+    """
+    Compute the NIG hyperprior PDF evaluated on x for a given hyperparameter.
+
+    For mean params: mu ~ N(mu_0, tau_0_sq).
+    For logsd params: sigma^2 ~ IG(alpha_0, beta_0) with logsd = 0.5*log(sigma^2).
+
+    Args:
+        x: Array of points to evaluate
+        state_name: e.g. 'r_mean', 'r_logsd', 'phi_mean', etc.
+        hyperprior_specs: Dict with keys 'r', 'phi_raw', 'eta_raw', 'lambda_raw'
+
+    Returns:
+        Array of PDF values (same shape as x), or None if specs unavailable
+    """
+    if hyperprior_specs is None:
+        return None
+
+    prefix = state_name.split('_')[0]
+    param_key = {'r': 'r', 'phi': 'phi_raw', 'eta': 'eta_raw', 'lambda': 'lambda_raw'}[prefix]
+
+    if param_key not in hyperprior_specs:
+        return None
+
+    spec = hyperprior_specs[param_key]
+    mu_0 = spec['mu_0']
+    tau_0_sq = spec['tau_0_sq']
+    alpha_0 = spec['alpha_0']
+    beta_0 = spec['beta_0']
+
+    is_logsd = state_name.endswith('_logsd')
+
+    if not is_logsd:
+        return stats.norm.pdf(x, loc=mu_0, scale=np.sqrt(tau_0_sq))
+    else:
+        sigma_sq = np.exp(2.0 * x)
+        pdf_ig = stats.invgamma.pdf(sigma_sq, alpha_0, scale=beta_0)
+        jacobian = 2.0 * sigma_sq
+        return pdf_ig * jacobian
+
+
+def _hyperprior_median(state_name, hyperprior_specs):
+    """Return the median of the NIG hyperprior distribution for a given state."""
+    if hyperprior_specs is None:
+        return None
+
+    prefix = state_name.split('_')[0]
+    param_key = {'r': 'r', 'phi': 'phi_raw', 'eta': 'eta_raw', 'lambda': 'lambda_raw'}[prefix]
+    if param_key not in hyperprior_specs:
+        return None
+
+    spec = hyperprior_specs[param_key]
+    is_logsd = state_name.endswith('_logsd')
+
+    if not is_logsd:
+        return spec['mu_0']
+    else:
+        ig_median = stats.invgamma.median(spec['alpha_0'], scale=spec['beta_0'])
+        return 0.5 * np.log(ig_median)
+
+
+def _hyperprior_range(state_name, hyperprior_specs, tail=0.005):
+    """Return (lo, hi) covering the central 1-2*tail mass of the NIG hyperprior."""
+    if hyperprior_specs is None:
+        return None
+
+    prefix = state_name.split('_')[0]
+    param_key = {'r': 'r', 'phi': 'phi_raw', 'eta': 'eta_raw', 'lambda': 'lambda_raw'}[prefix]
+    if param_key not in hyperprior_specs:
+        return None
+
+    spec = hyperprior_specs[param_key]
+    is_logsd = state_name.endswith('_logsd')
+
+    if not is_logsd:
+        dist = stats.norm(loc=spec['mu_0'], scale=np.sqrt(spec['tau_0_sq']))
+        return (dist.ppf(tail), dist.ppf(1 - tail))
+    else:
+        ig = stats.invgamma(spec['alpha_0'], scale=spec['beta_0'])
+        sq_lo, sq_hi = ig.ppf(tail), ig.ppf(1 - tail)
+        return (0.5 * np.log(sq_lo), 0.5 * np.log(sq_hi))
+
+
+# =============================================================================
+# HYPER COMPARISON & PAPER PLOTS (NIG model)
+# =============================================================================
+
+def plot_hyper_comparison(info_path, uninf_path, output_path,
+                         hyperprior_specs_info=None,
+                         hyperprior_specs_uninf=None,
+                         config=None):
+    """
+    Plot posterior density comparison for each NIG hyperparameter.
+
+    Produces a single PDF with one row per hyperparameter, showing overlaid
+    KDE densities from informative and uninformative posteriors, with the
+    informative hyperprior density for reference.
+
+    Args:
+        info_path: Path to informative hyperparams_preprocessed.npz
+        uninf_path: Path to uninformative hyperparams_preprocessed.npz
+        output_path: Path to save the output PDF
+        hyperprior_specs_info: Informative hyperprior specs (for prior density)
+        hyperprior_specs_uninf: Uninformative hyperprior specs (unused currently)
+        config: Optional dict with keys:
+            figsize (tuple): Plot dimensions (width, height) in inches
+            tail (float): Tail probability for x-axis range (default 0.005)
+    """
+    import matplotlib.ticker
+    if config is None:
+        config = {}
+    figsize = tuple(config.get('figsize', (6.3, 7.2)))
+    tail = config.get('tail', 0.005)
+    from prior_predictive_ce import _parse_overlay_style
+    lbl, clr = _parse_overlay_style(config.get('style', None))
+    info_path = Path(info_path)
+    uninf_path = Path(uninf_path)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    info_data = np.load(info_path)
+    uninf_data = np.load(uninf_path)
+
+    def _get_post_burnin(data, state_name):
+        samples = data[state_name]
+        n = samples.shape[0]
+        return samples[n // 2:, :].flatten()
+
+    COLOR_PR = clr['prior']
+    COLOR_IN = clr['info']
+    COLOR_UN = clr['uninf']
+
+    PARAM_PAIRS = [
+        ('r_mean', r'$\mu_r$', 'r_logsd', r'$\ln\sigma_r$'),
+        ('phi_mean', r'$\mu_{\phi}$ (log scale)', 'phi_logsd', r'$\ln\sigma_{\phi}$'),
+        ('eta_mean', r'$\mu_{\eta}$ (log scale)', 'eta_logsd', r'$\ln\sigma_{\eta}$'),
+        ('lambda_mean', r'$\mu_{\lambda}$ (log scale)', 'lambda_logsd', r'$\ln\sigma_{\lambda}$'),
+    ]
+
+    n_rows = len(PARAM_PAIRS)
+    fig, axes = plt.subplots(n_rows, 2, figsize=figsize)
+
+    for row, (mean_name, mean_label, logsd_name, logsd_label) in enumerate(PARAM_PAIRS):
+        for col, (state_name, latex_label) in enumerate(
+            [(mean_name, mean_label), (logsd_name, logsd_label)]
+        ):
+            ax = axes[row, col]
+
+            flat_info = _get_post_burnin(info_data, state_name)
+            flat_uninf = _get_post_burnin(uninf_data, state_name)
+
+            pct_lo = tail * 100
+            pct_hi = (1 - tail) * 100
+            lo = min(np.percentile(flat_info, pct_lo), np.percentile(flat_uninf, pct_lo))
+            hi = max(np.percentile(flat_info, pct_hi), np.percentile(flat_uninf, pct_hi))
+
+            prior_range = _hyperprior_range(state_name, hyperprior_specs_info, tail=tail)
+            if prior_range is not None:
+                lo = min(lo, prior_range[0])
+                hi = max(hi, prior_range[1])
+
+            x = np.linspace(lo, hi, 300)
+
+            prior_pdf = _hyperprior_pdf(x, state_name, hyperprior_specs_info)
+            if prior_pdf is not None:
+                ax.plot(x, prior_pdf, color=COLOR_PR, lw=1.5, label=lbl['prior'])
+                ax.fill_between(x, prior_pdf, alpha=0.15, color=COLOR_PR)
+
+            try:
+                kde_info = stats.gaussian_kde(flat_info)
+                ax.fill_between(x, kde_info(x), alpha=0.3, color=COLOR_IN)
+                ax.plot(x, kde_info(x), color=COLOR_IN, lw=1.5, label=lbl['info'])
+            except Exception:
+                ax.hist(flat_info, bins=80, density=True, alpha=0.3, color=COLOR_IN,
+                        label=lbl['info'])
+
+            try:
+                kde_uninf = stats.gaussian_kde(flat_uninf)
+                ax.fill_between(x, kde_uninf(x), alpha=0.3, color=COLOR_UN)
+                ax.plot(x, kde_uninf(x), color=COLOR_UN, lw=1.5, label=lbl['uninf'])
+            except Exception:
+                ax.hist(flat_uninf, bins=80, density=True, alpha=0.3, color=COLOR_UN,
+                        label=lbl['uninf'])
+
+            if prior_pdf is not None:
+                prior_med = _hyperprior_median(state_name, hyperprior_specs_info)
+                if prior_med is not None:
+                    ax.axvline(prior_med, color=COLOR_PR, linestyle=':', lw=1.2)
+            ax.axvline(np.median(flat_info), color=COLOR_IN, linestyle=':', lw=1.2)
+            ax.axvline(np.median(flat_uninf), color=COLOR_UN, linestyle=':', lw=1.2)
+
+            ax.set_xlabel(latex_label)
+            if row == 0 and col == 0:
+                ax.legend(loc='upper right', fontsize=8)
+            ax.grid(False)
+            ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, min_n_ticks=5))
+            ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, min_n_ticks=4))
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+
+    plt.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+    print(f"  Saved hyperparameter comparison: {output_path}")
+
+
+def paper_plots(quantities_path, plots_dir,
+                info_hyper_path=None, uninf_hyper_path=None,
+                hyperprior_specs_info=None, hyperprior_specs_uninf=None,
+                hyper_comparison_config=None):
+    """
+    Generate publication-ready plots for the paper (NIG model comparison).
+
+    Args:
+        quantities_path: Path to paper_quantities.npz
+        plots_dir: Directory to save plots
+        info_hyper_path: Path to informative hyperparams_preprocessed.npz
+        uninf_hyper_path: Path to uninformative hyperparams_preprocessed.npz
+        hyperprior_specs_info: Informative hyperprior specs (for prior overlay)
+        hyperprior_specs_uninf: Uninformative hyperprior specs (for prior overlay)
+        hyper_comparison_config: Config dict for hyper comparison plot
+    """
+    quantities_path = Path(quantities_path)
+    plots_dir = Path(plots_dir)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    if not quantities_path.exists():
+        raise FileNotFoundError(f"Run gen_paper_quantities first: {quantities_path}")
+
+    data = np.load(quantities_path)
+
+    print("Paper quantities loaded:")
+    print(f"  n_subjects: {data['n_subjects']}")
+    print(f"  n_samples (post burn-in): {data['n_samples_post_burnin']}")
+    print(f"  R-hat max: {data['rhat_max']:.4f}")
+
+    # Hyperparameter posterior comparison
+    if info_hyper_path and uninf_hyper_path:
+        plot_hyper_comparison(
+            info_hyper_path, uninf_hyper_path,
+            plots_dir / 'hyper_comparison.pdf',
+            hyperprior_specs_info=hyperprior_specs_info,
+            hyperprior_specs_uninf=hyperprior_specs_uninf,
+            config=hyper_comparison_config,
+        )
+
+
+# =============================================================================
+# PRIOR DISTRIBUTION PLOTS
+# =============================================================================
+
+def plot_direct_prior(direct_prior, output_path, n_samples=10000, seed=42,
+                      figsize=(10, 8)):
+    """
+    Generate 4-panel plot of the direct prior distribution.
+
+    Samples from N(mu, sigma2) for each parameter and plots the distribution.
+    For log-scale parameters (phi, eta, lambda), displays on natural scale via exp().
+
+    Args:
+        direct_prior: Dict with {param: {'mu': float, 'sigma2': float}}
+        output_path: Path to save the figure
+        n_samples: Number of samples to draw
+        seed: Random seed for reproducibility
+        figsize: Figure dimensions in inches (default (10, 8))
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    np.random.seed(seed)
+
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
+    axes = axes.flatten()
+    fig.suptitle('Direct Prior Distribution', fontsize=14, fontweight='bold')
+
+    for i, (key, label, transform_exp) in enumerate(PRIOR_PARAM_INFO):
+        ax = axes[i]
+        mu = direct_prior[key]['mu']
+        sigma = np.sqrt(direct_prior[key]['sigma2'])
+
+        raw_samples = np.random.normal(mu, sigma, n_samples)
+
+        if transform_exp:
+            samples = np.exp(raw_samples)
+            median = np.exp(mu)
+        else:
+            samples = raw_samples
+            median = mu
+
+        ax.hist(samples, bins=50, density=True, alpha=0.6, color=COLOR_DATA,
+                edgecolor='white', linewidth=0.5)
+
+        try:
+            kde = stats.gaussian_kde(samples)
+            x_range = np.linspace(np.percentile(samples, 0.5), np.percentile(samples, 99.5), 200)
+            ax.plot(x_range, kde(x_range), color=COLOR_DATA, lw=2)
+        except Exception:
+            pass
+
+        ax.axvline(median, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                   label=f'Median: {median:.2f}')
+
+        ci_low, ci_high = np.percentile(samples, [2.5, 97.5])
+        ax.axvline(ci_low, color='gray', linestyle=':', alpha=0.7)
+        ax.axvline(ci_high, color='gray', linestyle=':', alpha=0.7)
+
+        ax.set_xlabel(label, fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.legend(loc='upper right', fontsize=9)
+
+        if transform_exp:
+            ax.text(0.02, 0.98,
+                    f'Log scale: $\\mu={mu:.2f}$, $\\sigma={sigma:.2f}$\n'
+                    f'95% CI: [{ci_low:.2f}, {ci_high:.2f}]',
+                    transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        else:
+            ax.text(0.02, 0.98,
+                    f'$\\mu={mu:.2f}$, $\\sigma={sigma:.2f}$\n'
+                    f'95% CI: [{ci_low:.2f}, {ci_high:.2f}]',
+                    transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Saved: {output_path}")
+
+
+def plot_unconditional_prior(direct_prior, prior_selection, output_path,
+                              n_samples=10000, seed=42, figsize=(10, 8)):
+    """
+    Generate 4-panel plot of the unconditional BHM prior distribution.
+
+    Samples from the full BHM structure:
+    1. Sample hyperparams: mu ~ N(mu_0, tau_0^2), sigma^2 ~ IG(alpha_0, beta_0)
+    2. Sample individual: theta ~ N(mu, sigma^2)
+
+    Args:
+        direct_prior: Dict with {param: {'mu': float, 'sigma2': float}}
+        prior_selection: Dict with {'rho': float, 'alpha_0': float}
+        output_path: Path to save the figure
+        n_samples: Number of samples to draw
+        seed: Random seed for reproducibility
+        figsize: Figure dimensions in inches (default (10, 8))
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    np.random.seed(seed)
+
+    rho = prior_selection['rho']
+    if 'kappa' in prior_selection:
+        from prior_selection import kappa_to_alpha0
+        alpha_0 = kappa_to_alpha0(prior_selection['kappa'])
+    else:
+        alpha_0 = prior_selection['alpha_0']
+
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
+    axes = axes.flatten()
+    fig.suptitle('Unconditional Prior Distribution (BHM)', fontsize=14, fontweight='bold')
+
+    for i, (key, label, transform_exp) in enumerate(PRIOR_PARAM_INFO):
+        ax = axes[i]
+
+        mu_ps = direct_prior[key]['mu']
+        var_ps = direct_prior[key]['sigma2']
+        sigma_ps = np.sqrt(var_ps)
+
+        tau_0_sq = rho * var_ps
+        expected_sigma_sq = (1 - rho) * var_ps
+        beta_0 = expected_sigma_sq * (alpha_0 - 1)
+
+        raw_samples = np.zeros(n_samples)
+        for j in range(n_samples):
+            mu = np.random.normal(mu_ps, np.sqrt(tau_0_sq))
+            sigma_sq = 1.0 / np.random.gamma(alpha_0, 1.0 / beta_0)
+            raw_samples[j] = np.random.normal(mu, np.sqrt(sigma_sq))
+
+        if transform_exp:
+            samples = np.exp(raw_samples)
+            median = np.exp(mu_ps)
+        else:
+            samples = raw_samples
+            median = mu_ps
+
+        ax.hist(samples, bins=50, density=True, alpha=0.6, color=COLOR_DATA,
+                edgecolor='white', linewidth=0.5)
+
+        try:
+            kde = stats.gaussian_kde(samples)
+            x_range = np.linspace(np.percentile(samples, 0.5), np.percentile(samples, 99.5), 200)
+            ax.plot(x_range, kde(x_range), color=COLOR_DATA, lw=2)
+        except Exception:
+            pass
+
+        ax.axvline(median, color=COLOR_MEDIAN, linestyle='--', lw=2,
+                   label=f'Median: {median:.2f}')
+
+        ci_low, ci_high = np.percentile(samples, [2.5, 97.5])
+        ax.axvline(ci_low, color='gray', linestyle=':', alpha=0.7)
+        ax.axvline(ci_high, color='gray', linestyle=':', alpha=0.7)
+
+        ax.set_xlabel(label, fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.legend(loc='upper right', fontsize=9)
+
+        if transform_exp:
+            ax.text(0.02, 0.98,
+                    f'Log scale: $\\mu={mu_ps:.2f}$, $\\sigma={sigma_ps:.2f}$\n'
+                    f'95% CI: [{ci_low:.2f}, {ci_high:.2f}]',
+                    transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        else:
+            sample_mean = np.mean(samples)
+            sample_std = np.std(samples)
+            ax.text(0.02, 0.98,
+                    f'Sample: $\\mu={sample_mean:.2f}$, $\\sigma={sample_std:.2f}$\n'
+                    f'Target: $\\mu={mu_ps:.2f}$, $\\sigma={sigma_ps:.2f}$',
+                    transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Saved: {output_path}")
+
+
+def plot_prior_comparison(direct_prior, prior_selection, output_path,
+                           n_samples=10000, seed=42, figsize=(10, 8)):
+    """
+    Generate comparison plot showing direct prior vs unconditional BHM prior.
+
+    Overlays both distributions to verify they match.
+
+    Args:
+        direct_prior: Dict with {param: {'mu': float, 'sigma2': float}}
+        prior_selection: Dict with {'rho': float, 'alpha_0': float}
+        output_path: Path to save the figure
+        n_samples: Number of samples to draw
+        seed: Random seed for reproducibility
+        figsize: Figure dimensions in inches (default (10, 8))
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    np.random.seed(seed)
+
+    rho = prior_selection['rho']
+    if 'kappa' in prior_selection:
+        from prior_selection import kappa_to_alpha0
+        alpha_0 = kappa_to_alpha0(prior_selection['kappa'])
+    else:
+        alpha_0 = prior_selection['alpha_0']
+
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
+    axes = axes.flatten()
+    fig.suptitle('Prior Comparison: Direct vs Unconditional BHM', fontsize=14, fontweight='bold')
+
+    for i, (key, label, transform_exp) in enumerate(PRIOR_PARAM_INFO):
+        ax = axes[i]
+
+        mu_ps = direct_prior[key]['mu']
+        var_ps = direct_prior[key]['sigma2']
+        sigma_ps = np.sqrt(var_ps)
+
+        direct_samples = np.random.normal(mu_ps, sigma_ps, n_samples)
+
+        tau_0_sq = rho * var_ps
+        expected_sigma_sq = (1 - rho) * var_ps
+        beta_0 = expected_sigma_sq * (alpha_0 - 1)
+
+        bhm_samples = np.zeros(n_samples)
+        for j in range(n_samples):
+            mu = np.random.normal(mu_ps, np.sqrt(tau_0_sq))
+            sigma_sq = 1.0 / np.random.gamma(alpha_0, 1.0 / beta_0)
+            bhm_samples[j] = np.random.normal(mu, np.sqrt(sigma_sq))
+
+        if transform_exp:
+            direct_samples = np.exp(direct_samples)
+            bhm_samples = np.exp(bhm_samples)
+
+        x_min_val = min(direct_samples.min(), bhm_samples.min())
+        x_max_val = max(direct_samples.max(), bhm_samples.max())
+        x_range = np.linspace(x_min_val, x_max_val, 200)
+
+        try:
+            kde_direct = stats.gaussian_kde(direct_samples)
+            ax.plot(x_range, kde_direct(x_range), color='blue', lw=2,
+                    label='Direct Prior', alpha=0.8)
+            ax.fill_between(x_range, kde_direct(x_range), color='blue', alpha=0.2)
+        except Exception:
+            pass
+
+        try:
+            kde_bhm = stats.gaussian_kde(bhm_samples)
+            ax.plot(x_range, kde_bhm(x_range), color='red', lw=2,
+                    label='Unconditional BHM', linestyle='--', alpha=0.8)
+        except Exception:
+            pass
+
+        ax.set_xlabel(label, fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.set_title(label, fontsize=12)
+        ax.legend(loc='upper right', fontsize=9)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Saved: {output_path}")

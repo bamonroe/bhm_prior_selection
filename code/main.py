@@ -179,6 +179,31 @@ sampling_opts_ce = {
     'beta_min': 0.1,
 }
 
+# Uninformative NIG model config (Gao 2022 diffuse prior)
+sampling_opts_uninf = {
+    'model': 'rdu_bhm',
+    'output_dir': DATA_DIR / 'output',
+    'plots_dir': PLOTS_DIR / 'rdu_bhm_uninf',
+    'clean': True,
+    'reset_runs': 1,
+    'resume_runs': 5,
+    'num_chains': 1000,
+    'num_collect': 100,
+    'thin_iteration': 10,
+    'chunk_size': 100,
+    'seed': SEEDS['sampling'],
+    'n_temperatures': 0,
+    'beta_0_min': 0.1,
+}
+
+# Gao (2022) diffuse hyperprior: N(0, 100) means, IG(0.001, 0.001) variances
+UNINF_HYPERPRIOR_SPECS = {
+    'r':          {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
+    'phi_raw':    {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
+    'eta_raw':    {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
+    'lambda_raw': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
+}
+
 # =============================================================================
 # Control Flags
 # =============================================================================
@@ -192,15 +217,22 @@ do_sensitivity          = False
 
 # --- MCMC Sampling ---
 do_sampling_ce             = False
+do_sampling_uninf          = False
 
 # --- Preprocessing (extract from history files) ---
 do_generate_prior_ce       = False
 do_preprocess_hyper_ce     = False
 do_preprocess_subjects_ce  = False
+do_preprocess_hyper_uninf  = False
+do_preprocess_subjects_uninf = False
 
 # --- Diagnostic Plots ---
 do_hyper_plots_ce          = False
 do_subject_plots_ce        = False
+
+# --- Paper Comparison Plots ---
+do_paper_predictive_overlay = False
+do_paper_subject_ce         = False
 
 # --- Appendix Examples ---
 do_injectivity_analysis    = False
@@ -324,6 +356,76 @@ if __name__ == '__main__':
                                         config=DIAGNOSTIC_PLOT_CONFIG)
         else:
             print(f"Skipping CE subject plots: preprocessed data not found")
+
+    # -------------------------------------------------------------------------
+    # Uninformative NIG Model (Gao 2022 diffuse prior)
+    # -------------------------------------------------------------------------
+    uninf_output_dir = DATA_DIR / 'output' / 'rdu_bhm_uninf'
+    history_dir_uninf = uninf_output_dir / 'rdu_bhm' / 'history' / 'full'
+    preprocess_dir_uninf = uninf_output_dir / 'preprocessed'
+
+    if do_sampling_uninf:
+        # Set diffuse hyperpriors before sampling
+        from posteriors.rdu_bhm import HYPERPRIOR_SPECS, PARAM_NAMES
+        for pname in PARAM_NAMES:
+            HYPERPRIOR_SPECS[pname] = UNINF_HYPERPRIOR_SPECS[pname]
+        from sampling import run_sampling as run_sampling_nig
+        run_sampling_nig(
+            output_dir=uninf_output_dir,
+            reset_runs=sampling_opts_uninf.get('reset_runs', 1),
+            resume_runs=sampling_opts_uninf.get('resume_runs', 5),
+            num_collect=sampling_opts_uninf.get('num_collect', 100),
+            config={
+                'num_chains_a': sampling_opts_uninf['num_chains'] // 2,
+                'num_chains_b': sampling_opts_uninf['num_chains'] // 2,
+                'num_collect': sampling_opts_uninf['num_collect'],
+                'thin_iteration': sampling_opts_uninf['thin_iteration'],
+                'chunk_size': sampling_opts_uninf['chunk_size'],
+                'rng_seed': sampling_opts_uninf['seed'],
+                'n_temperatures': sampling_opts_uninf.get('n_temperatures', 1),
+                'beta_min': sampling_opts_uninf.get('beta_0_min', 0.1),
+            },
+        )
+
+    if do_preprocess_hyper_uninf:
+        if history_dir_uninf.exists():
+            pipelines.run_preprocess_hyperparams(history_dir_uninf, preprocess_dir_uninf)
+        else:
+            print(f"Skipping uninf preprocessing: {history_dir_uninf} not found")
+
+    if do_preprocess_subjects_uninf:
+        if history_dir_uninf.exists():
+            pipelines.run_preprocess_subjects(history_dir_uninf, preprocess_dir_uninf / 'subjects')
+        else:
+            print(f"Skipping uninf subject preprocessing: {history_dir_uninf} not found")
+
+    # -------------------------------------------------------------------------
+    # Paper Comparison Plots
+    # -------------------------------------------------------------------------
+    hyper_preprocessed_info = preprocess_dir_ce / 'hyperparams_preprocessed.npz'
+    hyper_preprocessed_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
+    paper_plots_dir = PLOTS_DIR / 'paper'
+
+    if do_paper_predictive_overlay:
+        info_subjects = preprocess_dir_ce / 'subjects'
+        uninf_subjects = preprocess_dir_uninf / 'subjects'
+        if info_subjects.exists() and uninf_subjects.exists():
+            from paper_plots import generate_paper_plots
+            generate_paper_plots(
+                info_subjects_dir=str(info_subjects),
+                uninf_subjects_dir=str(uninf_subjects),
+                info_hyper_path=str(hyper_preprocessed_info),
+                uninf_hyper_path=str(hyper_preprocessed_uninf),
+                output_dir=str(paper_plots_dir),
+                seed=SEEDS['sampling'],
+            )
+        else:
+            missing = []
+            if not info_subjects.exists():
+                missing.append('informative subjects')
+            if not uninf_subjects.exists():
+                missing.append('uninformative subjects')
+            print(f"Skipping paper plots: missing {', '.join(missing)}")
 
     # -------------------------------------------------------------------------
     # Appendix Examples

@@ -416,7 +416,9 @@ if __name__ == '__main__':
                 uninf_subjects_dir=str(uninf_subjects),
                 info_hyper_path=str(hyper_preprocessed_info),
                 uninf_hyper_path=str(hyper_preprocessed_uninf),
+                prior_params_path=str(DATA_DIR / 'output' / 'prior_params_ce.npz'),
                 output_dir=str(paper_plots_dir),
+                data_output_dir=str(DATA_DIR / 'output'),
                 seed=SEEDS['sampling'],
             )
         else:

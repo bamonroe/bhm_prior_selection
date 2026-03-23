@@ -1184,38 +1184,43 @@ their respective posterior (or prior) distributions and then drawing a new
 individual from the population distribution, reflecting beliefs about where an
 unobserved subject would fall.
 
-\subsubsection{Posterior Predictive Distribution of Certainty Equivalent}
-
-For a lottery with outcomes $x \in [10, 30, 50]$ and $p(x) = 1/3$ for all
-$x$, the CE satisfies:
-\begin{align}
-\label{eq:CE}
-  \begin{split}
-  \frac{\text{CE}^{1 - r}}{1 - r} &= \sum_x d_i(x) \frac{x^{1 - r}}{1 - r} \\
-    \text{CE} &= \left(\sum_x d_i(x) x^{1 - r}\right)^\frac{1}{1 - r}
-  \end{split}
-\end{align}
+\subsubsection{Posterior Predictive Distribution of Certainty Equivalents}
 
 \begin{figure}[h]
   \centering
-  \mycaption{Hyper-posterior predictive CE distributions}
+  \mycaption{Hyper-posterior predictive CE distributions for each reference
+    lottery}
   \label{fig:hyper_post_ce}
   \includegraphics[width=\textwidth]{../plots/paper/predictive_ce_overlay.pdf}
 \end{figure}
 
-Figure \ref{fig:hyper_post_ce} shows the hyperprior predictive distribution of
-the CE using the informed hyperprior, and the hyper-posterior predictive of the
-CE for both informative and uninformative priors. The informative hyperprior
-implies \py{hprior_pred_rs}\% of prior predictive CE values greater than the
-expected value of the lottery.
+Figure \ref{fig:hyper_post_ce} shows the hyper-posterior predictive
+distribution of certainty equivalents for each of the three reference
+lotteries. Each panel displays three distributions: the hyperprior predictive
+(what the informative prior implies before seeing data), the informative
+posterior predictive (after estimation with the CE-space hyperprior), and the
+diffuse posterior predictive (after estimation with the
+\textcite{Gao2022} hyperprior). These distributions represent the
+implied CE for a new, unobserved individual drawn from the estimated
+population.
 
-The diffuse posterior predictive distribution displays a wide distribution of
-possible CEs, with substantial density at extreme values of risk aversion. The
-mode and \py{uninf_ce_below_15}\% of the density of the diffuse posterior is
-less than \$15, indicating extreme risk aversion. Likewise,
-\py{uninf_ce_above_40}\% of the density is above \$40, indicating extreme risk
-seeking. In contrast, only \py{info_ce_below_15}\% of the CE density is below
-\$15 for the informative posterior and \py{info_ce_above_40}\% above \$40.
+For the informative model, the hyper-posterior predictive CEs are drawn
+directly from the Beta-Beta hierarchy: posterior draws of
+$(\mu_k, \psi_k)$ determine the population distribution from which a new
+individual's CE is sampled. This is the natural predictive distribution for the
+CE-space model, requiring no inversion of the forward map. For the diffuse
+model, individual parameters are drawn from the NIG hyper-posterior and CEs
+computed via the forward map.
+
+The hyperprior predictive for $L_1$ places
+\py{hprior_pred_rs}\% of its mass above the expected value,
+consistent with the direct prior specification of a
+\py{fmt(float(D['ce_p_risk_seeking']) * 100, 0)}\% probability of
+risk-seeking behavior. The informative posterior concentrates further toward
+risk aversion, while the diffuse posterior spreads widely, with
+\py{uninf_ce_below_15}\% of its density below \$15 for $L_1$.
+
+\subsubsection{Individual-Level Posterior Comparisons}
 
 \begin{figure}[hp]
   \centering
@@ -1230,18 +1235,20 @@ seeking. In contrast, only \py{info_ce_below_15}\% of the CE density is below
   \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_affected.pdf}
 \end{figure}
 
-Figures \ref{fig:post_ce_min} and \ref{fig:post_ce_max} examine individual
-subjects. Subject \py{subject_min_ce} (Figure \ref{fig:post_ce_min}) has the
-smallest change in median CE between the informative and uninformative models,
-suggesting very informative data for this subject. Subject \py{subject_max_ce}
-(Figure \ref{fig:post_ce_max}) has the largest difference, with posterior
-densities much flatter than the previous subject, indicating less informative
-data where the hyperprior has substantial influence.
+Figures \ref{fig:post_ce_min} and \ref{fig:post_ce_max} examine the posterior
+predictive CE for individual subjects under $L_1$, comparing the informative
+and diffuse models. Subject \py{subject_min_ce}
+(Figure \ref{fig:post_ce_min}) has the smallest change in median CE between
+models, suggesting that this subject's data are sufficiently informative to
+dominate either hyperprior. Subject \py{subject_max_ce}
+(Figure \ref{fig:post_ce_max}) has the largest difference, with a posterior
+that is much more dispersed, indicating less informative data where the
+hyperprior has substantial influence on the individual-level estimate.
 
-What both figures demonstrate is that informative hyperpriors matter most when
-subject-level data are not particularly informative, a very intuitive result.
-An informative hyperprior interacts at the individual level only indirectly,
-through the population distribution that serves as each subject's prior.
+These comparisons illustrate that informative hyperpriors matter most when
+subject-level data are not particularly informative. An informative hyperprior
+interacts at the individual level only indirectly, through the population
+distribution that serves as each subject's prior.
 
 %==============================================================================
 \section{Discussion}

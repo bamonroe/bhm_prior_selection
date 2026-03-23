@@ -21,10 +21,12 @@ Paper restructured for Journal of Econometrics:
 - [x] Fix stale comment line 5 ("Appendix C (Sequential Identification)")
 - [x] Verify pythontex CE overlay thresholds match reference lottery bounds
 
-### B. Results Section Rewrite
-- [ ] Rewrite CE overlay discussion for 3-panel format (currently describes single CE with $15/$40)
-- [ ] Update parameter overlay text (currently mentions hyperprior predictive + diffuse, no informative posterior)
-- [ ] Verify subject IDs in text match current `posterior_ce_comparison.npz`
+### B. Results Section Rewrite — COMPLETE
+- [x] Rewrite CE overlay discussion for 3-panel format
+- [x] Explain Beta-Beta direct CE draws vs NIG forward-map computation
+- [x] Update parameter overlay text
+- [x] Verify subject IDs match current data (most=74, least=45)
+- [x] Split into "Posterior Predictive Distribution of CEs" and "Individual-Level Posterior Comparisons"
 
 ### C. Structural
 - [ ] Consider merging Section 4 (Application) and Section 5 (Estimation)

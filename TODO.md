@@ -3,67 +3,45 @@
 ## Project Status: JoE Paper — Single-Application (RDU with Real Data)
 
 Paper restructured for Journal of Econometrics:
-- 6 sections + 4 appendices
+- 6 sections + 2 appendices (A: Full Covariance, B: Global Injectivity)
 - Single model: Beta-Beta CE-space hierarchy (`rdu_bhm_ce`)
-- Full pipeline implemented: prior selection, sampling, preprocessing, plotting
-- Bibliography expanded from ~11 to ~30+ references
-- Technical note material integrated into main paper body and appendices
-- κ parameterization introduced (replaces α₀ as primary interface)
-- Previous NIG parameter-space model (`rdu_bhm`) removed from all pipelines
+- Comparison model: NIG parameter-space with Gao (2022) diffuse prior (`rdu_bhm`)
+- Full pipeline: prior selection, sampling (both models), preprocessing, paper plots
+- NIG sensitivity heatmaps (viridis, 3 stacked panels) in Section 3
 
 **Current branch:** `master`
 
 ---
 
-## Implementation Phases
+## Next Steps
 
-### Phase 1: Paper Structure — COMPLETE
-- [x] Restructure `doc/main.tex` for JoE
-- [x] Write Sections 1–6 (Introduction through Conclusion)
-- [x] Create Appendices A–D (Full Covariance, Global Injectivity, Jacobian Correction, MCMC)
-- [x] Expand `doc/library.bib` from ~11 to ~30+ references
+### A. Immediate Cleanup (mechanical) — COMPLETE
+- [x] Replace all remaining em-dashes (`---`) with colons/semicolons
+- [x] Remove unused NPZ loads (`prior_params.npz`, `sensitivity_grid.npz`) from pythontex
+- [x] Fix stale comment line 5 ("Appendix C (Sequential Identification)")
+- [x] Verify pythontex CE overlay thresholds match reference lottery bounds
 
-### Phase 2: κ Parameterization + Sensitivity — COMPLETE
-- [x] Implement κ → α₀ mapping in `code/prior_selection.py`
-- [x] Update `code/main.py` to use κ instead of α₀ in config
-- [x] Run sensitivity grid over (ρ, κ) for existing RDU model
-- [x] Generate sensitivity tables for paper
-- [x] Update paper with sensitivity results
+### B. Results Section Rewrite
+- [ ] Rewrite CE overlay discussion for 3-panel format (currently describes single CE with $15/$40)
+- [ ] Update parameter overlay text (currently mentions hyperprior predictive + diffuse, no informative posterior)
+- [ ] Verify subject IDs in text match current `posterior_ce_comparison.npz`
 
-### Phase 3: CE-Space Priors — COMPLETE
-- [x] Implement CE Jacobian computation via `jax.jacfwd` (`common_fns.py`)
-- [x] Implement CE-space posterior (`code/posteriors/rdu_bhm_ce.py`)
-- [x] Implement CE-space prior selection (`code/prior_selection.py`)
-- [x] Implement CE-space sampling module (`code/sampling_ce.py`)
-- [x] Add CE config and pipeline wiring (`main.py`, `pipelines.py`)
-- [x] Derive Beta-of-Betas hierarchical moment-matching formulas
-- [x] Implement Beta population distribution in `rdu_bhm_ce.py`
-- [x] Implement choice probability prior for λ (block-triangular Jacobian)
-- [x] Run full MCMC with CE-space priors on H&N 2016 data
-- [x] Generate comparison figures (informative vs diffuse hyperpriors)
-- [x] Remove NIG parameter-space model from all pipelines
+### C. Structural
+- [ ] Consider merging Section 4 (Application) and Section 5 (Estimation)
+- [ ] Update CLAUDE.md appendix listing (still lists 4, now only 2)
 
-### Phase 4: Simulation Studies — DEFERRED (future paper)
-CPT and discounting stub sections cut from current paper scope.
-See "Ideas / Future Work" below.
+### D. Convergence & Estimation
+- [ ] Re-run MCMC with hyper-posterior optimization (Jacobian/likelihood removed from hyper proposals)
+- [ ] Address max R-hat (~10.4): longer runs, identify problematic parameters, or discuss in limitations
+- [ ] Verify paper_quantities.npz is regenerated after new MCMC run
 
-### Phase 5: Polish
-- [ ] Expand bibliography further if needed (~40+ references)
-- [ ] Figure captions, notation consistency across sections
+### E. Final Polish
+- [ ] Proofread all sections
 - [ ] Code/data availability statement
-- [ ] Proofread, compile with pythontex
-- [ ] Final verification: all figures, tables, cross-references
+- [ ] Expand bibliography if needed (~40+ references)
+- [ ] Final cross-reference and figure verification in compiled PDF
 
----
-
-## Up Next (immediate)
-
-### Paper Polish
-- [ ] Proofread all sections for typos and consistency
-- [ ] Verify LaTeX compilation with pythontex
-- [ ] Check all cross-references resolve correctly
-
-### Testing
+### F. Testing
 - [ ] Write automated tests for core functions
   - Prior selection: verify variance decomposition identities
   - CE computation: known-value sanity checks
@@ -72,45 +50,43 @@ See "Ideas / Future Work" below.
 
 ---
 
-## Previously Completed (Economics Letter version)
+## Completed
 
-### Data Preparation
-- [x] H&N 2016 data integration (111 subjects, 80 choices, 3-outcome)
-- [x] Andersen 2008 data (501 subjects, 40 choices, padded 2→3 outcome)
-- [x] Unified 3-outcome format in `clean_data.py`
+### Paper Structure & Content
+- [x] Restructure for JoE (6 sections + appendices)
+- [x] Section 3: quantity-space priors + variance decomposition + NIG example + heatmaps
+- [x] Terminology: "generated quantities" → "predictive quantities"
+- [x] Drop Appendices C (Jacobian Correction) and D (MCMC Details)
+- [x] Drop hyper_comparison figure (incompatible across CE-space vs NIG models)
+- [x] Writing rules: no em-dashes, no side-by-side equations, no itemize, no textbf
 
-### Model & Estimation
-- [x] RDU-BHM posterior with Prelec 2-param PWF
-- [x] Prior selection methodology (`prior_selection.py`)
-- [x] MCMC sampling with both informative and diffuse hyperpriors
-- [x] Posterior summaries
-
-### Paper Plots
-- [x] Hyperparameter posterior comparison (informative vs diffuse vs hyperprior)
-- [x] Predictive parameter overlay (r, φ, η, λ)
-- [x] Predictive CE overlay (prior/informative/uninformative)
-- [x] Subject CE comparison (most/least affected)
+### Estimation & Plots
+- [x] CE-space Beta-Beta model (`rdu_bhm_ce`): full pipeline
+- [x] Diffuse NIG model (`rdu_bhm`): sampling + preprocessing
+- [x] Paper comparison plots: predictive_params_overlay, predictive_ce_overlay (3-panel),
+      subject_ce_most_affected, subject_ce_least_affected
+- [x] NIG sensitivity heatmaps for Section 3 (viridis, stacked panels)
+- [x] Fix hyper-posterior optimization: remove Jacobian/likelihood from hyper proposals
+- [x] Fix CE overlay: draw from Beta-Beta hierarchy (not pooled subject draws)
 
 ### Infrastructure
-- [x] `main.py` hub with do-flags
-- [x] Config consolidation
-- [x] pythontex integration for dynamic data
-- [x] Technical notes: BHM derivation, coupled transform, prior predictive extension, Jacobian correction, over-determined CE priors
+- [x] `paper_plots.py`: correct hyper-posterior predictive computation
+- [x] `gen_paper_data.py`: NIG sensitivity + heatmap generation
+- [x] Recover `prior_predictive_ce.py`, `sampling.py` from git history
+- [x] Wire uninformative model into `main.py` pipeline
 
 ---
 
 ## Ideas / Future Work
 
-- **CPT simulation study** — Full Monte Carlo with 8-10 parameter CPT model; strongest motivating example for the framework (32-40 hyperprior choices). Would add as separate paper section with DGP × sample size × replication grid.
-- **Discounting simulation study** — Quasi-hyperbolic (β, δ) model; natural setting for quantity-space priors since generated quantities (present value equivalents) are directly elicited in experiments.
-- **Simulation infrastructure** — `code/posteriors/cpt_bhm.py`, `code/posteriors/discounting_bhm.py`, `code/simulation/dgp.py`, `code/simulation/monte_carlo.py`
+- **CPT simulation study** — Full Monte Carlo with 8-10 parameter CPT model
+- **Discounting simulation study** — Quasi-hyperbolic (β, δ) model
+- **MCMC appendix** — Rewrite for CE-space model (centered parameterization, no NCP)
 
 ---
 
 ## References
 
-1. **Harrison, G.W. & Ng, J.M. (2016).** "Evaluating the Expected Welfare Gain From Insurance." *Journal of Risk and Insurance*, 83(1), 91-120.
-
-2. **Gao, X.S., Harrison, G.W., & Tchernis, R. (2022).** "Behavioral welfare economics and risk preferences: a Bayesian approach." *Experimental Economics*, 26, 273-303.
-
+1. **Harrison, G.W. & Ng, J.M. (2016).** "Evaluating the Expected Welfare Gain From Insurance." *JRI*, 83(1), 91-120.
+2. **Gao, X.S., Harrison, G.W., & Tchernis, R. (2022).** "Behavioral welfare economics and risk preferences: a Bayesian approach." *Exp Econ*, 26, 273-303.
 3. **Andersen, S., Harrison, G.W., Lau, M.I., & Rutström, E.E. (2008).** "Eliciting Risk and Time Preferences." *Econometrica*, 76(3), 583-618.

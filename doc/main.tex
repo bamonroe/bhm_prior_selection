@@ -2,7 +2,7 @@
 
 \input{packages}
 
-% --- Packages for Appendix C (Sequential Identification) ---
+% Packages for theorem environments (used in Appendix B)
 \usepackage{amsthm}
 \usepackage{enumerate}
 \usepackage{cleveref}
@@ -97,10 +97,8 @@ def fmt(x, decimals=2):
 # Load all NPZ files
 D = _load_npz('paper_data.npz')
 Q = _load_npz('paper_quantities.npz')
-_prior_params = _load_npz('prior_params.npz')
 _ce_comp = _load_npz('posterior_ce_comparison.npz')
 _ce_overlay = _load_npz('predictive_ce_overlay.npz')
-S = _load_npz('sensitivity_grid.npz')
 
 # Total posterior samples for inference
 total_samples = f"{int(Q.get('n_samples_post_burnin', 0)) * int(Q.get('n_chains', 0)):,}"
@@ -133,7 +131,7 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
   $4p$ hyperprior choices that lack direct interpretation, where $p$ is the
   number of individual-level parameters. I develop a framework that replaces
   these with substantively meaningful inputs. First, researchers specify prior
-  beliefs on predictive quantities---such as certainty equivalents---rather than
+  beliefs on predictive quantities, such as certainty equivalents, rather than
   structural parameters, using a Jacobian correction to translate between
   spaces. Second, a distribution-free variance decomposition reduces the
   remaining degrees of freedom to two interpretable parameters: a variance
@@ -176,7 +174,7 @@ individual, the researcher must now specify a \textit{hyperprior} over the
 population-level parameters.
 
 It is common for models to assign a prior distribution with 2 hyper-parameters
-per individual-level parameter---for example, a normal distribution governed by
+per individual-level parameter; for example, a normal distribution governed by
 a mean and variance. Each hyper-parameter then requires its own prior,
 typically also parameterized by 2 values. A model with $p$ parameters per
 subject therefore results in $4p$ hyperprior parameters requiring
@@ -194,14 +192,14 @@ parameters.\footnote{
   losses, plus a loss aversion parameter, leading to 5--10 parameters depending
   on functional form choices.
 } For a CPT model with 10 parameters, the researcher faces 40 hyperprior
-choices---a daunting prospect even for an expert.
+choices, a daunting prospect even for an expert.
 
 In this paper, I develop a two-part framework for constructing hyperpriors that
 addresses both the \textit{space} in which beliefs are specified and the
 \textit{structure} of the hyperprior itself. The first contribution is a
 quantity-space prior specification: the researcher states beliefs about
-quantities they can reason about directly---certainty equivalents (CEs),
-choice probabilities---rather than abstract structural parameters. An invertible
+quantities they can reason about directly, such as certainty equivalents (CEs)
+and choice probabilities, rather than abstract structural parameters. An invertible
 mapping and a Jacobian correction translate these beliefs into parameter-space
 priors exactly, with no approximation. The second contribution is a
 distribution-free variance decomposition that reduces the remaining degrees of
@@ -214,8 +212,8 @@ determine the hyperprior.
 
 This framework bridges two literatures that have largely developed in parallel.
 One camp, exemplified by \textcite{Gelman2006} and \textcite{Simpson2017},
-develops priors that avoid imposing strong information---half-Cauchy variance
-priors, penalized complexity priors---and has identified important pathologies
+develops priors that avoid imposing strong information (half-Cauchy variance
+priors, penalized complexity priors) and has identified important pathologies
 in common choices like the Inverse-Gamma($\varepsilon$, $\varepsilon$) prior.
 The other camp, following \textcite{Kadane1980} and developed more recently by
 \textcite{Gabry2019} and \textcite{Bland2025}, advocates specifying priors
@@ -397,7 +395,7 @@ between parameter and observable spaces for individual-level models;
 their implications for certainty equivalents; \textcite{Manderson2026} provides
 a general numerical framework for matching prior predictive beliefs to prior
 distributions. What has not yet been addressed is how to extend these ideas to
-the hierarchical setting --- where the $4p$ problem is most acute --- and how
+the hierarchical setting, where the $4p$ problem is most acute, and how
 to do so analytically, yielding closed-form hyperprior parameters from
 interpretable inputs. The present paper provides this extension: starting from
 a researcher's beliefs about predictive quantities for a single individual, I
@@ -1166,51 +1164,25 @@ The model is estimated using Markov Chain Monte Carlo with
   $\hat{R}$ statistic is \py{fmt(Q.get('rhat_max', 0), 2)} across all
   \py{Q.get('n_total_params', 'N/A')} parameters (\py{Q.get('n_subjects',
   'N/A')} subjects $\times$ 4 parameters + 8 hyperparameters), suggesting
-  excellent convergence. Details are in Appendix \ref{app:mcmc}.
+  excellent convergence.
 }
 
-\subsubsection{Hyperparameter Posteriors}
+\subsubsection{Hyper-Posterior Predictive Distributions}
 
 \begin{figure}[hp]
   \centering
-  \mycaption{Hyperparameter posteriors}
-  \label{fig:hyperparam_post}
-  \includegraphics[width=\textwidth]{../plots/paper/hyper_comparison.pdf}
-\end{figure}
-\begin{figure}[hp]
-  \centering
-  \mycaption{Hyper-posterior distribution}
+  \mycaption{Hyper-posterior predictive parameter distributions}
   \label{fig:hyperparam_pred}
   \includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{../plots/paper/predictive_params_overlay.pdf}
 \end{figure}
 
-Figure \ref{fig:hyperparam_post} displays the posterior densities of the
-hyperparameters under the informative prior (blue), the diffuse prior
-(orange), and the informative hyperprior itself (grey).
-
-The informative hyperprior contributes additional information beyond the
-likelihood, concentrating the posterior distributions relative to the diffuse
-case for all hyperparameters except $\mu_\lambda$. The posteriors under
-the informative hyperprior are also generally closer to the hyperprior mode,
-reflecting the expected influence of the prior on posterior location, with
-the exception of $\mu_\phi$. These parameters cannot be interpreted fully
-independently, however; the posterior of the $\sigma_\phi$ term is much
-closer to the hyperprior mode, which may compensate.
-
 Figure \ref{fig:hyperparam_pred} shows the implied unconditional density for
-$\bth_i = [r_i, \phi_i, \eta_i, \lambda_i]$ under three cases: the
-informative hyperprior (prior predictive), the informative posterior, and the
-diffuse posterior. Notably, although the informative posterior of the mean and
-variance hyperparameters for $\eta$ are clearly different from the hyperprior
-in Figure \ref{fig:hyperparam_post}, the informative posterior and prior
-predictive distributions for $\eta$ in Figure \ref{fig:hyperparam_pred} are
-almost identical.
-
-This can be reconciled through the variance decomposition: if the two
-unconditional distributions are similar but the variance on the mean
-hyperparameter (characterized by $\tau_0$) is lower for the posterior than the
-hyperprior, this implies an effective $\rho$ closer to 0 for the
-posterior---interpretable as greater population heterogeneity.
+$\bth_i = [r_i, \phi_i, \eta_i, \lambda_i]$ for a new randomly selected
+individual under the informative hyperprior (prior predictive) and the diffuse
+posterior. These distributions are constructed by drawing hyperparameters from
+their respective posterior (or prior) distributions and then drawing a new
+individual from the population distribution, reflecting beliefs about where an
+unobserved subject would fall.
 
 \subsubsection{Posterior Predictive Distribution of Certainty Equivalent}
 
@@ -1267,7 +1239,7 @@ densities much flatter than the previous subject, indicating less informative
 data where the hyperprior has substantial influence.
 
 What both figures demonstrate is that informative hyperpriors matter most when
-subject-level data are not particularly informative---a very intuitive result.
+subject-level data are not particularly informative, a very intuitive result.
 An informative hyperprior interacts at the individual level only indirectly,
 through the population distribution that serves as each subject's prior.
 
@@ -1323,7 +1295,7 @@ researcher choices and numerical rather than closed-form solutions.
 
 Second, the quantity-space specification requires an injective mapping from
 parameters to predictive quantities. This constrains the design of reference
-lotteries---prize diversity is needed for global injectivity---and means that
+lotteries (prize diversity is needed for global injectivity) and means that
 not all experimental designs are equally suitable for prior specification.
 
 Third, the framework does not address model misspecification: it provides a
@@ -1343,8 +1315,8 @@ even roughly accurate priors, creating a perverse incentive to retroactively
 tune priors to match observed data. Instead, priors should be defended as
 genuine beliefs about the parameters of interest, informed by past data,
 expertise, theory, and mathematical convenience. The framework developed here
-facilitates this defense by making the researcher's beliefs---and only their
-beliefs---transparent.
+facilitates this defense by making the researcher's beliefs, and only their
+beliefs, transparent.
 
 
 %==============================================================================
@@ -1356,7 +1328,7 @@ BHMs require hyperprior specifications that are
 difficult to construct from first principles. I have developed a two-part
 framework that addresses this challenge. First, quantity-space prior
 specification allows researchers to state beliefs about quantities they can
-reason about directly---certainty equivalents, choice probabilities---with a
+reason about directly, such as certainty equivalents and choice probabilities, with a
 Jacobian correction translating these beliefs to parameter space exactly.
 Second, a distribution-free variance decomposition reduces the remaining
 degrees of freedom to two interpretable parameters: the variance partition
@@ -1365,11 +1337,11 @@ ratio $\rho$ and the heterogeneity confidence $\kappa$.
 The framework reduces the researcher's burden from $4p$ opaque hyperprior
 parameters to $2p + 2$ interpretable choices: a mean and variance for each of
 $p$ quantities (the direct prior), plus the two structural parameters $\rho$
-and $\kappa$. When $\rho$ and $\kappa$ are shared across parameters---as is
-natural when the researcher lacks strong reasons to differentiate---only 2 of
+and $\kappa$. When $\rho$ and $\kappa$ are shared across parameters, as is
+natural when the researcher lacks strong reasons to differentiate, only 2 of
 the $2p + 2$ choices require reasoning about population structure rather than
 individual behavior. For a model with 10 parameters, such as CPT,
-this would reduce 40 hyperprior parameters to 22---with each choice
+this would reduce 40 hyperprior parameters to 22, with each choice
 specified in terms of quantities (CEs, choice probabilities) that researchers
 have decades of empirical evidence to draw upon.
 
@@ -1386,7 +1358,5 @@ have decades of empirical evidence to draw upon.
 
 \input{appendix_full_covariance}
 \input{appendix_global_injectivity}
-\input{appendix_jacobian_correction}
-\input{appendix_mcmc}
 
 \end{document}

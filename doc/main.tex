@@ -1196,6 +1196,25 @@ risk-seeking behavior. The informative posterior concentrates further toward
 risk aversion, while the diffuse posterior spreads widely, with
 \py{uninf_ce_below_15}\% of its density below \$15 for $L_1$.
 
+The three panels reveal a pattern that would be difficult to detect from
+structural parameter estimates alone. For lotteries $L_1$ and $L_3$, which
+have probability $0.6$ on the worse outcome, the informative posterior is
+concentrated below the expected value: the estimated population is risk-averse.
+For lottery $L_2$, which splits probability equally between outcomes, the
+informative posterior shifts above the expected value, with a majority of the
+estimated population having $\CE_2 > \text{EV}_2$. Under EUT, a subject with
+$\CE > \text{EV}$ for any lottery is globally risk-seeking under CRRA utility,
+which would be inconsistent with risk-averse CEs for $L_1$ and $L_3$. The only
+way to reconcile these patterns is through probability weighting: the inverse-S
+shape typical of the Prelec function overweights $p = 0.5$ (since $w(0.5) >
+0.5$ when $\phi < 1$), inflating the decision weight on the better outcome of
+$L_2$ and pushing the CE above its expected value. This lottery-specific
+pattern of risk attitudes is a signature of RDU that the quantity-space
+framework makes immediately visible. In a parameter-space analysis, the same
+information is encoded in the joint distribution of $r$, $\phi$, and $\eta$,
+but its economic implications for any particular lottery require the
+researcher to compute the forward map post-estimation.
+
 \subsubsection{Individual-Level Posterior Comparisons}
 
 \begin{figure}[hp]

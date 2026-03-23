@@ -379,16 +379,15 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 ### Main Sections
 1. **Introduction** - Two contributions, bridge between two literatures
 2. **Literature: Two Camps of Prior Specification** - Camp 1 (uninformative), Camp 2 (knowledge-based), BHMs in economics
-3. **General Hyperprior Specification from Predictive Quantities** - Framework, CE space, choice probability, block-triangular Jacobian, variance decomposition, κ parameterization
-4. **Application: RDU with Real Data** - Model, priors, H&N 2016 data, results (working, with pythontex)
-5. **Discussion** - Practical guidance, limitations, Bayes factor comparison
-6. **Conclusion**
+3. **General Hyperprior Specification from Predictive Quantities** - Framework, variance decomposition, NIG example with heatmaps, κ parameterization
+4. **Application: RDU with Real Data** - Model, CE mapping, Beta-Beta hierarchy, comparison prior (Gao 2022)
+5. **Estimation** - Data, MCMC, CE overlay (3 panels), subject comparisons
+6. **Discussion** - Practical guidance, limitations, Bayes factor comparison
+7. **Conclusion**
 
-### Appendices (4 total, loaded via `\input{}`)
+### Appendices (2 total, loaded via `\input{}`)
 - **A**: Full Covariance (NIW derivation) — `appendix_full_covariance.tex`
 - **B**: Global Injectivity — `appendix_global_injectivity.tex`
-- **C**: Jacobian Correction — `appendix_jacobian_correction.tex`
-- **D**: MCMC Implementation Details — `appendix_mcmc.tex`
 
 ### Compiling
 

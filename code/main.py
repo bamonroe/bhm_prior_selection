@@ -75,16 +75,16 @@ from helpers import OUTPUTS, check_dependency, get_mcmc_dir, get_plots_dir
 # Reference lotteries for CE-space prior (Table 1 in paper)
 # probs = [P(low outcome), P(high outcome)]
 REFERENCE_LOTTERIES = [
-    {'prizes': [10, 50], 'probs': [0.6, 0.4]},   # L1: ($10,$50), p_hi=0.4
-    {'prizes': [20, 40], 'probs': [0.5, 0.5]},    # L2: ($20,$40), p_hi=0.5
-    {'prizes': [14, 44], 'probs': [0.6, 0.4]},    # L3: ($14,$44), p_hi=0.4
+    {'prizes': [10, 50], 'probs': [0.75, 0.25]},  # L1: ($10,$50), p_hi=0.25
+    {'prizes': [20, 40], 'probs': [0.5, 0.5]},    # L2: ($20,$40), p_hi=0.50
+    {'prizes': [12, 44], 'probs': [0.75, 0.25]},   # L3: ($12,$44), p_hi=0.25
 ]
 
 # Reference pair for choice probability identification (L1 over L3)
-# Same EV ($26), L1 riskier (wider spread). P(choose L1) > 0.5 iff risk-seeking.
+# Same EV ($20), L1 riskier (wider spread). P(choose L1) > 0.5 iff risk-seeking.
 REFERENCE_PAIR = {
-    'lottery_A': {'prizes': [10, 50], 'probs': [0.6, 0.4]},   # L1
-    'lottery_B': {'prizes': [14, 44], 'probs': [0.6, 0.4]},   # L3
+    'lottery_A': {'prizes': [10, 50], 'probs': [0.75, 0.25]},  # L1
+    'lottery_B': {'prizes': [12, 44], 'probs': [0.75, 0.25]},  # L3
 }
 
 # CE-space direct prior: Beta beliefs about CEs for reference lotteries
@@ -209,30 +209,31 @@ UNINF_HYPERPRIOR_SPECS = {
 # =============================================================================
 
 # --- Data Pipeline ---
-do_clean_data     = False
+do_clean_data     = True
 do_gen_paper_data = True
 
 # --- Prior Selection & Analysis ---
 do_sensitivity          = False
 
 # --- MCMC Sampling ---
-do_sampling_ce             = False
-do_sampling_uninf          = False
+do_sampling_ce             = True
+do_sampling_uninf          = True
 
 # --- Preprocessing (extract from history files) ---
-do_generate_prior_ce       = False
-do_preprocess_hyper_ce     = False
-do_preprocess_subjects_ce  = False
-do_preprocess_hyper_uninf  = False
-do_preprocess_subjects_uninf = False
+do_generate_prior_ce       = True
+do_preprocess_hyper_ce     = True
+do_preprocess_subjects_ce  = True
+do_preprocess_hyper_uninf  = True
+do_preprocess_subjects_uninf = True
 
 # --- Diagnostic Plots ---
 do_hyper_plots_ce          = False
 do_subject_plots_ce        = False
 
 # --- Paper Comparison Plots ---
-do_paper_predictive_overlay = False
+do_paper_predictive_overlay = True
 do_paper_subject_ce         = False
+do_paper_subject_ce_all     = True
 
 # --- Appendix Examples ---
 do_injectivity_analysis    = False
@@ -428,6 +429,32 @@ if __name__ == '__main__':
             if not uninf_subjects.exists():
                 missing.append('uninformative subjects')
             print(f"Skipping paper plots: missing {', '.join(missing)}")
+
+    if do_paper_subject_ce_all:
+        print("\n" + "=" * 60)
+        print("Running: Per-Subject CE Comparison Plots (All Subjects)")
+        print("=" * 60)
+        info_subjects = preprocess_dir_ce / 'subjects'
+        uninf_subjects = preprocess_dir_uninf / 'subjects'
+        if info_subjects.exists() and uninf_subjects.exists():
+            from paper_plots import generate_subject_ce_plots
+            generate_subject_ce_plots(
+                info_subjects_dir=str(info_subjects),
+                uninf_subjects_dir=str(uninf_subjects),
+                output_dir=str(PLOTS_DIR / 'paper' / 'subject_ce'),
+                lotteries=REFERENCE_LOTTERIES,
+                n_sub=5000,
+                n_workers=N_WORKERS,
+                seed=SEEDS['sampling'],
+            )
+        else:
+            missing = []
+            if not info_subjects.exists():
+                missing.append('informative subjects')
+            if not uninf_subjects.exists():
+                missing.append('uninformative subjects')
+            print(f"Skipping subject CE plots: missing {', '.join(missing)}")
+        print("Done.\n")
 
     # -------------------------------------------------------------------------
     # Appendix Examples

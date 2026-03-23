@@ -23,9 +23,9 @@ from scipy.special import expit
 
 # Reference lotteries (must match main.py config)
 REFERENCE_LOTTERIES = [
-    {'prizes': [10, 50], 'probs': [0.6, 0.4], 'label': r'$L_1$'},
+    {'prizes': [10, 50], 'probs': [0.75, 0.25], 'label': r'$L_1$'},
     {'prizes': [20, 40], 'probs': [0.5, 0.5], 'label': r'$L_2$'},
-    {'prizes': [14, 44], 'probs': [0.6, 0.4], 'label': r'$L_3$'},
+    {'prizes': [12, 44], 'probs': [0.75, 0.25], 'label': r'$L_3$'},
 ]
 
 QUANTITY_NAMES = ['ce1', 'ce2', 'ce3', 'pchoice']
@@ -50,47 +50,61 @@ def _setup_matplotlib():
 # CE computation (for NIG model draws)
 # =============================================================================
 
-def _compute_ce_2outcome(r, phi, eta, prizes, probs):
-    """Compute CE for a 2-outcome lottery with given prizes and probabilities."""
-    sorted_idx = np.argsort(prizes)
-    sp = np.array(prizes)[sorted_idx]
-    sq = np.array(probs)[sorted_idx]
-
-    cum = np.cumsum(sq)
-    w = np.zeros_like(cum)
-    for k in range(len(cum)):
-        if cum[k] >= 1.0:
-            w[k] = 1.0
-        else:
-            w[k] = np.exp(-eta * (-np.log(cum[k]))**phi)
-
-    d = np.zeros_like(w)
-    d[0] = w[0]
-    for k in range(1, len(w)):
-        d[k] = w[k] - w[k-1]
-
-    if np.abs(r - 1.0) < 1e-10:
-        rdu_val = np.sum(d * np.log(sp))
-        ce = np.exp(rdu_val)
-    else:
-        rdu_val = np.sum(d * sp**(1 - r) / (1 - r))
-        ce = (rdu_val * (1 - r))**(1 / (1 - r))
-
-    return float(np.clip(ce, min(prizes), max(prizes)))
-
-
 def _compute_ces_for_lottery(r_arr, phi_arr, eta_arr, lottery):
-    """Compute CEs for arrays of parameters and a specific lottery."""
-    prizes = lottery['prizes']
-    probs = lottery['probs']
+    """Compute CEs for arrays of parameters and a specific lottery (vectorized)."""
+    prizes = np.array(lottery['prizes'], dtype=np.float64)
+    probs = np.array(lottery['probs'], dtype=np.float64)
+
+    sorted_idx = np.argsort(prizes)
+    sp = prizes[sorted_idx]  # (n_outcomes,)
+    sq = probs[sorted_idx]
+
+    lo, hi = float(sp[0]), float(sp[-1])
+
+    # Cumulative probabilities: shape (n_outcomes,)
+    cum = np.cumsum(sq)
+
+    # Prelec weights: w(p) = exp(-eta * (-ln p)^phi)
+    # For the last outcome, cum=1.0 so w=1.0
+    # Shape: (n_draws, n_outcomes)
+    r_arr = np.asarray(r_arr, dtype=np.float64)
+    phi_arr = np.asarray(phi_arr, dtype=np.float64)
+    eta_arr = np.asarray(eta_arr, dtype=np.float64)
     n = len(r_arr)
-    ces = np.zeros(n)
-    for i in range(n):
-        try:
-            ces[i] = _compute_ce_2outcome(
-                r_arr[i], phi_arr[i], eta_arr[i], prizes, probs)
-        except (ValueError, FloatingPointError, OverflowError):
-            ces[i] = np.nan
+
+    neg_ln_cum = -np.log(np.clip(cum[:-1], 1e-30, None))  # (n_outcomes-1,)
+    # phi_arr[:, None] broadcasts with neg_ln_cum[None, :]
+    powered = neg_ln_cum[None, :] ** phi_arr[:, None]  # (n, n_outcomes-1)
+    w_inner = np.exp(-eta_arr[:, None] * powered)       # (n, n_outcomes-1)
+    w = np.ones((n, len(cum)), dtype=np.float64)
+    w[:, :-1] = w_inner
+
+    # Decision weights
+    d = np.empty_like(w)
+    d[:, 0] = w[:, 0]
+    d[:, 1:] = w[:, 1:] - w[:, :-1]
+
+    # CRRA utility: u(x) = x^(1-r)/(1-r), or log(x) when r≈1
+    use_log = np.abs(r_arr - 1.0) < 1e-10
+    r_safe = np.where(use_log, 0.5, r_arr)  # avoid division issues
+
+    # sp has shape (n_outcomes,); broadcast with r_safe (n,)
+    utilities = sp[None, :] ** (1 - r_safe[:, None]) / (1 - r_safe[:, None])
+    log_utilities = np.log(sp)[None, :] * np.ones((n, 1))
+
+    # RDU value
+    rdu = np.sum(d * utilities, axis=1)
+    rdu_log = np.sum(d * log_utilities, axis=1)
+
+    # CE = (rdu * (1-r))^(1/(1-r)), or exp(rdu) for log utility
+    with np.errstate(invalid='ignore', over='ignore'):
+        ce_normal = np.sign(rdu * (1 - r_safe)) * np.abs(
+            rdu * (1 - r_safe)) ** (1 / (1 - r_safe))
+        ce_log = np.exp(rdu_log)
+
+    ces = np.where(use_log, ce_log, ce_normal)
+    ces = np.clip(ces, lo, hi)
+    ces[~np.isfinite(ces)] = np.nan
     return ces
 
 
@@ -170,22 +184,17 @@ def _draw_nig_predictive_ce(hyper_path, lottery, n_draws=50000, seed=42):
     n_hyper = min(n_draws, n_avail)
     idx = rng.choice(n_avail, n_hyper, replace=n_hyper > n_avail)
 
-    r_all = np.zeros(n_hyper)
-    phi_all = np.zeros(n_hyper)
-    eta_all = np.zeros(n_hyper)
+    mu_r = d['r_mean'][burn:].ravel()[idx]
+    sd_r = np.exp(d['r_logsd'][burn:].ravel()[idx])
+    r_all = rng.normal(mu_r, sd_r)
 
-    for i in range(n_hyper):
-        mu_r = d['r_mean'][burn:].ravel()[idx[i]]
-        sd_r = np.exp(d['r_logsd'][burn:].ravel()[idx[i]])
-        r_all[i] = rng.normal(mu_r, sd_r)
+    mu_phi = d['phi_mean'][burn:].ravel()[idx]
+    sd_phi = np.exp(d['phi_logsd'][burn:].ravel()[idx])
+    phi_all = np.exp(rng.normal(mu_phi, sd_phi))
 
-        mu_phi = d['phi_mean'][burn:].ravel()[idx[i]]
-        sd_phi = np.exp(d['phi_logsd'][burn:].ravel()[idx[i]])
-        phi_all[i] = np.exp(rng.normal(mu_phi, sd_phi))
-
-        mu_eta = d['eta_mean'][burn:].ravel()[idx[i]]
-        sd_eta = np.exp(d['eta_logsd'][burn:].ravel()[idx[i]])
-        eta_all[i] = np.exp(rng.normal(mu_eta, sd_eta))
+    mu_eta = d['eta_mean'][burn:].ravel()[idx]
+    sd_eta = np.exp(d['eta_logsd'][burn:].ravel()[idx])
+    eta_all = np.exp(rng.normal(mu_eta, sd_eta))
 
     ces = _compute_ces_for_lottery(r_all, phi_all, eta_all, lottery)
     return ces
@@ -584,7 +593,7 @@ def _plot_ce_overlay_3panel(ce_data_all, output_path, plt):
                 ax.plot(x, kde(x), color=color, lw=1.5, ls=ls, label=label)
 
         ax.axvline(ev, color='black', ls=':', lw=0.8, alpha=0.5)
-        p_str = '/'.join(f'{p:.1f}' for p in lottery['probs'])
+        p_str = '/'.join(f'{p:.2f}' for p in lottery['probs'])
         ax.set_title(
             f'{lottery["label"]}: '
             f'\\${lo}/\\${hi}, $p = ({p_str})$, '
@@ -629,6 +638,167 @@ def _plot_subject_ce(ce_info, ce_uninf, lo, hi, ev, sid, output_path, plt):
     fig.savefig(output_path, bbox_inches='tight', backend='pdf')
     plt.close(fig)
     print(f"  Saved: {output_path}")
+
+
+# =============================================================================
+# Per-subject CE comparison plots (all subjects, all 3 lotteries)
+# =============================================================================
+
+def _plot_one_subject_ce_all_lotteries(args):
+    """Worker function: generate a 3-panel CE comparison PDF for one subject.
+
+    Called from ProcessPoolExecutor. Receives a single tuple of arguments.
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    plt.rcParams.update({
+        'text.usetex': True,
+        'text.latex.preamble': r'\usepackage{amsfonts}\usepackage{lmodern}',
+        'font.family': 'serif',
+        'font.serif': ['Latin Modern Roman'],
+        'mathtext.fontset': 'cm',
+    })
+
+    (sid, info_path, uninf_path, lotteries, output_path, n_sub, seed) = args
+
+    rng = np.random.default_rng(seed + sid)
+
+    # Load subject params from both models
+    info_d = np.load(info_path)
+    uninf_d = np.load(uninf_path)
+
+    # Use second half as burn-in
+    burn_i = info_d['r'].shape[0] // 2
+    burn_u = uninf_d['r'].shape[0] // 2
+
+    info_r = info_d['r'][burn_i:].ravel()
+    info_phi = info_d['phi'][burn_i:].ravel()
+    info_eta = info_d['eta'][burn_i:].ravel()
+
+    uninf_r = uninf_d['r'][burn_u:].ravel()
+    uninf_phi = uninf_d['phi'][burn_u:].ravel()
+    uninf_eta = uninf_d['eta'][burn_u:].ravel()
+
+    # Subsample
+    n_i = min(n_sub, len(info_r))
+    idx_i = rng.choice(len(info_r), n_i, replace=False)
+    n_u = min(n_sub, len(uninf_r))
+    idx_u = rng.choice(len(uninf_r), n_u, replace=False)
+
+    fig, axes = plt.subplots(3, 1, figsize=(5, 7))
+
+    for k, lottery in enumerate(lotteries):
+        ax = axes[k]
+        lo = min(lottery['prizes'])
+        hi = max(lottery['prizes'])
+        ev = sum(p * x for p, x in zip(lottery['probs'], lottery['prizes']))
+
+        ce_info = _compute_ces_for_lottery(
+            info_r[idx_i], info_phi[idx_i], info_eta[idx_i], lottery)
+        ce_uninf = _compute_ces_for_lottery(
+            uninf_r[idx_u], uninf_phi[idx_u], uninf_eta[idx_u], lottery)
+
+        for ce, label, color in [
+            (ce_info, 'Informative', '#1f77b4'),
+            (ce_uninf, 'Diffuse', '#ff7f0e'),
+        ]:
+            ce_clean = ce[np.isfinite(ce)]
+            ce_clip = ce_clean[(ce_clean >= lo) & (ce_clean <= hi)]
+            if len(ce_clip) > 50:
+                kde = gaussian_kde(ce_clip)
+                x = np.linspace(lo, hi, 300)
+                ax.plot(x, kde(x), color=color, lw=1.5, label=label)
+
+        ax.axvline(ev, color='black', ls=':', lw=0.8, alpha=0.5)
+        p_str = '/'.join(f'{p:.2f}' for p in lottery['probs'])
+        lot_label = lottery.get('label', f'$L_{{{k+1}}}$')
+        ax.set_title(
+            f'{lot_label}: '
+            f'\\${lo}/\\${hi}, $p = ({p_str})$, '
+            f'EV = \\${ev:.0f}',
+            fontsize=9,
+        )
+        ax.set_ylabel('Density', fontsize=9)
+        ax.tick_params(labelsize=8)
+        if k == 0:
+            ax.legend(fontsize=8)
+
+    axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
+    fig.suptitle(f'Subject {sid}', fontsize=11, y=1.01)
+    fig.tight_layout()
+    fig.savefig(output_path, bbox_inches='tight', backend='pdf')
+    plt.close(fig)
+    return sid
+
+
+def generate_subject_ce_plots(
+    info_subjects_dir,
+    uninf_subjects_dir,
+    output_dir,
+    lotteries=None,
+    n_sub=5000,
+    n_workers=25,
+    seed=42,
+):
+    """Generate per-subject CE comparison plots for all subjects.
+
+    Each subject gets a single PDF with 3 panels (one per reference lottery),
+    showing informative vs diffuse posterior CE distributions.
+
+    Args:
+        info_subjects_dir: Path to informative model preprocessed subjects dir
+        uninf_subjects_dir: Path to diffuse model preprocessed subjects dir
+        output_dir: Output directory for PDFs (subject_NNN.pdf)
+        lotteries: List of reference lottery dicts (default: REFERENCE_LOTTERIES)
+        n_sub: Number of draws to subsample per subject (default: 5000)
+        n_workers: Number of parallel workers (default: 25)
+        seed: Random seed
+    """
+    # Setup matplotlib in main process (validates LaTeX availability)
+    _setup_matplotlib()
+
+    info_subjects_dir = Path(info_subjects_dir)
+    uninf_subjects_dir = Path(uninf_subjects_dir)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if lotteries is None:
+        lotteries = REFERENCE_LOTTERIES
+
+    # Load metadata to get subject count
+    meta = np.load(info_subjects_dir / 'metadata.npz')
+    n_subjects = int(meta['n_subjects'])
+
+    print(f"  Generating CE comparison plots for {n_subjects} subjects...")
+    print(f"  Output: {output_dir}")
+    print(f"  Workers: {n_workers}, Subsample: {n_sub}")
+
+    # Build task list
+    tasks = []
+    for sid in range(n_subjects):
+        info_path = str(info_subjects_dir / f'subject_{sid:03d}_params.npz')
+        uninf_path = str(uninf_subjects_dir / f'subject_{sid:03d}_params.npz')
+        out_path = str(output_dir / f'subject_{sid:03d}.pdf')
+        tasks.append((sid, info_path, uninf_path, lotteries, out_path, n_sub, seed))
+
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    completed = 0
+    with ProcessPoolExecutor(max_workers=n_workers) as executor:
+        futures = {executor.submit(_plot_one_subject_ce_all_lotteries, t): t[0]
+                   for t in tasks}
+        for future in as_completed(futures):
+            sid = futures[future]
+            try:
+                future.result()
+                completed += 1
+                if completed % 20 == 0 or completed == n_subjects:
+                    print(f"  Completed {completed}/{n_subjects} subjects")
+            except Exception as e:
+                print(f"  ERROR on subject {sid}: {e}")
+
+    print(f"  Done: {completed}/{n_subjects} subject PDFs saved to {output_dir}")
 
 
 if __name__ == '__main__':

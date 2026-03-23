@@ -1138,13 +1138,10 @@ Inverse-Gamma($\varepsilon$, $\varepsilon$) form for variance parameters that
 \textcite{Gelman2006} identified as potentially problematic:
 \begin{align}
   \label{eq:ght_prior}
-\begin{matrix}
-\mu^r \sim N\left(\mu_0^r             = 0, \tau_0^r = 100\right), & \sigma^{2, r} \sim IG\left(\alpha_0^r = 0.001, \beta_0^r = 0.001\right) \\[4pt]
-\mu^\phi \sim N\left(\mu_0^\phi       = 0, \tau_0^\phi =100\right), & \sigma^{2, \phi} \sim IG\left(\alpha_0^\phi = 0.001, \beta_0^\phi = 0.001\right) \\[4pt]
-\mu^\eta \sim N\left(\mu_0^\eta       = 0, \tau_0^\eta =100\right), & \sigma^{2, \eta} \sim IG\left(\alpha_0^\eta = 0.001, \beta_0^\eta = 0.001\right) \\[4pt]
-\mu^\lambda \sim N\left(\mu_0^\lambda = 0, \tau_0^\lambda =100\right), & \sigma^{2, \lambda} \sim IG\left(\alpha_0^\lambda = 0.001, \beta_0^\lambda = 0.001\right) \\[4pt]
-\end{matrix}
+  \mu^j &\sim N(0,\; 100) \\
+  \sigma^{2,j} &\sim \text{IG}(0.001,\; 0.001)
 \end{align}
+for each parameter $j \in \{r, \phi, \eta, \lambda\}$.
 
 \subsection{Data}
 
@@ -1156,33 +1153,12 @@ with prize amounts of \$10, \$30, and \$50.
 
 \subsection{Results}
 
-The model is estimated using Markov Chain Monte Carlo with
-\py{Q.get('n_chains', 'N/A')} parallel chains, ultimately obtaining
-\py{total_samples} samples from the posterior for inference.\footnote{
-  The sampler uses a block-wise Metropolis-Hastings in Gibbs sampler with
-  adaptive proposals informed by cross-chain covariance estimation. The maximum
-  $\hat{R}$ statistic is \py{fmt(Q.get('rhat_max', 0), 2)} across all
-  \py{Q.get('n_total_params', 'N/A')} parameters (\py{Q.get('n_subjects',
-  'N/A')} subjects $\times$ 4 parameters + 8 hyperparameters), suggesting
-  excellent convergence.
+Both models are estimated using Markov Chain Monte Carlo with parallel chains
+and a block-wise Metropolis-Hastings in Gibbs sampler with adaptive proposals
+informed by cross-chain covariance estimation.\footnote{
+  The informative model uses \py{Q.get('n_chains', 'N/A')} chains and obtains
+  \py{total_samples} posterior samples after burn-in.
 }
-
-\subsubsection{Hyper-Posterior Predictive Distributions}
-
-\begin{figure}[hp]
-  \centering
-  \mycaption{Hyper-posterior predictive parameter distributions}
-  \label{fig:hyperparam_pred}
-  \includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{../plots/paper/predictive_params_overlay.pdf}
-\end{figure}
-
-Figure \ref{fig:hyperparam_pred} shows the implied unconditional density for
-$\bth_i = [r_i, \phi_i, \eta_i, \lambda_i]$ for a new randomly selected
-individual under the informative hyperprior (prior predictive) and the diffuse
-posterior. These distributions are constructed by drawing hyperparameters from
-their respective posterior (or prior) distributions and then drawing a new
-individual from the population distribution, reflecting beliefs about where an
-unobserved subject would fall.
 
 \subsubsection{Posterior Predictive Distribution of Certainty Equivalents}
 

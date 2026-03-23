@@ -209,22 +209,22 @@ UNINF_HYPERPRIOR_SPECS = {
 # =============================================================================
 
 # --- Data Pipeline ---
-do_clean_data     = True
-do_gen_paper_data = True
+do_clean_data     = False
+do_gen_paper_data = False
 
 # --- Prior Selection & Analysis ---
 do_sensitivity          = False
 
 # --- MCMC Sampling ---
-do_sampling_ce             = True
-do_sampling_uninf          = True
+do_sampling_ce             = False
+do_sampling_uninf          = False
 
 # --- Preprocessing (extract from history files) ---
-do_generate_prior_ce       = True
-do_preprocess_hyper_ce     = True
-do_preprocess_subjects_ce  = True
-do_preprocess_hyper_uninf  = True
-do_preprocess_subjects_uninf = True
+do_generate_prior_ce       = False
+do_preprocess_hyper_ce     = False
+do_preprocess_subjects_ce  = False
+do_preprocess_hyper_uninf  = False
+do_preprocess_subjects_uninf = False
 
 # --- Diagnostic Plots ---
 do_hyper_plots_ce          = False
@@ -233,7 +233,7 @@ do_subject_plots_ce        = False
 # --- Paper Comparison Plots ---
 do_paper_predictive_overlay = True
 do_paper_subject_ce         = False
-do_paper_subject_ce_all     = True
+do_paper_subject_ce_all     = False
 
 # --- Appendix Examples ---
 do_injectivity_analysis    = False

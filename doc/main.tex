@@ -1216,6 +1216,43 @@ individuals in the population are expected to have CEs near the lottery
 boundaries. This is precisely the role an informative prior should play, and
 the quantity-space framework makes the mechanism transparent in dollar terms.
 
+\subsubsection{Distributional Comparison Across Subjects}
+
+\begin{figure}[hp]
+  \centering
+  \mycaption{CDF differences between informative and diffuse posteriors by
+    subject}
+  \label{fig:cdf_diff}
+  \includegraphics[width=0.85\textwidth]{../plots/paper/cdf_difference_by_subject.pdf}
+\end{figure}
+
+Figure \ref{fig:cdf_diff} provides a distributional summary of how the
+hyperprior affects each subject's posterior CE. Each line plots the difference
+in empirical CDFs, $F_{\text{info}}(x) - F_{\text{diffuse}}(x)$, for a single
+subject. Positive values indicate that the informative model assigns more
+probability mass below $x$ (more risk-averse); a flat line at zero indicates
+identical posteriors. Subjects are grouped by the average absolute median CE
+difference across all three lotteries: well-identified (green, 79 subjects),
+moderately affected (blue, 14), and prior-dominated (red, 18).
+
+For the well-identified majority, the CDF differences are near zero across the
+entire CE range for all three lotteries: the data are sufficiently informative
+that the hyperprior specification is irrelevant. The moderately affected and
+prior-dominated groups show positive CDF differences, confirming that the
+informative model systematically produces more risk-averse inferences. The
+magnitude increases with the CE range of the lottery: $L_1$ (\$10--\$50) shows
+the largest deviations, $L_2$ (\$20--\$40) the smallest.
+
+The $L_2$ panel is distinctive. Several subjects exhibit negative CDF
+differences in the upper tail, meaning the informative model assigns
+\textit{higher} CEs than the diffuse model for these individuals. This arises
+because the probability weighting parameters that the informative prior favors
+can produce CEs above the expected value for equal-probability lotteries, even
+while pushing CEs below the expected value for $L_1$ and $L_3$. The figure
+thus captures, in a single visualization, both the magnitude and the
+lottery-specific direction of the prior's influence across the full posterior
+distribution.
+
 %==============================================================================
 \section{Discussion}
 \label{sec:discussion}

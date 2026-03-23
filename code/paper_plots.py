@@ -452,6 +452,22 @@ def generate_paper_plots(
         _plot_one_subject_ce_all_lotteries(args)
         print(f"  Saved: {output_dir / f'subject_ce_{label}_affected.pdf'}")
 
+    # =========================================================================
+    # 6. CDF difference plot (all subjects, all lotteries)
+    # =========================================================================
+    print("\nGenerating cdf_difference_by_subject.pdf...")
+    cdf_counts = generate_cdf_difference_plot(
+        info_subjects_dir=info_subjects_dir,
+        uninf_subjects_dir=uninf_subjects_dir,
+        output_path=output_dir / 'cdf_difference_by_subject.pdf',
+        lotteries=REFERENCE_LOTTERIES,
+        n_sub=3000,
+        seed=seed + 300,
+    )
+    print(f"  Groups: {cdf_counts['n_well_identified']} well-identified, "
+          f"{cdf_counts['n_moderate']} moderate, "
+          f"{cdf_counts['n_prior_dominated']} prior-dominated")
+
     print(f"\nAll paper plots saved to {output_dir}")
 
 
@@ -634,6 +650,130 @@ def _plot_subject_ce(ce_info, ce_uninf, lo, hi, ev, sid, output_path, plt):
     fig.savefig(output_path, bbox_inches='tight', backend='pdf')
     plt.close(fig)
     print(f"  Saved: {output_path}")
+
+
+# =============================================================================
+# CDF difference plot (all subjects, all 3 lotteries)
+# =============================================================================
+
+def generate_cdf_difference_plot(
+    info_subjects_dir,
+    uninf_subjects_dir,
+    output_path,
+    lotteries=None,
+    n_sub=3000,
+    seed=42,
+):
+    """Generate 3-panel CDF difference plot: F_info(x) - F_diffuse(x) per subject.
+
+    Each subject is a line, color-coded by how much the prior affects them.
+    """
+    plt = _setup_matplotlib()
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if lotteries is None:
+        lotteries = REFERENCE_LOTTERIES
+
+    info_subjects_dir = Path(info_subjects_dir)
+    uninf_subjects_dir = Path(uninf_subjects_dir)
+    meta = np.load(info_subjects_dir / 'metadata.npz')
+    n_subjects = int(meta['n_subjects'])
+    rng = np.random.default_rng(seed)
+
+    # Compute per-subject, per-lottery CDF differences and avg abs median diff
+    avg_abs_diffs = np.zeros(n_subjects)
+    all_cdf_diffs = {k: [] for k in range(len(lotteries))}
+
+    for sid in range(n_subjects):
+        info_d = np.load(info_subjects_dir / f'subject_{sid:03d}_params.npz')
+        uninf_d = np.load(uninf_subjects_dir / f'subject_{sid:03d}_params.npz')
+        bi = info_d['r'].shape[0] // 2
+        bu = uninf_d['r'].shape[0] // 2
+
+        n_i = min(n_sub, info_d['r'][bi:].size)
+        n_u = min(n_sub, uninf_d['r'][bu:].size)
+        idx_i = rng.choice(info_d['r'][bi:].size, n_i, replace=False)
+        idx_u = rng.choice(uninf_d['r'][bu:].size, n_u, replace=False)
+
+        info_r = info_d['r'][bi:].ravel()[idx_i]
+        info_phi = info_d['phi'][bi:].ravel()[idx_i]
+        info_eta = info_d['eta'][bi:].ravel()[idx_i]
+        uninf_r = uninf_d['r'][bu:].ravel()[idx_u]
+        uninf_phi = uninf_d['phi'][bu:].ravel()[idx_u]
+        uninf_eta = uninf_d['eta'][bu:].ravel()[idx_u]
+
+        lot_diffs = []
+        for k, lot in enumerate(lotteries):
+            lo, hi = min(lot['prizes']), max(lot['prizes'])
+            ce_i = _compute_ces_for_lottery(info_r, info_phi, info_eta, lot)
+            ce_u = _compute_ces_for_lottery(uninf_r, uninf_phi, uninf_eta, lot)
+
+            x_grid = np.linspace(lo, hi, 200)
+            ce_i_clean = np.sort(ce_i[np.isfinite(ce_i)])
+            ce_u_clean = np.sort(ce_u[np.isfinite(ce_u)])
+            cdf_i = np.searchsorted(ce_i_clean, x_grid) / len(ce_i_clean)
+            cdf_u = np.searchsorted(ce_u_clean, x_grid) / len(ce_u_clean)
+
+            all_cdf_diffs[k].append((x_grid, cdf_i - cdf_u))
+            lot_diffs.append(abs(np.nanmedian(ce_i) - np.nanmedian(ce_u)))
+
+        avg_abs_diffs[sid] = np.mean(lot_diffs)
+
+    # Groups
+    well_id = avg_abs_diffs < 2
+    moderate = (avg_abs_diffs >= 2) & (avg_abs_diffs < 10)
+    prior_dom = avg_abs_diffs >= 10
+
+    groups = [
+        (well_id, 'Well-identified', '#2ca02c', 0.15),
+        (moderate, 'Moderately affected', '#1f77b4', 0.4),
+        (prior_dom, 'Prior-dominated', '#d62728', 0.6),
+    ]
+
+    fig, axes = plt.subplots(3, 1, figsize=(5, 7))
+
+    for k, lot in enumerate(lotteries):
+        ax = axes[k]
+        lo, hi = min(lot['prizes']), max(lot['prizes'])
+        ev = sum(p * x for p, x in zip(lot['probs'], lot['prizes']))
+
+        for mask, label, color, alpha in groups:
+            for sid_idx in np.where(mask)[0]:
+                x_grid, cdf_diff = all_cdf_diffs[k][sid_idx]
+                ax.plot(x_grid, cdf_diff, color=color, alpha=alpha, lw=0.6)
+
+        ax.axhline(0, color='black', lw=0.5, ls='-')
+        ax.axvline(ev, color='black', lw=0.5, ls=':')
+
+        lot_label = lot.get('label', f'$L_{{{k+1}}}$')
+        ax.set_title(
+            f'{lot_label}: \\${lo}/\\${hi}, EV = \\${ev:.0f}',
+            fontsize=9,
+        )
+        ax.set_ylabel(
+            r'$F_{\mathrm{info}}(x) - F_{\mathrm{diffuse}}(x)$',
+            fontsize=8,
+        )
+        ax.tick_params(labelsize=8)
+        ax.set_xlim(lo, hi)
+
+    # Legend
+    for mask, label, color, _ in groups:
+        axes[0].plot([], [], color=color, lw=1.5, label=f'{label} ({mask.sum()})')
+    axes[0].legend(fontsize=7, loc='upper right')
+
+    axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
+    fig.tight_layout()
+    fig.savefig(output_path, bbox_inches='tight', backend='pdf')
+    plt.close(fig)
+    print(f"  Saved: {output_path}")
+
+    return {
+        'n_well_identified': int(well_id.sum()),
+        'n_moderate': int(moderate.sum()),
+        'n_prior_dominated': int(prior_dom.sum()),
+    }
 
 
 # =============================================================================

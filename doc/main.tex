@@ -96,12 +96,11 @@ def fmt(x, decimals=2):
 
 # Load all NPZ files
 D = _load_npz('paper_data.npz')
-Q = _load_npz('paper_quantities.npz')
 _ce_comp = _load_npz('posterior_ce_comparison.npz')
 _ce_overlay = _load_npz('predictive_ce_overlay.npz')
 
 # Total posterior samples for inference
-total_samples = f"{int(Q.get('n_samples_post_burnin', 0)) * int(Q.get('n_chains', 0)):,}"
+total_samples = f"{int(D.get('n_samples_post_burnin', 0)) * int(D.get('n_chains', 0)):,}"
 
 # Subject CE identifiers
 subject_most_affected = int(_ce_comp['most_affected_sid']) if _ce_comp else 0
@@ -1112,7 +1111,7 @@ with prize amounts of \$10, \$30, and \$50.
 Both models are estimated using Markov Chain Monte Carlo with parallel chains
 and a block-wise Metropolis-Hastings in Gibbs sampler with adaptive proposals
 informed by cross-chain covariance estimation.\footnote{
-  The informative model uses \py{Q.get('n_chains', 'N/A')} chains and obtains
+  The informative model uses \py{D.get('n_chains', 'N/A')} chains and obtains
   \py{total_samples} posterior samples after burn-in.
 }
 

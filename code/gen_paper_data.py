@@ -212,6 +212,19 @@ def gen_paper_data(output_path=None,
             save_dict['pchoice_sd'] = pc_sd
             print(f"  P: mu={pc['mu']:.2f}, var={pc['sigma2']:.4f}, sd={pc_sd:.4f}")
 
+    # MCMC summary stats (from preprocessed hyperparameters if available)
+    hyper_ce_path = output_path.parent / 'rdu_bhm_ce' / 'preprocessed' / 'hyperparams_preprocessed.npz'
+    if hyper_ce_path.exists():
+        hd = np.load(hyper_ce_path)
+        n_samples, n_chains = hd['ce1_logit_mu'].shape
+        burn = n_samples // 2
+        save_dict['n_chains'] = n_chains
+        save_dict['n_samples_post_burnin'] = n_samples - burn
+        save_dict['n_total_params'] = int(n_subjects) * 4 + 8
+        print(f"\nMCMC Summary (from preprocessed):")
+        print(f"  Chains: {n_chains}, samples post burn-in: {n_samples - burn}")
+        print(f"  Total posterior samples: {(n_samples - burn) * n_chains:,}")
+
     # NIG sensitivity analysis for Section 3 (analytical, no external data needed)
     nig_rho_vals = np.linspace(0.01, 0.99, 50)
     nig_kappa_vals = np.linspace(0.10, 1.70, 50)

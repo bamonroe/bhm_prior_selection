@@ -1155,7 +1155,7 @@ risk aversion, while the diffuse posterior spreads widely, with
 
 The three panels reveal a pattern that would be difficult to detect from
 structural parameter estimates alone. For lotteries $L_1$ and $L_3$, which
-have probability $0.6$ on the worse outcome, the informative posterior is
+place probability $0.75$ on the worse outcome, the informative posterior is
 concentrated below the expected value: the estimated population is risk-averse.
 For lottery $L_2$, which splits probability equally between outcomes, the
 informative posterior shifts above the expected value, with a majority of the
@@ -1191,16 +1191,30 @@ Figures \ref{fig:post_ce_min} and \ref{fig:post_ce_max} examine the posterior
 predictive CE for individual subjects under $L_1$, comparing the informative
 and diffuse models. Subject \py{subject_min_ce}
 (Figure \ref{fig:post_ce_min}) has the smallest change in median CE between
-models, suggesting that this subject's data are sufficiently informative to
-dominate either hyperprior. Subject \py{subject_max_ce}
-(Figure \ref{fig:post_ce_max}) has the largest difference, with a posterior
-that is much more dispersed, indicating less informative data where the
-hyperprior has substantial influence on the individual-level estimate.
+models: this subject's 80 choices are sufficiently informative to dominate
+either hyperprior, producing nearly identical posteriors regardless of prior
+specification.
 
-These comparisons illustrate that informative hyperpriors matter most when
-subject-level data are not particularly informative. An informative hyperprior
-interacts at the individual level only indirectly, through the population
-distribution that serves as each subject's prior.
+Subject \py{subject_max_ce} (Figure \ref{fig:post_ce_max}) has the largest
+difference. The two models place this subject at opposite extremes: the
+informative model concentrates near the minimum CE (extreme risk aversion),
+while the diffuse model concentrates near the maximum (extreme risk seeking).
+This is not a convergence artifact; both models converge well to their
+respective modes. Evaluating the full posterior of the informative model at the
+diffuse model's mode reveals that the population prior assigns it a density
+more than four orders of magnitude lower than the risk-averse mode, even though
+the data likelihood slightly favors the risk-seeking parameters. The population
+prior, specified through the CE-space hierarchy, is the deciding factor.
+
+Across all subjects, approximately 17\% exhibit this pattern of opposing
+inferences. These are subjects whose choice data are consistent with both
+extreme risk aversion and extreme risk seeking; 80 binary choices are
+insufficient to distinguish between these modes for the 4-parameter RDU model.
+The informative hyperprior resolves this ambiguity through the population
+distribution: extreme risk seeking is assigned low prior density because few
+individuals in the population are expected to have CEs near the lottery
+boundaries. This is precisely the role an informative prior should play, and
+the quantity-space framework makes the mechanism transparent in dollar terms.
 
 %==============================================================================
 \section{Discussion}

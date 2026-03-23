@@ -959,59 +959,15 @@ across all quantities.
 %==============================================================================
 
 \begin{pycode}
-# Reference lottery design (loaded from paper_data.npz)
+# Reference lottery shorthand for Table 1
 ref_lots = []
 for k in [1, 2, 3]:
-    lo = int(D.get(f'ref_lot_{k}_prize_1', [10, 20, 15][k-1]))
-    hi = int(D.get(f'ref_lot_{k}_prize_2', [50, 40, 45][k-1]))
-    p_hi = float(D.get(f'ref_lot_{k}_prob_2', [0.4, 0.5, 0.4][k-1]))
-    ref_lots.append({'lo': lo, 'hi': hi, 'p_hi': p_hi})
-
-# CE-space direct prior beliefs (loaded from paper_data.npz)
-ce_beliefs = {
-    1: {"mu": float(D.get("ce_mu_1", 22)),
-        "sigma2": float(D.get("ce_sigma2_1", 36)),
-        "lo": int(D.get("ce_lo_1", 10)),
-        "hi": int(D.get("ce_hi_1", 50))},
-    2: {"mu": float(D.get("ce_mu_2", 28)),
-        "sigma2": float(D.get("ce_sigma2_2", 16)),
-        "lo": int(D.get("ce_lo_2", 20)),
-        "hi": int(D.get("ce_hi_2", 40))},
-    3: {"mu": float(D.get("ce_mu_3", 25)),
-        "sigma2": float(D.get("ce_sigma2_3", 25)),
-        "lo": int(D.get("ce_lo_3", 15)),
-        "hi": int(D.get("ce_hi_3", 45))},
-}
-# Choice probability belief for noise
-pchoice_mu = float(D.get("pchoice_mu", 0.80))
-pchoice_sigma2 = float(D.get("pchoice_sigma2", 0.0025))
-pchoice_lo = float(D.get("pchoice_lo", 0.0))
-pchoice_hi = float(D.get("pchoice_hi", 1.0))
-
-# CE-space researcher choices (loaded from paper_data.npz)
-ce_ps_rho = float(D.get("ce_ps_rho", D.get("ps_rho", 0.2)))
-if "ce_ps_kappa" in D:
-    ce_ps_kappa = float(D["ce_ps_kappa"])
-elif "ps_kappa" in D:
-    ce_ps_kappa = float(D["ps_kappa"])
-else:
-    ce_ps_kappa = 1.0 / (20.0 - 2.0)**0.5
-
-# Beta-Beta hyperprior values (loaded from CE-space NPZ when available)
-ce_hp = {}
-for k in [1, 2, 3]:
-    ce_hp[k] = {
-        "a_mu": float(D.get(f"ce_a_mu_{k}", 0)),
-        "b_mu": float(D.get(f"ce_b_mu_{k}", 0)),
-        "a_psi": float(D.get(f"ce_a_psi_{k}", 0)),
-        "b_psi": float(D.get(f"ce_b_psi_{k}", 0)),
-    }
-pc_hp = {
-    "a_mu": float(D.get("pc_a_mu", 0)),
-    "b_mu": float(D.get("pc_b_mu", 0)),
-    "a_psi": float(D.get("pc_a_psi", 0)),
-    "b_psi": float(D.get("pc_b_psi", 0)),
-}
+    ref_lots.append({
+        'lo': int(D[f'ref_lot_{k}_prize_1']),
+        'hi': int(D[f'ref_lot_{k}_prize_2']),
+        'p_hi': float(D[f'ref_lot_{k}_prob_2']),
+        'ev': float(D[f'ref_lot_{k}_ev']),
+    })
 \end{pycode}
 
 The quantity-space framework of Section \ref{sec:ce_space} requires reference
@@ -1032,9 +988,9 @@ mapping.
     \toprule
     Lottery & Outcomes & Probability on better outcome & Expected Value \\
     \midrule
-    $L_1$ & $(\$\py{ref_lots[0]['lo']},\, \$\py{ref_lots[0]['hi']})$ & $p_1 = \py{ref_lots[0]['p_hi']}$ & $\$\py{fmt(ref_lots[0]['lo'] * (1 - ref_lots[0]['p_hi']) + ref_lots[0]['hi'] * ref_lots[0]['p_hi'], 0)}$ \\
-    $L_2$ & $(\$\py{ref_lots[1]['lo']},\, \$\py{ref_lots[1]['hi']})$ & $p_2 = \py{ref_lots[1]['p_hi']}$ & $\$\py{fmt(ref_lots[1]['lo'] * (1 - ref_lots[1]['p_hi']) + ref_lots[1]['hi'] * ref_lots[1]['p_hi'], 0)}$ \\
-    $L_3$ & $(\$\py{ref_lots[2]['lo']},\, \$\py{ref_lots[2]['hi']})$ & $p_3 = \py{ref_lots[2]['p_hi']}$ & $\$\py{fmt(ref_lots[2]['lo'] * (1 - ref_lots[2]['p_hi']) + ref_lots[2]['hi'] * ref_lots[2]['p_hi'], 0)}$ \\
+    $L_1$ & $(\$\py{ref_lots[0]['lo']},\, \$\py{ref_lots[0]['hi']})$ & $p_1 = \py{ref_lots[0]['p_hi']}$ & $\$\py{fmt(ref_lots[0]['ev'], 0)}$ \\
+    $L_2$ & $(\$\py{ref_lots[1]['lo']},\, \$\py{ref_lots[1]['hi']})$ & $p_2 = \py{ref_lots[1]['p_hi']}$ & $\$\py{fmt(ref_lots[1]['ev'], 0)}$ \\
+    $L_3$ & $(\$\py{ref_lots[2]['lo']},\, \$\py{ref_lots[2]['hi']})$ & $p_3 = \py{ref_lots[2]['p_hi']}$ & $\$\py{fmt(ref_lots[2]['ev'], 0)}$ \\
     \bottomrule
   \end{tabular}
   \caption{Reference lottery design for prior specification.}
@@ -1066,11 +1022,11 @@ sense, regardless of the underlying preference model. The choice probability
 $P$ represents the probability that $L_1$ is chosen over $L_3$, so $P > 0.5$
 indicates risk-seeking.
 
-I specify that the mean CE for each lottery is \py{fmt(float(D['ce_mean_frac'])
-* 100, 0)}\% of the distance from the lower bound to the expected value,
+I specify that the mean CE for each lottery is \py{fmt(D['ce_mean_frac_pct'],
+0)}\% of the distance from the lower bound to the expected value,
 reflecting a belief that the typical individual is mildly risk-averse, with a
-\py{fmt(float(D['ce_p_risk_seeking']) * 100, 0)}\% probability of being
-risk-seeking. The same \py{fmt(float(D['ce_p_risk_seeking']) * 100, 0)}\% tail
+\py{fmt(D['ce_p_risk_seeking_pct'], 0)}\% probability of being
+risk-seeking. The same \py{fmt(D['ce_p_risk_seeking_pct'], 0)}\% tail
 probability applies to the choice probability: $P(P > 0.5) =
 \py{fmt(D['ce_p_risk_seeking'], 2)}$, with a mean of $\py{fmt(D['pchoice_mu'],
 2)}$, reflecting the belief that most individuals are risk-averse. The mean and
@@ -1090,12 +1046,12 @@ for each quantity, as shown in Table~\ref{tab:prior_beliefs}.
     \bottomrule
   \end{tabular}
   \caption{Direct prior beliefs for all four predictive quantities. For CEs, the
-    mean is set at \py{fmt(float(D['ce_mean_frac']) * 100, 0)}\% of the
+    mean is set at \py{fmt(D['ce_mean_frac_pct'], 0)}\% of the
     distance from the lower bound to the expected value; the reference point
     separating risk-averse from risk-seeking is the lottery's EV. For the
     choice probability $P = P(\text{choose } L_1 \text{over } L_3)$, the
     reference point is $0.5$. The probability of risk-seeking behavior is
-    \py{fmt(float(D['ce_p_risk_seeking']) * 100, 0)}\% for all quantities,
+    \py{fmt(D['ce_p_risk_seeking_pct'], 0)}\% for all quantities,
     and the implied variance follows from Beta moment-matching.}
   \label{tab:prior_beliefs}
 \end{table}
@@ -1104,15 +1060,15 @@ Table~\ref{tab:prior_beliefs} specifies the direct prior for each quantity;
 the variance decomposition of Section~\ref{sec:variance_decomposition} then
 splits each direct prior variance into population-mean uncertainty and
 within-population heterogeneity, governed by $\rho_k$ and $\kappa_k$. I set
-$\rho_k = \py{ce_ps_rho}$ for all quantities, meaning that
-\py{fmt(float(D['ce_ps_rho']) * 100, 0)}\% of the direct prior variance is
+$\rho_k = \py{fmt(D['ce_ps_rho'], 1)}$ for all quantities, meaning that
+\py{fmt(D['rho_pct'], 0)}\% of the direct prior variance is
 attributed to uncertainty about the population mean and the remaining
-\py{fmt((1 - float(D['ce_ps_rho'])) * 100, 0)}\% to heterogeneity across
+\py{fmt(D['one_minus_rho_pct'], 0)}\% to heterogeneity across
 individuals. Because $\rho_k$ is a variance ratio and $\kappa_k$ is a coefficient of
 variation, both are unit-free and can reasonably be shared across quantities
 with different natural units. I set $\kappa_k =
-\py{fmt(ce_ps_kappa, 2)}$, so the coefficient of variation of the
-within-population variance is \py{fmt(ce_ps_kappa * 100, 0)}\%. This reflects
+\py{fmt(D['ce_ps_kappa'], 2)}$, so the coefficient of variation of the
+within-population variance is \py{fmt(D['kappa_pct'], 0)}\%. This reflects
 moderately high confidence in the heterogeneity specification: the prior places
 most of its mass near the target level of heterogeneity while still permitting
 the data to move it. Figure~\ref{fig:nig_sensitivity} illustrates how these
@@ -1162,13 +1118,14 @@ informed by cross-chain covariance estimation.\footnote{
 
 \subsubsection{Posterior Predictive Distribution of Certainty Equivalents}
 
-\begin{figure}[h]
+\begin{figure}[hp]
   \centering
   \mycaption{Hyper-posterior predictive CE distributions for each reference
     lottery}
   \label{fig:hyper_post_ce}
   \includegraphics[width=\textwidth]{../plots/paper/predictive_ce_overlay.pdf}
 \end{figure}
+
 
 Figure \ref{fig:hyper_post_ce} shows the hyper-posterior predictive
 distribution of certainty equivalents for each of the three reference
@@ -1188,10 +1145,11 @@ CE-space model, requiring no inversion of the forward map. For the diffuse
 model, individual parameters are drawn from the NIG hyper-posterior and CEs
 computed via the forward map.
 
+
 The hyperprior predictive for $L_1$ places
 \py{hprior_pred_rs}\% of its mass above the expected value,
 consistent with the direct prior specification of a
-\py{fmt(float(D['ce_p_risk_seeking']) * 100, 0)}\% probability of
+\py{fmt(D['ce_p_risk_seeking_pct'], 0)}\% probability of
 risk-seeking behavior. The informative posterior concentrates further toward
 risk aversion, while the diffuse posterior spreads widely, with
 \py{uninf_ce_below_15}\% of its density below \$15 for $L_1$.

@@ -147,12 +147,14 @@ def gen_paper_data(output_path=None,
     if reference_lotteries is not None:
         print("\nReference Lotteries:")
         for i, lot in enumerate(reference_lotteries):
-            print(f"  L{i+1}: prizes={lot['prizes']}, probs={lot['probs']}")
+            ev = sum(p * x for p, x in zip(lot['probs'], lot['prizes']))
+            print(f"  L{i+1}: prizes={lot['prizes']}, probs={lot['probs']}, EV={ev:.0f}")
             for j, prize in enumerate(lot['prizes']):
                 save_dict[f'ref_lot_{i+1}_prize_{j+1}'] = prize
             for j, prob in enumerate(lot['probs']):
                 save_dict[f'ref_lot_{i+1}_prob_{j+1}'] = prob
             save_dict[f'ref_lot_{i+1}_n_outcomes'] = len(lot['prizes'])
+            save_dict[f'ref_lot_{i+1}_ev'] = ev
 
     # Add reference pair if provided
     if reference_pair is not None:
@@ -172,10 +174,20 @@ def gen_paper_data(output_path=None,
             print(f"  {key}: {val}")
             save_dict[f'ce_ps_{key}'] = val
 
+    # Pre-compute display values for pythontex (avoid inline math in LaTeX)
+    if prior_selection_ce is not None:
+        rho = prior_selection_ce['rho']
+        kappa = prior_selection_ce['kappa']
+        save_dict['rho_pct'] = rho * 100
+        save_dict['one_minus_rho_pct'] = (1 - rho) * 100
+        save_dict['kappa_pct'] = kappa * 100
+
     # Add CE elicitation inputs and derived quantities
     if ce_mean_frac is not None and ce_p_risk_seeking is not None:
         save_dict['ce_mean_frac'] = ce_mean_frac
         save_dict['ce_p_risk_seeking'] = ce_p_risk_seeking
+        save_dict['ce_mean_frac_pct'] = ce_mean_frac * 100
+        save_dict['ce_p_risk_seeking_pct'] = ce_p_risk_seeking * 100
         print(f"\nCE Elicitation Inputs:")
         print(f"  mean_frac: {ce_mean_frac}")
         print(f"  p_risk_seeking: {ce_p_risk_seeking}")

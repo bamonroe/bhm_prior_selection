@@ -388,73 +388,69 @@ def generate_paper_plots(
     # =========================================================================
     # 4 & 5. Subject CE comparisons (most and least affected)
     # =========================================================================
-    print("\nComputing per-subject CE divergence...")
+    print("\nComputing per-subject CE divergence (averaged across 3 lotteries)...")
     rng = np.random.default_rng(seed + 100)
 
     info_params, n_subjects = _load_subject_params(info_subjects_dir)
     uninf_params, _ = _load_subject_params(uninf_subjects_dir)
 
-    lottery_0 = REFERENCE_LOTTERIES[0]
-    median_diffs = np.zeros(n_subjects)
-    subject_ces_info = []
-    subject_ces_uninf = []
+    mean_median_diffs = np.zeros(n_subjects)
 
     for sid in range(n_subjects):
         n_sub = min(5000, len(info_params['r'][sid]))
         idx_i = rng.choice(len(info_params['r'][sid]), n_sub, replace=False)
-        ce_i = _compute_ces_for_lottery(
-            info_params['r'][sid][idx_i],
-            info_params['phi'][sid][idx_i],
-            info_params['eta'][sid][idx_i],
-            lottery_0,
-        )
         n_sub_u = min(n_sub, len(uninf_params['r'][sid]))
         idx_u = rng.choice(len(uninf_params['r'][sid]), n_sub_u, replace=False)
-        ce_u = _compute_ces_for_lottery(
-            uninf_params['r'][sid][idx_u],
-            uninf_params['phi'][sid][idx_u],
-            uninf_params['eta'][sid][idx_u],
-            lottery_0,
-        )
-        subject_ces_info.append(ce_i)
-        subject_ces_uninf.append(ce_u)
-        median_diffs[sid] = abs(np.nanmedian(ce_i) - np.nanmedian(ce_u))
+
+        diffs_k = []
+        for lottery in REFERENCE_LOTTERIES:
+            ce_i = _compute_ces_for_lottery(
+                info_params['r'][sid][idx_i],
+                info_params['phi'][sid][idx_i],
+                info_params['eta'][sid][idx_i],
+                lottery,
+            )
+            ce_u = _compute_ces_for_lottery(
+                uninf_params['r'][sid][idx_u],
+                uninf_params['phi'][sid][idx_u],
+                uninf_params['eta'][sid][idx_u],
+                lottery,
+            )
+            diffs_k.append(abs(np.nanmedian(ce_i) - np.nanmedian(ce_u)))
+
+        mean_median_diffs[sid] = np.mean(diffs_k)
         if (sid + 1) % 20 == 0:
             print(f"  Processed {sid + 1}/{n_subjects} subjects")
 
-    most_affected = int(np.argmax(median_diffs))
-    least_affected = int(np.argmin(median_diffs))
+    most_affected = int(np.argmax(mean_median_diffs))
+    least_affected = int(np.argmin(mean_median_diffs))
     print(f"  Most affected: subject {most_affected} "
-          f"(median CE diff = ${median_diffs[most_affected]:.2f})")
+          f"(mean median CE diff = ${mean_median_diffs[most_affected]:.2f})")
     print(f"  Least affected: subject {least_affected} "
-          f"(median CE diff = ${median_diffs[least_affected]:.2f})")
+          f"(mean median CE diff = ${mean_median_diffs[least_affected]:.2f})")
 
     np.savez(data_output_dir / 'posterior_ce_comparison.npz',
              most_affected_sid=most_affected,
              least_affected_sid=least_affected,
-             median_diffs=median_diffs)
+             median_diffs=mean_median_diffs)
 
-    lo0 = min(lottery_0['prizes'])
-    hi0 = max(lottery_0['prizes'])
-    ev0 = sum(p * x for p, x in zip(lottery_0['probs'], lottery_0['prizes']))
+    # Generate 3-panel plots for most and least affected
+    info_dir = Path(info_subjects_dir)
+    uninf_dir = Path(uninf_subjects_dir)
 
-    print("Generating subject_ce_most_affected.pdf...")
-    _plot_subject_ce(
-        subject_ces_info[most_affected],
-        subject_ces_uninf[most_affected],
-        lo0, hi0, ev0, most_affected,
-        output_dir / 'subject_ce_most_affected.pdf',
-        plt,
-    )
-
-    print("Generating subject_ce_least_affected.pdf...")
-    _plot_subject_ce(
-        subject_ces_info[least_affected],
-        subject_ces_uninf[least_affected],
-        lo0, hi0, ev0, least_affected,
-        output_dir / 'subject_ce_least_affected.pdf',
-        plt,
-    )
+    for label, sid in [('most', most_affected), ('least', least_affected)]:
+        print(f"Generating subject_ce_{label}_affected.pdf...")
+        args = (
+            sid,
+            str(info_dir / f'subject_{sid:03d}_params.npz'),
+            str(uninf_dir / f'subject_{sid:03d}_params.npz'),
+            REFERENCE_LOTTERIES,
+            str(output_dir / f'subject_ce_{label}_affected.pdf'),
+            5000,
+            seed + 200,
+        )
+        _plot_one_subject_ce_all_lotteries(args)
+        print(f"  Saved: {output_dir / f'subject_ce_{label}_affected.pdf'}")
 
     print(f"\nAll paper plots saved to {output_dir}")
 

@@ -1095,7 +1095,12 @@ using the diffuse parameter-space hyperprior from
 \textcite[279--281]{Gao2022}. This specification places priors directly on the
 structural parameters, bypassing the quantity-space framework, and uses the
 Inverse-Gamma($\varepsilon$, $\varepsilon$) form for variance parameters that
-\textcite{Gelman2006} identified as potentially problematic:
+\textcite{Gelman2006} identified as potentially problematic. The two models
+differ in both prior specification and distributional family (Beta-Beta on
+bounded CE quantities versus Normal--Inverse-Gamma on unbounded parameters);
+the comparison is intended to illustrate the consequences of the status quo
+approach to hyperprior specification, not to isolate the effect of either
+component:
 \begin{align}
   \label{eq:ght_prior}
   \mu^j &\sim N(0,\; 100) \\

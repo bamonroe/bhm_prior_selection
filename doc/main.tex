@@ -1261,37 +1261,26 @@ distribution.
 \subsection{Practical Guidance}
 
 The framework developed in this paper suggests a concrete workflow for
-researchers specifying hyperpriors:
-
-\begin{enumerate}
-  \item \emph{Choose the specification space.} Decide whether to specify
-    beliefs about structural parameters directly (the identity case) or about
-    predictive quantities (certainty equivalents, choice probabilities,
-    indifference amounts). Use the quantity space when the researcher has
-    stronger intuition about quantities in experimental units.
-
-  \item \emph{Specify the direct prior.} For each dimension of the
-    specification space, provide a mean and variance reflecting beliefs about a
-    single random individual. These can be informed by published empirical
-    estimates, experimental pilot data, or expert judgment.
-
-  \item \emph{Choose $\rho$ and $\kappa$.} Express beliefs about the degree
-    of population heterogeneity ($\rho$) and confidence in that
-    heterogeneity specification ($\kappa$). Default values of $\rho = 0.2$ and
-    $\kappa \approx 0.24$ express substantial heterogeneity with moderate
-    confidence.
-
-  \item \emph{Verify via prior predictive checking.} Simulate from the
-    implied prior predictive distribution and confirm that the predictive
-    implications are reasonable. The framework guarantees that the unconditional
-    distribution matches the direct prior by construction, but the
-    \textit{hierarchical} structure (population mean, population variance)
-    implied by the $\rho$/$\kappa$ decomposition should be examined.
-
-  \item \emph{Estimate.} Proceed with standard MCMC sampling. If using
-    quantity-space specification, add the Jacobian correction term to the
-    log-posterior.
-\end{enumerate}
+researchers specifying hyperpriors. The researcher first chooses the
+specification space: beliefs can be stated about structural parameters directly
+(the identity case) or about predictive quantities such as certainty
+equivalents, choice probabilities, or indifference amounts. The quantity space
+is preferred when the researcher has stronger intuition about quantities in
+experimental units. For each dimension of the specification space, the
+researcher provides a mean and variance reflecting beliefs about a single
+random individual, informed by published empirical estimates, experimental
+pilot data, or expert judgment. The researcher then chooses $\rho$ and $\kappa$
+to express beliefs about the degree of population heterogeneity and confidence
+in that specification; values of $\rho = 0.2$ and $\kappa = 0.25$, as used in
+the application, express substantial heterogeneity with moderate confidence.
+Finally, the implied prior predictive distribution should be examined to
+confirm that the hierarchical structure implied by the $\rho$/$\kappa$
+decomposition is reasonable; the framework guarantees that the unconditional
+distribution matches the direct prior by construction, but the allocation
+between population-mean uncertainty and individual heterogeneity should be
+checked. Estimation then proceeds with standard MCMC sampling, adding the
+Jacobian correction term to the log-posterior when using quantity-space
+specification.
 
 \subsection{Limitations}
 
@@ -1312,21 +1301,15 @@ Third, the framework does not address model misspecification: it provides a
 principled way to specify \textit{within-model} beliefs, but says nothing about
 whether the model itself is correct.
 
-\subsection{Comparison to Bayes Factors}
-
-One might ask how to compare two models with the same likelihood but different
-hyperpriors using Bayes factors:
-\begin{equation}
-  \text{BF} = \frac{m_\text{info}}{m_\text{noinfo}} = \frac{\displaystyle\int p(D | \theta) \pi_\text{info}(\theta) \, d\theta}{\displaystyle\int p(D | \theta) \pi_\text{noinfo}(\theta) \, d\theta}
-\end{equation}
-But when the only difference is the prior, the Bayes factor reduces to how well
-each prior predicted the data \textit{a priori}. Uninformative priors lose to
-even roughly accurate priors, creating a perverse incentive to retroactively
-tune priors to match observed data. Instead, priors should be defended as
-genuine beliefs about the parameters of interest, informed by past data,
-expertise, theory, and mathematical convenience. The framework developed here
-facilitates this defense by making the researcher's beliefs, and only their
-beliefs, transparent.
+Fourth, the application demonstrates that for a subset of subjects
+(approximately 18\% in the present sample), the hyperprior is the dominant
+factor in posterior inference. This is not a limitation of the framework per
+se, but rather an identification issue inherent to the 4-parameter RDU model
+estimated from 80 binary choices per subject. The quantity-space framework
+makes this dependence transparent: the CDF difference plot
+(Figure~\ref{fig:cdf_diff}) reveals exactly which subjects and which lotteries
+are affected. Researchers should examine such diagnostics to assess how
+sensitive their conclusions are to prior specification.
 
 
 %==============================================================================
@@ -1338,22 +1321,32 @@ BHMs require hyperprior specifications that are
 difficult to construct from first principles. I have developed a two-part
 framework that addresses this challenge. First, quantity-space prior
 specification allows researchers to state beliefs about quantities they can
-reason about directly, such as certainty equivalents and choice probabilities, with a
-Jacobian correction translating these beliefs to parameter space exactly.
-Second, a distribution-free variance decomposition reduces the remaining
-degrees of freedom to two interpretable parameters: the variance partition
-ratio $\rho$ and the heterogeneity confidence $\kappa$.
+reason about directly, such as certainty equivalents and choice probabilities,
+with a Jacobian correction translating these beliefs to parameter space
+exactly. Second, a distribution-free variance decomposition reduces the
+remaining degrees of freedom to two interpretable parameters: the variance
+partition ratio $\rho$ and the heterogeneity confidence $\kappa$.
+
+The application to RDU estimation demonstrates three features of the approach.
+The hyper-posterior predictive CE distributions reveal a lottery-specific
+pattern of risk attitudes: risk-averse CEs for lotteries with skewed
+probabilities, but risk-seeking CEs for equal-probability lotteries, a
+signature of probability weighting that is immediately visible in quantity
+space but requires post-estimation computation in parameter space. The
+individual-level comparisons show that for the majority of subjects, the
+hyperprior specification has negligible influence, while for a subset with
+weakly informative data, the informative prior provides meaningful
+regularization. The CDF difference analysis makes the prior's influence
+transparent across all subjects, lotteries, and quantiles simultaneously.
 
 The framework reduces the researcher's burden from $4p$ opaque hyperprior
-parameters to $2p + 2$ interpretable choices: a mean and variance for each of
-$p$ quantities (the direct prior), plus the two structural parameters $\rho$
-and $\kappa$. When $\rho$ and $\kappa$ are shared across parameters, as is
-natural when the researcher lacks strong reasons to differentiate, only 2 of
-the $2p + 2$ choices require reasoning about population structure rather than
-individual behavior. For a model with 10 parameters, such as CPT,
-this would reduce 40 hyperprior parameters to 22, with each choice
-specified in terms of quantities (CEs, choice probabilities) that researchers
-have decades of empirical evidence to draw upon.
+parameters to $4p$ interpretable choices: a mean, variance, variance partition
+ratio, and heterogeneity confidence for each of $p$ quantities. When $\rho$
+and $\kappa$ are shared across quantities, as is natural when the researcher
+lacks strong reasons to differentiate, this reduces to $2p + 2$. For a model
+with 10 parameters, such as CPT, this would reduce 40 hyperprior parameters to
+22, with each choice specified in terms of quantities that researchers have
+decades of empirical evidence to draw upon.
 
 
 % The References for the main text

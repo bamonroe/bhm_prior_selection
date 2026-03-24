@@ -506,19 +506,19 @@ prior, to hyperpriors over the population.
 However, (\ref{eq:dp_total}) is generally not achievable exactly with standard
 parametric families. The right-hand side is a \textit{compound distribution},
 formed by integrating the individual-level density over the hyperprior. For
-most distributional families, this compound distribution is not a member of
-the individual-level family. A compound Normal (integrating over random mean
-and variance) is not Normal; a compound Beta (integrating over random mean
-and dispersion) is not Beta. The only case where
-(\ref{eq:dp_total}) holds exactly within a parametric family is the degenerate
-one: point-mass hyperpriors with no uncertainty about the population
-parameters, which eliminates the hierarchy entirely. This is not a limitation
-of the proposed method; it is a structural property of hierarchical models
-with random hyperparameters.
+most distributional families, this compound distribution is not a member of the
+individual-level family. A compound Normal (integrating over random mean and
+variance) is not Normal; a compound Beta (integrating over random mean and
+dispersion) is not Beta. The only case where (\ref{eq:dp_total}) holds exactly
+within a parametric family is the degenerate one: point-mass hyperpriors with
+no uncertainty about the population parameters, which eliminates the hierarchy
+entirely. This is not a limitation of the proposed method, it is a structural
+property of hierarchical models with random hyperparameters.
 
-The practical approach is to \textit{approximate} the constraint in
+A practical approach is to instead approximate the constraint in
 (\ref{eq:dp_total}) by matching the moments of the right-hand side to those of
-the direct prior. I work through a specific and common scenario where a prior
+the direct prior. Even though equation (\ref{eq:dp_total}) is general to any
+distribution, I work through a specific, and common, scenario where a prior
 distribution has 2 hyperparameters, and each of those hyperparameters has a
 hyperprior which is itself defined by 2 more parameters. Thus, for any scalar
 $\bv$, $\hype$ is a vector of 2 hyperparameters that are to be estimated, and
@@ -557,8 +557,8 @@ Equations (\ref{eq:iterated_exp})--(\ref{eq:total_var}) hold for \textit{any}
 hyperprior family with defined first and second moments. They are consequences
 of the laws of iterated expectations and total variance, not properties of a
 particular distributional choice. These two equations provide two of the four
-constraints needed to determine $\hprior{}$; two additional constraints are
-needed.
+constraints needed to determine $\hprior{}$. Two additional constraints are
+needed to fully define the hyperprior.
 
 A 2-parameter direct prior has higher moments (skewness, kurtosis) that are
 fully determined by its first two. In principle, these provide additional
@@ -579,7 +579,7 @@ constraints through interpretable researcher inputs. The decomposition
 (\ref{eq:total_var}) separates the direct prior variance $v^*$ into two
 components: variation due to the expected level of inter-subject heterogeneity
 ($\Ehpv{\hypev{}}$), and variation due to uncertainty about the population mean
-($\Varhpm{\hypem{}}$). I parameterize this variance partition with a ratio:
+($\Varhpm{\hypem{}}$). This variance partition is parameterized with a ratio:
 \begin{align}
   \label{eq:rho_def}
   \rho \, v^* &= \Varhpm{\hypem{}} \\
@@ -731,8 +731,9 @@ increases. Panel (c) reveals the role of $\kappa$. At low $\kappa$ the
 within-population SD is tightly concentrated (the IQR is small), reflecting
 near-certainty about the level of heterogeneity. As $\kappa$ grows the IQR
 increases, reflecting greater uncertainty about how heterogeneous the
-population is. The marginal prior on individual quantities is invariant across
-the grid by construction; only the hierarchical allocation changes. The
+population is. The first two moments of the marginal prior on individual
+quantities are invariant across the grid by construction; only the hierarchical
+allocation changes. The
 specific numerical values are family-dependent, but these qualitative patterns
 hold for any distributional choice satisfying the moment conditions.
 
@@ -766,10 +767,11 @@ prior specified, $\rho$ and $\kappa$
 provide a way to encode the researcher's beliefs about the \textit{level} of
 heterogeneity in a population ($\rho$) and their \textit{confidence} in that
 level ($\kappa$). \textit{Any} value of $\rho \in (0, 1)$ and $\kappa > 0$
-results in a hyperprior with a predictive prior distribution that matches the
-first two moments of the direct prior, inducing a consistency in researcher
-beliefs that must prevail given the assumption of exchangeability in the
-population.
+results in a hyperprior whose predictive distribution matches the first two
+moments of the direct prior. This approximate consistency between the direct
+prior and the hierarchical predictive improves as $\rho$ and $\kappa$ decrease
+(concentrating the hyperprior), and the quality of the approximation can be
+assessed by comparing the CDFs of the two distributions.
 
 The two-step process for the definition of a hyperprior for a given model is
 therefore to first specify a quantity-space prior that has an injective mapping

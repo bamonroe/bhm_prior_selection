@@ -385,9 +385,8 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 6. **Discussion** - Practical guidance, limitations, Bayes factor comparison
 7. **Conclusion**
 
-### Appendices (2 total, loaded via `\input{}`)
-- **A**: Full Covariance (NIW derivation) — `appendix_full_covariance.tex`
-- **B**: Global Injectivity — `appendix_global_injectivity.tex`
+### Appendices (1 total, loaded via `\input{}`)
+- **A**: Global Injectivity — `appendix_global_injectivity.tex`
 
 ### Compiling
 

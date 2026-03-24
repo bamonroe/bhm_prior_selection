@@ -499,36 +499,31 @@ p^*_\vartheta(\bv{}) = \int p_\vartheta(\bv{} \mid \hype{})\, p(\hype{} \mid \hp
 \noindent where $\hype{}$ are the \textit{hyperparameters} that govern the
 population distribution of the predictive quantity $\bv{}$, and $p(\hype{} \mid
 \hprior{})$ is the \textit{hyperprior}, a prior over $\hype{}$ parameterized by
-$\hprior{}$. The equality in (\ref{eq:dp_total}) specifies the primary
-restriction needed to transfer a prior about a random individual, the
-\textit{direct} prior, to hyperpriors over the population.
+$\hprior{}$. The equality in (\ref{eq:dp_total}) is the ideal restriction
+needed to transfer a prior about a random individual, the \textit{direct}
+prior, to hyperpriors over the population.
 
-While the notation in (\ref{eq:dp_total}) is kept deliberately general, it will
-be useful going forward to work through a specific and common scenario
-where a prior distribution has 2 hyperparameters, and each of those
-hyperparameters has a hyperprior which is itself defined by 2 more parameters.
-Thus, for any scalar $\bv$, $\hype$ is a vector of 2 hyperparameters that are
-to be estimated, and $\hprior$ is a vector of 4 unknown hyperprior parameters
-that need to be set by the researcher such that the constraint defined in
-(\ref{eq:dp_total}) is satisfied.
+However, (\ref{eq:dp_total}) is generally not achievable exactly with standard
+parametric families. The right-hand side is a \textit{compound distribution},
+formed by integrating the individual-level density over the hyperprior. For
+most distributional families, this compound distribution is not a member of
+the individual-level family. A compound Normal (integrating over random mean
+and variance) is not Normal; a compound Beta (integrating over random mean
+and dispersion) is not Beta. The only case where
+(\ref{eq:dp_total}) holds exactly within a parametric family is the degenerate
+one: point-mass hyperpriors with no uncertainty about the population
+parameters, which eliminates the hierarchy entirely. This is not a limitation
+of the proposed method; it is a structural property of hierarchical models
+with random hyperparameters.
 
-An intuitive path to specifying the hyperprior parameters is to match the
-moments of the direct prior to those of the hyperprior predictive distribution
-of $\bv{}$. The most common distributions used to specify priors have 2
-parameters that biject to the first two moments, which in turn fully determine
-all higher moments. For example, the Normal distribution is defined by its mean
-and standard deviation, and all higher cumulants are zero. The Beta
-distribution has $\alpha$ and $\beta$ parameters that biject to the first two
-moments. This relationship holds for a wide class of commonly used
-distributions.
-
-I focus for now on the common 2-parameter case, denoting the mean of the direct
-prior $\dpm$ and its variance as $\dpv$. Assuming that the prior distribution
-for $\bv{}$ has two parameters that biject to the first two moments, we can
-label the mean hyperparameter as $\hypem{}$ and the variance hyperparameter as
-$\hypev{}$. Likewise, $\hypem$ has a hyperprior with mean $\hpriormm$ and variance
-$\hpriormv$, and $\hypev$ has a hyperprior with mean $\hpriorvm$ and variance
-$\hpriorvv$.\footnote{
+The practical approach is to \textit{approximate} the constraint in
+(\ref{eq:dp_total}) by matching the moments of the right-hand side to those of
+the direct prior. I work through a specific and common scenario where a prior
+distribution has 2 hyperparameters, and each of those hyperparameters has a
+hyperprior which is itself defined by 2 more parameters. Thus, for any scalar
+$\bv$, $\hype$ is a vector of 2 hyperparameters that are to be estimated, and
+$\hprior$ is a vector of 4 unknown hyperprior parameters that need to be set by
+the researcher.\footnote{
   The method requires moments to \textit{exist}, not to be available in closed
   form. Distributions whose moments must be computed numerically, such as the
   Logit-Normal, are perfectly feasible. Unfortunately, this does rule out the
@@ -536,6 +531,17 @@ $\hpriorvv$.\footnote{
   matching moments, this exercise could be rearranged to instead match
   quantiles, which would allow for the Cauchy to be used.
 }
+
+The most common distributions used to specify priors have 2 parameters that
+biject to the first two moments, which in turn fully determine all higher
+moments. For example, the Normal distribution is defined by its mean and
+standard deviation, and all higher cumulants are zero. The Beta distribution
+has $\alpha$ and $\beta$ parameters that biject to the first two moments. I
+focus on this common 2-parameter case, denoting the mean of the direct prior
+$\dpm$ and its variance as $\dpv$. We can label the mean hyperparameter as
+$\hypem{}$ and the variance hyperparameter as $\hypev{}$. Likewise, $\hypem$
+has a hyperprior with mean $\hpriormm$ and variance $\hpriormv$, and $\hypev$
+has a hyperprior with mean $\hpriorvm$ and variance $\hpriorvv$.
 
 The law of total variance provides the bridge from moments of the direct prior
 to population-level hyperpriors. Since $\hypem{}$ and $\hypev{}$ biject to the
@@ -547,29 +553,33 @@ as:
   \label{eq:total_var}
   v^* = \Var{\bv_i} &= \Ehpv{\hypev{}} + \Varhpm{\hypem{}}
 \end{align}
-Equations (\ref{eq:iterated_exp})-(\ref{eq:total_var}) hold for \textit{any}
+Equations (\ref{eq:iterated_exp})--(\ref{eq:total_var}) hold for \textit{any}
 hyperprior family with defined first and second moments. They are consequences
 of the laws of iterated expectations and total variance, not properties of a
-particular distributional choice.\footnote{
-  This moment matching exercise can be extended to higher moments. If the
-  direct prior has $n$ degrees of freedom, the expansion requires $n$ equations
-  using the law of total cumulance. For the $n$-th cumulant $c_n$: $c_n(\theta)
-  = \E{c_n(\theta|X)} + g_n(c_1, \ldots, c_{n-1})$ where $g_n$
-  involves lower-order cumulants.
-}
-These two equations provide two of the four constraints needed to determine
-$\hprior{}$; two additional constraints are needed.
+particular distributional choice. These two equations provide two of the four
+constraints needed to determine $\hprior{}$; two additional constraints are
+needed.
 
-The decomposition (\ref{eq:total_var}) separates the direct prior variance
-$v^*$ into two components: variation due to the expected level of inter-subject
-heterogeneity ($\Ehpv{\hypev{}}$), and variation due to uncertainty about the
-population mean ($\Varhpm{\hypem{}}$). While these two components could be
-specified separately, doing so would still require unit and distribution
-specific beliefs about what might be plausible values for these statistics, and
-additionally they would need to be specified such that the constraint in
-(\ref{eq:dp_total}) is satisfied. Even with well formed beliefs, the
-consistency constraint can be particularly difficult to satisfy directly.
-Instead, I parameterize this variance partition with a ratio:
+A 2-parameter direct prior has higher moments (skewness, kurtosis) that are
+fully determined by its first two. In principle, these provide additional
+constraints. By the law of total cumulance, the $n$-th cumulant of the
+hierarchical predictive can be expressed in terms of cumulants of the
+hyperparameters, yielding one equation per moment. With 4 hyperprior
+parameters, matching all 4 moments of the direct prior would fully determine
+the hyperprior with no additional researcher choices. However, the
+higher-moment equations are generally intractable: they involve cross-moments
+of the hyperparameters and conditional cumulants of the population distribution
+that do not simplify to closed form for most distributional families. Moreover,
+for distributions with zero conditional skewness, such as the Normal, the 3rd
+moment provides no information about the variance hyperprior, making the
+approach family-dependent.
+
+Instead of pursuing higher-moment matching, I provide the remaining two
+constraints through interpretable researcher inputs. The decomposition
+(\ref{eq:total_var}) separates the direct prior variance $v^*$ into two
+components: variation due to the expected level of inter-subject heterogeneity
+($\Ehpv{\hypev{}}$), and variation due to uncertainty about the population mean
+($\Varhpm{\hypem{}}$). I parameterize this variance partition with a ratio:
 \begin{align}
   \label{eq:rho_def}
   \rho \, v^* &= \Varhpm{\hypem{}} \\
@@ -634,6 +644,19 @@ the hyperprior distribution over $\hypev$ is presumed bijective, so
 (\ref{eq:hyperv_solved}) has a unique solution $\hpriorvm{}$ and $\hpriorvv{}$.
 Thus, all four hyperprior parameters $(\hpriormm{}, \hpriormv{}, \hpriorvm{},
 \hpriorvv{})$ are now determined.
+
+The resulting hyperprior predictive matches the direct prior exactly in its
+first two moments by construction. Higher moments (skewness, kurtosis, tail
+probabilities) will generally differ, because the compound distribution
+produced by the hierarchy is not in the same parametric family as the direct
+prior. The magnitude of this discrepancy depends on $\rho$ and $\kappa$: as
+both approach zero, the hyperprior concentrates and the compound distribution
+collapses toward the individual-level distribution, recovering the direct prior
+in the limit. For nonzero $\rho$ and $\kappa$, the discrepancy is typically
+small but can be assessed by comparing the CDF of the hierarchical predictive
+to that of the direct prior. The researcher should verify that tail
+probabilities of interest are not materially affected by the choice of $\rho$
+and $\kappa$.
 
 \subsection{Example: Normal-Inverse-Gamma}
 \label{sec:nig_example}
@@ -1188,13 +1211,13 @@ researcher to compute the forward map post-estimation.
   \centering
   \mycaption{Posterior predictive CE: Least Affected (Subject \py{subject_min_ce})}
   \label{fig:post_ce_min}
-  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_least_affected.pdf}
+  \includegraphics[width=.9\textwidth]{../plots/paper/subject_ce_least_affected.pdf}
 \end{figure}
 \begin{figure}[hp]
   \centering
   \mycaption{Posterior predictive CE: Most Affected (Subject \py{subject_max_ce})}
   \label{fig:post_ce_max}
-  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_affected.pdf}
+  \includegraphics[width=.9\textwidth]{../plots/paper/subject_ce_most_affected.pdf}
 \end{figure}
 
 Figures \ref{fig:post_ce_min} and \ref{fig:post_ce_max} examine the posterior
@@ -1323,11 +1346,7 @@ The no-FOSD requirement and the prize diversity condition for injectivity
 mitigate this concern, but the researcher should verify that the implied
 joint prior on parameters is sensible by examining prior predictive draws.
 
-Fifth, the framework does not address model misspecification: it provides a
-principled way to specify \textit{within-model} beliefs, but says nothing about
-whether the model itself is correct.
-
-Sixth, the application demonstrates that for a subset of subjects
+Fifth, the application demonstrates that for a subset of subjects
 (approximately 18\% in the present sample), the hyperprior is the dominant
 factor in posterior inference. This is not a limitation of the framework per
 se, but rather an identification issue inherent to the 4-parameter RDU model

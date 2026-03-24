@@ -3,79 +3,70 @@
 ## Project Status: JoE Paper — Single-Application (RDU with Real Data)
 
 Paper restructured for Journal of Econometrics:
-- 6 sections + 2 appendices (A: Full Covariance, B: Global Injectivity)
+- 7 sections + 1 appendix (A: Global Injectivity)
 - Single model: Beta-Beta CE-space hierarchy (`rdu_bhm_ce`)
 - Comparison model: NIG parameter-space with Gao (2022) diffuse prior (`rdu_bhm`)
 - Full pipeline: prior selection, sampling (both models), preprocessing, paper plots
-- NIG sensitivity heatmaps (viridis, 3 stacked panels) in Section 3
+- R-hat converged (max 1.21, median 1.004)
+- Reference lotteries: L1=($10,$50, p=0.75/0.25), L2=($20,$40, p=0.50/0.50), L3=($12,$44, p=0.75/0.25)
 
 **Current branch:** `master`
 
 ---
 
-## Next Steps
+## Remaining
 
-### A. Immediate Cleanup (mechanical) — COMPLETE
-- [x] Replace all remaining em-dashes (`---`) with colons/semicolons
-- [x] Remove unused NPZ loads (`prior_params.npz`, `sensitivity_grid.npz`) from pythontex
-- [x] Fix stale comment line 5 ("Appendix C (Sequential Identification)")
-- [x] Verify pythontex CE overlay thresholds match reference lottery bounds
+### Paper Content
+- [ ] Address referee point 3: clarify in Section 3.2 that the Beta-Beta decomposition requires independence of μ and ψ (a parameterization choice, not a consequence of the general framework)
+- [ ] Address referee point 4: discuss NCP unavailability as a computational trade-off (centered parameterization is forced by non-invertible CE mapping)
+- [ ] Address referee point 5: sensitivity analysis over ρ/κ showing how the fraction of prior-dominated subjects changes
+- [ ] Address referee minor 1: trim Section 2 belief elicitation review (tangential)
+- [ ] Address referee minor 4: check for remaining "observable quantities" vs "predictive quantities" inconsistency
+- [ ] Address referee minor 5: compute prior predictive CEs implied by the Gao et al. diffuse prior
+- [ ] Address referee minor 6: expand MCMC details (R-hat distribution, acceptance rates)
+- [ ] Address referee minor 12: add posterior summary table for structural parameters
+- [ ] Address referee minor 13: add posterior predictive check on choice probabilities
+- [ ] Proofread appendix (Global Injectivity) for consistency with current terminology
 
-### B. Results Section Rewrite — COMPLETE
-- [x] Rewrite CE overlay discussion for 3-panel format
-- [x] Explain Beta-Beta direct CE draws vs NIG forward-map computation
-- [x] Update parameter overlay text
-- [x] Verify subject IDs match current data (most=74, least=45)
-- [x] Split into "Posterior Predictive Distribution of CEs" and "Individual-Level Posterior Comparisons"
-
-### C. Structural
-- [ ] Consider merging Section 4 (Application) and Section 5 (Estimation)
-- [ ] Update CLAUDE.md appendix listing (still lists 4, now only 2)
-
-### D. Convergence & Estimation
-- [ ] Re-run MCMC with hyper-posterior optimization (Jacobian/likelihood removed from hyper proposals)
-- [ ] Address max R-hat (~10.4): longer runs, identify problematic parameters, or discuss in limitations
-- [ ] Verify paper_quantities.npz is regenerated after new MCMC run
-
-### E. Final Polish
-- [ ] Proofread all sections
-- [ ] Code/data availability statement
-- [ ] Expand bibliography if needed (~40+ references)
-- [ ] Final cross-reference and figure verification in compiled PDF
-
-### F. Testing
+### Code
 - [ ] Write automated tests for core functions
-  - Prior selection: verify variance decomposition identities
-  - CE computation: known-value sanity checks
-  - Data cleaning: verify choice encoding flip
-  - Likelihood: verify 3-outcome RDU matches 2-outcome when prob=0
+- [ ] Ensure main.py default flags are set to safe defaults (all sampling False)
 
 ---
 
 ## Completed
 
 ### Paper Structure & Content
-- [x] Restructure for JoE (6 sections + appendices)
+- [x] Restructure for JoE (7 sections + appendix)
 - [x] Section 3: quantity-space priors + variance decomposition + NIG example + heatmaps
 - [x] Terminology: "generated quantities" → "predictive quantities"
-- [x] Drop Appendices C (Jacobian Correction) and D (MCMC Details)
-- [x] Drop hyper_comparison figure (incompatible across CE-space vs NIG models)
+- [x] Drop Appendices A (Full Covariance), C (Jacobian Correction), D (MCMC Details)
+- [x] Drop hyper_comparison and predictive_params_overlay figures
 - [x] Writing rules: no em-dashes, no side-by-side equations, no itemize, no textbf
+- [x] Rename general hyperparameters from ψ to γ (avoid collision with Beta-Beta ψ_k)
+- [x] Add limitation on independence of quantity-space marginals
+- [x] Acknowledge asymmetric comparison (CE-space vs NIG)
+- [x] Rewrite results for 3-panel CE overlay, 3-lottery subject comparisons
+- [x] Add RDU signature paragraph (lottery-specific risk attitudes)
+- [x] Add CDF difference figure and discussion
+- [x] Strengthen subject 74 discussion with posterior decomposition
+- [x] Revise Discussion: prose workflow, 6 limitations, no Bayes factor section
+- [x] Revise Conclusion: empirical findings, 4p→4p reframing
+- [x] Add code/data availability statement
+- [x] Abstract updated with empirical findings
+- [x] Fix stale pythontex (paper_quantities.npz → paper_data.npz)
+- [x] Move inline calculations from pythontex to gen_paper_data.py
+- [x] Simulated referee report written (technical_notes/referee_report/23_03_2026.tex)
 
 ### Estimation & Plots
-- [x] CE-space Beta-Beta model (`rdu_bhm_ce`): full pipeline
-- [x] Diffuse NIG model (`rdu_bhm`): sampling + preprocessing
-- [x] Paper comparison plots: predictive_params_overlay, predictive_ce_overlay (3-panel),
-      subject_ce_most_affected, subject_ce_least_affected
-- [x] NIG sensitivity heatmaps for Section 3 (viridis, stacked panels)
-- [x] Fix hyper-posterior optimization: remove Jacobian/likelihood from hyper proposals
-- [x] Fix CE overlay: draw from Beta-Beta hierarchy (not pooled subject draws)
-
-### Infrastructure
-- [x] `paper_plots.py`: correct hyper-posterior predictive computation
-- [x] `gen_paper_data.py`: NIG sensitivity + heatmap generation
-- [x] Recover `prior_predictive_ce.py`, `sampling.py` from git history
-- [x] Wire uninformative model into `main.py` pipeline
+- [x] CE-space Beta-Beta model: full pipeline with hyper-posterior optimization
+- [x] Diffuse NIG model: sampling + preprocessing
+- [x] Vectorized CE computation (1000x speedup)
+- [x] Paper plots: CE overlay (3-panel), subject comparisons (3-lottery), CDF difference
+- [x] Per-subject CE diagnostic plots (111 PDFs)
+- [x] NIG sensitivity heatmaps (viridis, stacked panels)
+- [x] Reference lotteries updated: p=0.25, L3=($12,$44)
+- [x] R-hat converged (max 1.21, median 1.004)
 
 ---
 
@@ -84,11 +75,5 @@ Paper restructured for Journal of Econometrics:
 - **CPT simulation study** — Full Monte Carlo with 8-10 parameter CPT model
 - **Discounting simulation study** — Quasi-hyperbolic (β, δ) model
 - **MCMC appendix** — Rewrite for CE-space model (centered parameterization, no NCP)
-
----
-
-## References
-
-1. **Harrison, G.W. & Ng, J.M. (2016).** "Evaluating the Expected Welfare Gain From Insurance." *JRI*, 83(1), 91-120.
-2. **Gao, X.S., Harrison, G.W., & Tchernis, R. (2022).** "Behavioral welfare economics and risk preferences: a Bayesian approach." *Exp Econ*, 26, 273-303.
-3. **Andersen, S., Harrison, G.W., Lau, M.I., & Rutström, E.E. (2008).** "Eliciting Risk and Time Preferences." *Econometrica*, 76(3), 583-618.
+- **Symmetric comparison** — Diffuse Beta-Beta model to isolate distributional family effect
+- **ρ/κ sensitivity on posterior** — How does fraction of prior-dominated subjects change with ρ/κ

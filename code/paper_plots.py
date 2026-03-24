@@ -737,9 +737,9 @@ def generate_cdf_difference_plot(
     prior_dom = avg_abs_diffs >= 10
 
     groups = [
-        (well_id, 'Well-identified', '#2ca02c', 0.15),
-        (moderate, 'Moderately affected', '#1f77b4', 0.4),
-        (prior_dom, 'Prior-dominated', '#d62728', 0.6),
+        (well_id, 'Well-identified', '#2ca02c', 0.3),
+        (moderate, 'Moderately affected', '#1f77b4', 0.3),
+        (prior_dom, 'Prior-dominated', '#d62728', 0.3),
     ]
 
     fig, axes = plt.subplots(3, 1, figsize=(5, 7))

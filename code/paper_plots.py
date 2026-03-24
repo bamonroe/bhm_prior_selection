@@ -448,6 +448,7 @@ def generate_paper_plots(
             str(output_dir / f'subject_ce_{label}_affected.pdf'),
             5000,
             seed + 200,
+            False,  # no suptitle for paper figures
         )
         _plot_one_subject_ce_all_lotteries(args)
         print(f"  Saved: {output_dir / f'subject_ce_{label}_affected.pdf'}")
@@ -796,7 +797,11 @@ def _plot_one_subject_ce_all_lotteries(args):
         'mathtext.fontset': 'cm',
     })
 
-    (sid, info_path, uninf_path, lotteries, output_path, n_sub, seed) = args
+    if len(args) == 8:
+        (sid, info_path, uninf_path, lotteries, output_path, n_sub, seed, show_title) = args
+    else:
+        (sid, info_path, uninf_path, lotteries, output_path, n_sub, seed) = args
+        show_title = True
 
     rng = np.random.default_rng(seed + sid)
 
@@ -861,7 +866,8 @@ def _plot_one_subject_ce_all_lotteries(args):
             ax.legend(fontsize=8)
 
     axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
-    fig.suptitle(f'Subject {sid}', fontsize=11, y=1.01)
+    if show_title:
+        fig.suptitle(f'Subject {sid}', fontsize=11, y=1.01)
     fig.tight_layout()
     fig.savefig(output_path, bbox_inches='tight', backend='pdf')
     plt.close(fig)

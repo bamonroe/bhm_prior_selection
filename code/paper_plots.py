@@ -434,6 +434,15 @@ def generate_paper_plots(
              least_affected_sid=least_affected,
              median_diffs=mean_median_diffs)
 
+    # Compute prior predictive CEs for each lottery (for subject-level plots)
+    print("  Drawing hyperprior predictive CEs for subject plots...")
+    prior_ces_by_lottery = []
+    for k in range(len(REFERENCE_LOTTERIES)):
+        prior_ce_k = _draw_ce_from_beta_hierarchy(
+            info_hyper_path, prior_params_path, k,
+            n_draws=20000, seed=seed + 400 + k, use_posterior=False)
+        prior_ces_by_lottery.append(prior_ce_k)
+
     # Generate 3-panel plots for most and least affected
     info_dir = Path(info_subjects_dir)
     uninf_dir = Path(uninf_subjects_dir)
@@ -449,6 +458,7 @@ def generate_paper_plots(
             5000,
             seed + 200,
             False,  # no suptitle for paper figures
+            prior_ces_by_lottery,
         )
         _plot_one_subject_ce_all_lotteries(args)
         print(f"  Saved: {output_dir / f'subject_ce_{label}_affected.pdf'}")
@@ -797,11 +807,10 @@ def _plot_one_subject_ce_all_lotteries(args):
         'mathtext.fontset': 'cm',
     })
 
-    if len(args) == 8:
-        (sid, info_path, uninf_path, lotteries, output_path, n_sub, seed, show_title) = args
-    else:
-        (sid, info_path, uninf_path, lotteries, output_path, n_sub, seed) = args
-        show_title = True
+    # Parse args tuple (supports 7, 8, or 9 elements)
+    sid, info_path, uninf_path, lotteries, output_path, n_sub, seed = args[:7]
+    show_title = args[7] if len(args) > 7 else True
+    prior_ces = args[8] if len(args) > 8 else None
 
     rng = np.random.default_rng(seed + sid)
 
@@ -840,16 +849,20 @@ def _plot_one_subject_ce_all_lotteries(args):
         ce_uninf = _compute_ces_for_lottery(
             uninf_r[idx_u], uninf_phi[idx_u], uninf_eta[idx_u], lottery)
 
-        for ce, label, color in [
-            (ce_info, 'Informative', '#1f77b4'),
-            (ce_uninf, 'Diffuse', '#ff7f0e'),
-        ]:
+        curves = [
+            (ce_info, 'Informative', '#1f77b4', '-'),
+            (ce_uninf, 'Diffuse', '#ff7f0e', '-'),
+        ]
+        if prior_ces is not None:
+            curves.insert(0, (prior_ces[k], 'Hyperprior predictive', '#888888', '--'))
+
+        for ce, label, color, ls in curves:
             ce_clean = ce[np.isfinite(ce)]
             ce_clip = ce_clean[(ce_clean >= lo) & (ce_clean <= hi)]
             if len(ce_clip) > 50:
                 kde = gaussian_kde(ce_clip)
                 x = np.linspace(lo, hi, 300)
-                ax.plot(x, kde(x), color=color, lw=1.5, label=label)
+                ax.plot(x, kde(x), color=color, lw=1.5, ls=ls, label=label)
 
         ax.axvline(ev, color='black', ls=':', lw=0.8, alpha=0.5)
         p_str = '/'.join(f'{p:.2f}' for p in lottery['probs'])

@@ -1307,11 +1307,27 @@ parameters to predictive quantities. This constrains the design of reference
 lotteries (prize diversity is needed for global injectivity) and means that
 not all experimental designs are equally suitable for prior specification.
 
-Third, the framework does not address model misspecification: it provides a
+Third, the framework specifies independent marginal direct priors over the $p$
+predictive quantities. In the application, $\CE_1$, $\CE_2$, $\CE_3$, and $P$
+are treated as independent in the prior, even though they are deterministic
+functions of the same underlying parameters $(r, \phi, \eta, \lambda)$ and
+therefore necessarily dependent. The Jacobian correction accounts for this
+dependence in the induced parameter-space prior, so the posterior is not
+inconsistent, but the \textit{prior} on the quantity space does not reflect the
+functional relationship between quantities. In practice, this means the
+researcher must choose reference lotteries that are sufficiently different that
+independent marginal beliefs are reasonable. If two reference lotteries are
+very similar, their CEs will be nearly perfectly correlated, and specifying
+independent priors could impose unintended constraints on the parameter space.
+The no-FOSD requirement and the prize diversity condition for injectivity
+mitigate this concern, but the researcher should verify that the implied
+joint prior on parameters is sensible by examining prior predictive draws.
+
+Fifth, the framework does not address model misspecification: it provides a
 principled way to specify \textit{within-model} beliefs, but says nothing about
 whether the model itself is correct.
 
-Fourth, the application demonstrates that for a subset of subjects
+Sixth, the application demonstrates that for a subset of subjects
 (approximately 18\% in the present sample), the hyperprior is the dominant
 factor in posterior inference. This is not a limitation of the framework per
 se, but rather an identification issue inherent to the 4-parameter RDU model

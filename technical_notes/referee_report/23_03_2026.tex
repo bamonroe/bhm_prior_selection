@@ -1,0 +1,211 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{natbib}
+\usepackage{enumitem}
+
+\title{Referee Report: ``Quantity-Space Prior Specification for Bayesian
+Hierarchical Models: Theory and Applications to Risk Preferences''}
+\author{Simulated Referee Report\\
+\small Prepared for internal review, March 2026}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Summary}
+
+This paper develops a framework for specifying hyperpriors in Bayesian
+hierarchical models (BHMs) through two contributions: (i) quantity-space prior
+specification, where priors are stated on predictive quantities (certainty
+equivalents, choice probabilities) rather than structural parameters, using a
+Jacobian correction; and (ii) a distribution-free variance decomposition that
+reduces the remaining degrees of freedom to two interpretable parameters,
+$\rho$ (variance partition ratio) and $\kappa$ (coefficient of variation of
+heterogeneity). The framework is demonstrated with rank-dependent utility (RDU)
+estimation on lottery choice data from Harrison \& Ng (2016).
+
+The paper addresses a genuine practical problem in applied Bayesian work and
+offers a clean analytical solution. The theoretical development is rigorous,
+the application is informative, and the empirical findings---particularly the
+lottery-specific risk attitude patterns and the prior sensitivity
+analysis---are a valuable contribution in their own right.
+
+\section*{Major Comments}
+
+\subsection*{1. The comparison is not fully symmetric}
+
+The paper compares an informative CE-space model (Beta-Beta hierarchy with
+Jacobian correction) against a diffuse parameter-space model (Normal--Inverse-Gamma
+with Gao et al.\ 2022 hyperpriors). These are not two specifications of the
+\textit{same} model with different priors; they are structurally different
+models with different likelihood contributions (the Jacobian term is present
+in one and absent in the other). A cleaner comparison would hold the model
+structure fixed and vary only the hyperprior. For example, the author could
+estimate the CE-space Beta-Beta model with both informative and diffuse
+Beta-Beta hyperpriors, or estimate the NIG model with both informative and
+diffuse NIG hyperpriors. The current comparison confounds the effect of the
+prior specification method with the effect of the distributional family.
+
+\subsection*{2. Independence of quantities in the direct prior}
+
+The framework specifies independent marginal priors over the $p$ predictive
+quantities. For the RDU application, this means $\text{CE}_1$, $\text{CE}_2$,
+$\text{CE}_3$, and $P$ are treated as independent in the prior. But these
+quantities are deterministic functions of the same parameters $(r, \phi, \eta,
+\lambda)$, so they are necessarily dependent. The paper should discuss what
+constraints the independent-marginals assumption places on the choice of
+reference lotteries. Intuitively, if two reference lotteries are very similar,
+their CEs will be nearly perfectly correlated, and specifying independent
+priors on them could be highly informative in ways the researcher does not
+intend. The no-FOSD condition is necessary for this reason, but is it
+sufficient?
+
+\subsection*{3. Moment matching is only approximate for the Beta-Beta hierarchy}
+
+The variance decomposition (equations 7--8) is exact for any hierarchy where
+$\psi_m$ bijects to the conditional mean and $\psi_v$ bijects to the
+conditional variance. In the Beta-Beta model used in the application, the
+conditional variance is $\mu_k(1 - \mu_k)\psi_k$, which depends on both
+$\mu_k$ and $\psi_k$. The decomposition in equation (25) uses
+$\mathbb{E}[\mu_k(1-\mu_k)\psi_k] = (1-\rho_k)v^*_k$, which requires
+independence of $\mu_k$ and $\psi_k$ to factor the expectation. This
+independence is assumed by the Beta-Beta specification (separate hyperpriors on
+$\mu_k$ and $\psi_k$) but is not a consequence of the general framework.
+The paper should be more explicit that the general variance decomposition
+requires a choice of parameterization where the mean and variance
+hyperparameters enter independently, and that the $\psi_k$ parameterization in
+the Beta-Beta model is specifically chosen to achieve this.
+
+\subsection*{4. Non-centered parameterization is not available}
+
+The paper uses centered parameterization for the CE-space model, storing
+individual parameters $(r, \phi, \eta, \lambda)$ directly in the chain state.
+The population prior is evaluated in CE space via the forward map and Jacobian
+correction. This means the standard non-centered parameterization (NCP) trick
+is not available, because it would require inverting the CE mapping at every
+MCMC step. The paper does not discuss this computational trade-off. For the NIG
+comparison model, NCP \textit{is} available (and was used in previous versions
+of this work). The centered parameterization is known to create funnel
+geometries that impede mixing when population variance is small. Given that the
+paper reports convergence issues for $\sim$18\% of subjects, this trade-off
+deserves discussion. Are the convergence difficulties concentrated in subjects
+where $\psi_k$ is small?
+
+\subsection*{5. Identification and the 17\% finding}
+
+The paper reports that approximately 17--18\% of subjects have opposing
+posterior inferences under the two models, with the population prior being the
+deciding factor. The posterior decomposition for Subject 74 is informative:
+the likelihood ratio is 29:1 in favor of the risk-seeking mode, but the
+population prior is $10^4$:1 against it. This is a strong prior.
+
+The paper presents this as ``precisely the role an informative prior should
+play.'' While this may be true for subjects with genuinely uninformative data,
+the finding also raises questions about whether the informative prior is
+\textit{too strong} for these subjects. A sensitivity analysis varying $\rho$
+and $\kappa$ and examining how the fraction of prior-dominated subjects changes
+would be informative. If modest changes in $\kappa$ move the 17\% substantially,
+this would suggest the results are fragile.
+
+\section*{Minor Comments}
+
+\begin{enumerate}[leftmargin=*]
+
+\item \textbf{Section 2}: The literature review of belief elicitation
+(paragraphs on PSRs, Hossain \& Graves, Schlag, etc.) is thorough but
+tangential. The paper is about \textit{researcher} prior specification, not
+\textit{subject} belief elicitation. The connection between the two is noted
+but could be made more concisely. This section could be shortened by half
+without losing the paper's contribution.
+
+\item \textbf{Section 3.2, equation (6)}: The notation $\psi_m$ and $\psi_v$
+for the mean and variance hyperparameters is potentially confusing given that
+$\psi_k$ is later used for the Beta-Beta dispersion parameter. Consider
+different notation for the general hyperparameters.
+
+\item \textbf{Section 3.3}: The NIG example and sensitivity heatmaps are
+well-done. One suggestion: the heatmap figure caption could note that these
+are computed analytically (not via MCMC), since this is a strength of the
+framework---the sensitivity analysis requires no estimation.
+
+\item \textbf{Section 4}: The paper uses ``observable quantities'' in some
+places and ``predictive quantities'' in others. The terminology should be
+consistent throughout. (``Predictive quantities'' appears to be the intended
+term.)
+
+\item \textbf{Section 5, equation (15)}: The comparison prior
+$\mu^j \sim N(0, 100)$, $\sigma^{2,j} \sim \text{IG}(0.001, 0.001)$ is
+presented without discussion of what this implies for predictive quantities.
+Given the paper's emphasis on quantity-space reasoning, computing the prior
+predictive CEs implied by the diffuse prior would strengthen the comparison.
+What does the Gao et al.\ prior predict about CEs? If it puts substantial
+mass on extreme or nonsensical values, this would reinforce the paper's
+argument.
+
+\item \textbf{Section 5, Results}: The footnote on MCMC details is sparse.
+For a paper that relies heavily on MCMC results, more detail on convergence
+diagnostics (R-hat distribution, effective sample sizes, acceptance rates)
+is warranted, at minimum in an appendix.
+
+\item \textbf{Section 5, Figure 3 (CE overlay)}: The ``hyperprior predictive''
+curve for the informative model is drawn from the Beta-Beta hyperprior, while
+the ``diffuse posterior'' is drawn by computing CEs from NIG hyper-posterior
+draws via the forward map. These use different computational procedures. The
+paper should note whether the two posterior predictive curves are computed
+comparably (both via forward map? both via direct hierarchy draws?).
+
+\item \textbf{Section 5, CDF difference figure}: This is an effective
+visualization. Consider adding a panel or inset showing the distribution of
+the average absolute median CE difference across subjects, so the reader can
+see where the thresholds (2, 10) fall relative to the full distribution.
+
+\item \textbf{Section 6, Limitations}: The fourth limitation (identification
+with 80 choices) could be strengthened. Is the fraction of prior-dominated
+subjects likely to decrease with more observations per subject? A brief power
+analysis or simulation would be informative, though not strictly necessary for
+this paper.
+
+\item \textbf{Conclusion}: The paper claims the framework ``reduces'' the
+researcher's burden. The revised wording (``replaces opaque with
+interpretable'') is more accurate, but the claim could be further sharpened:
+the key advantage is not just interpretability but
+\textit{consistency-by-construction} with the prior predictive distribution,
+which direct hyperprior specification does not guarantee.
+
+\item \textbf{Appendix A (Full Covariance)}: The relevance of this appendix
+to the current paper is unclear. The paper uses independent Beta-Beta
+hierarchies, not the NIW model derived in Appendix A. If this appendix is
+intended for a future extension, it should be noted; otherwise it could be
+removed.
+
+\item \textbf{Missing}: The paper does not report posterior summaries for the
+structural parameters $(r, \phi, \eta, \lambda)$. While the emphasis on
+quantity-space is the point, many readers will want to know the estimated
+population mean and heterogeneity of risk aversion, probability weighting,
+etc. A posterior summary table would be a valuable addition.
+
+\item \textbf{Missing}: There is no discussion of model fit. Do subjects'
+observed choice patterns match the model's predictions? A posterior predictive
+check on choice probabilities (not CEs) would address whether the RDU model
+with the estimated parameters actually explains the data well.
+
+\end{enumerate}
+
+\section*{Overall Assessment}
+
+The paper makes two clean, well-motivated methodological contributions and
+demonstrates them with an informative application. The quantity-space prior
+specification and the $(\rho, \kappa)$ variance decomposition are useful tools
+that should see adoption beyond the risk preference setting. The empirical
+findings, particularly the lottery-specific risk attitude patterns and the
+distributional prior sensitivity analysis, add genuine value.
+
+The main weaknesses are the asymmetric comparison (mixing distributional family
+with prior specification), the limited discussion of computational trade-offs
+(NCP unavailability, centered parameterization), and the absence of posterior
+summaries for the structural parameters. These are addressable in revision.
+
+I recommend revision and resubmission.
+
+\end{document}

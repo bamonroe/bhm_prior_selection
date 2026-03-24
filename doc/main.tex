@@ -7,7 +7,7 @@
 \usepackage{enumerate}
 \usepackage{cleveref}
 
-% Theorem environments (used in Appendix C)
+% Theorem environments (used in Appendix B)
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{proposition}[theorem]{Proposition}
@@ -21,7 +21,7 @@
 
 % Notation macros
 \newcommand{\R}{\mathbb{R}}
-\newcommand{\bomega}{\boldsymbol{\omega}} % PWF parameter sub-vector (Appendix C)
+\newcommand{\bomega}{\boldsymbol{\omega}} % PWF parameter sub-vector (Appendix B)
 \DeclareMathOperator{\diag}{diag}
 
 \hyphenpenalty=10000
@@ -137,8 +137,11 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
   partition ratio $\rho$ and a coefficient of variation $\kappa$. Together
   these fully determine the hyperprior for any distributional family. I
   demonstrate the approach with rank-dependent utility estimation using lottery
-  choice data, bridging the ``uninformative prior'' and ``prior predictive
-  calibration'' literatures.
+  choice data. The quantity-space framework reveals a lottery-specific pattern
+  of risk attitudes, with probability weighting producing risk-seeking certainty
+  equivalents for equal-probability lotteries despite risk-averse equivalents
+  for skewed lotteries, a pattern immediately visible in quantity space but
+  requiring post-estimation computation in parameter space.
 
   \end{justify}
 \end{abstract}
@@ -247,7 +250,7 @@ limitations. Section \ref{sec:conclusion} concludes.
 %==============================================================================
 
 In a very strict sense, \textit{any} proper prior distribution will result in
-proper posterior distribution, a fact that often gives Bayesian methods an edge
+a proper posterior distribution, a fact that often gives Bayesian methods an edge
 over other inferential methods, but this does not mean that all priors are
 equal. A large literature has developed around what might constitute a
 \textit{good} as opposed to a \textit{proper} prior.
@@ -760,10 +763,8 @@ choice probability.
 \label{sec:application_rdu}
 %==============================================================================
 
-The primary motivation for this derivation of prior and hyperprior
-distributions is to provide formal guidance for the estimation of BHM for
-structural models in economics. To give a motivating example, following
-\textcite{Gao2022}, I define a BHM where all subjects have RDU risk preferences
+Following \textcite{Gao2022}, I define a BHM where all subjects have RDU risk
+preferences
 using the CRRA utility function and the 2-parameter \textcite{Prelec1998}
 probability weighting function (PWF):
 \begin{align}
@@ -956,6 +957,10 @@ across all quantities.
 \section{Estimation}
 \label{sec:estimation}
 %==============================================================================
+
+I now describe the specific choices made to estimate the model, including the
+reference lottery design, direct prior beliefs, and variance decomposition
+parameters.
 
 \begin{pycode}
 # Reference lottery shorthand for Table 1
@@ -1188,8 +1193,8 @@ researcher to compute the forward map post-estimation.
 \end{figure}
 
 Figures \ref{fig:post_ce_min} and \ref{fig:post_ce_max} examine the posterior
-predictive CE for individual subjects under $L_1$, comparing the informative
-and diffuse models. Subject \py{subject_min_ce}
+predictive CE for individual subjects across all three reference lotteries,
+comparing the informative and diffuse models. Subject \py{subject_min_ce}
 (Figure \ref{fig:post_ce_min}) has the smallest change in median CE between
 models: this subject's 80 choices are sufficiently informative to dominate
 either hyperprior, producing nearly identical posteriors regardless of prior
@@ -1339,15 +1344,22 @@ weakly informative data, the informative prior provides meaningful
 regularization. The CDF difference analysis makes the prior's influence
 transparent across all subjects, lotteries, and quantiles simultaneously.
 
-The framework reduces the researcher's burden from $4p$ opaque hyperprior
-parameters to $4p$ interpretable choices: a mean, variance, variance partition
-ratio, and heterogeneity confidence for each of $p$ quantities. When $\rho$
+The framework replaces $4p$ opaque hyperprior parameters with $4p$
+interpretable choices: a mean, variance, variance partition ratio, and
+heterogeneity confidence for each of $p$ quantities. The number of choices is
+the same, but their nature changes: each input is stated in terms of
+predictive quantities that researchers can reason about directly. When $\rho$
 and $\kappa$ are shared across quantities, as is natural when the researcher
-lacks strong reasons to differentiate, this reduces to $2p + 2$. For a model
-with 10 parameters, such as CPT, this would reduce 40 hyperprior parameters to
-22, with each choice specified in terms of quantities that researchers have
-decades of empirical evidence to draw upon.
+lacks strong reasons to differentiate, only $2p + 2$ distinct choices are
+needed. For a model with 10 parameters, such as CPT, this would reduce 40
+hyperprior parameters to 22, with each choice specified in terms of quantities
+that researchers have decades of empirical evidence to draw upon.
 
+
+\subsection*{Code and Data Availability}
+
+The estimation code, data, and replication materials for this paper are
+available at \url{https://github.com/bmonroe3/bhm-prior-selection}.
 
 % The References for the main text
 \pagebreak

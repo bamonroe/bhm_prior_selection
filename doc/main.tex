@@ -133,11 +133,11 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
   number of individual-level parameters. I develop a framework that replaces
   these with substantively meaningful inputs. First, researchers specify prior
   beliefs on predictive quantities, such as certainty equivalents, rather than
-  structural parameters, using a Jacobian correction to translate between
-  spaces. Second, a distribution-free variance decomposition reduces the
+  structural parameters, using a Jacobian correction to translate exactly
+  between spaces. Second, a variance decomposition reduces the
   remaining degrees of freedom to two interpretable parameters: a variance
-  partition ratio $\rho$ and a coefficient of variation $\kappa$. Together
-  these fully determine the hyperprior for any distributional family. I
+  partition ratio $\rho$ and a coefficient of variation $\kappa$ that, for a
+  chosen distributional family, determine the moment-matched hyperprior. I
   demonstrate the approach with rank-dependent utility estimation using lottery
   choice data. The quantity-space framework reveals a lottery-specific pattern
   of risk attitudes, with probability weighting producing risk-seeking certainty
@@ -203,16 +203,17 @@ addresses both the \textit{space} in which beliefs are specified and the
 \textit{structure} of the hyperprior itself. The first contribution is a
 quantity-space prior specification: the researcher states beliefs about
 quantities they can reason about directly, such as certainty equivalents (CEs)
-and choice probabilities, rather than abstract structural parameters. An invertible
-mapping and a Jacobian correction translate these beliefs into parameter-space
-priors exactly, with no approximation. The second contribution is a
-distribution-free variance decomposition that reduces the remaining degrees of
-freedom in any hyperprior to two interpretable parameters: a variance partition
-ratio $\rho$ that governs the split between uncertainty about the population
-center and genuine population heterogeneity, and a coefficient of variation
-$\kappa$ that measures confidence in the heterogeneity specification. Together,
-the direct prior and the researcher's choices of $\rho$ and $\kappa$ fully
-determine the hyperprior.
+and choice probabilities, rather than abstract structural parameters. An
+injective mapping and a Jacobian correction translate these beliefs into
+parameter-space priors exactly. The second contribution is a variance
+decomposition that reduces the remaining degrees of freedom in the hyperprior
+to two interpretable parameters: a variance partition ratio $\rho$ that governs
+the split between uncertainty about the population center and genuine
+population heterogeneity, and a coefficient of variation $\kappa$ that measures
+confidence in the heterogeneity specification. For a chosen distributional
+family, the direct prior and the researcher's choices of $\rho$ and $\kappa$
+determine the moment-matched hyperprior, subject to family-specific feasibility
+constraints derived in Appendix~\ref{app:hyperprior_families}.
 
 This framework bridges two literatures that have largely developed in parallel.
 One camp, exemplified by \textcite{Gelman2006} and \textcite{Simpson2017},
@@ -686,9 +687,10 @@ The feasibility region in $(\rho, \kappa)$ space is also family-dependent.
 Families where the conditional variance is a single parameter (NIG,
 Gamma-Inverse-Gamma) admit all $\kappa > 0$ with no joint constraint on $\rho$.
 Families where the conditional variance depends on the mean hyperparameter
-(Beta-Beta) impose a lower bound on $\kappa$ that increases with $\rho$: the
-variation in the mean hyperparameter contributes irreducibly to conditional
-variance variation, setting a floor that $\kappa$ must exceed. In all cases,
+(Beta-Beta) impose both a lower bound on $\kappa$ (from the irreducible
+conditional variance variation contributed by the mean hyperparameter) and an
+upper bound (from the requirement that the dispersion hyperprior remain
+proper). In all cases,
 the feasibility constraints are computable in closed form from the researcher's
 direct prior and can be checked before estimation.
 
@@ -737,7 +739,7 @@ choice data, where the predictive quantities are certainty equivalents and a
 choice probability.
 
 %==============================================================================
-\section{Application: RDU with Real Data}
+\section{Application: RDU with Experimental Lottery-Choice Data}
 \label{sec:application_rdu}
 %==============================================================================
 
@@ -802,9 +804,9 @@ $\bth = (r, \phi, \eta, \lambda)$. While we can follow
 \textcite{Gao2022} in using independent Normal-Inverse-Gamma distributions to
 model the hyperprior distributions for these parameters, this would require us
 to set the 16 hyperprior parameters, each with consequences on the prior predictive
-distribution of observable quantities. Following the method in Section
+distribution of predictive quantities. Following the method in Section
 \ref{sec:gq_space}, we start instead by specifying 4 direct priors on
-observable quantities about which a researcher would have strong beliefs: 3
+predictive quantities about which a researcher would have strong beliefs: 3
 certainty equivalents (CEs) and one choice probability.
 
 The CE is the certain amount of money that results in the same utility as a
@@ -893,8 +895,10 @@ hyperprior parameters $(a_\mu^k, b_\mu^k, a_\psi^k, b_\psi^k)$. Because the
 conditional variance $\mu_k(1-\mu_k)\psi_k$ depends on both hyperparameters,
 the translation from $\kappa_k$ to the dispersion hyperprior $(a_\psi^k,
 b_\psi^k)$ requires accounting for cross-moments between $\mu_k$ and $\psi_k$.
-The complete derivation, including the feasibility region and the $\kappa$
-lower bound for the Beta-Beta family, is given in
+As in the general theory, $\kappa_k$ targets uncertainty in the conditional
+variance; the Beta hyperprior on $\psi_k$ is the device used to realize that
+target. The complete derivation, including the feasibility region and the
+$\kappa$ bounds for the Beta-Beta family, is given in
 Appendix~\ref{app:beta_beta}.
 While $\rho_k$ and $\kappa_k$ can differ across quantities, both are
 unit-agnostic ratios that express the same structural beliefs about the nature
@@ -925,14 +929,15 @@ for k in [1, 2, 3]:
 
 The quantity-space framework of Section \ref{sec:ce_space} requires reference
 lotteries for the CE mapping and a reference pair for the choice probability,
-chosen so that the map from parameters to observable quantities is injective. Appendix \ref{app:global_injectivity} derives the conditions; for
+chosen so that the map from parameters to predictive quantities is injective. Appendix \ref{app:global_injectivity} derives the conditions; for
 the specific Prelec--CRRA design used here, they reduce to using two binary
 lotteries with distinct probabilities on the higher outcome, a third binary
 lottery with shared probability $p_3 = p_1$ whose outcome ratio differs from
 that of $L_1$, and a non-degenerate choice-probability pair. I
 additionally require that no pair of lotteries with overlapping outcomes
-exhibits first-order stochastic dominance, so that independent marginal
-distributions can be specified over all CE quantities.
+exhibits first-order stochastic dominance, which avoids obvious ordering
+contradictions when specifying independent marginal distributions over
+the CE quantities.
 Table \ref{tab:lottery_design} presents a set of lotteries satisfying these
 conditions, with the pair $(L_1, L_3)$ chosen for the choice probability
 mapping.
@@ -955,7 +960,7 @@ mapping.
 For each quantity, the researcher must specify beliefs about what that quantity
 might be for a randomly selected individual. The variance decomposition of
 Section \ref{sec:variance_decomposition} requires a direct prior mean and
-variance, but there are many ways to elicit beliefs about observable quantities
+variance, but there are many ways to elicit beliefs about predictive quantities
 that yield a proper direct prior. One natural approach is to specify a mean and
 the probability that a randomly selected individual is risk-seeking. For CEs,
 risk-seeking means having a CE above the expected value; for the choice
@@ -1274,7 +1279,7 @@ The no-FOSD requirement and the prize diversity condition for injectivity
 mitigate this concern, but the researcher should verify that the implied
 joint prior on parameters is sensible by examining prior predictive draws.
 
-Fifth, the application demonstrates that for a subset of subjects
+Fourth, the application demonstrates that for a subset of subjects
 (approximately 18\% in the present sample), the hyperprior is the dominant
 factor in posterior inference. This is not a limitation of the framework per
 se, but rather an identification issue inherent to the 4-parameter RDU model

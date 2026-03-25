@@ -452,7 +452,17 @@ discuss the detailed mathematical derivation of this formula and note the
 correction via the Coarea Formula needed when $k < p$. Given the focus of
 risk preference models, and the abundance of possible prior quantities on
 economic variables derived from risk preferences, I focus only on the
-cases where $k \geq p$, with particular emphasis on $k = p$.
+cases where $k \geq p$, with particular emphasis on $k = p$.\footnote{
+  When $k > p$, the image of $\bg$ is a $p$-dimensional manifold in
+  $\R^k$, and the quantity-space density $p_\vartheta$ is evaluated only on
+  this manifold. The induced prior $p_\theta$ in (\ref{eq:jacobian_prior})
+  is therefore not automatically normalized even if $p_\vartheta$ integrates
+  to one over $\R^k$. This is immaterial for Bayesian inference, which
+  requires only a proper (finitely integrable) prior; the normalizing
+  constant cancels between the prior and the posterior. As
+  \textcite[110]{Segert2019} note, normalization of the transformed measure
+  is not assumed in the derivation of the formula.
+}
 
 In practical terms, it is worth emphasizing that only the \textit{forward}
 mapping $\bg$ and its Jacobian are needed: the inverse, $\bg^{-1}$, does not

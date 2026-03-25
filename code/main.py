@@ -231,7 +231,7 @@ do_hyper_plots_ce          = False
 do_subject_plots_ce        = False
 
 # --- Paper Comparison Plots ---
-do_paper_predictive_overlay = True
+do_paper_predictive_overlay = False
 do_paper_subject_ce         = False
 do_paper_subject_ce_all     = False
 
@@ -239,7 +239,7 @@ do_paper_subject_ce_all     = False
 do_injectivity_analysis    = False
 
 # --- Document Compilation ---
-do_compile_doc          = True
+do_compile_doc          = False
 
 
 # =============================================================================

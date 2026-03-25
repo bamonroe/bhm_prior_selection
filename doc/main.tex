@@ -928,8 +928,8 @@ lotteries for the CE mapping and a reference pair for the choice probability,
 chosen so that the map from parameters to observable quantities is injective. Appendix \ref{app:global_injectivity} derives the conditions; for
 the specific Prelec--CRRA design used here, they reduce to using two binary
 lotteries with distinct probabilities on the higher outcome, a third binary
-lottery with shared probability $p_3 = p_1$ whose outcomes are not a scalar
-multiple of those in $L_1$, and a non-degenerate choice-probability pair. I
+lottery with shared probability $p_3 = p_1$ whose outcome ratio differs from
+that of $L_1$, and a non-degenerate choice-probability pair. I
 additionally require that no pair of lotteries with overlapping outcomes
 exhibits first-order stochastic dominance, so that independent marginal
 distributions can be specified over all CE quantities.
@@ -1038,8 +1038,9 @@ hierarchical predictive closely tracks the direct prior for these parameter
 values.
 
 The quantity-space hierarchy defines a joint prior on $(\CE_1, \CE_2, \CE_3,
-P)$. The change-of-variables formula with the Jacobian of
-Appendix \ref{app:global_injectivity} transforms this to the parameter-space prior
+P)$. The change-of-variables formula, whose injectivity requirement is
+verified in Appendix \ref{app:global_injectivity}, transforms this to the
+parameter-space prior
 $p(r, \phi, \eta, \lambda)$ used in sampling:
 \begin{equation}
   \label{eq:jacobian_prior_rdu}
@@ -1254,7 +1255,7 @@ researcher choices and numerical rather than closed-form solutions.
 
 Second, the quantity-space specification requires an injective mapping from
 parameters to predictive quantities. This constrains the design of reference
-lotteries (prize diversity is needed for global injectivity) and means that
+lotteries (prize diversity is needed for injectivity) and means that
 not all experimental designs are equally suitable for prior specification.
 
 Third, the framework specifies independent marginal direct priors over the $p$

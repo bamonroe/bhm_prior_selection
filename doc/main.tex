@@ -926,11 +926,13 @@ for k in [1, 2, 3]:
 The quantity-space framework of Section \ref{sec:ce_space} requires reference
 lotteries for the CE mapping and a reference pair for the choice probability,
 chosen so that the map from parameters to observable quantities is injective. Appendix \ref{app:global_injectivity} derives the conditions; for
-three binary lotteries they reduce to requiring different probability
-distributions across at least two lotteries and outcomes that are not scalar
-multiples of one another. I additionally require that no pair of lotteries with
-overlapping outcomes exhibits first-order stochastic dominance, so that
-independent marginal distributions can be specified over all CE quantities.
+the specific Prelec--CRRA design used here, they reduce to using two binary
+lotteries with distinct probabilities on the higher outcome, a third binary
+lottery with shared probability $p_3 = p_1$ whose outcomes are not a scalar
+multiple of those in $L_1$, and a non-degenerate choice-probability pair. I
+additionally require that no pair of lotteries with overlapping outcomes
+exhibits first-order stochastic dominance, so that independent marginal
+distributions can be specified over all CE quantities.
 Table \ref{tab:lottery_design} presents a set of lotteries satisfying these
 conditions, with the pair $(L_1, L_3)$ chosen for the choice probability
 mapping.
@@ -1023,9 +1025,17 @@ with different natural units. I set $\kappa_k =
 within-population variance is \py{fmt(D['kappa_pct'], 0)}\%. This reflects
 moderately high confidence in the heterogeneity specification: the prior places
 most of its mass near the target level of heterogeneity while still permitting
-the data to move it. Appendix~\ref{app:hyperprior_families}
-(Figure~\ref{fig:nig_sensitivity}) illustrates how these choices control the
-hierarchical structure of the prior.
+the data to move it. Appendix~\ref{app:beta_beta}
+(Figures~\ref{fig:bb_sensitivity}--\ref{fig:bb_distributional}) illustrates how
+these choices control the hierarchical structure of the prior for the Beta-Beta
+family. In particular, $\rho$ governs the between-population SD (panel~a),
+which determines how much the population mean can shift across hyperprior
+draws, while $\kappa$ governs the IQR of the within-population SD (panel~c),
+which determines how variable the level of individual heterogeneity is across
+draws. The distributional approximation quality
+(Figure~\ref{fig:bb_distributional}) confirms that the moment-matched
+hierarchical predictive closely tracks the direct prior for these parameter
+values.
 
 The quantity-space hierarchy defines a joint prior on $(\CE_1, \CE_2, \CE_3,
 P)$. The change-of-variables formula with the Jacobian of

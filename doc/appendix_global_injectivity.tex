@@ -1,7 +1,6 @@
-\appsection{Global Injectivity: Detailed Analysis}
+\appsection{Injectivity Analysis for the Change-of-Variables Prior}
 \label{app:global_injectivity}
 %==============================================================================
-\label{sec:strategy}
 
 For a scalar map $f \colon \R \to \R$, global injectivity is equivalent to
 strict monotonicity, which can be checked from the sign of the derivative. For
@@ -123,22 +122,22 @@ $\Theta \times \mathcal{W} \times (0,\infty)$ sufficient for the
 Bayesian change of variables, where $P_{K+1}$ is a choice probability
 from an additional task.
 
-For the Prelec--CRRA model of Section~\ref{sec:application_rdu}, three binary
-lotteries and one choice probability suffice. Two binary lotteries with
-distinct probabilities on the higher outcome produce two unique decision
-weights, which is sufficient to identify the two Prelec parameters. With a
-change of variables to decision weights, a third binary lottery that shares a
-decision weight with $L_1$ or $L_2$ identifies the CRRA parameter. Because CRRA
-is invariant to multiplicative scaling of outcomes, the outcomes of $L_3$
-cannot be a multiplicative rescaling of the outcomes from the lottery with
-which it shares a decision weight. The noise parameter is identified from
-choice probabilities over any pair of the three lotteries. The remainder of
-this section establishes sufficient conditions for injectivity on a
-full-measure subset, which is the level needed for the transformed prior,
+For the specific Prelec--CRRA design used in
+Section~\ref{sec:application_rdu}, three binary lotteries and one additional
+choice probability suffice. Two binary lotteries with distinct probabilities on
+the higher outcome produce two unique decision weights, which identify the two
+Prelec parameters. The verification below then uses a third binary lottery with
+shared probability $p_3 = p_1$ to identify the CRRA parameter. Because CRRA is
+invariant to multiplicative scaling of outcomes, the outcomes of $L_3$ cannot
+be a multiplicative rescaling of the outcomes of $L_1$. A final non-degenerate
+choice task identifies the noise parameter away from the indifference locus.
+The remainder of this section establishes sufficient conditions for injectivity
+on a full-measure subset, which is the level needed for the transformed prior,
 first generally for any utility function and probability weighting function
-(Conditions~A, B, and~C below), followed by proofs that the proposed design satisfies them
-(\cref{sec:condition_a_verification,sec:prelec_crra}) specifically for the CRRA
-and 2 parameter Prelec functions.
+(Conditions~A, B, and~C below), followed by proofs that the proposed
+all-binary shared-probability design satisfies them
+(\cref{sec:condition_a_verification,sec:prelec_crra}) for the CRRA and
+2-parameter Prelec functions.
 
 \subsubsection{Lottery design}
 \label{sec:design}
@@ -286,8 +285,11 @@ $\mathcal{I} = \Theta \times \mathcal{W}$ and must be excluded. For
 non-degenerate designs where $\Delta V$ is analytic and not
 identically zero, $\mathcal{I}$ is a lower-dimensional analytic
 variety (hence has Lebesgue measure zero), and Condition~C holds on
-the full-measure complement. In practice, $A \neq B$ is sufficient
-for standard PWF and utility families.
+the full-measure complement. For standard analytic utility and PWF
+families, it is usually enough to choose a genuinely distinct pair of
+lotteries for which $\Delta V$ is not identically zero as a function
+of $(\bth,\bomega)$, but this is a property of the specific design and
+should be checked rather than assumed.
 
 \subsubsection{Main theorem}
 \label{sec:theorem}
@@ -432,9 +434,11 @@ The proof of \cref{lem:prelec_two_point} provides the explicit
 inverse. Given observed values $w_1 = w(p_1)$ and
 $w_2 = w(p_2)$ with $t_i = -\ln p_i$:
 \begin{equation}\label{eq:W_inverse}
+  \begin{aligned}
     \phi = \frac{\ln(\ln w_1 / \ln w_2)}{\ln(t_1 / t_2)},
-    \qquad
+    \\
     \eta = \frac{-\ln w_1}{t_1^{\,\phi}}.
+  \end{aligned}
 \end{equation}
 Both expressions are well defined whenever $w_1, w_2 \in (0,1)$
 satisfy the ordering induced by $p_1$ and $p_2$. The condition
@@ -447,7 +451,9 @@ This bijectivity is likely available for other common two-parameter
 PWF families (e.g., Goldstein--Einhorn). Because of this bijection,
 we conduct all subsequent analysis in $(r, w_1, w_2)$ space subject
 only to the ordering restriction implied by $p_1$ and $p_2$; the
-Prelec parameters do not appear again.
+Prelec parameters do not appear again. This ordering restriction is automatic
+for the Prelec family on $\R^2_{>0}$, so it does not impose any additional
+support restriction beyond remaining in the image $W(\R^2_{>0})$.
 
 For the all-binary design, each Block~I lottery $L_k$ is binary with
 probability $p_k$ on the better outcome. When $p_1 \neq p_2$,
@@ -478,9 +484,11 @@ For a binary lottery $L_k$ with outcomes $(\xlo_k, \xhi_k)$
 and probability $p_k$ on the better outcome, the normalized RDU
 value~\eqref{eq:rdu_value} is
 \begin{equation}\label{eq:binary_rdu}
+  \begin{aligned}
     V_k = \mu_{\xlo_k} + w(p_k)\,\Delta\mu_k,
-    \qquad
+    \\
     \Delta\mu_k \coloneqq \mu_{\xhi_k} - \mu_{\xlo_k} > 0.
+  \end{aligned}
 \end{equation}
 With two binary lotteries having $p_1 \neq p_2$:
 \begin{equation}
@@ -533,10 +541,21 @@ With $p = 1$, Condition~B reduces to the scalar condition
 $dc_3/dr\big|_{c_1} \neq 0$. The shared-probability design
 $p_3 = p_1$ eliminates the PWF parameters entirely:
 both $L_1$ and $L_3$ share the decision weight $w_3 = w_1$.
+The proof has three steps. First, show that $b = 0$ is fatal because then
+$L_3$ is only a rescaling of $L_1$. Second, normalize out the scale factor
+$m$ and derive a usable identity for $dc_3/ds$. Third, show that the kernel
+in that identity is strictly decreasing, so any nonzero shift $b$ changes the
+outcome ratio and forces $dc_3/ds \neq 0$.
+
+The first step is to establish the necessary condition and normalize away the
+irrelevant scale factor.
 
 Parameterize $L_3$'s outcomes relative to~$L_1$'s:
 \begin{equation}\label{eq:affine}
-    \xhi_3 = m\,\xhi_1 + b, \qquad \xlo_3 = m\,\xlo_1 + b,
+  \begin{aligned}
+    \xhi_3 &= m\,\xhi_1 + b, \\
+    \xlo_3 &= m\,\xlo_1 + b.
+  \end{aligned}
 \end{equation}
 where $m = (\xhi_3 - \xlo_3)/(\xhi_1 - \xlo_1) > 0$ is the spread ratio
 and $b = \xlo_3 - m\,\xlo_1$ is the shift.
@@ -558,16 +577,14 @@ Substituting into~(\ref{eq:c3_shared}) makes $c_3$ a function of $s$ alone:
   c_3^{\,s} &= w_1(s) \left[ (m\,\xhi_1 + b)^s - (m\,\xlo_1 + b)^s\right] + (m\,\xlo_1 + b)^s.
 \end{align}
 
-Setting $b = 0$ reveals a necessary condition. Expanding $w_1(s)$ and simplifying:
-\begin{align}
-  c_3^{\,s} &= w_1(s) \left[ m^s\,\xhi_1^s - m^s\,\xlo_1^s\right] + m^s\,\xlo_1^s \notag \\
-  c_3^{\,s} &= w_1(s) m^s\left[ \xhi_1^s - \xlo_1^s\right] + m^s\,\xlo_1^s \notag \\
-  c_3^{\,s} &= m^s \left[w_1(s) \left( \xhi_1^s - \xlo_1^s\right) + \xlo_1^s\right] \notag \\
-  c_3^{\,s} &= m^s \left[\frac{c_1^{\,s} - \xlo_1^s}{\, \xhi_1^s - \xlo_1^s} \left( \xhi_1^s - \xlo_1^s\right) + \xlo_1^s\right] \notag \\
-  c_3^{\,s} &= m^s \left[c_1^{\,s} - \xlo_1^s + \xlo_1^s\right] \notag \\
-  c_3^{\,s} &= (m\, c_1)^{\,s} \notag \\
-  c_3 &= m\, c_1
-\end{align}
+Setting $b = 0$ reveals a necessary condition. In that case $L_3$ is just the
+scaled lottery $mL_1$, so
+\begin{equation}
+  c_3^{\,s}
+  = m^s \bigl[w_1(s)\,\xhi_1^s + (1-w_1(s))\,\xlo_1^s\bigr]
+  = m^s c_1^{\,s},
+\end{equation}
+hence $c_3 = m\,c_1$.
 When $b = 0$, the CE $c_3 = m\,c_1$ is independent of~$s$, so $L_3$ provides
 no information about~$r$. This reflects the well-known scale invariance of
 CRRA utility. The remainder of this section shows that $b \neq 0$ is also
@@ -576,25 +593,69 @@ CRRA utility. The remainder of this section shows that $b \neq 0$ is also
 CRRA homogeneity $\CE(mL) = m \cdot \CE(L)$ implies that the scale
 factor~$m$ does not affect monotonicity of $c_3$ in~$r$, so we may
 normalize by dividing $L_3$'s outcomes by~$m$. Writing $e = b/m$, the
-condition $b \neq 0$ is equivalent to $e \neq 0$, and the CE equations become
+condition $b \neq 0$ is equivalent to $e \neq 0$. Define the shifted outcomes
+of this normalized lottery as $\ylo,\yhi$ to distinguish them from the
+original $L_3$ outcomes $\xlo_3,\xhi_3$, which still satisfy
+$\xlo_3 = m\,\ylo$ and $\xhi_3 = m\,\yhi$:
+\[
+  \begin{aligned}
+    \ylo &= \xlo_1 + e, \\
+    \yhi &= \xhi_1 + e.
+  \end{aligned}
+\]
+Then the CE equations become
 \begin{align}
     c_1^{\,s} &= w_1\, \xhi_1^s + (1-w_1)\, \xlo_1^s,
     \label{eq:c1_shift} \\
-    \tilde{c}_3^{\,s} &= w_1\, (\xhi_1 + e)^s
-      + (1-w_1)\, (\xlo_1 + e)^s,
+    \tilde{c}_3^{\,s} &= w_1\, \yhi^s
+      + (1-w_1)\, \ylo^s,
     \label{eq:c3_shift}
 \end{align}
 where $\tilde{c}_3$ is the CE of the normalized lottery (with
 $c_3 = m\,\tilde{c}_3$); write $c_3$ for $\tilde{c}_3$ hereafter.
+Because all CRRA outcomes must remain positive, $0 < \ylo < \yhi$.
 
-Implicitly differentiating~(\ref{eq:c3_shift}) with respect to~$s$:
+The second step is to derive a usable formula for $dc_3/ds$.
+
+The next lemma isolates the algebraic reduction. Its role is to rewrite
+$dc_3/ds$ so that the sign question depends only on a simple prefactor and a
+one-dimensional kernel.
+
+\begin{lemma}[Condition~B derivative identity]
+\label{lem:condB_derivative_identity}
+Under the normalized shared-probability representation above,
+\begin{equation}\label{eq:dc3ds_H}
+  \frac{dc_3}{ds}
+  = \frac{\yhi^s - \ylo^s}{s^2 c_3^{s-1}}
+    \Bigl[H_{w_1(s)}(\rho_3) - H_{w_1(s)}(\rho_1)\Bigr],
+\end{equation}
+where
+\[
+  \begin{aligned}
+    \rho_1 &= \left(\frac{\xlo_1}{\xhi_1}\right)^s, \\
+    \rho_3 &= \left(\frac{\ylo}{\yhi}\right)^s, \\
+    H_w(\rho)
+      &= \frac{(1-w)\rho\ln\rho
+        - [w + (1-w)\rho]\ln[w + (1-w)\rho]}
+        {1-\rho}.
+  \end{aligned}
+\]
+\end{lemma}
+
+\begin{proof}
+We start from the normalized CE equation~(\ref{eq:c3_shift}) and
+differentiate it with respect to~$s$. This produces a first expression for
+$dc_3/ds$ involving both $w_1'(s)$ and the direct $s$-dependence of the
+outcomes.
+
+Implicitly differentiating~(\ref{eq:c3_shift}) with respect to~$s$ gives
 \begin{align}
   \label{eq:idiff}
   \begin{split}
   c_3^{\,s}\!\left(\ln c_3 + \frac{s}{c_3}\frac{dc_3}{ds}\right) &=
-    w_1'(s)\,[(\xhi_1{+}e)^s - (\xlo_1{+}e)^s]
-    + w_1(s)\,[(\xhi_1{+}e)^s \ln(\xhi_1{+}e) - (\xlo_1{+}e)^s \ln(\xlo_1{+}e)] \\
-    &\quad + (\xlo_1{+}e)^s \ln(\xlo_1{+}e)
+    w_1'(s)\,(\yhi^s - \ylo^s)
+    + w_1(s)\,(\yhi^s \ln\yhi - \ylo^s \ln\ylo) \\
+    &\quad + \ylo^s \ln\ylo
   \end{split}
 \end{align}
 From~(\ref{eq:solved_w1}), the quotient rule gives:
@@ -611,16 +672,20 @@ Solving~(\ref{eq:idiff}) for $dc_3/ds$:
 \begin{align}
   \label{eq:dc3ds}
   \frac{dc_3}{ds} = \frac{1}{s\, c_3^{\,s-1}}\Bigl[&\;
-    w_1'(s)\,[(\xhi_1{+}e)^s - (\xlo_1{+}e)^s] \notag \\
-    &\; + w_1(s)\,[(\xhi_1{+}e)^s \ln(\xhi_1{+}e)
-      - (\xlo_1{+}e)^s \ln(\xlo_1{+}e)]
-    + (\xlo_1{+}e)^s \ln(\xlo_1{+}e) - c_3^{\,s} \ln c_3
+    w_1'(s)\,(\yhi^s - \ylo^s) \notag \\
+    &\; + w_1(s)\,(\yhi^s \ln\yhi - \ylo^s \ln\ylo)
+    + \ylo^s \ln\ylo - c_3^{\,s} \ln c_3
   \Bigr]
 \end{align}
-Condition~B holds if $dc_3/ds \neq 0$ for all $s \neq 0$
-(equivalently $dc_3/dr \neq 0$, since $s = 1 - r$).
-To analyze the sign of the bracket in~(\ref{eq:dc3ds}),
-define the Jensen gap of $\phi(t) = t\ln t$ for lottery~$L_k$:
+
+At this point the formula is exact but not yet useful for determining the sign
+of $dc_3/ds$. The key observation is that the bracketed terms can be recognized
+as Jensen gaps of the convex function $\phi(t) = t\ln t$, which are always
+positive and factor into a scale term (depending on outcome levels) and a
+one-dimensional kernel (depending only on the outcome ratio). This factorization
+is what ultimately reduces Condition~B to a monotonicity argument.
+
+Define the Jensen gap of $\phi(t) = t\ln t$ for lottery~$L_k$:
 \begin{equation}\label{eq:jensen_gap_def}
   G_k
   = w_1\,\phi(\xhi_k^s) + (1-w_1)\,\phi(\xlo_k^s)
@@ -632,8 +697,8 @@ Using $\phi(x^s) = x^s \ln(x^s) = s\, x^s \ln x$,
 the three non-$w_1'$ terms in the bracket
 of~(\ref{eq:dc3ds}) are
 \begin{equation}\label{eq:bracket_J3}
-  w_1\,(\xhi_1{+}e)^s \ln(\xhi_1{+}e)
-  + (1-w_1)\,(\xlo_1{+}e)^s \ln(\xlo_1{+}e)
+  w_1\,\yhi^s \ln\yhi
+  + (1-w_1)\,\ylo^s \ln\ylo
   - c_3^s \ln c_3
   \;=\; \frac{G_3}{s}.
 \end{equation}
@@ -649,156 +714,206 @@ Substituting into~(\ref{eq:dc3ds}):
   \frac{dc_3}{ds}
   = \frac{1}{s\, c_3^{s-1}}
     \left[
-      \frac{-G_1\bigl[(\xhi_1{+}e)^s - (\xlo_1{+}e)^s\bigr]}
+      \frac{-G_1(\yhi^s - \ylo^s)}
            {s\,(\xhi_1^s - \xlo_1^s)}
     + \frac{G_3}{s}\right].
 \end{equation}
-Since $s^2 > 0$ and $c_3^{s-1} > 0$, the sign of
-$dc_3/ds$ is determined by the bracket, so
-Condition~B is equivalent to
-\begin{equation}\label{eq:condB_ratio}
-  \frac{w_1\,\xhi_1^s\ln\xhi_1^s
-    + (1{-}w_1)\,\xlo_1^s\ln\xlo_1^s
-    - c_1^s\ln c_1^s}
-       {\xhi_1^s - \xlo_1^s}
-  \;\neq\;
-  \frac{w_1\,(\xhi_1{+}e)^s\ln(\xhi_1{+}e)^s
-    + (1{-}w_1)\,(\xlo_1{+}e)^s\ln(\xlo_1{+}e)^s
-    - c_3^s\ln c_3^s}
-       {(\xhi_1{+}e)^s - (\xlo_1{+}e)^s}
-\end{equation}
-for all $s \neq 0$.
-Suppose for contradiction that equality holds
-in~(\ref{eq:condB_ratio}) for some $s \neq 0$ and
-$e \neq 0$.
-Using $x^s\ln(x^s) = s\,x^s\ln x$, a common factor
-of~$s$ appears in both numerators and cancels, giving
-\begin{equation}\label{eq:condB_s_cancelled}
-  \frac{w_1\,\xhi_1^s\ln\xhi_1
-    + (1{-}w_1)\,\xlo_1^s\ln\xlo_1
-    - c_1^s\ln c_1}
-       {\xhi_1^s - \xlo_1^s}
-  \;=\;
-  \frac{w_1\,(\xhi_1{+}e)^s\ln(\xhi_1{+}e)
-    + (1{-}w_1)\,(\xlo_1{+}e)^s\ln(\xlo_1{+}e)
-    - c_3^s\ln c_3}
-       {(\xhi_1{+}e)^s - (\xlo_1{+}e)^s}.
-\end{equation}
-Write $\rho_k = (\xlo_k/\xhi_k)^s$ and divide
-numerator and denominator on each side
-of~(\ref{eq:condB_s_cancelled}) by~$\xhi_k^s$. Since
-$\ln\xlo_k = \ln\xhi_k + \tfrac{1}{s}\ln\rho_k$
-and $\ln c_k = \ln\xhi_k
-  + \tfrac{1}{s}\ln[w_1{+}(1{-}w_1)\rho_k]$,
-the coefficient of~$\ln\xhi_k$ in each numerator is
-$w_1 + (1{-}w_1)\rho_k - [w_1{+}(1{-}w_1)\rho_k] = 0$.
-A common factor of~$\tfrac{1}{s}$ cancels, reducing~(\ref{eq:condB_s_cancelled}) to
-\begin{equation}\label{eq:ratio_of_rho}
-  \frac{(1{-}w_1)\,\rho_1\ln\rho_1
-    - [w_1 {+} (1{-}w_1)\rho_1]\,
-      \ln[w_1 {+} (1{-}w_1)\rho_1]}
-       {1 - \rho_1}
-  \;=\;
-  \frac{(1{-}w_1)\,\rho_3\ln\rho_3
-    - [w_1 {+} (1{-}w_1)\rho_3]\,
-      \ln[w_1 {+} (1{-}w_1)\rho_3]}
-       {1 - \rho_3}.
-\end{equation}
-Both sides are the same function of~$\rho_k$
-(with~$w_1$ fixed), evaluated at $\rho_1$
-and~$\rho_3$ respectively. We show this function is
-strictly decreasing, so the equality forces
-$\rho_1 = \rho_3$.
 
-Write $f(\rho)$ for the numerator
-of~(\ref{eq:ratio_of_rho}), so the ratio is
-$f(\rho)/(1-\rho)$. Differentiating $f$ term by
-term:
+The last step is to factor each Jensen gap into a scale term and a ratio term.
+This is where the proof becomes easier to interpret: once this factorization is
+done, the two lotteries enter only through their low/high outcome ratios
+encoded in $\rho_1$ and $\rho_3$.
+Because $w_1 = w_1(s) \in (0,1)$ and
+\[
+  \begin{aligned}
+    c_1^s &= \xhi_1^s [w_1 + (1-w_1)\rho_1], \\
+    c_3^s &= \yhi^s [w_1 + (1-w_1)\rho_3].
+  \end{aligned}
+\]
+the Jensen gaps admit the factorizations
 \begin{align}
-  \frac{d}{d\rho}\bigl[(1{-}w_1)\,\rho\ln\rho\bigr]
-    &= (1{-}w_1)(\ln\rho + 1),
+  G_1
+  &= (\xhi_1^s - \xlo_1^s)\,H_{w_1}(\rho_1),
+  \label{eq:G1_H} \\
+  G_3
+  &= (\yhi^s - \ylo^s)\,H_{w_1}(\rho_3).
+  \label{eq:G3_H}
+\end{align}
+Substituting~(\ref{eq:G1_H}) and~(\ref{eq:G3_H}) into~(\ref{eq:dc3ds_collapsed})
+yields~(\ref{eq:dc3ds_H}).
+\end{proof}
+
+It remains to show that the kernel difference
+$H_{w_1(s)}(\rho_3) - H_{w_1(s)}(\rho_1)$ in~(\ref{eq:dc3ds_H}) is nonzero
+whenever $b \neq 0$. This follows if $H_w$ is strictly monotone in~$\rho$,
+since $b \neq 0$ changes the outcome ratio and therefore $\rho_3 \neq \rho_1$.
+
+\begin{lemma}[Monotonicity of the Condition~B kernel]
+\label{lem:Hw_monotone}
+For each fixed $w \in (0,1)$, the function $H_w(\rho)$ is strictly decreasing
+on $(0,\infty) \setminus \{1\}$.
+\end{lemma}
+
+\begin{proof}
+To show that $H_w$ is strictly decreasing, it is enough to show that
+$H_w'(\rho) < 0$ for every $\rho \neq 1$. Because $H_w$ is defined as a ratio,
+we will apply the quotient rule. We therefore begin by differentiating the
+numerator.
+
+Write
+\[
+  H_w(\rho)
+  = \frac{f_w(\rho)}{1-\rho},
+\]
+where
+\[
+  f_w(\rho)
+  = (1-w)\rho\ln\rho
+  - [w + (1-w)\rho]\ln[w + (1-w)\rho].
+\]
+Differentiating $f_w$ term by term gives
+\begin{align}
+  \frac{d}{d\rho}\bigl[(1{-}w)\,\rho\ln\rho\bigr]
+    &= (1{-}w)(\ln\rho + 1),
   \notag\\[4pt]
   \frac{d}{d\rho}
   \bigl\{
-    {-}[w_1{+}(1{-}w_1)\rho]\,
-    \ln[w_1{+}(1{-}w_1)\rho]
+    {-}[w{+}(1{-}w)\rho]\,
+    \ln[w{+}(1{-}w)\rho]
   \bigr\}
-    &= -(1{-}w_1)
-       \bigl(\ln[w_1{+}(1{-}w_1)\rho] + 1\bigr).
+    &= -(1{-}w)
+       \bigl(\ln[w{+}(1{-}w)\rho] + 1\bigr).
   \notag
 \end{align}
-The constant terms $\pm(1{-}w_1)$ cancel, leaving
+The constant terms $\pm(1{-}w)$ cancel, leaving
 \begin{equation}\label{eq:f_prime}
-  f'(\rho)
-  = (1{-}w_1)\,
-    \ln\frac{\rho}{w_1 + (1{-}w_1)\rho}.
+  f_w'(\rho)
+  = (1{-}w)\,
+    \ln\frac{\rho}{w + (1{-}w)\rho}.
 \end{equation}
-Since $\rho < w_1 + (1{-}w_1)\rho$ for all
-$w_1 \in (0,1)$ and $\rho > 0$, the logarithm is
-negative, so $f'(\rho) < 0$ everywhere.
+This already tells us something useful: since
+\[
+  \rho < w + (1-w)\rho
+\]
+for every $w \in (0,1)$ and $\rho > 0$, the logarithm is negative, so
+$f_w'(\rho) < 0$ everywhere.
 
-By the quotient rule, the derivative of
-$f(\rho)/(1-\rho)$ has the same sign as
+We now return to $H_w$ itself and apply the quotient rule:
 \begin{equation}\label{eq:qr_num}
-  f'(\rho)\,(1 - \rho) \;+\; f(\rho),
+  H_w'(\rho)
+  = \frac{f_w'(\rho)(1-\rho) + f_w(\rho)}{(1-\rho)^2}.
 \end{equation}
-since the denominator squared $(1-\rho)^2$ is
-positive. We claim~(\ref{eq:qr_num}) is negative for
-all $\rho \neq 1$.
+Because the denominator is positive for $\rho \neq 1$, the sign of $H_w'$
+is the sign of the numerator
+\[
+  f_w'(\rho)(1-\rho) + f_w(\rho).
+\]
+So the problem is now reduced to showing that this numerator is negative
+whenever $\rho \neq 1$. At $\rho = 1$, it equals zero because
+$f_w(1) = 0$ and $1-\rho = 0$.
 
-At $\rho = 1$, $f(1) = 0$ since both terms vanish
-($\ln 1 = 0$). Combined with $(1 - \rho) = 0$,
-expression~(\ref{eq:qr_num}) vanishes at $\rho = 1$.
-
-Differentiating~(\ref{eq:qr_num}):
+The next step is to understand how this numerator behaves as $\rho$ moves away
+from $1$. Differentiating it once more gives
 \begin{equation}\label{eq:qr_deriv}
-  \frac{d}{d\rho}\bigl[f'(\rho)(1{-}\rho) + f(\rho)\bigr]
-  = f''(\rho)(1{-}\rho)
-    \underbrace{{}-f'(\rho) + f'(\rho)}_{=\,0}
-  = f''(\rho)(1{-}\rho).
+  \frac{d}{d\rho}\bigl[f_w'(\rho)(1-\rho) + f_w(\rho)\bigr]
+  = f_w''(\rho)(1-\rho).
 \end{equation}
-From~(\ref{eq:f_prime}),
+So everything now depends on the sign of $f_w''(\rho)$. From~(\ref{eq:f_prime})
+we have
 \begin{equation}\label{eq:f_double_prime}
-  f''(\rho)
-  = (1{-}w_1)\biggl[
+  f_w''(\rho)
+  = (1{-}w)\biggl[
       \frac{1}{\rho}
-      - \frac{1{-}w_1}{w_1{+}(1{-}w_1)\rho}
+      - \frac{1{-}w}{w{+}(1{-}w)\rho}
     \biggr]
-  = \frac{w_1(1{-}w_1)}
-         {\rho\,[w_1{+}(1{-}w_1)\rho]}
+  = \frac{w(1{-}w)}
+         {\rho\,[w{+}(1{-}w)\rho]}
   \;>\; 0.
 \end{equation}
-So by~(\ref{eq:qr_deriv}), the derivative
-of~(\ref{eq:qr_num}) is $f''(\rho)(1-\rho)$: positive
-for $\rho < 1$, negative for $\rho > 1$.
-Expression~(\ref{eq:qr_num}) therefore has its unique
-maximum at $\rho = 1$ where it equals zero, hence is
-strictly negative for all $\rho \neq 1$, and
-$f(\rho)/(1-\rho)$ is strictly decreasing on
+Therefore the numerator of $H_w'(\rho)$ has derivative
+$f_w''(\rho)(1-\rho)$, which is positive when $\rho < 1$ and negative when
+$\rho > 1$. In other words, that numerator increases up to $\rho = 1$ and then
+decreases afterward. Since it equals zero at $\rho = 1$, it follows that
+$\rho = 1$ is its unique maximum, so the numerator is strictly negative for
+every $\rho \neq 1$. Going back to~(\ref{eq:qr_num}), this implies
+$H_w'(\rho) < 0$ for all $\rho \neq 1$, and therefore $H_w$ is strictly decreasing on
 $(0,\infty) \setminus \{1\}$.
+\end{proof}
 
 \begin{proposition}[Shared-probability Condition~B for CRRA]
 \label{prop:shared_prob_condB}
-Under the shared-probability design $p_3 = p_1$, if
-$\xhi_1/\xlo_1 \neq \xhi_3/\xlo_3$ then Condition~B holds for all
-$s \neq 0$, equivalently for all $r \neq 1$.
+Under the shared-probability design $p_3 = p_1$, Condition~B holds for all
+$s \neq 0$ if and only if $b \neq 0$, equivalently
+$\xhi_1/\xlo_1 \neq \xhi_3/\xlo_3$.
 \end{proposition}
 
 \begin{proof}
-The equality in~(\ref{eq:ratio_of_rho}) forces
-$\rho_1 = \rho_3$, i.e.,
-\begin{equation}\label{eq:ratio_equality}
-  \biggl(\frac{\xlo_1}{\xhi_1}\biggr)^{\!s}
-  =
-  \biggl(\frac{\xlo_1 + e}{\xhi_1 + e}\biggr)^{\!s}.
-\end{equation}
-For $s \neq 0$,~(\ref{eq:ratio_equality}) gives
-$\xlo_1/\xhi_1 = (\xlo_1{+}e)/(\xhi_1{+}e)$.
-Cross-multiplying:
-$\xlo_1(\xhi_1{+}e) = \xhi_1(\xlo_1{+}e)$,
-which simplifies to $e\,(\xhi_1 - \xlo_1) = 0$.
-Since $\xhi_1 \neq \xlo_1$, this forces $e = 0$,
-contradicting our assumption. Thus Condition~B holds for all $s \neq 0$.
+The case $b = 0$ was handled in Step~1: then $c_3 = m\,c_1$ is independent
+of~$s$, so Condition~B fails. It remains to prove sufficiency.
+
+Assume $b \neq 0$, equivalently $e \neq 0$. Since
+\[
+  \begin{aligned}
+    \ylo &= \xlo_1 + e, \\
+    \yhi &= \xhi_1 + e.
+  \end{aligned}
+\]
+we have
+\[
+  \frac{\ylo}{\yhi} - \frac{\xlo_1}{\xhi_1}
+  = \frac{e(\xhi_1-\xlo_1)}{\xhi_1(\xhi_1+e)} \neq 0.
+\]
+So the normalized lottery has a different low/high outcome ratio from $L_1$.
+
+Now fix any $s \neq 0$. By \cref{lem:condB_derivative_identity},
+$dc_3/ds$ is the
+product of two terms:
+\[
+  \frac{\yhi^s - \ylo^s}{s^2 c_3^{s-1}}
+  \qquad \text{and} \qquad
+  H_{w_1(s)}(\rho_3) - H_{w_1(s)}(\rho_1).
+\]
+So it is enough to show that both terms are nonzero.
+
+Start with the kernel difference. The map $z \mapsto z^s$ is one-to-one on
+$(0,\infty)$, so
+\[
+  \begin{aligned}
+    \rho_3
+      &= \left(\frac{\ylo}{\yhi}\right)^s \\
+      &\neq \left(\frac{\xlo_1}{\xhi_1}\right)^s \\
+      &= \rho_1
+  \end{aligned}
+\]
+for every $s \neq 0$.
+
+By \cref{lem:Hw_monotone}, $H_{w_1(s)}$ is strictly decreasing in $\rho$, so
+$\rho_3 \neq \rho_1$ implies
+\[
+  H_{w_1(s)}(\rho_3) - H_{w_1(s)}(\rho_1) \neq 0.
+\]
+
+Now consider the prefactor. It is also nonzero:
+$s^2 > 0$, $c_3^{s-1} > 0$, and $\yhi^s - \ylo^s \neq 0$ because
+$0 < \ylo < \yhi$ and $z \mapsto z^s$ is strictly monotone on $(0,\infty)$
+for every $s \neq 0$.
+
+We have now shown that both terms in~(\ref{eq:dc3ds_H}) are nonzero, so
+$dc_3/ds \neq 0$. Since this holds for every $s \neq 0$, Condition~B holds for
+all $s \neq 0$, equivalently for all $r \neq 1$.
+
+Finally, $b = 0$ if and only if
+$\xhi_1/\xlo_1 = \xhi_3/\xlo_3$. One direction is immediate from
+\eqref{eq:affine}. For the converse, if the ratios are equal then
+\[
+  \begin{aligned}
+    \frac{m\xhi_1 + b}{m\xlo_1 + b}
+      &= \frac{\xhi_1}{\xlo_1} \\
+      &\Longleftrightarrow b\xlo_1 = b\xhi_1 \\
+      &\Longleftrightarrow b(\xhi_1-\xlo_1)=0,
+  \end{aligned}
+\]
+and $\xhi_1 \neq \xlo_1$.
 \end{proof}
 
 
@@ -809,7 +924,7 @@ Combining the results: the $W$-bijectivity of
 \cref{sec:W_bijection} and the diagonal $L$-matrix establish
 Condition~A (\cref{prop:binary}) for any $p_1 \neq p_2$.
 The shared-probability design $p_3 = p_1$ with
-$\xhi_1/\xlo_1 \neq \xhi_3/\xlo_3$ establishes Condition~B
+$b \neq 0$ (equivalently $\xhi_1/\xlo_1 \neq \xhi_3/\xlo_3$) establishes Condition~B
 (\cref{prop:shared_prob_condB}) on the power-CRRA domain
 $\R_{>0} \setminus \{1\}$, equivalently $s = 1-r \neq 0$.
 Thus the CE map
@@ -848,14 +963,13 @@ Block~II lotteries are chosen freely to provide outcome-side
 variation. Condition~C requires one additional choice task with
 $\Delta V \neq 0$.
 For utility families with $p > 1$ (e.g., expo-power),
-Condition~B becomes a $p \times p$ injectivity condition.
+Condition~B becomes a $p \times p$ injectivity condition. In those cases the
+scalar derivative-sign argument used for CRRA is replaced by a higher-dimensional
+reduced system, but the same sequential decomposition into Block~I, Block~II,
+and the noise task still applies.
 
-The change-of-variables computation in the main text requires the
+The change-of-variables computation in the main text also requires the
 Jacobian of the Condition~A map, which factors as
-$J_A = L \cdot J_W$ by the chain rule. That computation uses the
-original $(\phi, \eta)$ parameterization and is carried out in
-Appendix~\ref{app:jacobian_details}.
-
-
-
-\pagebreak
+$J_A = L \cdot J_W$ by the chain rule in the all-binary design.
+That factorization is separate from the injectivity argument developed
+here and is not pursued further in this appendix.

@@ -371,6 +371,10 @@ parenthetical commas instead.
 Do not place multiple equations side-by-side in a single `align` row. Each
 equation should be on its own line.
 
+Do not use `\paragraph{}` for pseudo-sections. Transitions should be
+handled with prose or with a dedicated `\subsection{}` or
+`\subsubsection{}`.
+
 
 ## Paper Document
 

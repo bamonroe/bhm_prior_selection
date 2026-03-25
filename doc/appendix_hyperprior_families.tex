@@ -1,0 +1,367 @@
+\appsection{Hyperprior Derivation by Distributional Family}
+\label{app:hyperprior_families}
+%==============================================================================
+
+This appendix provides the complete derivation of hyperprior parameters from
+$(\rho, \kappa)$ for three distributional families covering the most common
+support types in applied work: the Normal-Inverse-Gamma (support on
+$\mathbb{R}$), Gamma-Inverse-Gamma (support on $(0,\infty)$), and Beta-Beta
+(support on $[0,1]$). Each subsection presents the hierarchy, the closed-form
+translation from researcher inputs to hyperprior parameters, the feasibility
+region in $(\rho, \kappa)$ space, and graphical calibrations.
+
+%----------------------------------------------------------------------
+\subsection{Normal-Inverse-Gamma (support on $\mathbb{R}$)}
+\label{app:nig}
+
+Consider the standard Normal-Inverse-Gamma hierarchical model:
+\begin{align}
+\bv_i \mid \mu, \sigma^2 &\sim N(\mu, \sigma^2) \\
+\mu \mid \mu_0, \tau_0^2 &\sim N(\mu_0, \tau_0^2) \\
+\sigma^2 \mid \alpha_0, \beta_0 &\sim \text{IG}(\alpha_0, \beta_0)
+\end{align}
+Here $\hypem = \mu$ and $\hypev = \sigma^2$, so the hyperprior parameters are
+$\hprior = (\mu_0, \tau_0^2, \alpha_0, \beta_0)$.
+
+From (\ref{eq:hyperm_solved}), the mean hyperprior parameters follow
+immediately, since the Normal mean and variance are the distribution's
+parameters:
+\begin{align}
+  \mu_0 &= \dpm \\
+  \tau_0^2 &= \rho\,\dpv
+\end{align}
+The conditional variance is the parameter $\sigma^2$ itself, so $\kappa =
+\text{SD}[\sigma^2] / \E{\sigma^2}$ maps directly to the Inverse-Gamma
+hyperprior. Using $\E{\sigma^2} = \beta_0 / (\alpha_0 - 1)$
+and $\Var{\sigma^2} = \beta_0^2 / [(\alpha_0 - 1)^2(\alpha_0 - 2)]$,
+equations (\ref{eq:hyperv_solved}) yield:
+\begin{align}
+  \alpha_0 &= 2 + \frac{1}{\kappa^2} \\
+  \beta_0 &= (1 - \rho)\,\dpv\,(\alpha_0 - 1)
+\end{align}
+The shape parameter $\alpha_0$ is determined solely by $\kappa$, with
+$\beta_0$ then following from $\rho$ and $\dpv$.
+
+The NIG family admits the full region $\rho \in (0,1)$, $\kappa \in
+(0,\infty)$. The Inverse-Gamma requires $\alpha_0 > 2$ for the variance of
+$\sigma^2$ to exist, which holds for all $\kappa > 0$ since $\alpha_0 = 2 +
+1/\kappa^2 > 2$ automatically. There are no joint constraints linking $\rho$
+and $\kappa$.
+
+\begin{figure}[htbp]
+  \centering
+  \small (a) Between-population SD: $\text{SD}[\mu] = \tau_0$. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_sensitivity_between.pdf}\\[-.75em]
+
+  \vspace{0.8em}
+  \small (b) Within-population SD: $\E{\sigma}$. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_sensitivity_within.pdf}\\[-.75em]
+
+  \vspace{0.8em}
+  \small (c) Within-population SD IQR. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_sensitivity_iqr.pdf}\\[-.75em]
+
+  \caption{Hierarchical variance allocation for the NIG model across
+    $(\rho, \kappa)$, with $\dpm = 0$ and $\dpv = 1$.}
+  \label{fig:nig_sensitivity}
+\end{figure}
+
+Figure~\ref{fig:nig_sensitivity} displays the hierarchical variance allocation
+across the $(\rho, \kappa)$ grid, setting $\dpm = 0$ and $\dpv = 1$. Each
+$(\rho, \kappa)$ pair uniquely determines the hyperprior parameters $(\mu_0,
+\tau_0^2, \alpha_0, \beta_0)$ through the moment conditions
+(\ref{eq:hyperm_solved})--(\ref{eq:hyperv_solved}). Panel~(a) shows that the
+between-population SD depends only on $\rho$, as the horizontal color bands
+confirm: $\kappa$ plays no role. This follows directly from the moment
+condition $\tau_0 = \sqrt{\rho\,\dpv}$. Panel~(b) shows the within-population
+SD, $\E{\sigma}$: higher $\rho$ allocates more variance to population-mean
+uncertainty, leaving less for heterogeneity, so the within-population SD
+decreases as $\rho$ increases. Panel~(c) reveals the role of $\kappa$. At low
+$\kappa$ the within-population SD is tightly concentrated (the IQR is small),
+reflecting near-certainty about the level of heterogeneity. As $\kappa$ grows
+the IQR increases, reflecting greater uncertainty about how heterogeneous the
+population is.
+
+\begin{figure}[htbp]
+  \centering
+  \small (a) KS distance: $\sup_v |F_{\text{compound}}(v) - F_{\text{direct}}(v)|$. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_ks_distance.pdf}\\[-.75em]
+
+  \vspace{0.8em}
+  \small (b) CDF difference at four $(\rho, \kappa)$ points. \\
+  \includegraphics[width=0.8\textwidth]{../plots/paper/nig_cdf_diff_curves.pdf}\\[-.75em]
+
+  \caption{Distributional approximation quality for the NIG hierarchy,
+    $\dpm = 0$, $\dpv = 1$.}
+  \label{fig:nig_distributional}
+\end{figure}
+
+Figure~\ref{fig:nig_distributional} quantifies the distributional discrepancy
+between the hierarchical predictive and the direct prior. Panel~(a) shows the
+Kolmogorov--Smirnov distance across the full $(\rho, \kappa)$ grid. For moderate
+values such as those used in the application ($\rho = 0.2$, $\kappa =
+0.25$), the supremum CDF difference is approximately 0.3 percentage points.
+Even at the extreme corner ($\rho \to 0$, $\kappa = 1.7$), it remains below
+5~percentage points. Panel~(b) reveals where the discrepancy arises: the
+compound distribution is flatter-peaked and heavier-tailed than the direct
+prior, consistent with the scale-mixture structure of the hierarchy. The CDF
+difference is negative in the shoulders ($|v| \lesssim 1.8\sigma^*$), where the
+compound places less mass, and positive in the tails ($|v| \gtrsim
+1.8\sigma^*$), where it places more. All four curves share this qualitative
+shape; only the amplitude varies with $\rho$ and $\kappa$.
+
+The first two moments of the marginal prior on individual quantities are
+invariant across the grid by construction; only the hierarchical allocation
+changes. The specific numerical values are family-dependent, but these
+qualitative patterns generally hold for any distributional choice satisfying the
+moment conditions.
+
+%----------------------------------------------------------------------
+\subsection{Gamma-Inverse-Gamma (support on $(0, \infty)$)}
+\label{app:gamma_ig}
+
+For positive-valued quantities such as income, prices, or time
+preferences, the Gamma-Inverse-Gamma hierarchy provides a natural model:
+\begin{align}
+  v_i \mid \mu, \sigma^2
+    &\sim \text{Gamma}\!\left(
+      \frac{\mu^2}{\sigma^2},\;
+      \frac{\mu}{\sigma^2}
+    \right) \\
+  \mu \mid a_\mu, b_\mu &\sim \text{Gamma}(a_\mu, b_\mu) \\
+  \sigma^2 \mid \alpha_0, \beta_0 &\sim \text{IG}(\alpha_0, \beta_0)
+\end{align}
+where the individual-level Gamma is parameterized by shape and rate so that
+$\E{v_i \mid \mu, \sigma^2} = \mu$ and $\Var{v_i \mid \mu, \sigma^2} =
+\sigma^2$. The conditional variance is the parameter $\sigma^2$ itself, as in
+the NIG case.
+
+The mean hyperprior uses $\E{\mu} = \dpm$ and $\Var{\mu} = \rho\,\dpv$,
+giving shape $a_\mu$ and rate $b_\mu$:
+\begin{align}
+  a_\mu &= \frac{(\dpm)^2}{\rho\,\dpv} \\
+  b_\mu &= \frac{\dpm}{\rho\,\dpv}
+\end{align}
+Because $\sigma^2$ is a parameter with its own independent hyperprior, the
+$\kappa$ translation is identical to the NIG case:
+\begin{align}
+  \alpha_0 &= 2 + \frac{1}{\kappa^2} \\
+  \beta_0 &= (1 - \rho)\,\dpv\,(\alpha_0 - 1)
+\end{align}
+
+As with NIG, the Inverse-Gamma variance hyperprior admits all $\kappa > 0$.
+The Gamma mean hyperprior requires $a_\mu > 0$ and $b_\mu > 0$, which hold
+whenever $\dpm > 0$ and $\rho\,\dpv > 0$. The feasibility region is therefore
+the full rectangle $\rho \in (0,1)$, $\kappa \in (0, \infty)$, the same as
+NIG.
+
+The within-population statistics (within-population SD and its IQR) depend only
+on the Inverse-Gamma hyperprior with $\alpha_0 = 2 + 1/\kappa^2$ and $\beta_0
+= (1-\rho)\,\dpv\,(\alpha_0 - 1)$. These are identical to the NIG case, so
+the sensitivity heatmaps in Figure~\ref{fig:nig_sensitivity} apply without
+modification: panel~(a) gives the between-population SD, panel~(b) the
+within-population SD, and panel~(c) the within-population SD IQR for the
+Gamma-IG hierarchy as well. The between-population SD is
+$\sqrt{\rho\,\dpv}$ regardless of family.
+
+The two families differ in the shape of the compound distribution:
+the NIG compound is symmetric with Student-$t$-like tails, while the
+Gamma-Inverse-Gamma compound is right-skewed.
+
+\begin{figure}[htbp]
+  \centering
+  \small (a) KS distance: $\sup_v |F_{\text{compound}}(v) - F_{\text{direct}}(v)|$. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/gamma_ks_distance.pdf}\\[-.75em]
+
+  \vspace{0.8em}
+  \small (b) CDF difference at four $(\rho, \kappa)$ points. \\
+  \includegraphics[width=0.8\textwidth]{../plots/paper/gamma_cdf_diff_curves.pdf}\\[-.75em]
+
+  \caption{Distributional approximation quality for the Gamma-IG hierarchy,
+    $\dpm = 1$, $\dpv = 1$.}
+  \label{fig:gamma_distributional}
+\end{figure}
+
+Figure~\ref{fig:gamma_distributional} shows the distributional approximation
+quality for the Gamma-Inverse-Gamma case. Unlike the NIG, the Gamma-IG
+compound has a nonzero KS distance even at small $(\rho, \kappa)$: the minimum
+across the grid is approximately 0.005, reflecting an irreducible
+distributional mismatch between the Gamma compound and the direct Gamma prior
+that persists even as the hyperprior concentrates. The CDF difference curves
+are no longer antisymmetric, as the right-skewed compound distribution differs
+from the direct Gamma prior in a pattern that depends on the skewness of both
+distributions.
+
+%----------------------------------------------------------------------
+\subsection{Beta-Beta (support on $[0,1]$)}
+\label{app:beta_beta}
+
+For bounded quantities normalized to $(0,1)$, the Beta-Beta hierarchy uses a
+mean-dispersion parameterization. Let $z_i^k$ denote the normalized value of
+quantity $k$ for individual $i$:
+\begin{align}
+  z_i^k \mid \mu_k, \psi_k
+    &\sim \text{Beta}\!\left(
+      \mu_k \tfrac{1 - \psi_k}{\psi_k},\;
+      (1 - \mu_k) \tfrac{1 - \psi_k}{\psi_k}
+    \right) \label{eq:app_bb_individual} \\
+  \mu_k &\sim \text{Beta}(a_\mu^k, b_\mu^k)
+    \label{eq:app_bb_mu} \\
+  \psi_k &\sim \text{Beta}(a_\psi^k, b_\psi^k)
+    \label{eq:app_bb_psi}
+\end{align}
+where $\mu_k \in (0,1)$ governs the population mean and $\psi_k \in (0,1)$
+governs dispersion. The conditional moments are $\E{z_i^k \mid \mu_k, \psi_k}
+= \mu_k$ and $\Var{z_i^k \mid \mu_k, \psi_k} = \mu_k(1 - \mu_k)\psi_k$.
+
+The mean-dispersion parameterization is convenient because it allows
+independent hyperpriors on $\mu_k$ and $\psi_k$. An alternative would be to
+parameterize the individual-level Beta in terms of its mean and variance
+directly, but $\Var{z \mid \mu, \sigma^2} = \sigma^2$ would require $\sigma^2 <
+\mu(1-\mu)$, creating a conditional domain that precludes independent
+hyperpriors. The normalization $\psi_k = \sigma_k^2 / [\mu_k(1 - \mu_k)]$
+removes this dependence.
+
+The law of total variance decomposes the direct prior variance:
+\begin{align}
+  \label{eq:app_bb_total_var}
+  \dpv_k &= \Var{\mu_k} + \E{\mu_k(1 - \mu_k)\psi_k} \\
+  \Var{\mu_k} &= \rho_k\,\dpv_k \\
+  \E{\mu_k(1 - \mu_k)\psi_k} &= (1 - \rho_k)\,\dpv_k
+\end{align}
+Matching $\E{\mu_k} = \dpm_k$ and $\Var{\mu_k} = \rho_k\,\dpv_k$
+by standard Beta moment-matching, the mean hyperprior parameters are:
+\begin{align}
+  a_\mu^k &= \dpm_k
+    \left(\frac{\dpm_k(1 - \dpm_k)}{\rho_k\,\dpv_k} - 1\right) \\
+  b_\mu^k &= (1 - \dpm_k)
+    \left(\frac{\dpm_k(1 - \dpm_k)}{\rho_k\,\dpv_k} - 1\right)
+\end{align}
+Using the independence of $\mu_k$ and $\psi_k$, the within-population
+term determines $\E{\psi_k}$:
+\begin{equation}
+  \E{\psi_k} = \frac{(1 - \rho_k)\,\dpv_k}{\E{\mu_k(1 - \mu_k)}}
+\end{equation}
+where $\E{\mu_k(1 - \mu_k)} = \dpm_k(1-\dpm_k) - \rho_k\,\dpv_k$ is computed
+from the already-determined Beta$(a_\mu^k, b_\mu^k)$ hyperprior.
+
+The parameter $\kappa_k$ is the coefficient of variation of the conditional
+variance $\mu_k(1-\mu_k)\psi_k$, as defined in Section
+\ref{sec:variance_decomposition}. Because the conditional variance is a product
+of two independent random variables, its variance involves cross-moments:
+\begin{equation}
+  \Var{\mu_k(1 - \mu_k)\psi_k}
+  = \E{\mu_k^2(1 - \mu_k)^2}\,\Var{\psi_k}
+  + \Var{\mu_k(1 - \mu_k)}\,\E{\psi_k}^2
+\end{equation}
+Setting the left-hand side to $\kappa_k^2 (1-\rho_k)^2 (\dpv_k)^2$ and solving
+for $\Var{\psi_k}$:
+\begin{equation}
+  \label{eq:app_bb_var_psi}
+  \Var{\psi_k}
+  = \frac{\kappa_k^2\,(1-\rho_k)^2\,(\dpv_k)^2
+          - \Var{\mu_k(1-\mu_k)}\,\E{\psi_k}^2}
+         {\E{\mu_k^2(1-\mu_k)^2}}
+\end{equation}
+The required moments are closed-form functions of $(a_\mu^k, b_\mu^k)$.
+For $\mu_k \sim \text{Beta}(a,b)$ with $S = a + b$:
+\begin{align}
+  \E{\mu_k(1-\mu_k)} &= \frac{ab}{S(S+1)} \\
+  \E{\mu_k^2(1-\mu_k)^2} &= \frac{a(a+1)b(b+1)}{S(S+1)(S+2)(S+3)} \\
+  \Var{\mu_k(1-\mu_k)} &= \E{\mu_k^2(1-\mu_k)^2} - \E{\mu_k(1-\mu_k)}^2
+\end{align}
+Standard Beta moment-matching then gives the dispersion hyperprior parameters:
+\begin{align}
+  \nu_\psi^k &= \frac{\E{\psi_k}(1 - \E{\psi_k})}{\Var{\psi_k}} - 1 \\
+  a_\psi^k &= \E{\psi_k}\,\nu_\psi^k \\
+  b_\psi^k &= (1 - \E{\psi_k})\,\nu_\psi^k
+\end{align}
+
+The Beta-Beta family imposes two constraints on $(\rho, \kappa)$.
+First, the mean hyperprior requires $\rho\,\dpv_k < \dpm_k(1-\dpm_k)$, the
+Bernoulli bound on the variance of a $[0,1]$-valued random variable. This
+constrains $\rho$ given the direct prior.
+Second, $\Var{\psi_k} > 0$ in (\ref{eq:app_bb_var_psi}) requires:
+\begin{equation}
+  \kappa > \frac{\sqrt{\Var{\mu_k(1-\mu_k)}}}{\E{\mu_k(1-\mu_k)}}
+  = \text{CV}[\mu_k(1-\mu_k)]
+\end{equation}
+This lower bound on $\kappa$ reflects the irreducible variation in conditional
+variance arising from $\mu_k$ alone: even with $\psi_k$ fixed, the conditional
+variance $\mu_k(1-\mu_k)\psi_k$ varies because $\mu_k$ is random. The bound
+increases with $\rho$ (which increases $\Var{\mu_k}$) and is largest when
+$\dpm_k$ is near the boundary of $[0,1]$.
+Additionally, $\Var{\psi_k} < \E{\psi_k}(1-\E{\psi_k})$ is required for the
+Beta dispersion hyperprior to be proper, imposing an upper bound on $\kappa$
+for each $(\dpm_k, \dpv_k, \rho_k)$ configuration.
+The feasibility region is therefore a proper subset of $(0,1) \times
+(0,\infty)$, with both lower and upper bounds on $\kappa$ that depend on
+$\rho$, $\dpm_k$, and $\dpv_k$. For typical prior configurations with
+$\dpm_k$ not too close to 0 or 1, the feasible range of $\kappa$ is wide.
+
+\begin{figure}[htbp]
+  \centering
+  \small (a) Between-population SD. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/bb_sensitivity_between.pdf}\\[-.75em]
+
+  \vspace{0.8em}
+  \small (b) Within-population SD. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/bb_sensitivity_within.pdf}\\[-.75em]
+
+  \vspace{0.8em}
+  \small (c) Within-population SD IQR. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/bb_sensitivity_iqr.pdf}\\[-.75em]
+
+  \caption{Hierarchical variance allocation for the Beta-Beta model,
+    $\dpm = 0.5$, $\dpv = 0.04$.}
+  \label{fig:bb_sensitivity}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \small (a) KS distance: $\sup_z |F_{\text{compound}}(z) - F_{\text{direct}}(z)|$. \\
+  \includegraphics[width=0.6\textwidth]{../plots/paper/bb_ks_distance.pdf}\\[-.75em]
+
+  \vspace{0.8em}
+  \small (b) CDF difference at four $(\rho, \kappa)$ points. \\
+  \includegraphics[width=0.8\textwidth]{../plots/paper/bb_cdf_diff_curves.pdf}\\[-.75em]
+
+  \caption{Distributional approximation quality for the Beta-Beta hierarchy,
+    $\dpm = 0.5$, $\dpv = 0.04$.}
+  \label{fig:bb_distributional}
+\end{figure}
+
+Figures~\ref{fig:bb_sensitivity} and \ref{fig:bb_distributional} provide the
+graphical calibration for the Beta-Beta hierarchy with $\dpm = 0.5$ and $\dpv =
+0.04$. The sensitivity heatmaps show qualitatively similar patterns to the NIG
+case, with the notable difference that regions of $(\rho, \kappa)$ space where
+the Beta-Beta hyperprior is infeasible appear as missing values. The KS
+distances (panel~(a) of Figure~\ref{fig:bb_distributional}) are substantially
+larger than the NIG case, reaching 0.20 at the extreme feasible corner compared
+to 0.04 for NIG. This reflects the additional distributional distortion
+introduced by the cross-moment coupling between $\mu_k$ and $\psi_k$: even
+after moment-matching, the Beta-Beta compound departs further from the direct
+prior than the NIG compound does.
+
+%----------------------------------------------------------------------
+\subsection{Summary}
+\label{app:family_summary}
+
+The three families illustrate the range of behavior that arises when translating
+$(\rho, \kappa)$ to hyperprior parameters. The NIG and Gamma-IG families share
+the simplifying property that the conditional variance is a single parameter
+($\sigma^2$) with its own independent hyperprior, making $\kappa$ map directly
+to the Inverse-Gamma shape parameter. Both admit the full $(\rho, \kappa)$
+region with no joint constraints. The Beta-Beta family, by contrast, has a
+conditional variance that depends on both hyperparameters, requiring a
+cross-moment correction and imposing a lower bound on $\kappa$ that increases
+with $\rho$.
+
+The distributional approximation quality follows a similar ordering. The NIG
+compound achieves the smallest KS distances (below 0.05 across the entire
+grid), the Gamma-IG is intermediate (0.005 to 0.14), and the Beta-Beta is
+largest (up to 0.20 at extreme feasible values). In all three cases, the
+moment-matching construction guarantees that the first two moments of the
+compound distribution match the direct prior exactly; only the higher moments
+differ, with the discrepancy concentrated in the tails and shoulders of the
+distribution.

@@ -446,7 +446,7 @@ This adjustment to a probability distribution is well known, although it is
 usually presented in the special case where $k = p$ and
 $\sqrt{\det(J_\bg{}^\top J_\bg{})} = |\det J|$. \textcite[108-110]{Segert2019}
 discuss the detailed mathematical derivation of this formula and note the
-correction via the Coarea Formula needed when $k \leq p$. Given the focus of
+correction via the Coarea Formula needed when $k < p$. Given the focus of
 risk preference models, and the abundance of possible prior quantities on
 economic variables derived from risk preferences, I focus only on the
 cases where $k \geq p$, with particular emphasis on $k = p$.
@@ -611,9 +611,9 @@ moment conditions that uniquely determine $\hpriormm{}$ and $\hpriormv{}$:
 \Varhpm{\hypem{}} &= \rho \, v^*
 \end{align}
 \noindent Since the right hand sides of these equations are known quantities
-specified by the researcher, and the hyperprior distribution over $\hypem$ is
-presumed to be bijective, this system has a unique solution $\hpriormm{}$ and
-$\hpriormv{}$.
+specified by the researcher, and the hyperprior over $\hypem$ is presumed to
+have a bijective mapping from its parameters to its first two moments, this
+system has a unique solution $\hpriormm{}$ and $\hpriormv{}$.
 
 With $\rho$, $\dpm$, and $\dpv$ specified by the researcher, only one degree of
 freedom remains. Keeping with the unit-agnostic approach of $\rho$, I introduce
@@ -640,8 +640,9 @@ determine $\hpriorvm{}$ and $\hpriorvv{}$:
 \end{align}
 \noindent As was the case in (\ref{eq:hyperm_solved}), the right hand side of
 (\ref{eq:hyperv_solved}) is composed of researcher specified constants, and
-the hyperprior distribution over $\hypev$ is presumed bijective, so
-(\ref{eq:hyperv_solved}) has a unique solution $\hpriorvm{}$ and $\hpriorvv{}$.
+the hyperprior over $\hypev$ is presumed to have a bijective mapping from its
+parameters to its first two moments, so (\ref{eq:hyperv_solved}) has a unique
+solution $\hpriorvm{}$ and $\hpriorvv{}$.
 Thus, all four hyperprior parameters $(\hpriormm{}, \hpriormv{}, \hpriorvm{},
 \hpriorvv{})$ are now determined.
 
@@ -651,93 +652,43 @@ probabilities) will generally differ, because the compound distribution
 produced by the hierarchy is not in the same parametric family as the direct
 prior. The magnitude of this discrepancy depends on $\rho$ and $\kappa$: as
 both approach zero, the hyperprior concentrates and the compound distribution
-collapses toward the individual-level distribution, recovering the direct prior
-in the limit. For nonzero $\rho$ and $\kappa$, the discrepancy is typically
+collapses toward the individual-level distribution with mean $\dpm$ and
+variance $\dpv$. A natural choice is to use the same distributional family for
+the individual-level distribution and the direct prior, in which case the
+direct prior is recovered exactly in this limit; this is not required by the
+construction, but it is convenient and is the approach taken in the application
+below. For nonzero $\rho$ and $\kappa$, the discrepancy is typically
 small but can be assessed by comparing the CDF of the hierarchical predictive
-to that of the direct prior. The researcher should verify that tail
-probabilities of interest are not materially affected by the choice of $\rho$
-and $\kappa$.
+to that of the direct prior; Appendix~\ref{app:hyperprior_families} provides
+this comparison for three standard families. The researcher should verify that
+tail probabilities of interest are not materially affected by the choice of
+$\rho$ and $\kappa$.
 
-\subsection{Example: Normal-Inverse-Gamma}
-\label{sec:nig_example}
+\subsection{Family-Specific Translation and Feasibility}
+\label{sec:family_translation}
 
-Consider the standard Normal-Inverse-Gamma hierarchical model:
-\begin{align}
-\bv_i \mid \mu, \sigma^2 &\sim N(\mu, \sigma^2) \\
-\mu \mid \mu_0, \tau_0^2 &\sim N(\mu_0, \tau_0^2) \\
-\sigma^2 \mid \alpha_0, \beta_0 &\sim \text{IG}(\alpha_0, \beta_0)
-\end{align}
-Here $\hypem = \mu$ and $\hypev = \sigma^2$, so the hyperprior parameters are
-$\hprior = (\mu_0, \tau_0^2, \alpha_0, \beta_0)$.
+The moment conditions (\ref{eq:hyperm_solved})--(\ref{eq:hyperv_solved}) can be
+solved in closed form for standard distributional families, but the translation
+from $(\rho, \kappa)$ to hyperprior parameters is family-specific. For the
+Normal-Inverse-Gamma hierarchy, the conditional variance is a single parameter
+$\sigma^2$ with its own independent hyperprior, so $\kappa$ maps directly to
+the Inverse-Gamma shape: $\alpha_0 = 2 + 1/\kappa^2$. For the Beta-Beta
+hierarchy used in the application below, the conditional variance $\mu(1-\mu)\psi$
+depends on both hyperparameters, so the translation requires accounting for
+cross-moments. Appendix~\ref{app:hyperprior_families} provides complete
+derivations, graphical calibrations, and distributional approximation analysis
+for three families: Normal-Inverse-Gamma (support on $\mathbb{R}$), Beta-Beta
+(support on $[0,1]$), and Gamma-Inverse-Gamma (support on $(0,\infty)$).
 
-From (\ref{eq:hyperm_solved}), the mean hyperprior parameters follow
-immediately, since the Normal mean and variance are the distribution's
-parameters:
-\begin{align}
-  \mu_0 &= \dpm \\
-  \tau_0^2 &= \rho\,\dpv
-\end{align}
-For the Inverse-Gamma, $\E{\sigma^2} = \beta_0 / (\alpha_0 - 1)$
-and $\Var{\sigma^2} = \beta_0^2 / [(\alpha_0 - 1)^2(\alpha_0 - 2)]$, so
-equations (\ref{eq:hyperv_solved}) yield:
-\begin{align}
-  \alpha_0 &= 2 + \frac{1}{\kappa^2} \\
-  \beta_0 &= (1 - \rho)\,\dpv\,(\alpha_0 - 1)
-\end{align}
-The shape parameter $\alpha_0$ is determined solely by $\kappa$, with
-$\beta_0$ then following from $\rho$ and $\dpv$.
-
-\begin{figure}[htbp]
-  \centering
-  \small (a) Between-population SD: $\text{SD}[\mu] = \tau_0$. \\
-  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_sensitivity_between.pdf}\\[-.75em]
-
-  \vspace{0.8em}
-  \small (b) Within-population SD: $\E{\sigma}$. \\
-  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_sensitivity_within.pdf}\\[-.75em]
-
-  \vspace{0.8em}
-  \small (c) Within-population SD IQR. \\
-  \includegraphics[width=0.6\textwidth]{../plots/paper/nig_sensitivity_iqr.pdf}\\[-.75em]
-
-  \caption{Hierarchical variance allocation for the NIG model across
-    $(\rho, \kappa)$, with $\dpm = 0$ and $\dpv = 1$.}
-  \label{fig:nig_sensitivity}
-\end{figure}
-
-
-To make the roles of $\rho$ and $\kappa$ concrete,
-Figure~\ref{fig:nig_sensitivity} extends this NIG example with a sensitivity
-analysis. Setting $\dpm = 0$ and $\dpv = 1$, each $(\rho, \kappa)$ pair
-uniquely determines the hyperprior parameters $(\mu_0, \tau_0^2, \alpha_0,
-\beta_0)$ through the moment conditions
-(\ref{eq:hyperm_solved})--(\ref{eq:hyperv_solved}). Drawing from the resulting
-hierarchy yields three statistics: the between-population SD ($\text{SD}[\mu]
-= \tau_0$), which measures how much the population center moves across
-hyperprior draws; the within-population SD ($\E{\sigma}$), which captures
-the typical spread of individuals around whatever population center was drawn;
-and the within-population SD IQR, which measures how variable the degree of
-heterogeneity is across draws.
-
-
-Panel (a) of Figure~\ref{fig:nig_sensitivity} shows that the
-between-population SD depends only on $\rho$, as the horizontal color bands
-confirm: $\kappa$ plays no role. This follows directly from the moment
-condition $\tau_0 = \sqrt{\rho\,\dpv}$, which involves only the variance
-partition ratio. Panel (b) shows the within-population SD, $\E{\sigma}$:
-higher $\rho$ allocates more variance to population-mean uncertainty, leaving
-less for heterogeneity, so the within-population SD decreases as $\rho$
-increases. Panel (c) reveals the role of $\kappa$. At low $\kappa$ the
-within-population SD is tightly concentrated (the IQR is small), reflecting
-near-certainty about the level of heterogeneity. As $\kappa$ grows the IQR
-increases, reflecting greater uncertainty about how heterogeneous the
-population is. The first two moments of the marginal prior on individual
-quantities are invariant across the grid by construction; only the hierarchical
-allocation changes. The
-specific numerical values are family-dependent, but these qualitative patterns
-hold for any distributional choice satisfying the moment conditions.
-
-
+The feasibility region in $(\rho, \kappa)$ space is also family-dependent.
+Families where the conditional variance is a single parameter (NIG,
+Gamma-Inverse-Gamma) admit all $\kappa > 0$ with no joint constraint on $\rho$.
+Families where the conditional variance depends on the mean hyperparameter
+(Beta-Beta) impose a lower bound on $\kappa$ that increases with $\rho$: the
+variation in the mean hyperparameter contributes irreducibly to conditional
+variance variation, setting a floor that $\kappa$ must exceed. In all cases,
+the feasibility constraints are computable in closed form from the researcher's
+direct prior and can be checked before estimation.
 
 \subsection{The researcher's problem restated}
 
@@ -750,9 +701,9 @@ required to specify the hyperprior directly. It's reasonable to ask
 \enquote{why bother?} The answer is twofold.
 
 First, the restriction in (\ref{eq:dp_total}) is not meant to be a shortcut, it
-is the restriction that enforces consistency in beliefs about a hyperprior over
-an exchangeable population. Specifying the hyperprior directly would still
-result in a posterior predictive distribution over the quantity of interest
+is the restriction that enforces moment consistency between the direct prior
+and the hyperprior predictive over an exchangeable population. Specifying the hyperprior directly would still
+result in a prior predictive distribution over the quantity of interest
 that would need to be \enquote{reasonable.} Rather than engage in an iterative
 process where different hyperpriors are proposed and the reasonableness of
 their predictions checked repeatedly \parencite{Gabry2019, Bland2025}, the
@@ -937,41 +888,13 @@ each quantity $k$: a direct prior mean $\dpm_k$ and variance $\dpv_k$ on the
 normalized $(0,1)$ scale, a variance partition ratio $\rho_k$, and a
 heterogeneity confidence parameter $\kappa_k$. The variance decomposition of
 Section \ref{sec:variance_decomposition} maps these inputs to the Beta-Beta
-hyperprior parameters $(a_\mu^k, b_\mu^k, a_\psi^k, b_\psi^k)$.
-The law of total variance decomposes the direct prior variance:
-\begin{align}
-  \label{eq:bb_total_var}
-  \dpv_k &= \Var{z_i^k}
-  = \Var{\mu_k}
-  + \E{\mu_k(1 - \mu_k)\psi_k} \\
-  \Var{\mu_k} &= \rho_k\,\dpv_k \\
-  \E{\mu_k(1 - \mu_k)\psi_k} &= (1 - \rho_k)\,\dpv_k
-\end{align}
-Matching $\E{\mu_k} = \dpm_k$ and $\Var{\mu_k} = \rho_k\,\dpv_k$
-by standard Beta moment-matching, and using the independence of $\mu_k$ and
-$\psi_k$ to solve the within-population term, the four hyperprior parameters
-are:
-\begin{align}
-  \label{eq:bb_mu_params}
-  a_\mu^k &= \dpm_k
-    \left(\frac{\dpm_k(1 - \dpm_k)}{\rho_k\,\dpv_k} - 1\right) \\
-  b_\mu^k &= (1 - \dpm_k)
-    \left(\frac{\dpm_k(1 - \dpm_k)}{\rho_k\,\dpv_k} - 1\right) \\[6pt]
-  \label{eq:bb_psi_params}
-  a_\psi^k &= \frac{(1-\rho_k)\,\dpv_k}
-    {\dpm_k(1 - \dpm_k) - \rho_k\,\dpv_k}
-    \left(
-      \frac{\dpm_k(1-\dpm_k) - \dpv_k}
-           {\kappa_k^2(1-\rho_k)\,\dpv_k} - 1
-    \right) \\
-  b_\psi^k &= \left(1 -
-    \frac{(1-\rho_k)\,\dpv_k}
-         {\dpm_k(1 - \dpm_k) - \rho_k\,\dpv_k}\right)
-    \left(
-      \frac{\dpm_k(1-\dpm_k) - \dpv_k}
-           {\kappa_k^2(1-\rho_k)\,\dpv_k} - 1
-    \right)
-\end{align}
+hyperprior parameters $(a_\mu^k, b_\mu^k, a_\psi^k, b_\psi^k)$. Because the
+conditional variance $\mu_k(1-\mu_k)\psi_k$ depends on both hyperparameters,
+the translation from $\kappa_k$ to the dispersion hyperprior $(a_\psi^k,
+b_\psi^k)$ requires accounting for cross-moments between $\mu_k$ and $\psi_k$.
+The complete derivation, including the feasibility region and the $\kappa$
+lower bound for the Beta-Beta family, is given in
+Appendix~\ref{app:beta_beta}.
 While $\rho_k$ and $\kappa_k$ can differ across quantities, both are
 unit-agnostic ratios that express the same structural beliefs about the nature
 of heterogeneity in the population regardless of the scale of quantity $k$. It
@@ -1100,8 +1023,9 @@ with different natural units. I set $\kappa_k =
 within-population variance is \py{fmt(D['kappa_pct'], 0)}\%. This reflects
 moderately high confidence in the heterogeneity specification: the prior places
 most of its mass near the target level of heterogeneity while still permitting
-the data to move it. Figure~\ref{fig:nig_sensitivity} illustrates how these
-choices control the hierarchical structure of the prior.
+the data to move it. Appendix~\ref{app:hyperprior_families}
+(Figure~\ref{fig:nig_sensitivity}) illustrates how these choices control the
+hierarchical structure of the prior.
 
 The quantity-space hierarchy defines a joint prior on $(\CE_1, \CE_2, \CE_3,
 P)$. The change-of-variables formula with the Jacobian of
@@ -1114,24 +1038,22 @@ $p(r, \phi, \eta, \lambda)$ used in sampling:
       \bigl|\!\det J_{\bg}(r, \phi, \eta, \lambda)\bigr|
 \end{equation}
 
-\paragraph{Comparison prior.}
 To illustrate the consequences of hyperprior choice, I also estimate the model
-using the diffuse parameter-space hyperprior from
-\textcite[279--281]{Gao2022}. This specification places priors directly on the
-structural parameters, bypassing the quantity-space framework, and uses the
-Inverse-Gamma($\varepsilon$, $\varepsilon$) form for variance parameters that
-\textcite{Gelman2006} identified as potentially problematic. The two models
-differ in both prior specification and distributional family (Beta-Beta on
-bounded CE quantities versus Normal--Inverse-Gamma on unbounded parameters);
-the comparison is intended to illustrate the consequences of the status quo
-approach to hyperprior specification, not to isolate the effect of either
-component:
+using the diffuse parameter-space hyperprior from \textcite[279--281]{Gao2022}.
+This specification places priors directly on the structural parameters rather
+than using the quantity-space priors developed in section \ref{sec:gq_space},
+and uses the common Inverse-Gamma($\varepsilon$, $\varepsilon$) form for
+variance parameters. To make the comparison salient, I focus on the prdictive
+posterior distributions of the CEs of the lotteries in Table
+\ref{tab:lottery_design}. This diffuse hyperprior defines each individual-level
+parameter as being normally distributed, with the mean and variance
+hyperparameters using the Normal-Inverse-Gamma distribution where:
 \begin{align}
   \label{eq:ght_prior}
   \mu^j &\sim N(0,\; 100) \\
   \sigma^{2,j} &\sim \text{IG}(0.001,\; 0.001)
 \end{align}
-for each parameter $j \in \{r, \phi, \eta, \lambda\}$.
+for each parameter $j \in \{r, \ln \phi, \ln \eta, \ln \lambda\}$.
 
 \subsection{Data}
 
@@ -1414,5 +1336,6 @@ available at \url{https://github.com/bmonroe3/bhm-prior-selection}.
 \titleformat*{\subsubsection}{\normalsize}
 
 \input{appendix_global_injectivity}
+\input{appendix_hyperprior_families}
 
 \end{document}

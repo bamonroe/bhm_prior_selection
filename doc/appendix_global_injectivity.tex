@@ -7,12 +7,16 @@ For a scalar map $f \colon \R \to \R$, global injectivity is equivalent to
 strict monotonicity, which can be checked from the sign of the derivative. For
 maps $f \colon \R^n \to \R^n$ with $n > 1$, no such elementary criterion
 exists: a nonvanishing Jacobian determinant guarantees only local injectivity,
-and global conclusions require stronger conditions. The goal of this appendix
-is to prove that the map from preference parameters to certainty equivalents
-(CEs) and choice probabilities is globally injective. Throughout,
-\enquote{injective} means globally injective unless otherwise qualified. I
-begin with two general propositions that are used to provide the
-proof.
+and global conclusions require stronger conditions. The purpose of this
+appendix, however, is narrower than identification in the strongest everywhere
+sense: it is to provide sufficient conditions for the Jacobian-based
+change-of-variables prior used in the Bayesian analysis. For that application,
+injectivity is only needed on the support of the prior up to Lebesgue-null
+exceptional sets, since such sets do not affect an absolutely continuous prior
+density. The goal is therefore to show that the map from preference parameters
+to certainty equivalents (CEs) and choice probabilities is injective on a
+full-measure subset of the parameter space relevant for the transformed prior.
+I begin with two general propositions that are used to provide the proof.
 
 \begin{proposition}[Composition]
 \label{prop:composition}
@@ -114,8 +118,10 @@ The goal is to show that the extended map
     \widetilde{F} \colon (\bth, \bomega, \lambda) \;\mapsto\;
     (c_1, \ldots, c_K,\, P_{K+1})
 \end{equation}
-is injective on $\Theta \times \mathcal{W} \times (0,\infty)$, where
-$P_{K+1}$ is a choice probability from an additional task.
+is injective on a full-measure subset of
+$\Theta \times \mathcal{W} \times (0,\infty)$ sufficient for the
+Bayesian change of variables, where $P_{K+1}$ is a choice probability
+from an additional task.
 
 For the Prelec--CRRA model of Section~\ref{sec:application_rdu}, three binary
 lotteries and one choice probability suffice. Two binary lotteries with
@@ -127,9 +133,10 @@ is invariant to multiplicative scaling of outcomes, the outcomes of $L_3$
 cannot be a multiplicative rescaling of the outcomes from the lottery with
 which it shares a decision weight. The noise parameter is identified from
 choice probabilities over any pair of the three lotteries. The remainder of
-this section establishes sufficient conditions for global injectivity generally
-for any utility function and probability weighting function (Conditions~A, B,
-and~C below), followed by proofs that the proposed design satisfies them
+this section establishes sufficient conditions for injectivity on a
+full-measure subset, which is the level needed for the transformed prior,
+first generally for any utility function and probability weighting function
+(Conditions~A, B, and~C below), followed by proofs that the proposed design satisfies them
 (\cref{sec:condition_a_verification,sec:prelec_crra}) specifically for the CRRA
 and 2 parameter Prelec functions.
 
@@ -285,12 +292,29 @@ for standard PWF and utility families.
 \subsubsection{Main theorem}
 \label{sec:theorem}
 
-\begin{theorem}
+\begin{theorem}[Injectivity sufficient for the Bayesian change of variables]
 \label{thm:main}
-If Conditions~A, B, and~C hold, then the extended map
+Suppose Conditions~A and~B hold on $\Theta \times \mathcal{W}$, and let
+\[
+  \mathcal{I}
+  = \{\,(\bth, \bomega) : \Delta V(\bth, \bomega) = 0\,\}.
+\]
+If $\mathcal{I}$ has Lebesgue measure zero, then the extended map
 $\widetilde{F} \colon (\bth, \bomega, \lambda) \mapsto
 (c_1, \ldots, c_{p+q},\, P_{K+1})$
-is injective on $\Theta \times \mathcal{W} \times (0,\infty)$.
+is injective on the full-measure subset
+\[
+  \bigl((\Theta \times \mathcal{W}) \setminus \mathcal{I}\bigr)
+  \times (0,\infty).
+\]
+Consequently, for any prior on $(\bth,\bomega,\lambda)$ that is absolutely
+continuous with respect to Lebesgue measure, the transformed prior
+\[
+  p(\bth,\bomega,\lambda)
+  = p_Y\!\bigl(\widetilde{F}(\bth,\bomega,\lambda)\bigr)\,
+    \lvert \det J_{\widetilde{F}}(\bth,\bomega,\lambda)\rvert
+\]
+is well defined almost everywhere.
 \end{theorem}
 
 \begin{proof}
@@ -298,15 +322,26 @@ The CEs do not depend on~$\lambda$, so the map has
 block-triangular structure: apply \cref{prop:sequential} with
 $X = (\bth, \bomega)$, $Y = \lambda$, and
 $Z = (c_1, \ldots, c_{p+q},\, P_{K+1})$.
-Suppose $\widetilde{F}(\bth, \bomega, \lambda)
-= \widetilde{F}(\bth', \bomega', \lambda')$.
+Suppose
+\[
+  (\bth, \bomega),\; (\bth', \bomega') \notin \mathcal{I}
+  \quad\text{and}\quad
+  \widetilde{F}(\bth, \bomega, \lambda)
+  = \widetilde{F}(\bth', \bomega', \lambda').
+\]
 By Condition~A, fixing $\bth$ determines
 $\bomega = \bomega_A(\bth;\, \mathbf{c})$ uniquely, and likewise
 $\bomega' = \bomega_A(\bth';\, \mathbf{c})$. Substituting into
 the Block~II equations yields $p$~equations in $\bth$ alone;
 by Condition~B, $\bth = \bth'$, and then $\bomega = \bomega'$.
-With $(\bth, \bomega)$ identified, $\Delta V$ is determined and
+With $(\bth, \bomega)$ identified, $\Delta V$ is determined. Because
+$(\bth,\bomega) \notin \mathcal{I}$, we have $\Delta V \neq 0$, so
 \cref{prop:noise} gives $\lambda = \lambda'$.
+Thus $\widetilde{F}$ is injective on
+$((\Theta \times \mathcal{W}) \setminus \mathcal{I}) \times (0,\infty)$.
+The final statement follows because an absolutely continuous prior assigns
+probability zero to $\mathcal{I} \times (0,\infty)$, so null exceptional sets
+do not affect the induced prior measure.
 \end{proof}
 
 
@@ -384,8 +419,15 @@ justify this reparameterization even when the image $W(\R^2_{>0})$
 must be characterized explicitly. When $W$ is bijective, the image
 equals the full codomain and no such characterization is needed.
 
-For the Prelec family, $W$ is in fact \emph{bijective} onto
-$\{(w_1, w_2) : 0 < w_1, w_2 < 1,\; w_1 \neq w_2\}$.
+For the Prelec family, $W$ is in fact \emph{bijective} onto the
+order-compatible region
+\begin{equation}
+  W(\R^2_{>0}) =
+  \begin{cases}
+    \{(w_1, w_2) : 0 < w_1 < w_2 < 1\}, & \text{if } p_1 < p_2, \\[4pt]
+    \{(w_1, w_2) : 0 < w_2 < w_1 < 1\}, & \text{if } p_1 > p_2.
+  \end{cases}
+\end{equation}
 The proof of \cref{lem:prelec_two_point} provides the explicit
 inverse. Given observed values $w_1 = w(p_1)$ and
 $w_2 = w(p_2)$ with $t_i = -\ln p_i$:
@@ -395,13 +437,17 @@ $w_2 = w(p_2)$ with $t_i = -\ln p_i$:
     \eta = \frac{-\ln w_1}{t_1^{\,\phi}}.
 \end{equation}
 Both expressions are well defined whenever $w_1, w_2 \in (0,1)$
-with $w_1 \neq w_2$, and they produce $(\phi, \eta) \in \R^2_{>0}$.
-(The condition $p_1 \neq p_2$ ensures $t_1 \neq t_2$ so the
-denominator is nonzero; $w_i \in (0,1)$ ensures $-\ln w_i > 0$.)
+satisfy the ordering induced by $p_1$ and $p_2$. The condition
+$p_1 \neq p_2$ ensures $t_1 \neq t_2$ so the denominator is nonzero,
+and $w_i \in (0,1)$ ensures $-\ln w_i > 0$. If $p_1 < p_2$, then
+$t_1 > t_2$, so $\ln(t_1/t_2) > 0$ and positivity of $\phi$ requires
+$\ln(\ln w_1 / \ln w_2) > 0$, equivalently $w_1 < w_2$.
+The case $p_1 > p_2$ is symmetric, yielding $w_1 > w_2$.
 This bijectivity is likely available for other common two-parameter
 PWF families (e.g., Goldstein--Einhorn). Because of this bijection,
-we conduct all subsequent analysis in $(r, w_1, w_2)$ space with no
-image-set restriction; the Prelec parameters do not appear again.
+we conduct all subsequent analysis in $(r, w_1, w_2)$ space subject
+only to the ordering restriction implied by $p_1$ and $p_2$; the
+Prelec parameters do not appear again.
 
 For the all-binary design, each Block~I lottery $L_k$ is binary with
 probability $p_k$ on the better outcome. When $p_1 \neq p_2$,
@@ -731,7 +777,15 @@ strictly negative for all $\rho \neq 1$, and
 $f(\rho)/(1-\rho)$ is strictly decreasing on
 $(0,\infty) \setminus \{1\}$.
 
-The equality in~(\ref{eq:ratio_of_rho}) thus forces
+\begin{proposition}[Shared-probability Condition~B for CRRA]
+\label{prop:shared_prob_condB}
+Under the shared-probability design $p_3 = p_1$, if
+$\xhi_1/\xlo_1 \neq \xhi_3/\xlo_3$ then Condition~B holds for all
+$s \neq 0$, equivalently for all $r \neq 1$.
+\end{proposition}
+
+\begin{proof}
+The equality in~(\ref{eq:ratio_of_rho}) forces
 $\rho_1 = \rho_3$, i.e.,
 \begin{equation}\label{eq:ratio_equality}
   \biggl(\frac{\xlo_1}{\xhi_1}\biggr)^{\!s}
@@ -744,8 +798,8 @@ Cross-multiplying:
 $\xlo_1(\xhi_1{+}e) = \xhi_1(\xlo_1{+}e)$,
 which simplifies to $e\,(\xhi_1 - \xlo_1) = 0$.
 Since $\xhi_1 \neq \xlo_1$, this forces $e = 0$,
-contradicting our assumption.
-\label{prop:shared_prob_condB} % keep label for §4.3 cross-ref
+contradicting our assumption. Thus Condition~B holds for all $s \neq 0$.
+\end{proof}
 
 
 \subsubsection{Full three-parameter identification}
@@ -756,11 +810,16 @@ Combining the results: the $W$-bijectivity of
 Condition~A (\cref{prop:binary}) for any $p_1 \neq p_2$.
 The shared-probability design $p_3 = p_1$ with
 $\xhi_1/\xlo_1 \neq \xhi_3/\xlo_3$ establishes Condition~B
-(\cref{prop:shared_prob_condB}) on all of $\R_{>0}$.
-By \cref{thm:main}, the full CE map
+(\cref{prop:shared_prob_condB}) on the power-CRRA domain
+$\R_{>0} \setminus \{1\}$, equivalently $s = 1-r \neq 0$.
+Thus the CE map
 $F \colon (r, w_1, w_2) \mapsto (c_1, c_2, c_3)$
-is globally injective on $(0,\infty) \times (0,1)^2$.
-No bounded-domain restriction is required.
+is injective on the full-measure subset
+\[
+  \bigl((0,\infty) \setminus \{1\}\bigr) \times W(\R^2_{>0}).
+\]
+The excluded singleton $r = 1$ corresponds to the log-utility limit and is
+immaterial for the Bayesian change-of-variables prior.
 
 
 \subsubsection{Condition~C: noise identification}
@@ -769,11 +828,13 @@ No bounded-domain restriction is required.
 The main text uses a logistic Fechner model
 with $\Lambda(t) = 1/(1 + e^{-t})$. Condition~C
 (\cref{sec:condition_c}) holds for any choice task with
-$\Delta V \neq 0$.
-Combined with Conditions~A and~B, the full map
+$\Delta V \neq 0$. For a non-degenerate design, the indifference locus
+$\Delta V = 0$ is a lower-dimensional exceptional set, so combined with
+Conditions~A and~B the full map
 $\widetilde{F} \colon (r, w_1, w_2, \lambda) \mapsto
-(c_1, c_2, c_3,\, P_4)$ is globally injective on
-$(0,\infty) \times (0,1)^2 \times (0,\infty)$.
+(c_1, c_2, c_3,\, P_4)$ is injective on the full-measure subset relevant for
+Bayesian estimation. This is exactly the level of injectivity needed to justify
+the transformed prior in the main text.
 
 
 \subsection{Extensions and Discussion}

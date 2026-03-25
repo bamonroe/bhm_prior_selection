@@ -252,8 +252,12 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
     is_hyper = first_param >= first_hyper
 
     def compute_hyper_posterior():
-        """Log posterior for hyperparameter blocks (requires all subjects)."""
-        datai = data["int"]
+        """Log posterior for hyperparameter blocks.
+
+        Only the hyperprior and population prior terms are needed here.
+        The Jacobian |det J_g(theta_i)| and data likelihood p(y_i | theta_i)
+        do not depend on hyperparameters and cancel in the MH ratio.
+        """
         dataf = data["float"]
 
         hyperprior_arr = jnp.asarray(dataf[7])
@@ -261,10 +265,6 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
         ref_pair = jnp.asarray(dataf[9])
 
         lp_hyper = _compute_all_hyperpriors(chain_state, idx, hyperprior_arr)
-
-        datai_jax = tuple(jnp.asarray(arr) for arr in datai)
-        dataf_jax = tuple(jnp.asarray(arr) for arr in dataf)
-        unique_outcomes = dataf_jax[0]
 
         def subject_ll_body(sid, acc):
             r_val, phi_raw, eta_raw, lambda_raw = _get_subject_params(
@@ -279,20 +279,10 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
             lp_pop = _subject_quantity_prior(
                 quantities, chain_state, idx, hyperprior_arr)
 
-            # Jacobian correction
-            log_det_j = full_jacobian_logabsdet(
-                r_val, phi_raw, eta_raw, lambda_raw,
-                ref_lotteries, ref_pair)
+            # Jacobian and likelihood omitted: they don't depend on
+            # hyperparameters and cancel in the MH ratio.
 
-            # Data likelihood
-            phi = jnp.exp(phi_raw)
-            eta = jnp.exp(eta_raw)
-            lam = jnp.exp(lambda_raw)
-            unique_utils = crra_ufn(unique_outcomes, r_val)
-            ll = risk_likelihood(
-                unique_utils, phi, eta, datai_jax, dataf_jax, sid, lam)
-
-            return acc + lp_pop + log_det_j + beta * ll
+            return acc + lp_pop
 
         total = jax.lax.fori_loop(0, n_subjects, subject_ll_body, 0.0)
 

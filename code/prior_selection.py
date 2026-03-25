@@ -323,7 +323,29 @@ def derive_hyperpriors_beta(
             )
 
     # --- Step 5: Dispersion hyperprior psi_k ~ Beta(a_psi, b_psi) ---
-    nu_psi = (1 - psi_star) / (psi_star * kappa**2) - 1
+    # κ is the CV of the conditional variance μ(1-μ)ψ, not the CV of ψ.
+    # Under independence of μ and ψ:
+    #   Var[μ(1-μ)ψ] = E[μ²(1-μ)²]·Var[ψ] + Var[μ(1-μ)]·E[ψ]²
+    # Setting the LHS to κ²·((1-ρ)v)² and solving for Var[ψ]:
+    S_mu = a_mu + b_mu
+    e_mu = (a_mu * (a_mu + 1) * b_mu * (b_mu + 1)
+            / (S_mu * (S_mu + 1) * (S_mu + 2) * (S_mu + 3)))
+    c_mu = denom  # = E[μ(1-μ)] = μ̃(1-μ̃) - ρṽ
+    d_mu = e_mu - c_mu**2  # Var[μ(1-μ)]
+
+    target_var_cond = kappa**2 * ((1 - rho) * v_tilde)**2
+    var_psi = (target_var_cond - d_mu * psi_star**2) / e_mu
+
+    for k in range(n_q):
+        kappa_lb = np.sqrt(d_mu[k]) / c_mu[k]
+        if var_psi[k] <= 0:
+            raise ValueError(
+                f"'{q_names[k]}': kappa={kappa:.4f} is below the lower bound "
+                f"{kappa_lb:.4f} for this family. The variation in μ(1-μ) "
+                f"alone exceeds the target CV of conditional variance."
+            )
+
+    nu_psi = psi_star * (1 - psi_star) / var_psi - 1
     a_psi = psi_star * nu_psi
     b_psi = (1 - psi_star) * nu_psi
 
@@ -332,7 +354,7 @@ def derive_hyperpriors_beta(
             raise ValueError(
                 f"'{q_names[k]}': nu_psi = {nu_psi[k]:.4f} <= 0. "
                 f"psi_star={psi_star[k]:.4f}, kappa={kappa:.4f}. "
-                f"Either psi_star is too large or kappa is too large."
+                f"Var[psi] exceeds the Beta feasibility bound."
             )
 
     return DerivedHyperpriorsBeta(
@@ -386,15 +408,21 @@ def verify_hyperpriors_beta(hp: DerivedHyperpriorsBeta, n_mc: int = 100_000,
         mc_var = np.var(z_draws)
         mc_var_mu = np.var(mu_draws)
 
+        # CV of conditional variance μ(1-μ)ψ — this is what κ should match
+        cond_var_draws = mu_draws * (1 - mu_draws) * psi_draws
+        mc_cv_cond_var = np.std(cond_var_draws) / np.mean(cond_var_draws)
+
         target_mean = hp.mu_star[k]
         target_var = hp.v_star[k]
         target_var_mu = hp.rho * hp.v_star[k]
+        target_kappa = hp.kappa
 
         mean_ok = np.abs(mc_mean - target_mean) < 0.01
         var_ok = np.abs(mc_var - target_var) / target_var < 0.05
         var_mu_ok = np.abs(mc_var_mu - target_var_mu) / target_var_mu < 0.1
+        kappa_ok = np.abs(mc_cv_cond_var - target_kappa) / target_kappa < 0.1
 
-        ok = mean_ok and var_ok and var_mu_ok
+        ok = mean_ok and var_ok and var_mu_ok and kappa_ok
         all_ok = all_ok and ok
 
         print(f"\n  {hp.quantity_names[k]}:")
@@ -404,6 +432,8 @@ def verify_hyperpriors_beta(hp: DerivedHyperpriorsBeta, n_mc: int = 100_000,
               f"{'OK' if var_ok else 'FAIL'}")
         print(f"    Var[mu]:   MC={mc_var_mu:.6f}  target={target_var_mu:.6f}  "
               f"{'OK' if var_mu_ok else 'FAIL'}")
+        print(f"    kappa:     MC={mc_cv_cond_var:.5f}  target={target_kappa:.5f}  "
+              f"{'OK' if kappa_ok else 'FAIL'}")
 
     print(f"\n{'=' * 70}")
     print(f"Overall: {'All checks passed' if all_ok else 'SOME CHECKS FAILED'}")

@@ -69,6 +69,8 @@ Theory and Applications to Risk Preferences}
 
 \newcommand{\xlo}{\underline{x}}
 \newcommand{\xhi}{\bar{x}}
+\newcommand{\ylo}{\underline{y}}
+\newcommand{\yhi}{\bar{y}}
 \newcommand{\Ehpm}[1]{\E{#1 \mid \hpriormm, \hpriormv}}
 \newcommand{\Varhpm}[1]{\Var{#1 \mid \hpriormm, \hpriormv}}
 \newcommand{\Ehpv}[1]{\E{#1 \mid \hpriorvm, \hpriorvv}}
@@ -717,9 +719,9 @@ transparent link between hyperprior parameters and either goal. With a direct
 prior specified, $\rho$ and $\kappa$
 provide a way to encode the researcher's beliefs about the \textit{level} of
 heterogeneity in a population ($\rho$) and their \textit{confidence} in that
-level ($\kappa$). \textit{Any} value of $\rho \in (0, 1)$ and $\kappa > 0$
-results in a hyperprior whose predictive distribution matches the first two
-moments of the direct prior. This approximate consistency between the direct
+level ($\kappa$). Any feasible $(\rho, \kappa)$ pair results in a hyperprior
+whose predictive distribution matches the first two moments of the direct
+prior. This approximate consistency between the direct
 prior and the hierarchical predictive improves as $\rho$ and $\kappa$ decrease
 (concentrating the hyperprior), and the quality of the approximation can be
 assessed by comparing the CDFs of the two distributions.
@@ -836,13 +838,12 @@ Conditioning on the preference parameters and evaluating $P(A)$ from
 This extends the mapping to
 $\bg(r, \phi, \eta, \lambda) = (\CE_1, \CE_2, \CE_3, P)$.\footnote{
   The change-of-variables formula $p(\bth) = p_Y(\bg(\bth))\,|\!\det
-  J_{\bg}(\bth)|$ requires that the mapping $\bg$ be globally injective:
-  distinct parameter vectors must produce distinct predictive quantities. A
-  nonvanishing Jacobian determinant ($\det J_{\bg} \neq 0$ everywhere)
-  establishes only \textit{local} invertibility and is necessary but not
-  sufficient for global injectivity. Proving global injectivity for the mapping
-  is nontrivial and must be assessed on a case-by-case basis.
-  Appendix \ref{app:global_injectivity} provides a complete proof for the
+  J_{\bg}(\bth)|$ requires that the mapping $\bg$ be injective on the
+  support of the prior. A nonvanishing Jacobian determinant ($\det J_{\bg}
+  \neq 0$ everywhere) establishes only \textit{local} invertibility and is
+  necessary but not sufficient. Proving injectivity for the mapping is
+  nontrivial and must be assessed on a case-by-case basis.
+  Appendix \ref{app:global_injectivity} provides a proof for the
   CRRA--Prelec model and guidance on what classes of reference lotteries
   satisfy the required conditions.
 }
@@ -1043,7 +1044,7 @@ using the diffuse parameter-space hyperprior from \textcite[279--281]{Gao2022}.
 This specification places priors directly on the structural parameters rather
 than using the quantity-space priors developed in section \ref{sec:gq_space},
 and uses the common Inverse-Gamma($\varepsilon$, $\varepsilon$) form for
-variance parameters. To make the comparison salient, I focus on the prdictive
+variance parameters. To make the comparison salient, I focus on the predictive
 posterior distributions of the CEs of the lotteries in Table
 \ref{tab:lottery_design}. This diffuse hyperprior defines each individual-level
 parameter as being normally distributed, with the mean and variance
@@ -1232,8 +1233,8 @@ in that specification; values of $\rho = 0.2$ and $\kappa = 0.25$, as used in
 the application, express substantial heterogeneity with moderate confidence.
 Finally, the implied prior predictive distribution should be examined to
 confirm that the hierarchical structure implied by the $\rho$/$\kappa$
-decomposition is reasonable; the framework guarantees that the unconditional
-distribution matches the direct prior by construction, but the allocation
+decomposition is reasonable; the framework guarantees that the first two moments of the unconditional
+distribution match the direct prior by construction, but the allocation
 between population-mean uncertainty and individual heterogeneity should be
 checked. Estimation then proceeds with standard MCMC sampling, adding the
 Jacobian correction term to the log-posterior when using quantity-space

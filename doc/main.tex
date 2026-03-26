@@ -1239,9 +1239,9 @@ Table~\ref{tab:rk_sensitivity} reports the subject classification for each.
     $\rho$ & $\kappa$ & Well-identified & Moderate & Prior-dominated & \% dominated \\
     \midrule
     0.2 & 0.25 & 79 & 14 & 18 & 16\% \\
-    0.2 & 1.50 & --- & --- & --- & ---\% \\
-    0.8 & 0.25 & --- & --- & --- & ---\% \\
-    0.8 & 1.50 & --- & --- & --- & ---\% \\
+    0.2 & 1.50 & 83 & 14 & 14 & 13\% \\
+    0.8 & 0.25 & 76 & 14 & 21 & 19\% \\
+    0.8 & 1.50 & 81 & 13 & 17 & 15\% \\
     \bottomrule
   \end{tabular}
   \caption{Subject classification across $(\rho, \kappa)$ configurations.
@@ -1250,8 +1250,20 @@ Table~\ref{tab:rk_sensitivity} reports the subject classification for each.
   \label{tab:rk_sensitivity}
 \end{table}
 
-The full CDF difference plots and predictive CE overlays for each
-configuration are reported in Appendix~\ref{app:rk_sensitivity}.
+The prior-dominated share ranges from 13\% to 19\% across the four
+configurations, confirming that the finding is structurally stable rather than
+an artifact of a particular $(\rho, \kappa)$ choice. The direction of movement
+is consistent with the theory: higher $\rho$ (tighter population prior, less
+heterogeneity) increases the prior-dominated share to 19--21\%, because the
+narrower population distribution assigns lower density to extreme parameter
+values. Higher $\kappa$ (less confidence in the heterogeneity level) reduces the
+prior-dominated share to 13--15\%, because the looser variance hyperprior gives
+the data more room to pull weakly-identified subjects away from the prior mode.
+The moderate group is notably stable at 13--14 subjects across all four
+configurations, suggesting a structural middle band of subjects whose data are
+informative enough to resist moderate prior perturbations. The full CDF
+difference plots and predictive CE overlays for each configuration are reported
+in Appendix~\ref{app:rk_sensitivity}.
 
 %==============================================================================
 \section{Discussion}

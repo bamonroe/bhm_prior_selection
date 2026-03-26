@@ -365,7 +365,13 @@ Use prose to present information, even when listing properties or conditions.
 Do not use `\textbf{}` for emphasis in the paper body. Use `\textit{}` or
 `\emph{}` sparingly, or let the structure speak for itself.
 
-Do not use em-dashes (`---`) in the paper. Use colons or commas instead.
+Do not use em-dashes (`---`) in the paper.
+
+Limit the use of colons. A colon is appropriate before a displayed equation,
+a formal definition, or a short list that completes the sentence. It should
+not be the default way to introduce a clause that elaborates on the previous
+one. Prefer restructuring the sentence, splitting into two sentences, or
+using a comma.
 
 Limit the use of semicolons. Prefer splitting into two sentences or
 restructuring with a conjunction. Semicolons are acceptable in lists or

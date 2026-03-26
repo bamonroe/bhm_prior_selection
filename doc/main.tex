@@ -178,7 +178,7 @@ individual, the researcher must now specify a \textit{hyperprior} over the
 population-level parameters.
 
 It is common for models to assign a prior distribution with 2 hyper-parameters
-per individual-level parameter; for example, a normal distribution governed by
+per individual-level parameter, for example a normal distribution governed by
 a mean and variance. Each hyper-parameter then requires its own prior,
 typically also parameterized by 2 values. A model with $p$ parameters per
 subject therefore results in $4p$ hyperprior parameters requiring
@@ -261,11 +261,10 @@ equal. A large literature has developed around what might constitute a
 There are a variety of criteria that influence the judgment of how good a prior
 is, but both criteria and suggestions for priors can potentially be grouped
 into two camps: the first camp gives recommendations about \enquote{default}
-priors when the researcher actually has little to no information about the
-model (they have a weak or non-existent prior), and the second camp gives
-recommendations about priors when the researcher has at least \textit{some}
-information about the model (they have an informed prior), but may have trouble
-fully expressing it. I summarize some key insights from the two camps here,
+priors when the researcher has little to no information about the model, and
+the second camp gives recommendations about priors when the researcher has at
+least \textit{some} information about the model but may have trouble fully
+expressing it. I summarize some key insights from the two camps here,
 noting that the prior selection method I am proposing almost entirely
 contributes to the second camp.
 
@@ -438,7 +437,7 @@ computationally prohibitive.\footnote{
   statistical software and JAX python library, efficiently computes both
   $\bg(\bth)$ and $J_\bg{}$ directly without first having to solve their
   analytical form, further reducing the barriers for use of this method.
-  Proving injectivity, however, can be challenging; something we address later.
+  Proving injectivity, however, can be challenging, as we address later.
 } For example, the expected utility of a lottery evaluated with the CRRA
 utility function cannot be solved in terms of the single parameter $r$.
 For models where even the Jacobian is not analytically tractable,
@@ -486,7 +485,7 @@ parametric families. The right-hand side is a \textit{compound distribution},
 formed by integrating the individual-level density over the hyperprior. For
 most distributional families, this compound distribution is not a member of the
 individual-level family. A compound Normal (integrating over random mean and
-variance) is not Normal; a compound Beta (integrating over random mean and
+variance) is not Normal, and a compound Beta (integrating over random mean and
 dispersion) is not Beta. The only case where (\ref{eq:dp_total}) holds exactly
 within a parametric family is the degenerate one: point-mass hyperpriors with
 no uncertainty about the population parameters, which eliminates the hierarchy
@@ -633,11 +632,11 @@ both approach zero, the hyperprior concentrates and the compound distribution
 collapses toward the individual-level distribution with mean $\dpm$ and
 variance $\dpv$. A natural choice is to use the same distributional family for
 the individual-level distribution and the direct prior, in which case the
-direct prior is recovered exactly in this limit; this is not required by the
+direct prior is recovered exactly in this limit. This is not required by the
 construction, but it is convenient and is the approach taken in the application
 below. For nonzero $\rho$ and $\kappa$, the discrepancy is typically
 small but can be assessed by comparing the CDF of the hierarchical predictive
-to that of the direct prior; Appendix~\ref{app:hyperprior_families} provides
+to that of the direct prior. Appendix~\ref{app:hyperprior_families} provides
 this comparison for three standard families. The researcher should verify that
 tail probabilities of interest are not materially affected by the choice of
 $\rho$ and $\kappa$.
@@ -675,7 +674,7 @@ When $p > 1$, the decomposition applies independently to each of the $p$
 predictive quantities: each quantity $k$ requires a direct prior mean $\dpm_k$
 and variance $\dpv_k$, a variance partition ratio $\rho_k$, and a
 heterogeneity confidence $\kappa_k$, yielding $4p$ researcher inputs in total.
-There is no free lunch in this process; this is the same number of choices
+There is no free lunch in this process: this is the same number of choices
 required to specify the hyperprior directly. It's reasonable to ask
 \enquote{why bother?} The answer is twofold.
 
@@ -857,7 +856,7 @@ conditional on the mean for a Beta distribution, which would result in an
 inconvenient conditional distribution for a variance hyperparameter. The
 normalization $\psi_k = \sigma_k^2 / [\mu_k(1 - \mu_k)]$ removes this
 dependence. The variance decomposition that maps researcher-specified moments
-to hyperprior parameters works regardless of parameterization; the choice of
+to hyperprior parameters works regardless of parameterization. The choice of
 $\psi_k$ affects only the form of the hyperprior, not the derivation itself.
 
 The hierarchical model has 4 hyperprior parameters per quantity. Rather than
@@ -871,7 +870,7 @@ conditional variance $\mu_k(1-\mu_k)\psi_k$ depends on both hyperparameters,
 the translation from $\kappa_k$ to the dispersion hyperprior $(a_\psi^k,
 b_\psi^k)$ requires accounting for cross-moments between $\mu_k$ and $\psi_k$.
 As in the general theory, $\kappa_k$ targets uncertainty in the conditional
-variance; the Beta hyperprior on $\psi_k$ is the device used to realize that
+variance, and the Beta hyperprior on $\psi_k$ is the device used to realize that
 target. The complete derivation, including the feasibility region and the
 $\kappa$ bounds for the Beta-Beta family, is given in
 Appendix~\ref{app:beta_beta}.
@@ -904,7 +903,7 @@ for k in [1, 2, 3]:
 
 The quantity-space framework of Section \ref{sec:ce_space} requires reference
 lotteries for the CE mapping and a reference pair for the choice probability,
-chosen so that the map from parameters to predictive quantities is injective. Appendix \ref{app:global_injectivity} derives the conditions; for
+chosen so that the map from parameters to predictive quantities is injective. Appendix \ref{app:global_injectivity} derives the conditions. For
 the specific Prelec--CRRA design used here, they reduce to using two binary
 lotteries with distinct probabilities on the higher outcome, a third binary
 lottery with shared probability $p_3 = p_1$ whose outcome ratio differs from
@@ -938,7 +937,7 @@ Section \ref{sec:variance_decomposition} requires a direct prior mean and
 variance, but there are many ways to elicit beliefs about predictive quantities
 that yield a proper direct prior. One natural approach is to specify a mean and
 the probability that a randomly selected individual is risk-seeking. For CEs,
-risk-seeking means having a CE above the expected value; for the choice
+risk-seeking means having a CE above the expected value. For the choice
 probability, it means preferring the riskier of two equal-EV lotteries. For a
 Beta distribution with fixed mean, this tail probability uniquely determines
 the concentration and therefore the variance. This is arguably more natural
@@ -956,7 +955,7 @@ sense, regardless of the underlying preference model. The choice probability
 $P$ represents the probability that $L_1$ is chosen over $L_3$, so $P > 0.5$
 indicates risk-seeking.
 
-The following calibration is illustrative; it reflects broad empirical
+The following calibration is illustrative, reflecting broad empirical
 regularities from the experimental risk preference literature rather than a
 specific pilot study. I specify that the mean CE for each lottery is
 \py{fmt(D['ce_mean_frac_pct'], 0)}\% of the distance from the lower bound to
@@ -1037,7 +1036,7 @@ This specification places priors directly on the structural parameters rather
 than using the quantity-space priors developed in section \ref{sec:gq_space},
 and uses the common Inverse-Gamma($\varepsilon$, $\varepsilon$) form for
 variance parameters. This comparison is not intended as a horse race between
-two informed priors; rather, it contrasts the informed quantity-space prior
+two informed priors. Rather, it contrasts the informed quantity-space prior
 developed here with a standard diffuse benchmark from the default-prior camp.
 To make the comparison salient, I focus on the posterior predictive
 distributions of the CEs of the lotteries in Table
@@ -1145,7 +1144,7 @@ Subject \py{subject_max_ce} (Figure \ref{fig:post_ce_max}) has the largest
 difference. The two models place this subject at opposite extremes: the
 informative model concentrates near the minimum CE (extreme risk aversion),
 while the diffuse model concentrates near the maximum (extreme risk seeking).
-This is not a convergence artifact; both models converge well to their
+This is not a convergence artifact. Both models converge well to their
 respective modes. Evaluating the full posterior of the informative model at the
 diffuse model's mode reveals that the population prior assigns it a density
 more than four orders of magnitude lower than the risk-averse mode, even though
@@ -1154,7 +1153,7 @@ prior, specified through the CE-space hierarchy, is the deciding factor.
 
 Across all subjects, 18 subjects (16\%) exhibit this pattern of opposing
 inferences. These are subjects whose choice data are consistent with both
-extreme risk aversion and extreme risk seeking; 80 binary choices are
+extreme risk aversion and extreme risk seeking, and 80 binary choices are
 insufficient to distinguish between these modes for the 4-parameter RDU model.
 The informative hyperprior resolves this ambiguity through the population
 distribution: extreme risk seeking is assigned low prior density because few
@@ -1177,7 +1176,7 @@ Figure \ref{fig:cdf_diff} provides a distributional summary of how the
 hyperprior affects each subject's posterior CE. Each line plots the difference
 in empirical CDFs, $F_{\text{info}}(x) - F_{\text{diffuse}}(x)$, for a single
 subject. Positive values indicate that the informative model assigns more
-probability mass below $x$ (more risk-averse); a flat line at zero indicates
+probability mass below $x$ (more risk-averse). A flat line at zero indicates
 identical posteriors. Subjects are grouped by the average absolute median CE
 difference across all three lotteries: well-identified (green, 79 subjects),
 moderately affected (blue, 14), and prior-dominated (red, 18).
@@ -1255,8 +1254,9 @@ in Appendix~\ref{app:rk_sensitivity}.
 
 The framework developed in this paper suggests a concrete workflow for
 researchers specifying hyperpriors. The researcher first chooses the
-specification space: beliefs can be stated about structural parameters directly
-(the identity case) or about predictive quantities such as certainty
+specification space: beliefs can be stated about structural parameters
+directly, which corresponds to the identity mapping, or about predictive
+quantities such as certainty
 equivalents, choice probabilities, or indifference amounts. The quantity space
 is preferred when the researcher has stronger intuition about quantities in
 experimental units. For each dimension of the specification space, the
@@ -1264,11 +1264,11 @@ researcher provides a mean and variance reflecting beliefs about a single
 random individual, informed by published empirical estimates, experimental
 pilot data, or expert judgment. The researcher then chooses $\rho$ and $\kappa$
 to express beliefs about the degree of population heterogeneity and confidence
-in that specification; values of $\rho = 0.2$ and $\kappa = 0.25$, as used in
+in that specification. Values of $\rho = 0.2$ and $\kappa = 0.25$, as used in
 the application, express substantial heterogeneity with moderate confidence.
 Finally, the implied prior predictive distribution should be examined to
 confirm that the hierarchical structure implied by the $\rho$/$\kappa$
-decomposition is reasonable; the framework guarantees that the first two moments of the unconditional
+decomposition is reasonable. The framework guarantees that the first two moments of the unconditional
 distribution match the direct prior by construction, but the allocation
 between population-mean uncertainty and individual heterogeneity should be
 checked. Estimation then proceeds with standard MCMC sampling, adding the
@@ -1307,7 +1307,7 @@ mitigate this concern, but the researcher should verify that the implied
 joint prior on parameters is sensible by examining prior predictive draws.
 
 Fourth, the application demonstrates that for a subset of subjects
-(approximately 18\% in the present sample), the hyperprior is the dominant
+(18 subjects, or 16\% of the present sample), the hyperprior is the dominant
 factor in posterior inference. This is not a limitation of the framework per
 se, but rather an identification issue inherent to the 4-parameter RDU model
 estimated from 80 binary choices per subject. The quantity-space framework

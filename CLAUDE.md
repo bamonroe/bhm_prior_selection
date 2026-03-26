@@ -365,8 +365,17 @@ Use prose to present information, even when listing properties or conditions.
 Do not use `\textbf{}` for emphasis in the paper body. Use `\textit{}` or
 `\emph{}` sparingly, or let the structure speak for itself.
 
-Do not use em-dashes (`---`) in the paper. Use colons, semicolons, or
-parenthetical commas instead.
+Do not use em-dashes (`---`) in the paper. Use colons or commas instead.
+
+Limit the use of semicolons. Prefer splitting into two sentences or
+restructuring with a conjunction. Semicolons are acceptable in lists or
+when the connection between clauses is very tight, but should not be the
+default punctuation for joining related ideas.
+
+Limit the use of parenthetical asides. If the information is worth
+stating, integrate it into the sentence or give it its own sentence. If
+it is not worth stating, omit it. Parentheses should be reserved for
+citations, brief mathematical clarifications, or truly incidental details.
 
 Do not place multiple equations side-by-side in a single `align` row. Each
 equation should be on its own line.

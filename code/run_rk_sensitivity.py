@@ -81,8 +81,11 @@ def run_one_config(rho, kappa):
     print(f"  Saved: {prior_params_path}")
 
     # --- Step 2: Sampling ---
+    # bamcmc hardcodes MODEL_ID='rdu_bhm_ce' as the subdirectory name,
+    # so we set output_dir to a config-specific parent to avoid overwriting.
     print("\n  Step 2: MCMC sampling...")
-    opts = {**sampling_opts_ce, 'model': model_name}
+    config_output_dir = DATA_DIR / 'output' / label
+    opts = {**sampling_opts_ce, 'output_dir': config_output_dir}
     pipelines.run_sampling_ce(
         opts,
         ref_lotteries=REFERENCE_LOTTERIES,
@@ -92,7 +95,7 @@ def run_one_config(rho, kappa):
 
     # --- Step 3: Preprocessing ---
     print("\n  Step 3: Preprocessing...")
-    model_dir = DATA_DIR / 'output' / model_name
+    model_dir = config_output_dir / 'rdu_bhm_ce'
     history_dir = model_dir / 'history' / 'full'
     preprocess_dir = model_dir / 'preprocessed'
 
@@ -115,16 +118,16 @@ def run_one_config(rho, kappa):
     info_subjects = preprocess_dir / 'subjects'
     uninf_subjects = (DATA_DIR / 'output' / 'rdu_bhm_uninf'
                       / 'preprocessed' / 'subjects')
-    hyper_info = preprocess_dir / 'hyperparams_preprocessed.npz'
-    hyper_uninf = (DATA_DIR / 'output' / 'rdu_bhm_uninf'
-                   / 'preprocessed' / 'hyperparams_preprocessed.npz')
+    hyper_info = str(preprocess_dir / 'hyperparams_preprocessed.npz')
+    hyper_uninf = str(DATA_DIR / 'output' / 'rdu_bhm_uninf'
+                      / 'preprocessed' / 'hyperparams_preprocessed.npz')
 
     from paper_plots import generate_paper_plots
     generate_paper_plots(
         info_subjects_dir=str(info_subjects),
         uninf_subjects_dir=str(uninf_subjects),
-        info_hyper_path=str(hyper_info),
-        uninf_hyper_path=str(hyper_uninf),
+        info_hyper_path=hyper_info,
+        uninf_hyper_path=hyper_uninf,
         prior_params_path=str(prior_params_path),
         output_dir=str(paper_plots_dir),
         data_output_dir=str(paper_plots_dir),

@@ -55,7 +55,7 @@ functions {
   real crra_utility(real x, real r) {
     real x_s = fmax(x, 1e-10);
     real r_s = fmin(fmax(r, -10.0), 10.0);
-    if (fabs(r_s - 1.0) < 0.01)
+    if (abs(r_s - 1.0) < 0.01)
       return log(x_s);
     else
       return pow(x_s, 1 - r_s) / (1 - r_s);
@@ -68,7 +68,7 @@ functions {
    */
   real crra_inverse(real v, real r) {
     real r_s = fmin(fmax(r, -10.0), 10.0);
-    if (fabs(r_s - 1.0) < 0.01)
+    if (abs(r_s - 1.0) < 0.01)
       return exp(v);
     else {
       real inner = fmax((1 - r_s) * v, 1e-30);
@@ -236,7 +236,7 @@ functions {
     real w2 = exp(-A2);
     real log_det_W = -A1 - A2 + 2 * eta_raw
                      + phi * (log(t1) + log(t2))
-                     + phi_raw + log(fabs(log(t1 / t2)));
+                     + phi_raw + log(abs(log(t1 / t2)));
 
     // --- Component 2: CE map in (r, w1, w2) space ---
     // Shared probability: w3 = w1 (p3 = p1)
@@ -253,7 +253,7 @@ functions {
 
     real det_CE = dce2_dw2_val
                   * (dce1_dr_val * dce3_dw1_val - dce3_dr_val * dce1_dw1_val);
-    real log_det_CE = log(fabs(det_CE));
+    real log_det_CE = log(abs(det_CE));
 
     // --- Component 3: dP/dlambda_raw ---
     // Recompute Delta for the reference pair
@@ -279,7 +279,7 @@ functions {
 
     real delta = (V_A - V_B) / (lam * u_range);
     real P_val = inv_logit(delta);
-    real log_dP = log(fabs(delta)) + log(P_val) + log1m(P_val);
+    real log_dP = log(abs(delta)) + log(P_val) + log1m(P_val);
 
     return log_det_W + log_det_CE + log_dP;
   }

@@ -119,6 +119,25 @@ def run_sampling_ce(sampling_opts, ref_lotteries, ref_pair,
     print("Done.\n")
 
 
+def run_sampling_stan(sampling_opts, ref_lotteries, ref_pair,
+                      prior_params_path=None):
+    """Run MCMC sampling via Stan/NUTS with quantity-space Beta-Beta prior."""
+    print("\n" + "=" * 60)
+    print("Running: Stan NUTS Sampling (Quantity-Space Beta-Beta Prior)")
+    print("=" * 60)
+
+    from sampling_stan import run_sampling_stan as _run
+    output_dir = Path(sampling_opts['output_dir']) / sampling_opts['model']
+    _run(
+        output_dir=output_dir,
+        ref_lotteries=ref_lotteries,
+        ref_pair=ref_pair,
+        prior_params_path=prior_params_path,
+        config=sampling_opts,
+    )
+    print("Done.\n")
+
+
 def run_sensitivity(ce_direct_prior, output_dir, lottery=None,
                     seed=42, config=None):
     """Run sensitivity analysis over (ρ, κ) grid using Beta-Beta hierarchy."""

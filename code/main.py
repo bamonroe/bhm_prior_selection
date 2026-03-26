@@ -196,6 +196,19 @@ sampling_opts_uninf = {
     'beta_0_min': 0.1,
 }
 
+# Stan/NUTS config (quantity-space Beta-Beta prior)
+sampling_opts_stan = {
+    'model': 'rdu_bhm_ce_stan',
+    'output_dir': DATA_DIR / 'output',
+    'chains': 4,
+    'parallel_chains': 4,
+    'iter_warmup': 1000,
+    'iter_sampling': 2000,
+    'max_treedepth': 12,
+    'adapt_delta': 0.9,
+    'seed': SEEDS['sampling'],
+}
+
 # Gao (2022) diffuse hyperprior: N(0, 100) means, IG(0.001, 0.001) variances
 UNINF_HYPERPRIOR_SPECS = {
     'r':          {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
@@ -218,6 +231,7 @@ do_sensitivity          = False
 # --- MCMC Sampling ---
 do_sampling_ce             = False
 do_sampling_uninf          = False
+do_sampling_stan           = False
 
 # --- Preprocessing (extract from history files) ---
 do_generate_prior_ce       = False
@@ -309,6 +323,16 @@ if __name__ == '__main__':
         prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
         pipelines.run_sampling_ce(
             sampling_opts_ce,
+            ref_lotteries=REFERENCE_LOTTERIES,
+            ref_pair=REFERENCE_PAIR,
+            prior_params_path=prior_params_ce_path,
+        )
+
+    if do_sampling_stan:
+        check_dependency('sampling_stan', ['clean_data'])
+        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
+        pipelines.run_sampling_stan(
+            sampling_opts_stan,
             ref_lotteries=REFERENCE_LOTTERIES,
             ref_pair=REFERENCE_PAIR,
             prior_params_path=prior_params_ce_path,

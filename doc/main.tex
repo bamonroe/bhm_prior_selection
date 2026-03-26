@@ -1224,6 +1224,35 @@ thus captures, in a single visualization, both the magnitude and the
 lottery-specific direction of the prior's influence across the full posterior
 distribution.
 
+\subsubsection{Sensitivity to $\rho$ and $\kappa$}
+
+The preceding results use a single $(\rho, \kappa)$ specification. To assess
+how sensitive the subject classification is to these choices, I re-estimate the
+model at three additional configurations spanning the corners of the
+interpretable region, holding all other aspects of the specification fixed.
+Table~\ref{tab:rk_sensitivity} reports the subject classification for each.
+
+\begin{table}[h!]
+  \centering
+  \begin{tabular}{cccccc}
+    \toprule
+    $\rho$ & $\kappa$ & Well-identified & Moderate & Prior-dominated & \% dominated \\
+    \midrule
+    0.2 & 0.25 & 79 & 14 & 18 & 16\% \\
+    0.2 & 1.50 & --- & --- & --- & ---\% \\
+    0.8 & 0.25 & --- & --- & --- & ---\% \\
+    0.8 & 1.50 & --- & --- & --- & ---\% \\
+    \bottomrule
+  \end{tabular}
+  \caption{Subject classification across $(\rho, \kappa)$ configurations.
+    Each row uses the same direct prior, data, and comparison model;
+    only the hierarchical variance allocation changes.}
+  \label{tab:rk_sensitivity}
+\end{table}
+
+The full CDF difference plots and predictive CE overlays for each
+configuration are reported in Appendix~\ref{app:rk_sensitivity}.
+
 %==============================================================================
 \section{Discussion}
 \label{sec:discussion}
@@ -1351,5 +1380,6 @@ available at \url{https://github.com/bmonroe3/bhm-prior-selection}.
 
 \input{appendix_global_injectivity}
 \input{appendix_hyperprior_families}
+\input{appendix_rk_sensitivity}
 
 \end{document}

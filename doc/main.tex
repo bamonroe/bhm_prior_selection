@@ -229,7 +229,7 @@ from the predictive intuition of the second camp and delivers closed-form
 hyperpriors that avoid the pathologies identified by the first.
 
 I demonstrate the approach with RDU estimation using
-real lottery choice data from \textcite{Harrison2016}, comparing
+experimental lottery choice data from \textcite{Harrison2016}, comparing
 informative hyperpriors derived from the methodology against diffuse
 alternatives.
 
@@ -237,7 +237,7 @@ The paper proceeds as follows. Section \ref{sec:literature} reviews the two
 camps of the prior specification literature.
 Section \ref{sec:gq_space} develops the quantity-space prior
 specification via injective mappings and Jacobian corrections, and introduces
-the distribution-free variance decomposition that reduces the remaining degrees
+the variance decomposition that reduces the remaining degrees
 of freedom to the interpretable parameters $\rho$ and $\kappa$.
 Section \ref{sec:application_rdu} applies both contributions to RDU estimation
 with real data, demonstrating the CE mapping, choice probability specification,
@@ -324,56 +324,19 @@ prior distributions.
 
 \subsection{Camp 2: Priors When Knowledge Is Available}
 
-The second camp develops methods for when that domain knowledge does exist, and
+The second camp develops methods for when domain knowledge does exist, and
 the researcher wishes to translate it into prior distributions.
 \textcite{Kadane1980} established the paradigm of \enquote{predictive
 elicitation}: rather than asking an expert to specify prior parameters
-directly, one asks about observable quantities (predictions, effect sizes, test
-statistics, etc.) and derives compatible prior distributions.
-\textcite{KadaneWolfson1998} distinguished \enquote{structural elicitation}
-(asking about parameters) from \textit{predictive elicitation} (asking about
-observables), arguing that the latter is more cognitively natural.
+directly, one asks about observable quantities and derives compatible prior
+distributions. \textcite{KadaneWolfson1998} distinguished structural
+elicitation (asking about parameters) from predictive elicitation (asking about
+observables), arguing that the latter is more cognitively natural. Practical
+methods for eliciting and encoding beliefs have been developed extensively in
+both economics and psychology; see \textcite{Schlag2015},
+\textcite{Garthwaite2005}, and \textcite{Mikkola2024} for reviews.
 
-Actually \textit{eliciting} the beliefs of individuals is a substantial
-literature onto itself, largely contributed to by psychologists and economists.
-I provide only a brief overview of this literature. In the economics
-literature, subjective beliefs are largely elicited through the consequence of
-revealed preferences. Individuals who make risky bets are said to reveal their
-subjective probabilities about those events jointly with their risk
-preferences.
-
-The economics literature on belief elicitation is dominated by the proper
-scoring rule (PSR) initially discussed by \textcite{Juster1966}, and more
-formally developed by \textcite{Winkler1969}, \textcite{Murphy1970}.
-\textcite{Savage1971} details further examples of how one might elicit
-subjective probabilities of events using the auction design of
-\textcite{Becker1964}, noting the complication of risk aversion in inference.
-The complication of risk-aversion confounding direct inference of beliefs from
-observed behavior has lead to techniques to correct inference about beliefs
-from observed choices. \textcite{Harrison2017b}, \textcite{Harrison2019a}
-propose methods for correcting proper scoring rule elicitations given an
-individual conforms to EUT or RDU \parencite{Quiggin1982} risk preferences. \textcite{Offerman2009}
-provides a method for eliciting beliefs that corrects for risk preferences, but
-can sometimes result in the inference of non-proper distributions.
-\textcite{Hossain2013} further develop and popularize the method of using a
-PSR, but paying in \textit{utilities} as opposed to monetary outcomes, as
-initially proposed by \textcite{Smith1961}, which \textit{risk-neutralizes} the
-subject, and allows one to infer beliefs \textit{directly} from observed choice
-behavior. \textcite{Schlag2015} provides an excellent overview of other ways
-that economists elicit beliefs.
-
-In addition to the substantial economics literature on belief elicitation,
-psychologists have contributed greatly to practical methods, and identified
-many difficulties in attempting to directly ask individuals for subjective
-probabilities about events. \textcite{Garthwaite2005} provided a comprehensive
-review of elicitation methods, with later additional contributions to the
-literature on direct elicitation measures and its difficulties by
-\textcite{Manski2004, Manski2010,OHagan2006}, and many others.
-\textcite{Mikkola2024} provides a more modern review of elicitation techniques,
-noting, as \textcite{GelmanSimpsonBetancourt2017} does, the gap between
-theoretical frameworks and practical tools.
-
-When a researcher \textit{does} have informed beliefs about relevant quantities
+When a researcher does have informed beliefs about relevant quantities
 that are encoded into probability distributions, there are many suggestions
 about how best to utilize them in Bayesian analysis. \textcite{Gabry2019}
 discuss a Bayesian workflow in which they suggest that prior predictive
@@ -405,7 +368,7 @@ to do so analytically, yielding closed-form hyperprior parameters from
 interpretable inputs. The present paper provides this extension: starting from
 a researcher's beliefs about predictive quantities for a single individual, I
 derive the full hyperprior through a Jacobian correction and a
-distribution-free variance decomposition. This process places the emerging
+variance decomposition. This process places the emerging
 consensus that prior predictive distributions ought to be a primary criteria
 for prior setting at the forefront of the process, and helps extend this
 process to hierarchical settings.
@@ -452,8 +415,12 @@ discuss the detailed mathematical derivation of this formula and note the
 correction via the Coarea Formula needed when $k < p$. Given the focus of
 risk preference models, and the abundance of possible prior quantities on
 economic variables derived from risk preferences, I focus only on the
-cases where $k \geq p$, with particular emphasis on $k = p$.\footnote{
-  When $k > p$, the induced prior (\ref{eq:jacobian_prior}) is not
+cases where $k \geq p$, with particular emphasis on $k = p$. The application
+uses the square case $k = p = 4$. When $k > p$, the image of $\bg$ is a
+$p$-dimensional submanifold of $\R^k$, and the researcher's quantity-space
+density should be understood as evaluated on this image rather than as a
+free-standing density on all of $\R^k$.\footnote{
+  Concretely, when $k > p$ the induced prior (\ref{eq:jacobian_prior}) is not
   automatically normalized, but Bayesian inference requires only
   $p_\theta \propto p_\vartheta(\bg(\bth))\sqrt{\det(J^\top J)}$.
   See \textcite[108--110]{Segert2019} for the measure-theoretic details.
@@ -482,8 +449,11 @@ Equation (\ref{eq:jacobian_prior}) is the starting point of the proposed
 method. I presume that a researcher can specify proper probability
 distributions over $k \geq p$ predictive quantities that are related to the $p$
 model parameters through a provably injective mapping $\bg$, for some randomly
-selected individual from a population of exchangeable individuals. I call this
-specified individual-level prior a \enquote{direct prior.} For a model of a
+selected individual from a population of exchangeable individuals. In practice,
+these are specified as independent marginal distributions over each quantity;
+the Jacobian correction in (\ref{eq:jacobian_prior}) induces the appropriate
+dependence structure in parameter space. I call this specified individual-level
+prior a \enquote{direct prior.} For a model of a
 single random individual, the direct prior completes the prior specification
 exercise. For a BHM, however, a hyperprior is needed to fully parameterize a
 BHM. I now turn to the relationship between a hyperprior and the stated direct
@@ -739,8 +709,8 @@ from parameter-space to quantity-space, for a single randomly selected
 individual from a population of exchangeable individuals, and then specify
 beliefs about the degree of heterogeneity that may exist in this population.
 
-I now demonstrate this process for an RDU model estimated on real lottery
-choice data, where the predictive quantities are certainty equivalents and a
+I now demonstrate this process for an RDU model estimated on experimental
+lottery-choice data, where the predictive quantities are certainty equivalents and a
 choice probability.
 
 %==============================================================================
@@ -986,11 +956,13 @@ sense, regardless of the underlying preference model. The choice probability
 $P$ represents the probability that $L_1$ is chosen over $L_3$, so $P > 0.5$
 indicates risk-seeking.
 
-I specify that the mean CE for each lottery is \py{fmt(D['ce_mean_frac_pct'],
-0)}\% of the distance from the lower bound to the expected value,
-reflecting a belief that the typical individual is mildly risk-averse, with a
-\py{fmt(D['ce_p_risk_seeking_pct'], 0)}\% probability of being
-risk-seeking. The same \py{fmt(D['ce_p_risk_seeking_pct'], 0)}\% tail
+The following calibration is illustrative; it reflects broad empirical
+regularities from the experimental risk preference literature rather than a
+specific pilot study. I specify that the mean CE for each lottery is
+\py{fmt(D['ce_mean_frac_pct'], 0)}\% of the distance from the lower bound to
+the expected value, reflecting a belief that the typical individual is mildly
+risk-averse, with a \py{fmt(D['ce_p_risk_seeking_pct'], 0)}\% probability of
+being risk-seeking. The same \py{fmt(D['ce_p_risk_seeking_pct'], 0)}\% tail
 probability applies to the choice probability: $P(P > 0.5) =
 \py{fmt(D['ce_p_risk_seeking'], 2)}$, with a mean of $\py{fmt(D['pchoice_mu'],
 2)}$, reflecting the belief that most individuals are risk-averse. The mean and
@@ -1180,7 +1152,7 @@ more than four orders of magnitude lower than the risk-averse mode, even though
 the data likelihood slightly favors the risk-seeking parameters. The population
 prior, specified through the CE-space hierarchy, is the deciding factor.
 
-Across all subjects, approximately 17\% exhibit this pattern of opposing
+Across all subjects, 18 subjects (16\%) exhibit this pattern of opposing
 inferences. These are subjects whose choice data are consistent with both
 extreme risk aversion and extreme risk seeking; 80 binary choices are
 insufficient to distinguish between these modes for the 4-parameter RDU model.
@@ -1356,7 +1328,7 @@ framework that addresses this challenge. First, quantity-space prior
 specification allows researchers to state beliefs about quantities they can
 reason about directly, such as certainty equivalents and choice probabilities,
 with a Jacobian correction translating these beliefs to parameter space
-exactly. Second, a distribution-free variance decomposition reduces the
+exactly. Second, a variance decomposition reduces the
 remaining degrees of freedom to two interpretable parameters: the variance
 partition ratio $\rho$ and the heterogeneity confidence $\kappa$.
 

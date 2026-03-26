@@ -354,8 +354,11 @@ model {
       real z_k = (Y[k] - hp_lo[k]) / (hp_hi[k] - hp_lo[k]);
       z_k = fmin(fmax(z_k, 1e-10), 1 - 1e-10);
 
-      real alpha_pop = fmax(mu_pop[k] * (1 - psi_pop[k]) / psi_pop[k], 1e-6);
-      real beta_pop  = fmax((1 - mu_pop[k]) * (1 - psi_pop[k]) / psi_pop[k], 1e-6);
+      real psi_k = fmin(fmax(psi_pop[k], 1e-6), 1 - 1e-6);
+      real mu_k = fmin(fmax(mu_pop[k], 1e-6), 1 - 1e-6);
+      real ratio = (1 - psi_k) / psi_k;
+      real alpha_pop = fmax(mu_k * ratio, 1e-4);
+      real beta_pop  = fmax((1 - mu_k) * ratio, 1e-4);
 
       target += beta_lpdf(z_k | alpha_pop, beta_pop);
       target += -log(hp_hi[k] - hp_lo[k]);   // Jacobian dz/dY = 1/(hi-lo)

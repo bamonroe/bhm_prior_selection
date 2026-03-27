@@ -464,7 +464,21 @@ def generate_paper_plots(
         print(f"  Saved: {output_dir / f'subject_ce_{label}_affected.pdf'}")
 
     # =========================================================================
-    # 6. CDF difference plot (all subjects, all lotteries)
+    # 6. Subject-level parameter posteriors (most and least affected)
+    # =========================================================================
+    print("\nGenerating subject parameter comparison plots...")
+    for label, sid in [('most', most_affected), ('least', least_affected)]:
+        _plot_subject_params(
+            sid=sid,
+            info_path=str(info_subjects / f'subject_{sid:03d}_params.npz'),
+            uninf_path=str(uninf_subjects / f'subject_{sid:03d}_params.npz'),
+            output_path=str(output_dir / f'subject_params_{label}_affected.pdf'),
+            plt=plt,
+        )
+        print(f"  Saved: {output_dir / f'subject_params_{label}_affected.pdf'}")
+
+    # =========================================================================
+    # 7. CDF difference plot (all subjects, all lotteries)
     # =========================================================================
     print("\nGenerating cdf_difference_by_subject.pdf...")
     cdf_counts = generate_cdf_difference_plot(
@@ -485,6 +499,71 @@ def generate_paper_plots(
 # =============================================================================
 # Plot functions
 # =============================================================================
+
+def _plot_subject_params(sid, info_path, uninf_path, output_path, plt):
+    """Plot posterior parameter distributions for a single subject.
+
+    Shows 4 panels (r, phi, eta, lambda) comparing informative vs diffuse
+    posterior draws as overlaid KDEs.
+    """
+    info = np.load(info_path)
+    uninf = np.load(uninf_path)
+    burn_i = info['r'].shape[0] // 2
+    burn_u = uninf['r'].shape[0] // 2
+
+    params = [
+        ('r', r'$r$ (CRRA)', False),
+        ('phi', r'$\phi$ (Prelec curvature)', True),
+        ('eta', r'$\eta$ (Prelec elevation)', True),
+        ('lambda', r'$\lambda$ (noise)', True),
+    ]
+
+    fig, axes = plt.subplots(2, 2, figsize=(6.3, 5))
+
+    for idx, (pname, label, clip_positive) in enumerate(params):
+        ax = axes[idx // 2, idx % 2]
+
+        draws_info = info[pname][burn_i:].ravel()
+        draws_uninf = uninf[pname][burn_u:].ravel()
+
+        # Clip outliers for KDE stability
+        for draws in [draws_info, draws_uninf]:
+            q01, q99 = np.percentile(draws, [1, 99])
+            draws[:] = np.clip(draws, q01, q99)
+
+        lo = min(draws_info.min(), draws_uninf.min())
+        hi = max(draws_info.max(), draws_uninf.max())
+        if clip_positive:
+            lo = max(lo, 1e-4)
+        pad = (hi - lo) * 0.1
+        x_grid = np.linspace(lo - pad, hi + pad, 300)
+        if clip_positive:
+            x_grid = x_grid[x_grid > 0]
+
+        try:
+            kde_info = gaussian_kde(draws_info)
+            kde_uninf = gaussian_kde(draws_uninf)
+            ax.plot(x_grid, kde_info(x_grid), color='#1f77b4',
+                    linewidth=1.5, label='Informative')
+            ax.plot(x_grid, kde_uninf(x_grid), color='#ff7f0e',
+                    linewidth=1.5, label='Diffuse')
+        except Exception:
+            ax.hist(draws_info, bins=50, density=True, alpha=0.5,
+                    color='#1f77b4', label='Informative')
+            ax.hist(draws_uninf, bins=50, density=True, alpha=0.5,
+                    color='#ff7f0e', label='Diffuse')
+
+        ax.set_xlabel(label, fontsize=9)
+        ax.set_ylabel('Density', fontsize=8)
+        ax.tick_params(labelsize=7)
+        if idx == 0:
+            ax.legend(fontsize=7)
+
+    fig.suptitle(f'Subject {sid}', fontsize=11, y=0.98)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.savefig(output_path, bbox_inches='tight', backend='pdf')
+    plt.close(fig)
+
 
 def _plot_hyper_comparison(info_hyper_path, prior_params_path, output_path, plt):
     """Plot CE-space hyperparameter posteriors vs hyperprior.

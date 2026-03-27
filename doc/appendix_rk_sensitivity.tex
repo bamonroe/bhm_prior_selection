@@ -28,8 +28,8 @@ substantial uncertainty.
 
 All four configurations use the same direct prior (mean and variance for each
 CE and the choice probability), the same data, the same Beta-Beta
-distributional family, and the same comparison prior
-\parencite[diffuse NIG from][]{Gao2022}. The only thing that changes is the
+distributional family, and the same diffuse NIG comparison prior used in the
+main text. The only thing that changes is the
 hierarchical allocation of prior variance.
 
 \subsection{CDF Difference Plots}
@@ -84,3 +84,39 @@ compared against the baseline:
   \label{fig:ce_overlay_rho0p8_kappa1p50}
   \includegraphics[width=\textwidth]{../plots/paper/rho0p8_kappa1p50/predictive_ce_overlay.pdf}
 \end{figure}
+
+\subsection{Structural Parameter Posteriors for Selected Subjects}
+
+The quantity-space framework specifies priors on predictive quantities and lets
+the Jacobian correction induce the parameter-space prior. The following figures
+show that this induced prior produces substantively different parameter
+posteriors for subjects whose data are weakly identifying. Subject
+\ref{fig:params_most} is the most affected subject in the baseline
+configuration, and Subject \ref{fig:params_least} is the least affected.
+
+\begin{figure}[htbp]
+  \centering
+  \mycaption{Posterior parameter distributions: most affected subject}
+  \label{fig:params_most}
+  \includegraphics[width=0.9\textwidth]{../plots/paper/subject_params_most_affected.pdf}
+\end{figure}
+
+For the most affected subject, the two models recover fundamentally different
+parameter regions. The informative model concentrates on high $r$ (strong risk
+aversion), low $\phi$ (strong inverse-S probability weighting), and low $\eta$,
+while the diffuse model favors negative $r$ (risk seeking) with different
+probability weighting parameters. These are the same opposing modes visible in
+the CE comparison, now shown in parameter space. The noise parameter $\lambda$
+is similar across models, confirming that the disagreement is about preferences
+rather than noise.
+
+\begin{figure}[htbp]
+  \centering
+  \mycaption{Posterior parameter distributions: least affected subject}
+  \label{fig:params_least}
+  \includegraphics[width=0.9\textwidth]{../plots/paper/subject_params_least_affected.pdf}
+\end{figure}
+
+For the least affected subject, the posteriors are nearly identical across
+models. The data are sufficiently informative that the prior specification has
+negligible influence on the structural parameter estimates.

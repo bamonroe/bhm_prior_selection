@@ -166,25 +166,26 @@ elicitation, quantity-space priors, risk preferences, rank-dependent utility
 \label{sec:introduction}
 %==============================================================================
 
-BHMs are becoming a standard tool for estimating
-heterogeneous preferences in experimental economics
-\parencite{Gao2022,Nilsson2011}. These models jointly estimate individual-level
-parameters and the hyper-parameters that govern their population distribution.
-By assuming exchangeability among subjects, BHMs use the distribution of
-individual estimands to inform each subject's prior, producing partially pooled
-estimates that balance individual data against population-level information.
-There is no free lunch, however. Instead of specifying a prior for each
-individual, the researcher must now specify a \textit{hyperprior} over the
-population-level parameters.
+BHMs are becoming a standard tool for estimating heterogeneous preferences in
+experimental economics \parencite{Gao2022,Nilsson2011}. These models jointly
+estimate individual-level parameters and the hyper-parameters that govern their
+population distribution. By assuming exchangeability among subjects, BHMs use
+the distribution of individual estimands to inform each subject's prior,
+producing partially pooled estimates that balance individual data against
+population-level information. However, BHMs create an additional complication
+when it comes to setting priors over parameters in the model. Instead of
+specifying a prior for each individual, the researcher must now specify a
+\textit{hyperprior} over population-level \textit{hyperparameters}.
 
-It is common for models to assign a prior distribution with 2 hyper-parameters
-per individual-level parameter, for example a normal distribution governed by
-a mean and variance. Each hyper-parameter then requires its own prior,
+In many applications, it is common to specify a prior distribution with 2
+hyperparameters per individual-level parameter. For example, an
+individual-level parameter may have a normal prior distribution, which governed
+by a mean and variance. Each hyperparameter then requires its own prior,
 typically also parameterized by 2 values. A model with $p$ parameters per
-subject therefore results in $4p$ hyperprior parameters requiring
-specification. Common models of risk preferences under Expected Utility Theory
-(EUT) involve 2--3 parameters, models assuming RDU
-involve 3--5, and models assuming Cumulative Prospect Theory
+subject therefore commonly results in $4p$ hyperprior parameters requiring
+specification. Common models of risk preferences for individual agents under
+Expected Utility Theory (EUT) involve 2-3 parameters, models assuming RDU
+involve 3-5, and models assuming Cumulative Prospect Theory
 \parencite[CPT;][]{TverskyKahneman1992} can require up to 10
 parameters.\footnote{
   These ranges assume all models share a noise parameter and use utility and
@@ -195,56 +196,55 @@ parameters.\footnote{
   CPT models utility and probability weighting separately over gains and
   losses, plus a loss aversion parameter, leading to 5--10 parameters depending
   on functional form choices.
-} For a CPT model with 10 parameters, the researcher faces 40 hyperprior
-choices, a daunting prospect even for an expert.
+} With 4 hyperprior parameters per individual-level level parameter, the number
+of decisions that a researcher needs to make can grow such that it becomes
+difficult to properly encode any degree of domain specific knowledge about
+appropriate values for these models.
 
-In this paper, I develop a two-part framework for constructing hyperpriors that
-addresses both the \textit{space} in which beliefs are specified and the
-\textit{structure} of the hyperprior itself. The first contribution is a
-quantity-space prior specification: the researcher states beliefs about
-quantities they can reason about directly, such as certainty equivalents (CEs)
-and choice probabilities, rather than abstract structural parameters. An
-injective mapping and a Jacobian correction translate these beliefs into
-parameter-space priors exactly. The second contribution is a variance
-decomposition that reduces the remaining degrees of freedom in the hyperprior
-to two interpretable parameters: a variance partition ratio $\rho$ that governs
-the split between uncertainty about the population center and genuine
-population heterogeneity, and a coefficient of variation $\kappa$ that measures
-confidence in the heterogeneity specification. For a chosen distributional
-family, the direct prior and the researcher's choices of $\rho$ and $\kappa$
-determine the moment-matched hyperprior, subject to family-specific feasibility
-constraints derived in Appendix~\ref{app:hyperprior_families}.
+In this paper, I develop a two-part framework indented to guide researchers
+when specifying hyperprior parameters for structural models.
+The first part outlines how quantity-space prior specification translates to an
+induced prior on the parameters of the model. The reasoning here is that
+researchers may have well-informed priors about certain quantities, such as certainty equivalents (CEs)
+and choice probabilities, but poorly calibrated priors about the structural
+parameters themselves. An
+injective mapping and a Jacobian correction translates beliefs about quantities into
+parameter-space priors without having to directly specify beliefs about the
+parameters themselves.
 
-This framework bridges two literatures that have largely developed in parallel.
-One camp, exemplified by \textcite{Gelman2006} and \textcite{Simpson2017},
-develops priors that avoid imposing strong information (half-Cauchy variance
-priors, penalized complexity priors) and has identified important pathologies
-in common choices like the Inverse-Gamma($\varepsilon$, $\varepsilon$) prior.
-The other camp, following \textcite{Kadane1980} and developed more recently by
-\textcite{Gabry2019} and \textcite{Bland2025}, advocates specifying priors
-through their implications for predictive quantities, but has lacked the
-analytical machinery to translate predictive beliefs into hyperprior
-parameters. The framework developed here provides this machinery. It starts
-from the predictive intuition of the second camp and delivers closed-form
-hyperpriors that avoid the pathologies identified by the first.
+The second part is about reorganizing the hyperprior specification problem in a
+way that allows for more general intuition to guide the specification of the
+required $4p$ hyperprior parameters. This reorganization starts from the
+contention that a researcher can more easily reason about the distribution of
+quantities for a randomly selected individual from a population than they can
+reason about the population as a whole. If the individuals are presumed to be
+exchangeable, then a prior over a random individual imposes restrictions on the
+hyperprior parameters. These restrictions can be operationalized such that for
+every quantity, the researcher specifies a prior about that quantity for some
+randomly selected individual, and a prior about the degree of heterogeneity in
+the population. While this may not ultimately reduce the number of decisions
+needed to be made, I contend that it provides a more natural way to encode
+domain specific beliefs about some quantity.
 
-I demonstrate the approach with RDU estimation using
-experimental lottery choice data from \textcite{Harrison2016}, comparing
-informative hyperpriors derived from the methodology against diffuse
-alternatives.
+This two-part framework helps formalize the emerging consensus about informed
+prior specification, that priors should be reasoned through in terms of their
+implications of predictive quantities, and extends this practice to
+hierarchical models of exchangeable populations. I demonstrate the approach
+with RDU estimation using experimental lottery choice data from
+\textcite{Harrison2016}, comparing informative hyperpriors derived from the
+proposed methodology against a benchmark diffuse hyperprior as specified by
+\textcite{Gao2022}.
 
-The paper proceeds as follows. Section \ref{sec:literature} reviews the two
-camps of the prior specification literature.
-Section \ref{sec:gq_space} develops the quantity-space prior
-specification via injective mappings and Jacobian corrections, and introduces
-the variance decomposition that reduces the remaining degrees
-of freedom to the interpretable parameters $\rho$ and $\kappa$.
-Section \ref{sec:application_rdu} applies both contributions to RDU estimation
-with real data, demonstrating the CE mapping, choice probability specification,
-and Beta-Beta hyperprior derivation.
-Section \ref{sec:estimation} presents the experimental data and estimation
-results. Section \ref{sec:discussion} discusses practical guidance and
-limitations. Section \ref{sec:conclusion} concludes.
+The paper proceeds as follows. Section \ref{sec:literature} reviews some of the
+literature on prior specification, with an emphasis about informed prior
+specification. Section \ref{sec:gq_space} develops the general method starting
+with quantity-space prior specification via injective mappings and Jacobian
+corrections, followed by the method to derive hyperpriors parameters from
+priors about individual agents. Section \ref{sec:application_rdu} applies the
+method to the common practical task of RDU estimation using real experimental
+data. Section \ref{sec:estimation} presents the experimental data and
+estimation results. Section \ref{sec:discussion} discusses practical guidance
+and limitations, and Section \ref{sec:conclusion} concludes.
 
 
 %==============================================================================

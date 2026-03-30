@@ -248,7 +248,7 @@ and limitations, and Section \ref{sec:conclusion} concludes.
 
 
 %==============================================================================
-\section{Literature: Two Camps of Prior Specification}
+\section{Literature: Prior Specification}
 \label{sec:literature}
 %==============================================================================
 
@@ -264,61 +264,50 @@ into two camps: the first camp gives recommendations about \enquote{default}
 priors when the researcher has little to no information about the model, and
 the second camp gives recommendations about priors when the researcher has at
 least \textit{some} information about the model but may have trouble fully
-expressing it. While the first camp has an extensive literature
-\parencite[see][for a comprehensive review]{Consonni2018}, largely
-focused around providing priors that do not unduly influence the posterior in
-unintended ways, the proposed method sits squarely in the second camp, where
-the researcher wants to encode domain specific knowledge in their prior
-distribution.
+expressing it. While the first camp has an extensive literature, largely
+focused on providing priors that do not unduly influence the posterior in
+unintended ways,\footnote{
+  See \textcite{Consonni2018} for a comprehensive review.
+} the proposed method sits squarely in the second camp, where the researcher
+wants to encode domain specific knowledge in their prior distribution.
 
-The second camp develops methods for when domain knowledge does exist, and
-the researcher wishes to translate it into prior distributions.
+This second camp develops methods for when domain knowledge does exist, and the
+researcher wishes to translate it into prior distributions.
 \textcite{Kadane1980} established the paradigm of \enquote{predictive
-elicitation}: rather than asking an expert to specify prior parameters
-directly, one asks about observable quantities and derives compatible prior
-distributions. \textcite{KadaneWolfson1998} distinguished structural
-elicitation (asking about parameters) from predictive elicitation (asking about
-observables), arguing that the latter is more cognitively natural. Practical
-methods for eliciting and encoding beliefs have been developed extensively in
-both economics and psychology; see \textcite{Schlag2015},
-\textcite{Garthwaite2005}, and \textcite{Mikkola2024} for reviews.
+elicitation,} where instead of asking an expert to specify prior parameters
+directly, an expert is asked about observable quantities and compatible prior
+distributions for parameters are derived from the distributions of quantities.
+\textcite{KadaneWolfson1998} argue that it is more cognitively natural to
+elicit beliefs from experts about predictive quantities than structural
+parameters. Practical methods for eliciting and encoding beliefs have been
+developed extensively in both economics and psychology; see
+\textcite{Schlag2015}, \textcite{Garthwaite2005}, and \textcite{Mikkola2024}
+for reviews.
 
-When a researcher does have informed beliefs about relevant quantities
-that are encoded into probability distributions, there are many suggestions
-about how best to utilize them in Bayesian analysis. \textcite{Gabry2019}
-discuss a Bayesian workflow in which they suggest that prior predictive
-checking be used iteratively to check the reasonableness of the prior. In the
-experimental economics literature specifically, \textcite{Bland2025} proposed
-calibrating priors for structural models by examining their implications for
-certainty equivalents.
-
-Drawing connections between prior predictive distributions and prior
-distributions are actively being explored in the general statistics literature.
+When a researcher does have informed beliefs about relevant quantities, and is
+fully able to encoded these beliefs into proper probability distributions,
+there are still many suggestions about how best to utilize these beliefs in
+Bayesian analysis. \textcite{Gabry2019} suggest a Bayesian workflow which
+iteratively searches for prior parameters that produce reasonable prior
+predictive distributions of quantities that researchers will well calibrated
+beliefs over. In the experimental economics literature specifically,
+\textcite{Bland2025} proposed calibrating priors for structural models by
+examining their implications for certainty equivalents.
 \textcite{Manderson2026} proposed a general approach to translating predictive
 beliefs into prior distributions using Kullback-Leibler optimization, which can
 numerically match the prior predictive to some prior distribution.
 \textcite{Segert2019} developed Jacobian-based transformations between
-parameter and observable spaces for individual-level (non-hierarchical) models.
-They focus on the conceptual consistency of non-informative predictive
-distributions and what they mean for prior distributions, but note that their
-methods are applicable to informed prior predictive distributions as well.
+parameter and observable spaces for individual-level models. They focus on the
+conceptual consistency of non-informative predictive distributions and what
+they mean for prior distributions, but note that their methods are applicable
+to informed prior predictive distributions as well.
 
 These contributions collectively establish a foundation that the present paper
-builds on. \textcite{Segert2019} develop the Jacobian-based transformation
-between parameter and observable spaces for individual-level models;
-\textcite{Bland2025} demonstrates the value of calibrating priors through
-their implications for certainty equivalents; \textcite{Manderson2026} provides
-a general numerical framework for matching prior predictive beliefs to prior
-distributions. What has not yet been addressed is how to extend these ideas to
-the hierarchical setting, where the $4p$ problem is most acute, and how
-to do so analytically, yielding closed-form hyperprior parameters from
-interpretable inputs. The present paper provides this extension. Starting from
-a researcher's beliefs about predictive quantities for a single individual, I
-derive the full hyperprior through a Jacobian correction and a
-variance decomposition. This process places the emerging
-consensus that prior predictive distributions ought to be a primary criteria
-for prior setting at the forefront of the process, and helps extend this
-process to hierarchical settings.
+builds on. What has not yet been addressed is how to extend these ideas to the
+hierarchical setting. The present paper provides this extension. This process
+places the emerging consensus that prior predictive distributions ought to be a
+primary criteria for prior setting at the forefront of the process, and helps
+extend this process to hierarchical settings.
 
 
 

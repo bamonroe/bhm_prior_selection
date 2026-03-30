@@ -200,8 +200,8 @@ sampling_opts_uninf = {
 sampling_opts_stan = {
     'model': 'rdu_bhm_ce_stan',
     'output_dir': DATA_DIR / 'output',
-    'chains': 4,
-    'parallel_chains': 4,
+    'chains': 8,
+    'parallel_chains': 8,
     'iter_warmup': 1000,
     'iter_sampling': 2000,
     'max_treedepth': 12,

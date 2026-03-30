@@ -252,11 +252,11 @@ and limitations, and Section \ref{sec:conclusion} concludes.
 \label{sec:literature}
 %==============================================================================
 
-In a very strict sense, \textit{any} proper prior distribution will result in
-a proper posterior distribution, a fact that often gives Bayesian methods an edge
-over other inferential methods, but this does not mean that all priors are
-equal. A large literature has developed around what might constitute a
-\textit{good} as opposed to a \textit{proper} prior.
+In a very strict sense, \textit{any} proper prior distribution will result in a
+proper posterior distribution, a fact that often gives Bayesian methods an edge
+over other inferential methods, but this equality in correctness does not
+always imply an equality in quality. A large literature has developed around
+what might constitute a \textit{good} as opposed to a \textit{proper} prior.
 
 There are a variety of criteria that influence the judgment of how good a prior
 is, but both criteria and suggestions for priors can potentially be grouped
@@ -264,64 +264,12 @@ into two camps: the first camp gives recommendations about \enquote{default}
 priors when the researcher has little to no information about the model, and
 the second camp gives recommendations about priors when the researcher has at
 least \textit{some} information about the model but may have trouble fully
-expressing it. I summarize some key insights from the two camps here,
-noting that the prior selection method I am proposing almost entirely
-contributes to the second camp.
-
-
-\subsection{Camp 1: Priors Without Strong Information}
-
-The first camp develops priors for settings where the researcher has limited
-domain knowledge or wishes to \enquote{let the data speak.} The classical
-approach uses reference priors \parencite{Jeffreys1961, BergerBernardo1992}
-derived from information-theoretic principles. Jeffreys' prior is famously
-often improper, although its use can still result in proper posterior
-distributions. The primary appeal of the Jeffreys prior as a default is that it
-is invariant to re-parameterization of the model from $\theta$ to $g(\theta)$,
-and that it is largely \enquote{uninformative}, meaning the likelihood of data will
-quickly dominate the prior as the number of observations grow. Priors with this
-property are sometimes called \enquote{objective} or \enquote{reference}
-priors.
-
-One of the most common choices for a proper uninformative prior on variance
-parameters (which have a lower bound of 0) is the Inverse-Gamma($\varepsilon$,
-$\varepsilon$) prior.\footnote{
-  Used, for example, by \textcite{Gao2022}, and discussed later.
-} This prior puts tremendous mass near $0$ and has an exceedingly long right
-tail, but very low density over moderate values. However, \textcite{Gelman2006}
-identified a fundamental pathology with the Inverse-Gamma($\varepsilon$,
-$\varepsilon$) prior, which, although intended to be uninformative, can in fact
-strongly influence posterior inferences. Gelman recommended half-Cauchy
-priors for standard deviation parameters as a principled alternative.
-\textcite{PolsonScott2012} provided additional theoretical justification for
-half-Cauchy priors as global scale parameters in the context of global-local
-shrinkage, and \textcite{Carvalho2010} developed the horseshoe prior for
-high-dimensional sparse settings.
-
-\textcite{Simpson2017}, noting the difficulty in applying objective priors to
-hierarchical models, proposed penalized complexity (PC) priors, which penalize
-model components for deviating from a simpler base model using Kullback-Leibler
-divergence. PC priors are calibrated through a single interpretable quantity,
-the probability of exceeding a user-specified threshold, and provide a
-disciplined way to express skepticism about complexity while trying to still
-minimize the information share of the prior.
-\textcite{GelmanSimpsonBetancourt2017} further discuss the need for more formal
-treatment of prior selection when the researcher cannot formulate a prior
-before the data being modeled is collected, noting that models are often
-developed while examining the data, and in these circumstances, it can be
-impossible to specify a prior distribution that encodes expert knowledge.
-
-The literature on recommendations for uninformative or default priors is much
-more vast than is indicated here. The practical contribution of this collective
-work is tremendous, in part because of the difficulty in truthfully encoding
-expert domain specific knowledge into a joint probability distribution, and
-also in part because that domain knowledge may not exist. The method I propose
-in this paper, however, is to help researchers encode domain specific knowledge
-into their priors, which is the focus of the second camp of the literature on
-prior distributions.
-
-
-\subsection{Camp 2: Priors When Knowledge Is Available}
+expressing it. While the first camp has an extensive literature
+\parencite[see][for a comprehensive review]{Consonni2018}, largely
+focused around providing priors that do not unduly influence the posterior in
+unintended ways, the proposed method sits squarely in the second camp, where
+the researcher wants to encode domain specific knowledge in their prior
+distribution.
 
 The second camp develops methods for when domain knowledge does exist, and
 the researcher wishes to translate it into prior distributions.

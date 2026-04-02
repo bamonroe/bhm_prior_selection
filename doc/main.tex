@@ -1111,6 +1111,23 @@ for i in range(len(_sens.get('rho', []))):
                 int(_sens['n_well'][i]), int(_sens['n_moderate'][i]),
                 int(_sens['n_dominated'][i])))
 
+# Compute percentages for prose references
+# Config order in _sens: (0.2,1.5), (0.8,0.25), (0.8,1.5)
+_bl_pct = int(round(100 * int(_bl.get('n_dominated', 18)) / _n_subj))
+_pcts = {(float(_sens['rho'][i]), float(_sens['kappa'][i])):
+         int(round(100 * int(_sens['n_dominated'][i]) / _n_subj))
+         for i in range(len(_sens.get('rho', [])))}
+_pct_lo_lo = _bl_pct                        # rho=0.2, kappa=0.25
+_pct_lo_hi = _pcts.get((0.2, 1.5), 13)      # rho=0.2, kappa=1.5
+_pct_hi_lo = _pcts.get((0.8, 0.25), 19)     # rho=0.8, kappa=0.25
+_pct_hi_hi = _pcts.get((0.8, 1.5), 15)      # rho=0.8, kappa=1.5
+_pct_min = min(_pct_lo_lo, _pct_lo_hi, _pct_hi_lo, _pct_hi_hi)
+_pct_max = max(_pct_lo_lo, _pct_lo_hi, _pct_hi_lo, _pct_hi_hi)
+_mod_min = min(int(_bl.get('n_moderate', 14)),
+               *[int(_sens['n_moderate'][i]) for i in range(len(_sens.get('rho', [])))])
+_mod_max = max(int(_bl.get('n_moderate', 14)),
+               *[int(_sens['n_moderate'][i]) for i in range(len(_sens.get('rho', [])))])
+
 _rk_table_rows = _bl_row + "\n" + "\n".join(_sens_rows)
 print(r"""
 \begin{table}[h!]
@@ -1130,19 +1147,22 @@ print(r"""
 """)
 \end{pycode}
 
-The prior-dominated share ranges from 13\% to 19\% across the four
-configurations, confirming that the finding is structurally stable rather than
-an artifact of a particular $(\rho, \kappa)$ choice. The direction of movement
-is consistent with the theory. Holding $\kappa$ fixed, higher $\rho$ (tighter
-population prior, less heterogeneity) increases the prior-dominated share from
-16\% to 19\% at low $\kappa$ and from 13\% to 15\% at high $\kappa$, because
-the narrower population distribution assigns lower density to extreme parameter
-values. Holding $\rho$ fixed, higher $\kappa$ (less confidence in the
-heterogeneity level) reduces the prior-dominated share from 16\% to 13\% at
-low $\rho$ and from 19\% to 15\% at high $\rho$, because the looser variance
-hyperprior gives the data more room to pull weakly-identified subjects away
-from the prior mode.
-The moderate group is notably stable at 13--14 subjects across all four
+The prior-dominated share ranges from \py{_pct_min}\% to \py{_pct_max}\%
+across the four configurations, confirming that the finding is structurally
+stable rather than an artifact of a particular $(\rho, \kappa)$ choice. The
+direction of movement is consistent with the theory. Holding $\kappa$ fixed,
+higher $\rho$ (tighter population prior, less heterogeneity) increases the
+prior-dominated share from \py{_pct_lo_lo}\% to \py{_pct_hi_lo}\% at low
+$\kappa$ and from \py{_pct_lo_hi}\% to \py{_pct_hi_hi}\% at high $\kappa$,
+because the narrower population distribution assigns lower density to extreme
+parameter values. Holding $\rho$ fixed, higher $\kappa$ (less confidence in
+the heterogeneity level) reduces the prior-dominated share from
+\py{_pct_lo_lo}\% to \py{_pct_lo_hi}\% at low $\rho$ and from
+\py{_pct_hi_lo}\% to \py{_pct_hi_hi}\% at high $\rho$, because the looser
+variance hyperprior gives the data more room to pull weakly-identified subjects
+away from the prior mode.
+The moderate group is notably stable at \py{_mod_min}--\py{_mod_max} subjects
+across all four
 configurations, suggesting a structural middle band of subjects whose data are
 informative enough to resist moderate prior perturbations. The full CDF
 difference plots and predictive CE overlays for each configuration are reported

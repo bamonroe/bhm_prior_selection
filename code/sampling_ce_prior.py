@@ -77,14 +77,18 @@ def run_sampling_prior(output_dir, ref_lotteries, ref_pair, reset_runs=None,
     print(f"  Reset runs: {n_reset}, Resume runs: {n_resume}")
     print(f"  Output: {output_dir}")
 
-    run_schedule = (
-        [{'mode': 'reset'}] * n_reset
-        + [{'mode': 'resume'}] * n_resume
-    )
+    run_schedule = []
+    if n_reset > 0:
+        run_schedule.append(("reset", n_reset))
+    if n_resume > 0:
+        run_schedule.append(("resume", n_resume))
+    mcmc_config['run_schedule'] = run_schedule
 
+    print(f"\nStarting MCMC with schedule: {run_schedule}")
     return rmcmc(
-        mcmc_config=mcmc_config,
-        data=indexed_data,
+        mcmc_config,
+        indexed_data,
         output_dir=str(output_dir),
-        run_schedule=run_schedule,
+        calculate_rhat=True,
+        burn_in_fresh=True,
     )

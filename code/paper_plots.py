@@ -438,10 +438,18 @@ def generate_paper_plots(
     print(f"  Least affected: subject {least_affected} "
           f"(mean median CE diff = ${mean_median_diffs[least_affected]:.2f})")
 
+    # Group counts using same thresholds as CDF difference plot
+    n_well = int(np.sum(mean_median_diffs < 2))
+    n_moderate = int(np.sum((mean_median_diffs >= 2) & (mean_median_diffs < 10)))
+    n_dominated = int(np.sum(mean_median_diffs >= 10))
+
     np.savez(data_output_dir / 'posterior_ce_comparison.npz',
              most_affected_sid=most_affected,
              least_affected_sid=least_affected,
-             median_diffs=mean_median_diffs)
+             median_diffs=mean_median_diffs,
+             n_well=n_well,
+             n_moderate=n_moderate,
+             n_dominated=n_dominated)
 
     # Compute prior predictive CEs for each lottery (for subject-level plots)
     print("  Drawing hyperprior predictive CEs for subject plots...")

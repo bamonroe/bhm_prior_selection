@@ -556,8 +556,7 @@ def _plot_subject_params(sid, info_path, uninf_path, output_path, plt):
         ax.set_xlabel(label, fontsize=9)
         ax.set_ylabel('Density', fontsize=8)
         ax.tick_params(labelsize=7)
-        if idx == 0:
-            ax.legend(fontsize=7)
+        ax.legend(fontsize=7)
 
     fig.suptitle(f'Subject {sid}', fontsize=11, y=0.98)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
@@ -606,8 +605,7 @@ def _plot_hyper_comparison(info_hyper_path, prior_params_path, output_path, plt)
         ax.set_ylabel('Density', fontsize=9)
         ax.set_title(mu_label, fontsize=10)
         ax.tick_params(labelsize=8)
-        if i == 0:
-            ax.legend(fontsize=7)
+        ax.legend(fontsize=7)
 
         # Right: psi posterior vs hyperprior
         ax = axes[i, 1]
@@ -663,7 +661,9 @@ def _plot_params_overlay(info_params, uninf_params, output_path, plt):
         ax.set_ylabel('Density', fontsize=9)
         ax.tick_params(labelsize=8)
 
-    axes[0, 0].legend(fontsize=8)
+    for row in axes:
+        for ax in row:
+            ax.legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(output_path, bbox_inches='tight', backend='pdf')
     plt.close(fig)
@@ -704,8 +704,7 @@ def _plot_ce_overlay_3panel(ce_data_all, output_path, plt):
         )
         ax.set_ylabel('Density', fontsize=9)
         ax.tick_params(labelsize=8)
-        if k == 0:
-            ax.legend(fontsize=7)
+        ax.legend(fontsize=7)
 
     axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
     fig.tight_layout()
@@ -848,10 +847,11 @@ def generate_cdf_difference_plot(
         ax.tick_params(labelsize=8)
         ax.set_xlim(lo, hi)
 
-    # Legend
-    for mask, label, color, _ in groups:
-        axes[0].plot([], [], color=color, lw=1.5, label=f'{label} ({mask.sum()})')
-    axes[0].legend(fontsize=7, loc='upper right')
+    # Legend on all panels
+    for ax in axes:
+        for mask, label, color, _ in groups:
+            ax.plot([], [], color=color, lw=1.5, label=f'{label} ({mask.sum()})')
+        ax.legend(fontsize=7, loc='upper right')
 
     axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
     fig.tight_layout()
@@ -954,8 +954,7 @@ def _plot_one_subject_ce_all_lotteries(args):
         )
         ax.set_ylabel('Density', fontsize=9)
         ax.tick_params(labelsize=8)
-        if k == 0:
-            ax.legend(fontsize=8)
+        ax.legend(fontsize=8)
 
     axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
     if show_title:

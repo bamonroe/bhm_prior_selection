@@ -85,14 +85,37 @@ compared against the baseline:
   \includegraphics[width=\textwidth]{../plots/paper/rho0p8_kappa1p50/predictive_ce_overlay.pdf}
 \end{figure}
 
-\subsection{Structural Parameter Posteriors for Selected Subjects}
+\subsection{Induced Prior in Parameter Space}
 
 The quantity-space framework specifies priors on predictive quantities and lets
-the Jacobian correction induce the parameter-space prior. The following figures
-show that this induced prior produces substantively different parameter
-posteriors for subjects whose data are weakly identifying. Subject
-\ref{fig:params_most} is the most affected subject in the baseline
-configuration, and Subject \ref{fig:params_least} is the least affected.
+the Jacobian correction induce the parameter-space prior. To visualize this
+induced prior, I sample from the full hierarchical model with no data
+likelihood, so that the resulting parameter draws reflect only the CE-space
+specification and the Jacobian geometry.
+
+\begin{figure}[htbp]
+  \centering
+  \mycaption{Hyperprior predictive distribution in parameter space}
+  \label{fig:prior_predictive_params}
+  \includegraphics[width=0.9\textwidth]{../plots/paper/prior_predictive_params.pdf}
+\end{figure}
+
+Figure~\ref{fig:prior_predictive_params} shows the result. The induced prior
+on $r$ is centered near mild risk aversion (median 1.09) with support for both
+risk-seeking and strongly risk-averse individuals. The Prelec curvature $\phi$
+peaks near 1 (linear probability weighting), allowing inverse-S shapes
+($\phi < 1$) that are typical of the empirical literature. The elevation
+$\eta$ concentrates below 1, and the noise $\lambda$ is concentrated near zero
+with a long right tail. These are sensible parameter-space priors for an RDU
+model, achieved entirely through beliefs about certainty equivalents and a
+choice probability.
+
+\subsection{Structural Parameter Posteriors for Selected Subjects}
+
+The following figures show how data updates the induced prior for individual
+subjects. Subject \ref{fig:params_most} is the most affected subject in the
+baseline configuration, and Subject \ref{fig:params_least} is the least
+affected.
 
 \begin{figure}[htbp]
   \centering

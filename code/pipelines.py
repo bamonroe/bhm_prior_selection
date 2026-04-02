@@ -138,6 +138,49 @@ def run_sampling_stan(sampling_opts, ref_lotteries, ref_pair,
     print("Done.\n")
 
 
+def run_sampling_prior(sampling_opts, ref_lotteries, ref_pair,
+                       prior_params_path=None):
+    """Run prior-only MCMC sampling (no data likelihood)."""
+    print("\n" + "=" * 60)
+    print("Running: Prior-Only Sampling (Quantity-Space Beta-Beta)")
+    print("=" * 60)
+
+    from bamcmc.mcmc.compile import get_compiled_kernel_cache
+    cache = get_compiled_kernel_cache()
+    if cache:
+        cache.clear()
+
+    if prior_params_path is not None:
+        from posteriors.rdu_bhm_ce_prior import load_hyperpriors_from_file
+        load_hyperpriors_from_file(prior_params_path)
+
+    if sampling_opts.get('clean', False):
+        from bamcmc import clean_model_files
+        output_dir = str(sampling_opts['output_dir'])
+        model_name = 'rdu_bhm_ce_prior'
+        result = clean_model_files(output_dir, model_name, mode='all')
+        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
+        print(f"  Deleted {len(result['deleted_histories'])} histories")
+
+    from sampling_ce_prior import run_sampling_prior as _run
+    _run(
+        output_dir=sampling_opts['output_dir'],
+        ref_lotteries=ref_lotteries,
+        ref_pair=ref_pair,
+        reset_runs=sampling_opts.get('reset_runs', 1),
+        resume_runs=sampling_opts.get('resume_runs', 3),
+        num_collect=sampling_opts['num_collect'],
+        config={
+            'num_chains_a': sampling_opts['num_chains'],
+            'num_chains_b': sampling_opts['num_chains'],
+            'thin_iteration': sampling_opts['thin_iteration'],
+            'chunk_size': sampling_opts.get('chunk_size', 100),
+            'rng_seed': sampling_opts['seed'],
+        },
+    )
+    print("Done.\n")
+
+
 def run_sensitivity(ce_direct_prior, output_dir, lottery=None,
                     seed=42, config=None):
     """Run sensitivity analysis over (ρ, κ) grid using Beta-Beta hierarchy."""

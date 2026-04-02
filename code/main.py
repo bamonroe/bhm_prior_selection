@@ -209,6 +209,19 @@ sampling_opts_stan = {
     'seed': SEEDS['sampling'],
 }
 
+# Prior-only sampling config (no data likelihood)
+sampling_opts_prior = {
+    'output_dir': DATA_DIR / 'output',
+    'clean': True,
+    'reset_runs': 1,
+    'resume_runs': 3,
+    'num_chains': 1000,
+    'num_collect': 100,
+    'thin_iteration': 10,
+    'chunk_size': 100,
+    'seed': SEEDS['sampling'],
+}
+
 # Gao (2022) diffuse hyperprior: N(0, 100) means, IG(0.001, 0.001) variances
 UNINF_HYPERPRIOR_SPECS = {
     'r':          {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
@@ -232,6 +245,7 @@ do_sensitivity          = False
 do_sampling_ce             = False
 do_sampling_uninf          = False
 do_sampling_stan           = False
+do_sampling_prior          = False
 
 # --- Preprocessing (extract from history files) ---
 do_generate_prior_ce       = False
@@ -333,6 +347,16 @@ if __name__ == '__main__':
         prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
         pipelines.run_sampling_stan(
             sampling_opts_stan,
+            ref_lotteries=REFERENCE_LOTTERIES,
+            ref_pair=REFERENCE_PAIR,
+            prior_params_path=prior_params_ce_path,
+        )
+
+    if do_sampling_prior:
+        check_dependency('sampling_prior', ['clean_data'])
+        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
+        pipelines.run_sampling_prior(
+            sampling_opts_prior,
             ref_lotteries=REFERENCE_LOTTERIES,
             ref_pair=REFERENCE_PAIR,
             prior_params_path=prior_params_ce_path,

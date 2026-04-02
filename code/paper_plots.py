@@ -676,11 +676,6 @@ def _plot_ce_overlay_3panel(ce_data_all, output_path, plt):
     """Plot 3-panel CE overlay: one panel per reference lottery."""
     fig, axes = plt.subplots(3, 1, figsize=(6, 8))
 
-    # Common x-axis across all panels
-    global_lo = min(min(ce_data_all[k]['lottery']['prizes']) for k in range(3))
-    global_hi = max(max(ce_data_all[k]['lottery']['prizes']) for k in range(3))
-    x_grid = np.linspace(global_lo, global_hi, 300)
-
     for k in range(3):
         ax = axes[k]
         d = ce_data_all[k]
@@ -698,8 +693,8 @@ def _plot_ce_overlay_3panel(ce_data_all, output_path, plt):
             ce_clip = ce_clean[(ce_clean >= lo) & (ce_clean <= hi)]
             if len(ce_clip) > 100:
                 kde = gaussian_kde(ce_clip)
-                ax.plot(x_grid, kde(x_grid), color=color, lw=1.5, ls=ls,
-                        label=label)
+                x = np.linspace(lo, hi, 300)
+                ax.plot(x, kde(x), color=color, lw=1.5, ls=ls, label=label)
 
         ax.axvline(ev, color='black', ls=':', lw=0.8, alpha=0.5)
         p_str = '/'.join(f'{p:.2f}' for p in lottery['probs'])
@@ -711,7 +706,6 @@ def _plot_ce_overlay_3panel(ce_data_all, output_path, plt):
         )
         ax.set_ylabel('Density', fontsize=9)
         ax.tick_params(labelsize=8)
-        ax.set_xlim(global_lo, global_hi)
         ax.legend(fontsize=7)
 
     axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)

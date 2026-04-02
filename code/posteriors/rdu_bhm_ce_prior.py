@@ -52,6 +52,9 @@ from .rdu_bhm_ce import (
     generated_quantities,
     get_hyperprior_array,
     load_hyperpriors_from_file,
+    initial_vector,
+    direct_sampler,
+    get_num_gq,
     HYPERPRIOR_SPECS,
 )
 
@@ -168,10 +171,12 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
 # =============================================================================
 
 if BAMCMC_AVAILABLE:
-    register_posterior(
-        MODEL_ID,
-        log_posterior,
-        generated_quantities,
-        batch_type,
-    )
+    register_posterior(MODEL_ID, {
+        'log_posterior': log_posterior,
+        'batch_type': batch_type,
+        'initial_vector': initial_vector,
+        'direct_sampler': direct_sampler,
+        'generated_quantities': generated_quantities,
+        'get_num_gq': get_num_gq,
+    })
     print(f"Registered posterior: {MODEL_ID}")

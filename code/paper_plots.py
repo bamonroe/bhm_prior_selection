@@ -490,6 +490,7 @@ def generate_paper_plots(
         lotteries=REFERENCE_LOTTERIES,
         n_sub=3000,
         seed=seed + 300,
+        save_dir=output_dir / 'cdf_diff_by_subject',
     )
     print(f"  Groups: {cdf_counts['n_well_identified']} well-identified, "
           f"{cdf_counts['n_moderate']} moderate, "
@@ -747,6 +748,50 @@ def _plot_subject_ce(ce_info, ce_uninf, lo, hi, ev, sid, output_path, plt):
 # CDF difference plot (all subjects, all 3 lotteries)
 # =============================================================================
 
+def _compute_subject_cdf_diffs(args):
+    """Compute CDF differences for a single subject across all lotteries.
+
+    Designed for use with ProcessPoolExecutor or sequential dispatch.
+    """
+    sid, info_path, uninf_path, lotteries, n_sub, seed = args
+    rng = np.random.default_rng(seed + sid)
+
+    info_d = np.load(info_path)
+    uninf_d = np.load(uninf_path)
+    bi = info_d['r'].shape[0] // 2
+    bu = uninf_d['r'].shape[0] // 2
+
+    n_i = min(n_sub, info_d['r'][bi:].size)
+    n_u = min(n_sub, uninf_d['r'][bu:].size)
+    idx_i = rng.choice(info_d['r'][bi:].size, n_i, replace=False)
+    idx_u = rng.choice(uninf_d['r'][bu:].size, n_u, replace=False)
+
+    info_r = info_d['r'][bi:].ravel()[idx_i]
+    info_phi = info_d['phi'][bi:].ravel()[idx_i]
+    info_eta = info_d['eta'][bi:].ravel()[idx_i]
+    uninf_r = uninf_d['r'][bu:].ravel()[idx_u]
+    uninf_phi = uninf_d['phi'][bu:].ravel()[idx_u]
+    uninf_eta = uninf_d['eta'][bu:].ravel()[idx_u]
+
+    lot_results = []
+    lot_diffs = []
+    for lot in lotteries:
+        lo, hi = min(lot['prizes']), max(lot['prizes'])
+        ce_i = _compute_ces_for_lottery(info_r, info_phi, info_eta, lot)
+        ce_u = _compute_ces_for_lottery(uninf_r, uninf_phi, uninf_eta, lot)
+
+        x_grid = np.linspace(lo, hi, 200)
+        ce_i_clean = np.sort(ce_i[np.isfinite(ce_i)])
+        ce_u_clean = np.sort(ce_u[np.isfinite(ce_u)])
+        cdf_i = np.searchsorted(ce_i_clean, x_grid) / len(ce_i_clean)
+        cdf_u = np.searchsorted(ce_u_clean, x_grid) / len(ce_u_clean)
+
+        lot_results.append((x_grid, cdf_i - cdf_u))
+        lot_diffs.append(abs(np.nanmedian(ce_i) - np.nanmedian(ce_u)))
+
+    return sid, lot_results, np.mean(lot_diffs)
+
+
 def generate_cdf_difference_plot(
     info_subjects_dir,
     uninf_subjects_dir,
@@ -754,11 +799,18 @@ def generate_cdf_difference_plot(
     lotteries=None,
     n_sub=3000,
     seed=42,
+    n_workers=None,
+    save_dir=None,
 ):
     """Generate 3-panel CDF difference plot: F_info(x) - F_diffuse(x) per subject.
 
     Each subject is a line, color-coded by how much the prior affects them.
+    Computation is parallelized across subjects.
+
+    If save_dir is provided, per-subject CDF difference data is saved as NPZ
+    files for later reference.
     """
+    from concurrent.futures import ProcessPoolExecutor
     plt = _setup_matplotlib()
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -770,46 +822,45 @@ def generate_cdf_difference_plot(
     uninf_subjects_dir = Path(uninf_subjects_dir)
     meta = np.load(info_subjects_dir / 'metadata.npz')
     n_subjects = int(meta['n_subjects'])
-    rng = np.random.default_rng(seed)
 
-    # Compute per-subject, per-lottery CDF differences and avg abs median diff
+    # Build work items
+    work = []
+    for sid in range(n_subjects):
+        work.append((
+            sid,
+            str(info_subjects_dir / f'subject_{sid:03d}_params.npz'),
+            str(uninf_subjects_dir / f'subject_{sid:03d}_params.npz'),
+            lotteries, n_sub, seed,
+        ))
+
+    # Dispatch
+    if n_workers and n_workers > 1:
+        with ProcessPoolExecutor(max_workers=n_workers) as pool:
+            results = list(pool.map(_compute_subject_cdf_diffs, work))
+    else:
+        results = [_compute_subject_cdf_diffs(w) for w in work]
+
+    # Unpack
     avg_abs_diffs = np.zeros(n_subjects)
     all_cdf_diffs = {k: [] for k in range(len(lotteries))}
 
-    for sid in range(n_subjects):
-        info_d = np.load(info_subjects_dir / f'subject_{sid:03d}_params.npz')
-        uninf_d = np.load(uninf_subjects_dir / f'subject_{sid:03d}_params.npz')
-        bi = info_d['r'].shape[0] // 2
-        bu = uninf_d['r'].shape[0] // 2
+    for sid, lot_results, avg_diff in results:
+        avg_abs_diffs[sid] = avg_diff
+        for k, (x_grid, cdf_diff) in enumerate(lot_results):
+            all_cdf_diffs[k].append((x_grid, cdf_diff))
 
-        n_i = min(n_sub, info_d['r'][bi:].size)
-        n_u = min(n_sub, uninf_d['r'][bu:].size)
-        idx_i = rng.choice(info_d['r'][bi:].size, n_i, replace=False)
-        idx_u = rng.choice(uninf_d['r'][bu:].size, n_u, replace=False)
-
-        info_r = info_d['r'][bi:].ravel()[idx_i]
-        info_phi = info_d['phi'][bi:].ravel()[idx_i]
-        info_eta = info_d['eta'][bi:].ravel()[idx_i]
-        uninf_r = uninf_d['r'][bu:].ravel()[idx_u]
-        uninf_phi = uninf_d['phi'][bu:].ravel()[idx_u]
-        uninf_eta = uninf_d['eta'][bu:].ravel()[idx_u]
-
-        lot_diffs = []
-        for k, lot in enumerate(lotteries):
-            lo, hi = min(lot['prizes']), max(lot['prizes'])
-            ce_i = _compute_ces_for_lottery(info_r, info_phi, info_eta, lot)
-            ce_u = _compute_ces_for_lottery(uninf_r, uninf_phi, uninf_eta, lot)
-
-            x_grid = np.linspace(lo, hi, 200)
-            ce_i_clean = np.sort(ce_i[np.isfinite(ce_i)])
-            ce_u_clean = np.sort(ce_u[np.isfinite(ce_u)])
-            cdf_i = np.searchsorted(ce_i_clean, x_grid) / len(ce_i_clean)
-            cdf_u = np.searchsorted(ce_u_clean, x_grid) / len(ce_u_clean)
-
-            all_cdf_diffs[k].append((x_grid, cdf_i - cdf_u))
-            lot_diffs.append(abs(np.nanmedian(ce_i) - np.nanmedian(ce_u)))
-
-        avg_abs_diffs[sid] = np.mean(lot_diffs)
+    # Save per-subject data if requested
+    if save_dir is not None:
+        save_dir = Path(save_dir)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        for sid, lot_results, avg_diff in results:
+            save_data = {'avg_abs_diff': avg_diff}
+            for k, (x_grid, cdf_diff) in enumerate(lot_results):
+                save_data[f'x_grid_{k}'] = x_grid
+                save_data[f'cdf_diff_{k}'] = cdf_diff
+            np.savez_compressed(
+                save_dir / f'subject_{sid:03d}_cdf_diff.npz', **save_data)
+        print(f"  Saved CDF diff data for {n_subjects} subjects to {save_dir}")
 
     # Groups
     well_id = avg_abs_diffs < 2

@@ -14,32 +14,40 @@ import jax.numpy as jnp
 # Utility Functions
 # =============================================================================
 
-def crra_ufn(x, r):
+def crra_ufn(x, r, x_min=10.0, x_max=50.0):
     """
-    CRRA utility function (vectorized).
+    Normalized CRRA utility function (vectorized).
 
-    u(x) = x^(1-r) / (1-r)  for r != 1
-    u(x) = log(x)           for r = 1
+    v(x) = x^(1-r) / (1-r)
+    u(x) = (v(x) - v(x_min)) / (v(x_max) - v(x_min))
+
+    This normalizes utility to [0, 1] over [x_min, x_max] and is
+    continuous at r = 1, where it reduces to ln(x/x_min) / ln(x_max/x_min).
 
     Args:
         x: Outcomes (scalar or array)
         r: CRRA coefficient (scalar)
+        x_min: Minimum outcome (default 10.0)
+        x_max: Maximum outcome (default 50.0)
 
     Returns:
-        Utility values (same shape as x)
+        Normalized utility values (same shape as x)
     """
-    x = jnp.maximum(x, 1e-10)  # Ensure positive
+    x = jnp.maximum(x, 1e-10)
     r_safe = jnp.clip(r, -10, 10)
+    s = 1 - r_safe
 
-    # Standard CRRA
-    crra = jnp.power(x, 1 - r_safe) / (1 - r_safe)
+    # Power form: (x^s - xmin^s) / (xmax^s - xmin^s)
+    x_s = jnp.power(x, s)
+    xmin_s = jnp.power(x_min, s)
+    xmax_s = jnp.power(x_max, s)
+    power_form = (x_s - xmin_s) / (xmax_s - xmin_s)
 
-    # Log utility (limit as r -> 1)
-    log_u = jnp.log(x)
+    # Log form (limit as s -> 0): ln(x/xmin) / ln(xmax/xmin)
+    log_form = jnp.log(x / x_min) / jnp.log(x_max / x_min)
 
-    # Use log when |r - 1| < 0.01
-    use_log = jnp.abs(r_safe - 1.0) < 0.01
-    return jnp.where(use_log, log_u, crra)
+    use_log = jnp.abs(s) < 1e-10
+    return jnp.where(use_log, log_form, power_form)
 
 
 # =============================================================================
@@ -240,28 +248,38 @@ def risk_likelihood(utilities, phi, eta, datai, dataf, sid, lam):
 # CRRA Inverse Utility (JAX)
 # =============================================================================
 
-def crra_inverse(v, r):
+def crra_inverse(u_val, r, x_min=10.0, x_max=50.0):
     """
-    Inverse of CRRA utility function (JAX).
+    Inverse of normalized CRRA utility function (JAX).
 
-    Given u(x) = x^(1-r) / (1-r), the inverse is:
-        x = ((1-r)*v)^(1/(1-r))
+    Given u(x) = (x^s - xmin^s) / (xmax^s - xmin^s) with s = 1-r,
+    the inverse is CE = (u_val * (xmax^s - xmin^s) + xmin^s)^(1/s).
 
-    For r close to 1 (log utility), u(x) = log(x) so x = exp(v).
+    At r = 1: CE = x_min * (x_max / x_min)^u_val.
 
     Args:
-        v: Utility value (scalar)
+        u_val: Normalized utility value in [0, 1] (scalar)
         r: CRRA coefficient (scalar)
+        x_min: Minimum outcome (default 10.0)
+        x_max: Maximum outcome (default 50.0)
 
     Returns:
         Certainty equivalent in prize units
     """
     r_safe = jnp.clip(r, -10, 10)
-    inner = jnp.maximum((1 - r_safe) * v, 1e-30)
-    crra_inv = jnp.power(inner, 1.0 / (1 - r_safe))
-    log_inv = jnp.exp(v)
-    use_log = jnp.abs(r_safe - 1.0) < 0.01
-    return jnp.where(use_log, log_inv, crra_inv)
+    s = 1 - r_safe
+
+    # Power form: CE = (u * (xmax^s - xmin^s) + xmin^s)^(1/s)
+    xmin_s = jnp.power(x_min, s)
+    xmax_s = jnp.power(x_max, s)
+    ce_s = u_val * (xmax_s - xmin_s) + xmin_s
+    power_form = jnp.power(jnp.maximum(ce_s, 1e-30), 1.0 / s)
+
+    # Log form (limit as s -> 0): CE = xmin * (xmax/xmin)^u_val
+    log_form = x_min * jnp.power(x_max / x_min, u_val)
+
+    use_log = jnp.abs(s) < 1e-10
+    return jnp.where(use_log, log_form, power_form)
 
 
 # =============================================================================

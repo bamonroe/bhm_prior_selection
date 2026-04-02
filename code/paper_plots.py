@@ -84,23 +84,32 @@ def _compute_ces_for_lottery(r_arr, phi_arr, eta_arr, lottery):
     d[:, 0] = w[:, 0]
     d[:, 1:] = w[:, 1:] - w[:, :-1]
 
-    # CRRA utility: u(x) = x^(1-r)/(1-r), or log(x) when r≈1
-    use_log = np.abs(r_arr - 1.0) < 1e-10
-    r_safe = np.where(use_log, 0.5, r_arr)  # avoid division issues
+    # Normalized CRRA utility: u(x) = (x^s - xmin^s) / (xmax^s - xmin^s)
+    # where s = 1-r, xmin = lo, xmax = hi
+    # At s=0: u(x) = ln(x/xmin) / ln(xmax/xmin)
+    x_min, x_max = lo, hi
+    s_arr = 1.0 - r_arr
+    use_log = np.abs(s_arr) < 1e-10
+    s_safe = np.where(use_log, 0.5, s_arr)
 
-    # sp has shape (n_outcomes,); broadcast with r_safe (n,)
-    utilities = sp[None, :] ** (1 - r_safe[:, None]) / (1 - r_safe[:, None])
-    log_utilities = np.log(sp)[None, :] * np.ones((n, 1))
+    # Normalized utilities: shape (n, n_outcomes)
+    sp_s = sp[None, :] ** s_safe[:, None]
+    xmin_s = x_min ** s_safe
+    xmax_s = x_max ** s_safe
+    denom = (xmax_s - xmin_s)[:, None]
+    utilities = (sp_s - xmin_s[:, None]) / denom
 
-    # RDU value
-    rdu = np.sum(d * utilities, axis=1)
-    rdu_log = np.sum(d * log_utilities, axis=1)
+    log_utilities = np.log(sp / x_min)[None, :] / np.log(x_max / x_min)
+    log_utilities = log_utilities * np.ones((n, 1))
 
-    # CE = (rdu * (1-r))^(1/(1-r)), or exp(rdu) for log utility
+    # RDU value (normalized)
+    rdu = np.sum(d * np.where(use_log[:, None], log_utilities, utilities), axis=1)
+
+    # CE = (rdu * (xmax^s - xmin^s) + xmin^s)^(1/s), or xmin*(xmax/xmin)^rdu
     with np.errstate(invalid='ignore', over='ignore'):
-        ce_normal = np.sign(rdu * (1 - r_safe)) * np.abs(
-            rdu * (1 - r_safe)) ** (1 / (1 - r_safe))
-        ce_log = np.exp(rdu_log)
+        ce_s = rdu * (xmax_s - xmin_s) + xmin_s
+        ce_normal = np.power(np.maximum(ce_s, 1e-30), 1.0 / s_safe)
+        ce_log = x_min * np.power(x_max / x_min, rdu)
 
     ces = np.where(use_log, ce_log, ce_normal)
     ces = np.clip(ces, lo, hi)

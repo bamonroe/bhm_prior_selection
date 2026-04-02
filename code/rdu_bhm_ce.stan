@@ -48,31 +48,44 @@
 
 functions {
   /**
-   * CRRA utility function.
-   * u(x) = x^(1-r) / (1-r)  for |r - 1| >= 0.01
-   * u(x) = log(x)            for |r - 1| <  0.01
+   * Normalized CRRA utility function.
+   * v(x) = x^(1-r) / (1-r)
+   * u(x) = (v(x) - v(x_min)) / (v(x_max) - v(x_min))
+   * Continuous at r = 1, where u(x) = ln(x/x_min) / ln(x_max/x_min).
    */
   real crra_utility(real x, real r) {
     real x_s = fmax(x, 1e-10);
     real r_s = fmin(fmax(r, -10.0), 10.0);
-    if (abs(r_s - 1.0) < 0.01)
-      return log(x_s);
-    else
-      return pow(x_s, 1 - r_s) / (1 - r_s);
+    real s = 1 - r_s;
+    real x_min = 10.0;
+    real x_max = 50.0;
+    if (abs(s) < 1e-10)
+      return log(x_s / x_min) / log(x_max / x_min);
+    else {
+      real xs = pow(x_s, s);
+      real xmin_s = pow(x_min, s);
+      real xmax_s = pow(x_max, s);
+      return (xs - xmin_s) / (xmax_s - xmin_s);
+    }
   }
 
   /**
-   * Inverse CRRA utility.
-   * x = ((1-r)*v)^(1/(1-r))  for |r - 1| >= 0.01
-   * x = exp(v)                for |r - 1| <  0.01
+   * Inverse of normalized CRRA utility.
+   * CE = (u * (x_max^s - x_min^s) + x_min^s)^(1/s)
+   * At r = 1: CE = x_min * (x_max / x_min)^u
    */
-  real crra_inverse(real v, real r) {
+  real crra_inverse(real u_val, real r) {
     real r_s = fmin(fmax(r, -10.0), 10.0);
-    if (abs(r_s - 1.0) < 0.01)
-      return exp(v);
+    real s = 1 - r_s;
+    real x_min = 10.0;
+    real x_max = 50.0;
+    if (abs(s) < 1e-10)
+      return x_min * pow(x_max / x_min, u_val);
     else {
-      real inner = fmax((1 - r_s) * v, 1e-30);
-      return pow(inner, 1.0 / (1 - r_s));
+      real xmin_s = pow(x_min, s);
+      real xmax_s = pow(x_max, s);
+      real ce_s = u_val * (xmax_s - xmin_s) + xmin_s;
+      return pow(fmax(ce_s, 1e-30), 1.0 / s);
     }
   }
 

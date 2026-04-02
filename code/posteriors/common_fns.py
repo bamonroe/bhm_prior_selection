@@ -456,17 +456,52 @@ def full_forward_map(r, phi_raw, eta_raw, lambda_raw, ref_lotteries, ref_pair):
     return jnp.concatenate([ces, jnp.array([p_choice])])
 
 
+def _ce_and_derivs(w, xlo, xhi, s):
+    """Compute CE, dCE/dw, and dCE/dr for a binary lottery.
+
+    Handles s=0 (r=1) analytically via the L'Hopital limits.
+    """
+    use_log = jnp.abs(s) < 1e-10
+    s_safe = jnp.where(use_log, 1.0, s)  # avoid division by zero
+
+    # --- Power form (s != 0) ---
+    inner = w * jnp.power(xhi, s_safe) + (1 - w) * jnp.power(xlo, s_safe)
+    ce_power = jnp.power(jnp.maximum(inner, 1e-30), 1.0 / s_safe)
+    dce_dw_power = (jnp.power(xhi, s_safe) - jnp.power(xlo, s_safe)) / (
+        s_safe * jnp.power(jnp.maximum(ce_power, 1e-30), s_safe - 1))
+    weighted_lnx = (w * jnp.power(xhi, s_safe) * jnp.log(xhi)
+                    + (1 - w) * jnp.power(xlo, s_safe) * jnp.log(xlo))
+    dce_dr_power = (ce_power / s_safe) * (jnp.log(jnp.maximum(ce_power, 1e-30))
+                                           - weighted_lnx / inner)
+
+    # --- Log form (s = 0) ---
+    M = w * jnp.log(xhi) + (1 - w) * jnp.log(xlo)
+    ce_log = jnp.exp(M)
+    dce_dw_log = ce_log * (jnp.log(xhi) - jnp.log(xlo))
+    V = w * jnp.log(xhi)**2 + (1 - w) * jnp.log(xlo)**2
+    var_lnx = V - M**2
+    dce_dr_log = -ce_log * var_lnx / 2
+
+    ce = jnp.where(use_log, ce_log, ce_power)
+    dce_dw = jnp.where(use_log, dce_dw_log, dce_dw_power)
+    dce_dr = jnp.where(use_log, dce_dr_log, dce_dr_power)
+
+    return ce, dce_dw, dce_dr
+
+
 def full_jacobian_logabsdet(r, phi_raw, eta_raw, lambda_raw,
                             ref_lotteries, ref_pair):
     """
-    Compute log|det J| of the full 4D forward map.
+    Compute log|det J| of the full 4D forward map — fully analytic.
 
-    The Jacobian is block-triangular since dCE_k/d(lambda) = 0:
-        J = [[dCE/d(r,phi,eta)   0        ],
-             [dP/d(r,phi,eta)    dP/dlambda]]
-    so det J = det(J_CE) * dP/dlambda.
+    Decomposes into three components:
+      log|det J| = log|det J_W| + log|det J_CE| + log|dP/dlambda_raw|
 
-    JAX autodiff computes this correctly via the full 4x4 Jacobian.
+    Component 1 (Prelec W map): analytic 2x2 determinant.
+    Component 2 (CE map in (r,w1,w2) space): analytic with s=0 limits.
+    Component 3 (choice probability): analytic.
+
+    Continuous at r=1 (s=0), unlike the JAX autodiff version.
 
     Args:
         r, phi_raw, eta_raw, lambda_raw: Model parameters (scalars)
@@ -474,15 +509,62 @@ def full_jacobian_logabsdet(r, phi_raw, eta_raw, lambda_raw,
         ref_pair: Flat (12,) array
 
     Returns:
-        log|det J| (scalar). Returns -inf if det is zero.
+        log|det J| (scalar)
     """
-    def f(theta):
-        return full_forward_map(
-            theta[0], theta[1], theta[2], theta[3],
-            ref_lotteries, ref_pair,
-        )
+    phi = jnp.exp(phi_raw)
+    eta = jnp.exp(eta_raw)
+    lam = jnp.exp(lambda_raw)
+    s = 1 - r
 
-    theta = jnp.array([r, phi_raw, eta_raw, lambda_raw])
-    J = jax.jacfwd(f)(theta)  # (4, 4)
-    sign, logabsdet = jnp.linalg.slogdet(J)
-    return jnp.where(sign != 0, logabsdet, -jnp.inf)
+    # --- Component 1: Prelec W map ---
+    p1 = ref_lotteries[5]   # prob on best outcome for L1
+    p2 = ref_lotteries[11]  # prob on best outcome for L2
+    t1 = -jnp.log(p1)
+    t2 = -jnp.log(p2)
+    A1 = eta * jnp.power(t1, phi)
+    A2 = eta * jnp.power(t2, phi)
+    w1 = jnp.exp(-A1)
+    w2 = jnp.exp(-A2)
+    log_det_W = (-A1 - A2 + 2 * eta_raw
+                 + phi * (jnp.log(t1) + jnp.log(t2))
+                 + phi_raw + jnp.log(jnp.abs(jnp.log(t1 / t2))))
+
+    # --- Component 2: CE map in (r, w1, w2) space ---
+    w3 = w1  # shared probability p3 = p1
+    xlo1, xhi1 = ref_lotteries[0], ref_lotteries[2]
+    xlo2, xhi2 = ref_lotteries[6], ref_lotteries[8]
+    xlo3, xhi3 = ref_lotteries[12], ref_lotteries[14]
+
+    _, dce1_dw1, dce1_dr = _ce_and_derivs(w1, xlo1, xhi1, s)
+    _, dce2_dw2, dce2_dr = _ce_and_derivs(w2, xlo2, xhi2, s)
+    _, dce3_dw1, dce3_dr = _ce_and_derivs(w3, xlo3, xhi3, s)
+
+    det_CE = dce2_dw2 * (dce1_dr * dce3_dw1 - dce3_dr * dce1_dw1)
+    log_det_CE = jnp.log(jnp.abs(det_CE))
+
+    # --- Component 3: dP/dlambda_raw ---
+    u_A = crra_ufn(ref_pair[0:3], r)
+    u_B = crra_ufn(ref_pair[6:9], r)
+    all_u = jnp.concatenate([u_A, u_B])
+    u_range = jnp.maximum(jnp.max(all_u) - jnp.min(all_u), 1e-10)
+
+    p_A = ref_pair[3:6]
+    p_B = ref_pair[9:12]
+
+    def rdu_val(u, p):
+        C3 = p[2]
+        C2 = p[1] + p[2]
+        w_C3 = prelec_pwf(C3, phi, eta)
+        w_C2 = prelec_pwf(C2, phi, eta)
+        pi3 = w_C3
+        pi2 = w_C2 - w_C3
+        pi1 = 1.0 - w_C2
+        return pi1 * u[0] + pi2 * u[1] + pi3 * u[2]
+
+    V_A = rdu_val(u_A, p_A)
+    V_B = rdu_val(u_B, p_B)
+    delta = (V_A - V_B) / (lam * u_range)
+    P_val = jax.nn.sigmoid(delta)
+    log_dP = jnp.log(jnp.abs(delta)) + jnp.log(P_val) + jnp.log(1 - P_val)
+
+    return log_det_W + log_det_CE + log_dP

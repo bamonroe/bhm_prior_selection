@@ -52,7 +52,7 @@ from .rdu_bhm_ce import (
     generated_quantities,
     get_hyperprior_array,
     load_hyperpriors_from_file,
-    HYPERPRIOR_PARAMS,
+    HYPERPRIOR_SPECS,
 )
 
 

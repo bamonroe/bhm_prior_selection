@@ -1103,25 +1103,23 @@ def _rk_row(rho, kappa, nw, nm, nd):
     pct = int(round(100 * nd / _n_subj))
     return f"    {rho:.1f} & {kappa:.2f} & {nw} & {nm} & {nd} & {pct}\\% \\\\"
 
-_bl_row = _rk_row(0.2, 0.25, int(_bl['n_well']), int(_bl['n_moderate']), int(_bl['n_dominated']))
-_sens_rows = [
-    _rk_row(float(_sens['rho'][i]), float(_sens['kappa'][i]),
-            int(_sens['n_well'][i]), int(_sens['n_moderate'][i]),
-            int(_sens['n_dominated'][i]))
-    for i in range(len(_sens['rho']))
-]
-\end{pycode}
+_bl_row = _rk_row(0.2, 0.25, int(_bl.get('n_well', 79)), int(_bl.get('n_moderate', 14)), int(_bl.get('n_dominated', 18)))
+_sens_rows = []
+for i in range(len(_sens.get('rho', []))):
+    _sens_rows.append(
+        _rk_row(float(_sens['rho'][i]), float(_sens['kappa'][i]),
+                int(_sens['n_well'][i]), int(_sens['n_moderate'][i]),
+                int(_sens['n_dominated'][i])))
 
+_rk_table_rows = _bl_row + "\n" + "\n".join(_sens_rows)
+print(r"""
 \begin{table}[h!]
   \centering
   \begin{tabular}{cc|cccc}
     \toprule
     $\rho$ & $\kappa$ & Well-identified & Moderate & Prior-dominated & \% dominated \\
     \midrule
-    \py{_bl_row}
-    \py{_sens_rows[0]}
-    \py{_sens_rows[1]}
-    \py{_sens_rows[2]}
+""" + _rk_table_rows + r"""
     \bottomrule
   \end{tabular}
   \caption{Subject classification across $(\rho, \kappa)$ configurations.
@@ -1129,6 +1127,8 @@ _sens_rows = [
     only the hierarchical variance allocation changes.}
   \label{tab:rk_sensitivity}
 \end{table}
+""")
+\end{pycode}
 
 The prior-dominated share ranges from 13\% to 19\% across the four
 configurations, confirming that the finding is structurally stable rather than
@@ -1159,39 +1159,38 @@ The framework developed in this paper suggests a concrete workflow for
 researchers specifying hyperpriors. The researcher first chooses the
 specification space: beliefs can be stated about structural parameters
 directly, which corresponds to the identity mapping, or about predictive
-quantities such as certainty
-equivalents, choice probabilities, or indifference amounts. The quantity space
-is preferred when the researcher has stronger intuition about quantities in
-experimental units. For each dimension of the specification space, the
-researcher provides a mean and variance reflecting beliefs about a single
-random individual, informed by published empirical estimates, experimental
-pilot data, or expert judgment. The researcher then chooses $\rho$ and $\kappa$
-to express beliefs about the degree of population heterogeneity and confidence
-in that specification. Values of $\rho = 0.2$ and $\kappa = 0.25$, as used in
-the application, express substantial heterogeneity with moderate confidence.
-Finally, the implied prior predictive distribution should be examined to
-confirm that the hierarchical structure implied by the $\rho$/$\kappa$
-decomposition is reasonable. The framework guarantees that the first two moments of the unconditional
-distribution match the direct prior by construction, but the allocation
-between population-mean uncertainty and individual heterogeneity should be
-checked. Estimation then proceeds with standard MCMC sampling, adding the
-Jacobian correction term to the log-posterior when using quantity-space
-specification.
+quantities such as certainty equivalents, choice probabilities, or indifference
+amounts. The quantity space is preferred when the researcher has stronger
+intuition about quantities in experimental units. For each dimension of the
+specification space, the researcher provides a mean and variance reflecting
+beliefs about a single random individual, informed by published empirical
+estimates, experimental pilot data, or expert judgment. The researcher then
+chooses $\rho$ and $\kappa$ to express beliefs about the degree of population
+heterogeneity and confidence in that specification. Values of $\rho = 0.2$ and
+$\kappa = 0.25$, as used in the application, express substantial heterogeneity
+with moderate confidence. Finally, the implied prior predictive distribution
+should be examined to confirm that the hierarchical structure implied by the
+$\rho$/$\kappa$ decomposition is reasonable. The framework guarantees that the
+first two moments of the unconditional distribution match the direct prior by
+construction, but the allocation between population-mean uncertainty and
+individual heterogeneity should be checked. Estimation then proceeds with
+standard MCMC sampling, adding the Jacobian correction term to the
+log-posterior when using quantity-space specification.
 
 \subsection{Limitations}
 
 The framework has several limitations. First, the variance decomposition is
 \textit{moment-based}, matching the first two moments of the direct prior. If
-the researcher's beliefs are better captured by higher moments (skewness,
-heavy tails), the two-moment matching may be insufficient. The framework
-does generalize to higher moments via the law of total cumulance (see footnote
-in Section \ref{sec:variance_decomposition}), but at the cost of additional
+the researcher's beliefs are better captured by higher moments (skewness, heavy
+tails), the two-moment matching may be insufficient. The framework does
+generalize to higher moments via the law of total cumulance (see footnote in
+Section \ref{sec:variance_decomposition}), but at the cost of additional
 researcher choices and numerical rather than closed-form solutions.
 
 Second, the quantity-space specification requires an injective mapping from
 parameters to predictive quantities. This constrains the design of reference
-lotteries (prize diversity is needed for injectivity) and means that
-not all experimental designs are equally suitable for prior specification.
+lotteries (prize diversity is needed for injectivity) and means that not all
+experimental designs are equally suitable for prior specification.
 
 Third, the framework specifies independent marginal direct priors over the $p$
 predictive quantities. In the application, $\CE_1$, $\CE_2$, $\CE_3$, and $P$
@@ -1206,18 +1205,18 @@ independent marginal beliefs are reasonable. If two reference lotteries are
 very similar, their CEs will be nearly perfectly correlated, and specifying
 independent priors could impose unintended constraints on the parameter space.
 The no-FOSD requirement and the prize diversity condition for injectivity
-mitigate this concern, but the researcher should verify that the implied
-joint prior on parameters is sensible by examining prior predictive draws.
+mitigate this concern, but the researcher should verify that the implied joint
+prior on parameters is sensible by examining prior predictive draws.
 
-Fourth, the application demonstrates that for a subset of subjects
-(18 subjects, or 16\% of the present sample), the hyperprior is the dominant
-factor in posterior inference. This is not a limitation of the framework per
-se, but rather an identification issue inherent to the 4-parameter RDU model
-estimated from 80 binary choices per subject. The quantity-space framework
-makes this dependence transparent. The CDF difference plot
-(Figure~\ref{fig:cdf_diff}) reveals exactly which subjects and which lotteries
-are affected. Researchers should examine such diagnostics to assess how
-sensitive their conclusions are to prior specification.
+Fourth, the application demonstrates that for a subset of subjects (18
+subjects, or 16\% of the present sample), the hyperprior is the dominant factor
+in posterior inference. This is not a limitation of the framework per se, but
+rather an identification issue inherent to the 4-parameter RDU model estimated
+from 80 binary choices per subject. The quantity-space framework makes this
+dependence transparent. The CDF difference plot (Figure~\ref{fig:cdf_diff})
+reveals exactly which subjects and which lotteries are affected. Researchers
+should examine such diagnostics to assess how sensitive their conclusions are
+to prior specification.
 
 
 %==============================================================================
@@ -1225,15 +1224,15 @@ sensitive their conclusions are to prior specification.
 \label{sec:conclusion}
 %==============================================================================
 
-BHMs require hyperprior specifications that are
-difficult to construct from first principles. I have developed a two-part
-framework that addresses this challenge. First, quantity-space prior
-specification allows researchers to state beliefs about quantities they can
-reason about directly, such as certainty equivalents and choice probabilities,
-with a Jacobian correction translating these beliefs to parameter space
-exactly. Second, a variance decomposition reduces the
-remaining degrees of freedom to two interpretable parameters: the variance
-partition ratio $\rho$ and the heterogeneity confidence $\kappa$.
+BHMs require hyperprior specifications that are difficult to construct from
+first principles. I have developed a two-part framework that addresses this
+challenge. First, quantity-space prior specification allows researchers to
+state beliefs about quantities they can reason about directly, such as
+certainty equivalents and choice probabilities, with a Jacobian correction
+translating these beliefs to parameter space exactly. Second, a variance
+decomposition reduces the remaining degrees of freedom to two interpretable
+parameters: the variance partition ratio $\rho$ and the heterogeneity
+confidence $\kappa$.
 
 The application to RDU estimation demonstrates three features of the approach.
 The hyper-posterior predictive CE distributions reveal a lottery-specific
@@ -1250,13 +1249,13 @@ transparent across all subjects, lotteries, and quantiles simultaneously.
 The framework replaces $4p$ opaque hyperprior parameters with $4p$
 interpretable choices: a mean, variance, variance partition ratio, and
 heterogeneity confidence for each of $p$ quantities. The number of choices is
-the same, but their nature changes. Each input is stated in terms of
-predictive quantities that researchers can reason about directly. When $\rho$
-and $\kappa$ are shared across quantities, as is natural when the researcher
-lacks strong reasons to differentiate, only $2p + 2$ distinct choices are
-needed. For a model with 10 parameters, such as CPT, this would reduce 40
-hyperprior parameters to 22, with each choice specified in terms of quantities
-that researchers have decades of empirical evidence to draw upon.
+the same, but their nature changes. Each input is stated in terms of predictive
+quantities that researchers can reason about directly. When $\rho$ and $\kappa$
+are shared across quantities, as is natural when the researcher lacks strong
+reasons to differentiate, only $2p + 2$ distinct choices are needed. For a
+model with 10 parameters, such as CPT, this would reduce 40 hyperprior
+parameters to 22, with each choice specified in terms of quantities that
+researchers have decades of empirical evidence to draw upon.
 
 
 \subsection*{Code and Data Availability}

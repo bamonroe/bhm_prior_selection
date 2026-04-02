@@ -1065,27 +1065,23 @@ than \$10, red, 18).
 
 For the well-identified majority, the CDF differences are near zero across the
 entire CE range for all three lotteries, with some noticeable differences for
-values of x below the EV of the lottery. This suggests that the informative
-prior had some effect in moving posterior density away from extreme risk
-aversion, and generally away from risk aversion. However, these effects are
-nearly non-existent for values of x above the EV of the lottery, and when
-combined with the small change in median CE, suggest that data for these
-subjects are sufficiently informative that the hyperprior specification is not
-a substantial influence on inference. The moderately affected and
+CEs below the respective lottery's EV. This suggests that the informative
+prior moves some posterior density away from extreme risk aversion for these
+subjects. However, the effect is nearly absent above the EV, and the small
+change in median CE confirms that the data are sufficiently informative that
+the hyperprior is not a substantial influence on inference. The moderately affected and
 prior-dominated groups show positive CDF differences, confirming that the
 informative model systematically produces more risk-averse inferences. The
 magnitude increases with the CE range of the lottery: $L_1$ (\$10--\$50) shows
 the largest deviations, $L_2$ (\$20--\$40) the smallest.
 
-The $L_2$ panel is distinctive. Several subjects exhibit negative CDF
-differences in the upper tail, meaning the informative model assigns
-\textit{higher} CEs than the diffuse model for these individuals. This arises
-because the probability weighting parameters that the informative prior favors
-can produce CEs above the expected value for equal-probability lotteries, even
-while pushing CEs below the expected value for $L_1$ and $L_3$. The figure
-thus captures, in a single visualization, both the magnitude and the
-lottery-specific direction of the prior's influence across the full posterior
-distribution.
+The $L_2$ panel shows distinctly smaller CDF differences than $L_1$ and $L_3$.
+The positive differences visible in all three panels are driven primarily by
+the informative model producing tighter posteriors for each subject: the
+population prior provides more shrinkage, concentrating each subject's
+posterior around its mode and reducing right-tail mass relative to the diffuse
+model. This variance reduction is smaller for $L_2$ because its narrower CE
+range (\$20--\$40) leaves less room for the two models to disagree.
 
 \subsection{Sensitivity to $\rho$ and $\kappa$}
 
@@ -1097,16 +1093,41 @@ using the same subject classification rule based on average absolute median CE
 differences. Table~\ref{tab:rk_sensitivity} reports the subject classification
 for each.
 
+\begin{pycode}
+import numpy as np
+
+# Baseline from main comparison
+_bl = np.load(str(data_dir / 'posterior_ce_comparison.npz'))
+_bl_md = _bl['median_diffs']
+_bl_well = int(np.sum(_bl_md < 2))
+_bl_mod = int(np.sum((_bl_md >= 2) & (_bl_md < 10)))
+_bl_dom = int(np.sum(_bl_md >= 10))
+_bl_pct = int(round(100 * _bl_dom / len(_bl_md)))
+
+# Sensitivity configs
+_sens = np.load(str(data_dir / 'rk_sensitivity_summary.npz'))
+_n_subj = len(_bl_md)
+
+def _sens_row(idx):
+    rho = _sens['rho'][idx]
+    kappa = _sens['kappa'][idx]
+    nw = int(_sens['n_well'][idx])
+    nm = int(_sens['n_moderate'][idx])
+    nd = int(_sens['n_dominated'][idx])
+    pct = int(round(100 * nd / _n_subj))
+    return f"    {rho:.1f} & {kappa:.2f} & {nw} & {nm} & {nd} & {pct}\\% \\\\"
+\end{pycode}
+
 \begin{table}[h!]
   \centering
   \begin{tabular}{cc|cccc}
     \toprule
     $\rho$ & $\kappa$ & Well-identified & Moderate & Prior-dominated & \% dominated \\
     \midrule
-    0.2 & 0.25 & 79 & 14 & 18 & 16\% \\
-    0.2 & 1.50 & 83 & 14 & 14 & 13\% \\
-    0.8 & 0.25 & 76 & 14 & 21 & 19\% \\
-    0.8 & 1.50 & 81 & 13 & 17 & 15\% \\
+    \py{f"0.2 & 0.25 & {_bl_well} & {_bl_mod} & {_bl_dom} & {_bl_pct}" + r"\% \\"}
+    \py{_sens_row(0)}
+    \py{_sens_row(1)}
+    \py{_sens_row(2)}
     \bottomrule
   \end{tabular}
   \caption{Subject classification across $(\rho, \kappa)$ configurations.

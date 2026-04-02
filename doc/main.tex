@@ -1111,22 +1111,15 @@ for i in range(len(_sens.get('rho', []))):
                 int(_sens['n_well'][i]), int(_sens['n_moderate'][i]),
                 int(_sens['n_dominated'][i])))
 
-# Compute percentages for prose references
-# Config order in _sens: (0.2,1.5), (0.8,0.25), (0.8,1.5)
-_bl_pct = int(round(100 * int(_bl.get('n_dominated', 18)) / _n_subj))
-_pcts = {(float(_sens['rho'][i]), float(_sens['kappa'][i])):
-         int(round(100 * int(_sens['n_dominated'][i]) / _n_subj))
-         for i in range(len(_sens.get('rho', [])))}
-_pct_lo_lo = _bl_pct                        # rho=0.2, kappa=0.25
-_pct_lo_hi = _pcts.get((0.2, 1.5), 13)      # rho=0.2, kappa=1.5
-_pct_hi_lo = _pcts.get((0.8, 0.25), 19)     # rho=0.8, kappa=0.25
-_pct_hi_hi = _pcts.get((0.8, 1.5), 15)      # rho=0.8, kappa=1.5
-_pct_min = min(_pct_lo_lo, _pct_lo_hi, _pct_hi_lo, _pct_hi_hi)
-_pct_max = max(_pct_lo_lo, _pct_lo_hi, _pct_hi_lo, _pct_hi_hi)
-_mod_min = min(int(_bl.get('n_moderate', 14)),
-               *[int(_sens['n_moderate'][i]) for i in range(len(_sens.get('rho', [])))])
-_mod_max = max(int(_bl.get('n_moderate', 14)),
-               *[int(_sens['n_moderate'][i]) for i in range(len(_sens.get('rho', [])))])
+# Pre-computed percentages for prose
+_pct_lo_lo = int(_sens.get('pct_dom_lo_lo', 16))
+_pct_lo_hi = int(_sens.get('pct_dom_lo_hi', 13))
+_pct_hi_lo = int(_sens.get('pct_dom_hi_lo', 19))
+_pct_hi_hi = int(_sens.get('pct_dom_hi_hi', 15))
+_pct_min = int(_sens.get('pct_dom_min', 13))
+_pct_max = int(_sens.get('pct_dom_max', 19))
+_mod_min = int(_sens.get('mod_min', 13))
+_mod_max = int(_sens.get('mod_max', 14))
 
 _rk_table_rows = _bl_row + "\n" + "\n".join(_sens_rows)
 print(r"""

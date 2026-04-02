@@ -184,14 +184,39 @@ def main():
         print(f"  {r['rho']:5.1f} {r['kappa']:6.2f} | "
               f"{r['n_well']:8d} {r['n_moderate']:9d} {r['n_dominated']:10d}")
 
-    # Save summary
+    # Save summary with pre-computed percentages
     summary_path = DATA_DIR / 'output' / 'rk_sensitivity_summary.npz'
+    n_subj = len(np.load(baseline_comp)['median_diffs']) if baseline_comp.exists() else 111
+
+    # All configs including baseline
+    all_rho = [0.2] + [r['rho'] for r in results]
+    all_kappa = [0.25] + [r['kappa'] for r in results]
+    all_n_well = [n_w] + [r['n_well'] for r in results]
+    all_n_mod = [n_m] + [r['n_moderate'] for r in results]
+    all_n_dom = [n_d] + [r['n_dominated'] for r in results]
+    all_pct_dom = [round(100 * d / n_subj) for d in all_n_dom]
+
+    # Derived quantities for prose: indexed by (rho_level, kappa_level)
+    # (lo, lo) = baseline, (lo, hi) = idx 1, (hi, lo) = idx 2, (hi, hi) = idx 3
+    pct_dom = {
+        'lo_lo': all_pct_dom[0], 'lo_hi': all_pct_dom[1],
+        'hi_lo': all_pct_dom[2], 'hi_hi': all_pct_dom[3],
+    }
+
     np.savez(summary_path,
              rho=np.array([r['rho'] for r in results]),
              kappa=np.array([r['kappa'] for r in results]),
              n_well=np.array([r['n_well'] for r in results]),
              n_moderate=np.array([r['n_moderate'] for r in results]),
-             n_dominated=np.array([r['n_dominated'] for r in results]))
+             n_dominated=np.array([r['n_dominated'] for r in results]),
+             pct_dom_lo_lo=pct_dom['lo_lo'],
+             pct_dom_lo_hi=pct_dom['lo_hi'],
+             pct_dom_hi_lo=pct_dom['hi_lo'],
+             pct_dom_hi_hi=pct_dom['hi_hi'],
+             pct_dom_min=min(all_pct_dom),
+             pct_dom_max=max(all_pct_dom),
+             mod_min=min(all_n_mod),
+             mod_max=max(all_n_mod))
     print(f"\n  Summary saved to: {summary_path}")
 
     elapsed = time.time() - t0

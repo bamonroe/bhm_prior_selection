@@ -467,11 +467,13 @@ def generate_paper_plots(
     # 6. Subject-level parameter posteriors (most and least affected)
     # =========================================================================
     print("\nGenerating subject parameter comparison plots...")
+    info_sub_dir = Path(info_subjects_dir)
+    uninf_sub_dir = Path(uninf_subjects_dir)
     for label, sid in [('most', most_affected), ('least', least_affected)]:
         _plot_subject_params(
             sid=sid,
-            info_path=str(info_subjects / f'subject_{sid:03d}_params.npz'),
-            uninf_path=str(uninf_subjects / f'subject_{sid:03d}_params.npz'),
+            info_path=str(info_sub_dir / f'subject_{sid:03d}_params.npz'),
+            uninf_path=str(uninf_sub_dir / f'subject_{sid:03d}_params.npz'),
             output_path=str(output_dir / f'subject_params_{label}_affected.pdf'),
             plt=plt,
         )

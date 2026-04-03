@@ -70,6 +70,7 @@ def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None
         'thin_iteration': cfg['thin_iteration'],
         'chunk_size': cfg.get('chunk_size', 100),
         'rng_seed': cfg['rng_seed'],
+        'use_double': cfg.get('use_double', True),
         # Parallel tempering
         'n_temperatures': max(cfg.get('n_temperatures', 1), 1),
         'beta_min': cfg.get('beta_min', 0.1),

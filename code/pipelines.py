@@ -110,6 +110,7 @@ def run_sampling_ce(sampling_opts, ref_lotteries, ref_pair,
             'thin_iteration': sampling_opts['thin_iteration'],
             'chunk_size': sampling_opts.get('chunk_size', 100),
             'rng_seed': sampling_opts['seed'],
+            'use_double': sampling_opts.get('use_double', True),
             'n_temperatures': max(sampling_opts.get('n_temperatures', 1), 1),
             'beta_min': sampling_opts.get('beta_min', 0.1),
             'per_temp_proposals': sampling_opts.get('per_temp_proposals', True),
@@ -176,6 +177,7 @@ def run_sampling_prior(sampling_opts, ref_lotteries, ref_pair,
             'thin_iteration': sampling_opts['thin_iteration'],
             'chunk_size': sampling_opts.get('chunk_size', 100),
             'rng_seed': sampling_opts['seed'],
+            'use_double': sampling_opts.get('use_double', True),
         },
     )
     print("Done.\n")
@@ -600,4 +602,252 @@ def run_prior_plots(direct_prior, prior_selection, output_dir, seed=42,
                            output_dir / 'prior_comparison.pdf', seed=seed,
                            figsize=figsize)
 
+    print("Done.\n")
+
+
+# =============================================================================
+# Prior-Only Model Preprocessing
+# =============================================================================
+
+def run_preprocess_subjects_prior(history_dir, output_dir, force=False):
+    """Preprocess prior-only model subject data from history files.
+
+    Args:
+        history_dir: Directory containing history_*.npz files
+        output_dir: Directory to save per-subject parameter files
+        force: If True, overwrite existing preprocessed data
+
+    Returns:
+        tuple: (output_dir, iterations, batch_boundaries)
+    """
+    print("\n" + "=" * 60)
+    print("Running: Preprocess Prior-Only Subjects")
+    print("=" * 60)
+    from plotting import preprocess_subjects
+    from posteriors.rdu_bhm_ce_prior import NPARAMS as NP, N_HYPER as NH
+    result = preprocess_subjects(history_dir, output_dir, force=force,
+                                  nparams=NP, n_hyper=NH)
+    print("Done.\n")
+    return result
+
+
+def run_prior_predictive_params_plot(prior_subjects_dir, output_path):
+    """Generate prior predictive parameter-space plot.
+
+    Args:
+        prior_subjects_dir: Path to preprocessed prior-only subjects directory
+        output_path: Path to save the output PDF
+    """
+    print("\n" + "=" * 60)
+    print("Running: Prior Predictive Parameters Plot")
+    print("=" * 60)
+    from paper_plots import generate_prior_predictive_params_plot
+    generate_prior_predictive_params_plot(prior_subjects_dir, output_path)
+    print("Done.\n")
+
+
+# =============================================================================
+# (rho, kappa) Sensitivity Analysis
+# =============================================================================
+
+def _rk_config_label(rho, kappa):
+    """Generate directory label for a (rho, kappa) configuration."""
+    return f"rho{rho:.1f}_kappa{kappa:.2f}".replace('.', 'p')
+
+
+def run_rk_sensitivity_config(rho, kappa, direct_prior_ce, reference_lotteries,
+                               reference_pair, sampling_opts, seeds,
+                               data_dir, plots_dir):
+    """Run full pipeline for a single (rho, kappa) sensitivity configuration.
+
+    Executes: prior selection -> sampling -> preprocessing -> paper plots.
+
+    Returns:
+        dict with keys: rho, kappa, label, n_well, n_moderate, n_dominated
+    """
+    import numpy as np
+    label = _rk_config_label(rho, kappa)
+
+    print("\n" + "=" * 70)
+    print(f"  Configuration: rho={rho}, kappa={kappa} ({label})")
+    print("=" * 70)
+
+    # --- Prior selection ---
+    print("\n  Prior selection...")
+    from prior_selection import (ce_space_prior_selection, derive_hyperpriors_beta,
+                                  verify_hyperpriors_beta, print_hyperprior_summary_beta)
+    ps = ce_space_prior_selection(direct_prior_ce)
+    quantity_keys = ['ce1', 'ce2', 'ce3', 'pchoice']
+    bounds_lo = np.array([direct_prior_ce[k]['lo'] for k in quantity_keys])
+    bounds_hi = np.array([direct_prior_ce[k]['hi'] for k in quantity_keys])
+
+    hp = derive_hyperpriors_beta(ps, bounds_lo, bounds_hi, rho=rho, kappa=kappa)
+    print_hyperprior_summary_beta(hp)
+    verify_hyperpriors_beta(hp)
+
+    # Save prior params
+    prior_params_path = data_dir / 'output' / f'prior_params_ce_{label}.npz'
+    save_dict = {'distribution': 'beta', 'rho': rho, 'kappa': kappa}
+    for k, qname in enumerate(quantity_keys):
+        save_dict[f'{qname}_a_mu'] = hp.a_mu[k]
+        save_dict[f'{qname}_b_mu'] = hp.b_mu[k]
+        save_dict[f'{qname}_a_psi'] = hp.a_psi[k]
+        save_dict[f'{qname}_b_psi'] = hp.b_psi[k]
+        save_dict[f'{qname}_bound_lo'] = bounds_lo[k]
+        save_dict[f'{qname}_bound_hi'] = bounds_hi[k]
+    np.savez(prior_params_path, **save_dict)
+    print(f"  Saved: {prior_params_path}")
+
+    # --- Sampling ---
+    print("\n  MCMC sampling...")
+    config_output_dir = data_dir / 'output' / label
+    opts = {**sampling_opts, 'output_dir': config_output_dir}
+    run_sampling_ce(
+        opts,
+        ref_lotteries=reference_lotteries,
+        ref_pair=reference_pair,
+        prior_params_path=prior_params_path,
+    )
+
+    # --- Preprocessing ---
+    print("\n  Preprocessing...")
+    model_dir = config_output_dir / 'rdu_bhm_ce'
+    history_dir = model_dir / 'history' / 'full'
+    preprocess_dir = model_dir / 'preprocessed'
+
+    run_preprocess_hyperparams_ce(
+        history_dir=str(history_dir),
+        output_dir=str(preprocess_dir),
+        force=True,
+    )
+    run_preprocess_subjects_ce(
+        history_dir=str(history_dir),
+        output_dir=str(preprocess_dir / 'subjects'),
+        force=True,
+    )
+
+    # --- Paper plots ---
+    print("\n  Paper plots...")
+    paper_plots_dir = plots_dir / 'paper' / label
+    paper_plots_dir.mkdir(parents=True, exist_ok=True)
+
+    info_subjects = preprocess_dir / 'subjects'
+    uninf_subjects = (data_dir / 'output' / 'rdu_bhm_uninf'
+                      / 'preprocessed' / 'subjects')
+    hyper_info = str(preprocess_dir / 'hyperparams_preprocessed.npz')
+    hyper_uninf = str(data_dir / 'output' / 'rdu_bhm_uninf'
+                      / 'preprocessed' / 'hyperparams_preprocessed.npz')
+
+    from paper_plots import generate_paper_plots
+    generate_paper_plots(
+        info_subjects_dir=str(info_subjects),
+        uninf_subjects_dir=str(uninf_subjects),
+        info_hyper_path=hyper_info,
+        uninf_hyper_path=hyper_uninf,
+        prior_params_path=str(prior_params_path),
+        output_dir=str(paper_plots_dir),
+        data_output_dir=str(paper_plots_dir),
+        seed=seeds['sampling'],
+    )
+
+    # --- Extract classification ---
+    print("\n  Extracting subject classification...")
+    comp = np.load(paper_plots_dir / 'posterior_ce_comparison.npz')
+    median_diffs = comp['median_diffs']
+    n_well = int(np.sum(median_diffs < 2))
+    n_moderate = int(np.sum((median_diffs >= 2) & (median_diffs < 10)))
+    n_dominated = int(np.sum(median_diffs >= 10))
+
+    print(f"  Results: {n_well} well-identified, {n_moderate} moderate, "
+          f"{n_dominated} prior-dominated")
+
+    return {
+        'rho': rho, 'kappa': kappa, 'label': label,
+        'n_well': n_well, 'n_moderate': n_moderate,
+        'n_dominated': n_dominated,
+    }
+
+
+def run_rk_sensitivity(sensitivity_configs, direct_prior_ce,
+                        reference_lotteries, reference_pair,
+                        sampling_opts, seeds, data_dir, plots_dir):
+    """Run (rho, kappa) sensitivity analysis across multiple configurations.
+
+    For each configuration, runs the full pipeline (prior selection, sampling,
+    preprocessing, paper plots) and then saves an aggregate summary NPZ.
+
+    Args:
+        sensitivity_configs: List of (rho, kappa) tuples
+        direct_prior_ce: CE-space direct prior dict
+        reference_lotteries: List of reference lottery dicts
+        reference_pair: Reference pair dict
+        sampling_opts: Sampling configuration dict
+        seeds: Dict with 'sampling' key
+        data_dir: Project data directory
+        plots_dir: Project plots directory
+    """
+    import numpy as np
+
+    print("\n" + "=" * 70)
+    print("Running: (rho, kappa) Sensitivity Analysis")
+    print("=" * 70)
+
+    results = []
+    for rho, kappa in sensitivity_configs:
+        result = run_rk_sensitivity_config(
+            rho, kappa, direct_prior_ce, reference_lotteries, reference_pair,
+            sampling_opts, seeds, data_dir, plots_dir,
+        )
+        results.append(result)
+
+    # Print summary table (include baseline)
+    print("\n" + "=" * 70)
+    print("  (rho, kappa) Sensitivity Summary")
+    print("=" * 70)
+    print(f"  {'rho':>5} {'kappa':>6} | {'Well-ID':>8} {'Moderate':>9} {'Prior-Dom':>10}")
+    print("  " + "-" * 48)
+
+    baseline_comp = data_dir / 'output' / 'posterior_ce_comparison.npz'
+    if baseline_comp.exists():
+        bc = np.load(baseline_comp)
+        md = bc['median_diffs']
+        n_w = int(np.sum(md < 2))
+        n_m = int(np.sum((md >= 2) & (md < 10)))
+        n_d = int(np.sum(md >= 10))
+        print(f"  {0.2:5.1f} {0.25:6.2f} | {n_w:8d} {n_m:9d} {n_d:10d}  (baseline)")
+    else:
+        n_w, n_m, n_d = 0, 0, 0
+
+    for r in results:
+        print(f"  {r['rho']:5.1f} {r['kappa']:6.2f} | "
+              f"{r['n_well']:8d} {r['n_moderate']:9d} {r['n_dominated']:10d}")
+
+    # Save summary NPZ
+    summary_path = data_dir / 'output' / 'rk_sensitivity_summary.npz'
+    n_subj = len(np.load(baseline_comp)['median_diffs']) if baseline_comp.exists() else 111
+
+    all_n_dom = [n_d] + [r['n_dominated'] for r in results]
+    all_n_mod = [n_m] + [r['n_moderate'] for r in results]
+    all_pct_dom = [round(100 * d / n_subj) for d in all_n_dom]
+
+    pct_dom = {
+        'lo_lo': all_pct_dom[0], 'lo_hi': all_pct_dom[1],
+        'hi_lo': all_pct_dom[2], 'hi_hi': all_pct_dom[3],
+    }
+
+    np.savez(summary_path,
+             rho=np.array([r['rho'] for r in results]),
+             kappa=np.array([r['kappa'] for r in results]),
+             n_well=np.array([r['n_well'] for r in results]),
+             n_moderate=np.array([r['n_moderate'] for r in results]),
+             n_dominated=np.array([r['n_dominated'] for r in results]),
+             pct_dom_lo_lo=pct_dom['lo_lo'],
+             pct_dom_lo_hi=pct_dom['lo_hi'],
+             pct_dom_hi_lo=pct_dom['hi_lo'],
+             pct_dom_hi_hi=pct_dom['hi_hi'],
+             pct_dom_min=min(all_pct_dom),
+             pct_dom_max=max(all_pct_dom),
+             mod_min=min(all_n_mod),
+             mod_max=max(all_n_mod))
+    print(f"\n  Summary saved to: {summary_path}")
     print("Done.\n")

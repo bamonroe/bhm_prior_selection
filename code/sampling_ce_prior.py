@@ -63,6 +63,7 @@ def run_sampling_prior(output_dir, ref_lotteries, ref_pair, reset_runs=None,
         'thin_iteration': cfg['thin_iteration'],
         'chunk_size': cfg.get('chunk_size', 100),
         'rng_seed': cfg['rng_seed'],
+        'use_double': cfg.get('use_double', True),
         'n_temperatures': 1,  # no tempering needed for prior
         'beta_min': 1.0,
     }

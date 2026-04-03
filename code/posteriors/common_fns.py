@@ -184,21 +184,20 @@ def risk_likelihood(utilities, phi, eta, datai, dataf, sid, lam):
     prob_R_3 = dataf[6]
 
     # Get this subject's data
-    n_choices = choices.shape[1]
-    subj_choices = jax.lax.dynamic_slice(choices, (sid, 0), (1, n_choices))[0]
-    subj_idx_L_1 = jax.lax.dynamic_slice(idx_L_1, (sid, 0), (1, n_choices))[0]
-    subj_idx_L_2 = jax.lax.dynamic_slice(idx_L_2, (sid, 0), (1, n_choices))[0]
-    subj_idx_L_3 = jax.lax.dynamic_slice(idx_L_3, (sid, 0), (1, n_choices))[0]
-    subj_idx_R_1 = jax.lax.dynamic_slice(idx_R_1, (sid, 0), (1, n_choices))[0]
-    subj_idx_R_2 = jax.lax.dynamic_slice(idx_R_2, (sid, 0), (1, n_choices))[0]
-    subj_idx_R_3 = jax.lax.dynamic_slice(idx_R_3, (sid, 0), (1, n_choices))[0]
+    subj_choices = choices[sid]
+    subj_idx_L_1 = idx_L_1[sid]
+    subj_idx_L_2 = idx_L_2[sid]
+    subj_idx_L_3 = idx_L_3[sid]
+    subj_idx_R_1 = idx_R_1[sid]
+    subj_idx_R_2 = idx_R_2[sid]
+    subj_idx_R_3 = idx_R_3[sid]
 
-    subj_pL1 = jax.lax.dynamic_slice(prob_L_1, (sid, 0), (1, n_choices))[0]
-    subj_pL2 = jax.lax.dynamic_slice(prob_L_2, (sid, 0), (1, n_choices))[0]
-    subj_pL3 = jax.lax.dynamic_slice(prob_L_3, (sid, 0), (1, n_choices))[0]
-    subj_pR1 = jax.lax.dynamic_slice(prob_R_1, (sid, 0), (1, n_choices))[0]
-    subj_pR2 = jax.lax.dynamic_slice(prob_R_2, (sid, 0), (1, n_choices))[0]
-    subj_pR3 = jax.lax.dynamic_slice(prob_R_3, (sid, 0), (1, n_choices))[0]
+    subj_pL1 = prob_L_1[sid]
+    subj_pL2 = prob_L_2[sid]
+    subj_pL3 = prob_L_3[sid]
+    subj_pR1 = prob_R_1[sid]
+    subj_pR2 = prob_R_2[sid]
+    subj_pR3 = prob_R_3[sid]
 
     def choice_log_lik(choice, iL1, iL2, iL3, iR1, iR2, iR3,
                        pL1, pL2, pL3, pR1, pR2, pR3):

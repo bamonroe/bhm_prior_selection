@@ -163,6 +163,13 @@ SENSITIVITY_CONFIG = {
     'n_subjects': 50,
 }
 
+# (rho, kappa) sensitivity: full model re-estimation at alternative configs
+RK_SENSITIVITY_CONFIGS = [
+    (0.2, 1.50),   # same heterogeneity, much less confidence
+    (0.8, 0.25),   # most variance from mean uncertainty, confident
+    (0.8, 1.50),   # most variance from mean uncertainty, uncertain
+]
+
 sampling_opts_ce = {
     'model': 'rdu_bhm_ce',
     'output_dir': DATA_DIR / 'output',
@@ -175,6 +182,7 @@ sampling_opts_ce = {
     'thin_iteration': 10,
     'chunk_size': 100,
     'seed': SEEDS['sampling'],
+    'use_double': True,
     'n_temperatures': 0,
     'beta_min': 0.1,
 }
@@ -192,6 +200,7 @@ sampling_opts_uninf = {
     'thin_iteration': 10,
     'chunk_size': 100,
     'seed': SEEDS['sampling'],
+    'use_double': True,
     'n_temperatures': 0,
     'beta_0_min': 0.1,
 }
@@ -220,6 +229,7 @@ sampling_opts_prior = {
     'thin_iteration': 10,
     'chunk_size': 100,
     'seed': SEEDS['sampling'],
+    'use_double': True,
 }
 
 # Gao (2022) diffuse hyperprior: N(0, 100) means, IG(0.001, 0.001) variances
@@ -253,17 +263,19 @@ do_preprocess_hyper_ce     = False
 do_preprocess_subjects_ce  = False
 do_preprocess_hyper_uninf  = False
 do_preprocess_subjects_uninf = False
+do_preprocess_subjects_prior = False
 
 # --- Diagnostic Plots ---
 do_hyper_plots_ce          = False
 do_subject_plots_ce        = False
 
-# --- Paper Comparison Plots ---
-do_paper_predictive_overlay = False
-do_paper_subject_ce         = False
-do_paper_subject_ce_all     = False
+# --- Paper Plots ---
+do_paper_predictive_overlay      = False
+do_paper_prior_predictive_params = False
+do_paper_subject_ce_all          = False
 
-# --- Appendix Examples ---
+# --- Appendix Analyses ---
+do_rk_sensitivity          = False
 do_injectivity_analysis    = False
 
 # --- Document Compilation ---
@@ -381,6 +393,19 @@ if __name__ == '__main__':
             print(f"Skipping CE subject preprocessing: {history_dir_ce} not found")
 
     # -------------------------------------------------------------------------
+    # Preprocessing (Prior-Only Model)
+    # -------------------------------------------------------------------------
+    history_dir_prior = get_mcmc_dir('rdu_bhm_ce_prior') / 'history' / 'full'
+    preprocess_dir_prior = get_mcmc_dir('rdu_bhm_ce_prior') / 'preprocessed'
+
+    if do_preprocess_subjects_prior:
+        if history_dir_prior.exists():
+            pipelines.run_preprocess_subjects_prior(
+                history_dir_prior, preprocess_dir_prior / 'subjects')
+        else:
+            print(f"Skipping prior subject preprocessing: {history_dir_prior} not found")
+
+    # -------------------------------------------------------------------------
     # Plotting (CE-Space Prior)
     # -------------------------------------------------------------------------
     plots_dir_ce = get_plots_dir('rdu_bhm_ce')
@@ -431,6 +456,7 @@ if __name__ == '__main__':
                 'thin_iteration': sampling_opts_uninf['thin_iteration'],
                 'chunk_size': sampling_opts_uninf['chunk_size'],
                 'rng_seed': sampling_opts_uninf['seed'],
+                'use_double': sampling_opts_uninf.get('use_double', True),
                 'n_temperatures': sampling_opts_uninf.get('n_temperatures', 1),
                 'beta_min': sampling_opts_uninf.get('beta_0_min', 0.1),
             },
@@ -449,7 +475,7 @@ if __name__ == '__main__':
             print(f"Skipping uninf subject preprocessing: {history_dir_uninf} not found")
 
     # -------------------------------------------------------------------------
-    # Paper Comparison Plots
+    # Paper Plots
     # -------------------------------------------------------------------------
     hyper_preprocessed_info = preprocess_dir_ce / 'hyperparams_preprocessed.npz'
     hyper_preprocessed_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
@@ -478,6 +504,16 @@ if __name__ == '__main__':
                 missing.append('uninformative subjects')
             print(f"Skipping paper plots: missing {', '.join(missing)}")
 
+    if do_paper_prior_predictive_params:
+        prior_subjects = preprocess_dir_prior / 'subjects'
+        if prior_subjects.exists():
+            pipelines.run_prior_predictive_params_plot(
+                prior_subjects_dir=str(prior_subjects),
+                output_path=str(paper_plots_dir / 'prior_predictive_params.pdf'),
+            )
+        else:
+            print(f"Skipping prior predictive params plot: {prior_subjects} not found")
+
     if do_paper_subject_ce_all:
         print("\n" + "=" * 60)
         print("Running: Per-Subject CE Comparison Plots (All Subjects)")
@@ -505,8 +541,20 @@ if __name__ == '__main__':
         print("Done.\n")
 
     # -------------------------------------------------------------------------
-    # Appendix Examples
+    # Appendix Analyses
     # -------------------------------------------------------------------------
+    if do_rk_sensitivity:
+        pipelines.run_rk_sensitivity(
+            sensitivity_configs=RK_SENSITIVITY_CONFIGS,
+            direct_prior_ce=DIRECT_PRIOR_CE,
+            reference_lotteries=REFERENCE_LOTTERIES,
+            reference_pair=REFERENCE_PAIR,
+            sampling_opts=sampling_opts_ce,
+            seeds=SEEDS,
+            data_dir=DATA_DIR,
+            plots_dir=PLOTS_DIR,
+        )
+
     if do_injectivity_analysis:
         pipelines.run_injectivity_analysis(
             output_dir=PLOTS_DIR / 'injectivity',

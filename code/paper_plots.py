@@ -1104,6 +1104,61 @@ def generate_subject_ce_plots(
     print(f"  Done: {completed}/{n_subjects} subject PDFs saved to {output_dir}")
 
 
+def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
+                                          n_subjects_step=10):
+    """Generate 2x2 KDE plot of prior predictive parameter distributions.
+
+    Loads preprocessed subject draws from the prior-only model (no data
+    likelihood), pools draws across a subsample of subjects, and plots
+    kernel density estimates for each structural parameter.
+
+    Args:
+        prior_subjects_dir: Path to preprocessed subjects directory
+            (e.g. data/output/rdu_bhm_ce_prior/preprocessed/subjects/)
+        output_path: Path to save the output PDF
+        n_subjects_step: Stride for subsampling subjects (default 10)
+    """
+    plt = _setup_matplotlib()
+
+    prior_dir = Path(prior_subjects_dir)
+    meta = np.load(prior_dir / 'metadata.npz')
+    n_subjects = int(meta['n_subjects'])
+
+    params = ['r', 'phi', 'eta', 'lambda']
+    labels = [r'$r$ (CRRA)', r'$\phi$ (Prelec curvature)',
+              r'$\eta$ (Prelec elevation)', r'$\lambda$ (noise)']
+
+    fig, axes = plt.subplots(2, 2, figsize=(6.3, 5))
+    for idx, (pname, label) in enumerate(zip(params, labels)):
+        ax = axes[idx // 2, idx % 2]
+        all_draws = []
+        for sid in range(0, n_subjects, n_subjects_step):
+            d = np.load(prior_dir / f'subject_{sid:03d}_params.npz')
+            burn = d[pname].shape[0] // 2
+            all_draws.append(d[pname][burn:].ravel())
+        draws = np.concatenate(all_draws)
+        q01, q99 = np.percentile(draws, [1, 99])
+        draws_clip = draws[(draws >= q01) & (draws <= q99)]
+        x = np.linspace(q01, q99, 300)
+        if pname in ('phi', 'eta', 'lambda'):
+            x = x[x > 0]
+            draws_clip = draws_clip[draws_clip > 0]
+        kde = gaussian_kde(draws_clip)
+        ax.plot(x, kde(x), color='#1f77b4', lw=1.5)
+        ax.set_xlabel(label, fontsize=9)
+        ax.set_ylabel('Density', fontsize=8)
+        ax.tick_params(labelsize=7)
+        ax.set_title(f'median = {np.median(draws):.2f}', fontsize=8)
+    fig.suptitle('Hyperprior Predictive in Parameter Space', fontsize=11, y=0.98)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(str(output), bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Saved: {output}")
+
+
 if __name__ == '__main__':
     generate_paper_plots(
         info_subjects_dir='data/output/rdu_bhm_ce/preprocessed/subjects',

@@ -1141,15 +1141,22 @@ def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
     labels = [r'$r$ (CRRA)', r'$\phi$ (Prelec curvature)',
               r'$\eta$ (Prelec elevation)', r'$\lambda$ (noise)']
 
-    fig, axes = plt.subplots(2, 2, figsize=(6.3, 5))
-    for idx, (pname, label) in enumerate(zip(params, labels)):
-        ax = axes[idx // 2, idx % 2]
-        all_draws = []
+    # Load all draws once, compute medians, then plot
+    all_param_draws = {}
+    medians = {}
+    for pname in params:
+        pdraws = []
         for sid in range(0, n_subjects, n_subjects_step):
             d = np.load(prior_dir / f'subject_{sid:03d}_params.npz')
             burn = d[pname].shape[0] // 2
-            all_draws.append(d[pname][burn:].ravel())
-        draws = np.concatenate(all_draws)
+            pdraws.append(d[pname][burn:].ravel())
+        all_param_draws[pname] = np.concatenate(pdraws)
+        medians[pname] = float(np.median(all_param_draws[pname]))
+
+    fig, axes = plt.subplots(2, 2, figsize=(6.3, 5))
+    for idx, (pname, label) in enumerate(zip(params, labels)):
+        ax = axes[idx // 2, idx % 2]
+        draws = all_param_draws[pname]
         q01, q99 = np.percentile(draws, [1, 99])
         draws_clip = draws[(draws >= q01) & (draws <= q99)]
         x = np.linspace(q01, q99, 300)
@@ -1161,7 +1168,7 @@ def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
         ax.set_xlabel(label, fontsize=9)
         ax.set_ylabel('Density', fontsize=8)
         ax.tick_params(labelsize=7)
-        ax.set_title(f'median = {np.median(draws):.2f}', fontsize=8)
+        ax.set_title(f'median = {medians[pname]:.2f}', fontsize=8)
     fig.tight_layout()
 
     output = Path(output_path)
@@ -1169,6 +1176,11 @@ def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
     fig.savefig(str(output), bbox_inches='tight')
     plt.close(fig)
     print(f"  Saved: {output}")
+
+    # Save medians to NPZ for pythontex
+    medians_path = output.parent / 'prior_predictive_medians.npz'
+    np.savez(medians_path, **{f'pp_median_{k}': v for k, v in medians.items()})
+    print(f"  Saved: {medians_path}")
 
 
 if __name__ == '__main__':

@@ -3,14 +3,12 @@
 %==============================================================================
 
 \begin{pycode}
-# Load sensitivity data (already available from main pycode block: _sens, _bl, _n_subj)
-# Baseline counts
+# Baseline and sensitivity counts (from main pycode block: _bl, _sens, _n_subj)
 _bl_w = int(_bl.get('n_well', 0))
 _bl_m = int(_bl.get('n_moderate', 0))
 _bl_d = int(_bl.get('n_dominated', 0))
 _bl_pct = int(round(100 * _bl_d / _n_subj))
 
-# Sensitivity config counts (indexed 0=lo_hi, 1=hi_lo, 2=hi_hi)
 _s_rho = [float(x) for x in _sens.get('rho', [])]
 _s_kap = [float(x) for x in _sens.get('kappa', [])]
 _s_w = [int(x) for x in _sens.get('n_well', [])]
@@ -18,21 +16,9 @@ _s_m = [int(x) for x in _sens.get('n_moderate', [])]
 _s_d = [int(x) for x in _sens.get('n_dominated', [])]
 _s_pct = [int(round(100 * d / _n_subj)) for d in _s_d]
 
-# Prior predictive medians (compute from preprocessed subjects)
-_prior_dir = data_dir.parent.parent / 'data' / 'output' / 'rdu_bhm_ce_prior' / 'preprocessed' / 'subjects'
-_pp_medians = {}
-if _prior_dir.exists():
-    _all_draws = {p: [] for p in ['r', 'phi', 'eta', 'lambda']}
-    _meta = np.load(_prior_dir / 'metadata.npz')
-    _n_prior_subj = int(_meta['n_subjects'])
-    for _sid in range(0, _n_prior_subj, 10):
-        _d = np.load(_prior_dir / f'subject_{_sid:03d}_params.npz')
-        _burn = _d['r'].shape[0] // 2
-        for _p in _all_draws:
-            _all_draws[_p].append(_d[_p][_burn:].ravel())
-    for _p in _all_draws:
-        _pp_medians[_p] = float(np.median(np.concatenate(_all_draws[_p])))
-pp_r_median = fmt(_pp_medians.get('r', 1.08))
+# Prior predictive medians (pre-computed by generate_prior_predictive_params_plot)
+_pp = _load_npz('../plots/paper/prior_predictive_medians.npz')
+pp_r_median = fmt(float(_pp.get('pp_median_r', 1.08)))
 \end{pycode}
 
 This appendix reports results from re-estimating the CE-space Beta-Beta model

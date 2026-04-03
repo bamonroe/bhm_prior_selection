@@ -520,6 +520,20 @@ def generate_paper_plots(
 # Plot functions
 # =============================================================================
 
+def _filter_stuck_chains(draws_2d):
+    """Drop chains with near-zero variance (stuck chains) before pooling.
+
+    Args:
+        draws_2d: Array of shape (n_samples, n_chains)
+
+    Returns:
+        1D array of draws from non-stuck chains
+    """
+    chain_vars = np.var(draws_2d, axis=0)
+    good = chain_vars > 1e-10
+    return draws_2d[:, good].ravel()
+
+
 def _plot_subject_params(sid, info_path, uninf_path, output_path, plt):
     """Plot posterior parameter distributions for a single subject.
 
@@ -543,8 +557,8 @@ def _plot_subject_params(sid, info_path, uninf_path, output_path, plt):
     for idx, (pname, label, clip_positive) in enumerate(params):
         ax = axes[idx // 2, idx % 2]
 
-        draws_info = info[pname][burn_i:].ravel()
-        draws_uninf = uninf[pname][burn_u:].ravel()
+        draws_info = _filter_stuck_chains(info[pname][burn_i:])
+        draws_uninf = _filter_stuck_chains(uninf[pname][burn_u:])
 
         # Clip outliers for KDE stability
         for draws in [draws_info, draws_uninf]:
@@ -578,8 +592,7 @@ def _plot_subject_params(sid, info_path, uninf_path, output_path, plt):
         ax.tick_params(labelsize=7)
         ax.legend(fontsize=7)
 
-    fig.suptitle(f'Subject {sid}', fontsize=11, y=0.98)
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.tight_layout()
     fig.savefig(output_path, bbox_inches='tight', backend='pdf')
     plt.close(fig)
 
@@ -1149,8 +1162,7 @@ def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
         ax.set_ylabel('Density', fontsize=8)
         ax.tick_params(labelsize=7)
         ax.set_title(f'median = {np.median(draws):.2f}', fontsize=8)
-    fig.suptitle('Hyperprior Predictive in Parameter Space', fontsize=11, y=0.98)
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.tight_layout()
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)

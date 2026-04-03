@@ -1,0 +1,257 @@
+\appsection{Identification from Choice Probabilities under EUT}
+\label{app:eut_choice_probs}
+%==============================================================================
+
+The quantity-space prior specification of Section~\ref{sec:framework}
+requires an injective mapping from parameters to predictive quantities,
+and the Jacobian pullback must faithfully recover the intended prior on
+the feasible image. As noted in Section~\ref{sec:discussion}, certainty
+equivalents require inverting the utility function, which complicates the
+injectivity proof for richer utility families. Choice probabilities
+avoid this complication. This appendix proves that, under Expected
+Utility Theory with a logit choice rule, the Jacobian pullback from
+choice probabilities recovers the intended prior for any analytic
+utility family, provided the lottery design satisfies a rank condition
+that is easy to verify.
+
+The key observation is that the map from $p$ utility parameters to $p$
+pairwise choice probabilities factors as
+$G = \Lambda \circ (C\phi + \mathbf{d})$, where $\phi$ evaluates utility
+at interior outcomes, $C$ is a contrast matrix determined by the lottery
+design, and $\Lambda$ is the coordinatewise logistic link. Since
+$\Lambda$ is a bijection with strictly positive derivative, all
+identification content lies in the product $C\,D\phi$. The results here
+apply to EUT specifically; extending to non-expected utility functionals
+such as RDU, where the probability weighting layer breaks the affine
+structure of $C\phi + \mathbf{d}$, is left for future work.
+
+
+\subsection{Setup}
+
+Let $\Theta \subseteq \mathbb{R}^p$ be open and bounded, and let
+$\{u(\cdot;\,\boldsymbol{\theta})\}_{\boldsymbol{\theta} \in \Theta}$
+be a family of utility functions on $[x_{\min}, x_{\max}]$ such that for
+each $\boldsymbol{\theta}$, $x \mapsto u(x;\,\boldsymbol{\theta})$ is
+strictly increasing with $u(x_{\min};\,\boldsymbol{\theta}) = 0$ and
+$u(x_{\max};\,\boldsymbol{\theta}) = 1$. Assume $u$ is analytic in
+$\boldsymbol{\theta}$ and $C^1$ in $(x,\boldsymbol{\theta})$.
+
+We observe $R = p$ pairwise comparisons. Across all comparisons, let
+\begin{equation}
+  x_{\min} = y_0 < m_1 < \cdots < m_M < y_{M+1} = x_{\max}
+\end{equation}
+be the common support obtained by taking the distinct outcomes that
+appear anywhere in the design and adjoining the normalization
+endpoints if necessary. For comparison $r$, let
+$w_{r\ell} \coloneqq \Pr_{A_r}(y_\ell) - \Pr_{B_r}(y_\ell)$ be the
+signed probability contrast at outcome $y_\ell$. Under EUT, the
+expected-utility difference is
+\begin{equation}\label{eq:delta_common_app}
+  \Delta_r(\boldsymbol{\theta})
+  =
+  \sum_{\ell=0}^{M+1} w_{r\ell}\,u(y_\ell;\,\boldsymbol{\theta}).
+\end{equation}
+
+Define the \textit{evaluation map}
+\begin{equation}\label{eq:phi_def_app}
+  \phi(\boldsymbol{\theta})
+  =
+  \bigl(u(m_1;\,\boldsymbol{\theta}), \ldots,
+        u(m_M;\,\boldsymbol{\theta})\bigr)
+  \in (0,1)^M,
+\end{equation}
+which records utility at the $M$ interior outcomes. Since
+$u(x_{\min};\,\boldsymbol{\theta}) = 0$ kills the $\ell = 0$ term and
+$u(x_{\max};\,\boldsymbol{\theta}) = 1$ reduces the $\ell = M{+}1$ term
+to the contrast weight alone, \eqref{eq:delta_common_app} simplifies to
+\begin{equation}\label{eq:Delta_linear_app}
+  \boldsymbol{\Delta}(\boldsymbol{\theta})
+  =
+  C\,\phi(\boldsymbol{\theta}) + \mathbf{d},
+\end{equation}
+where $C = (w_{ri})$ is the $p \times M$ \textit{contrast matrix} and
+$d_r = w_{r,\,M+1}$. The observed choice probability is
+$\pi_r(\boldsymbol{\theta}) = \Lambda(\Delta_r(\boldsymbol{\theta}))$
+with $\Lambda(t) = e^t/(1+e^t)$, giving the
+\textit{choice-probability map}
+\begin{equation}\label{eq:factorization_app}
+  G(\boldsymbol{\theta})
+  =
+  \bigl(\pi_1(\boldsymbol{\theta}), \ldots,
+        \pi_p(\boldsymbol{\theta})\bigr)
+  =
+  \Lambda\!\bigl(C\,\phi(\boldsymbol{\theta}) + \mathbf{d}\bigr).
+\end{equation}
+
+Normalization matters here in a way it does not for certainty
+equivalents. For certainty equivalents, positive affine transformations
+of utility are innocuous. For logit probabilities they are not: additive
+shifts cancel in $\Delta_r$, but rescalings do not. Without endpoint
+normalization, the utility scale would be confounded with the logit noise
+scale.
+
+
+\subsection{Identification}
+
+\begin{theorem}[Identification from $p$ choice probabilities]
+\label{thm:choice_prob_id}
+Let $G \colon \Theta \to (0,1)^p$ be the choice-probability map
+\eqref{eq:factorization_app}.
+\begin{enumerate}
+  \item \textit{Jacobian.} $J_G(\boldsymbol{\theta}) =
+    D_\Lambda(\boldsymbol{\theta})\,C\,D\phi(\boldsymbol{\theta})$, where
+    $D_\Lambda = \diag(\pi_r(1-\pi_r))_{r=1}^p$, which is a
+    positive diagonal matrix since each $\pi_r \in (0,1)$. Hence
+    \begin{equation}\label{eq:rank_equiv_app}
+      \operatorname{rank}(J_G(\boldsymbol{\theta}))
+      = \operatorname{rank}\!\bigl(C\,D\phi(\boldsymbol{\theta})\bigr).
+    \end{equation}
+  \item \textit{Singular set.} At some parameter values the
+    Jacobian may lose rank, so that $G$ is not locally injective
+    there. Call these the \textit{singular set}
+    $S = \{\boldsymbol{\theta} :
+      \operatorname{rank}(J_G) < p\}$. If
+    $\operatorname{rank}(C\,D\phi(\boldsymbol{\theta}_0)) = p$ at even
+    one point $\boldsymbol{\theta}_0 \in \Theta$, then $S$ has Lebesgue
+    measure zero and $\Theta \setminus S$ is open and dense. In other
+    words, rank failure is the exception, not the rule: it can occur,
+    but only on a negligible set of parameter values.
+  \item \textit{Local identification.} At every
+    $\boldsymbol{\theta} \in \Theta \setminus S$ the Jacobian has full
+    rank, so $G$ is locally injective: nearby parameter values produce
+    distinct choice probabilities.
+  \item \textit{Bayesian pullback.} Let $q$ be a prior density on
+    $(0,1)^p$. If, for almost every
+    $\boldsymbol{\pi} \in G(\Theta)$, the equation
+    $G(\boldsymbol{\theta}) = \boldsymbol{\pi}$ has exactly $m$
+    solutions, then the pullback
+    \begin{equation}
+      \tilde q(\boldsymbol{\theta})
+      \propto
+      q(G(\boldsymbol{\theta}))\,|\det J_G(\boldsymbol{\theta})|
+    \end{equation}
+    induces the density $m\,q(\boldsymbol{\pi})$ on $G(\Theta)$.
+    After normalization, this is exactly the intended prior restricted
+    to the feasible image $G(\Theta)$. Any prior mass that $q$ assigns
+    outside $G(\Theta)$ is irrelevant because no parameter value can
+    reach it. When $m = 1$, no multiplicity correction is needed.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+\textit{Part~1.} Since $G = \Lambda \circ (C\phi + \mathbf{d})$ and
+$\Lambda'(t) = \Lambda(t)(1-\Lambda(t)) > 0$, the chain rule gives
+$J_G = D_\Lambda\,C\,D\phi$. Since $D_\Lambda$ is a positive
+diagonal matrix, multiplying by it does not change rank.
+
+\textit{Part~2.} Whether $J_G$ has full rank at $\boldsymbol{\theta}$
+depends, by Part~1, on whether
+$C\,D\phi(\boldsymbol{\theta})$ has full rank, which in the square case
+($M = p$) amounts to whether
+$\det(C\,D\phi(\boldsymbol{\theta}))$ is nonzero. Write
+$f(\boldsymbol{\theta}) = \det(C\,D\phi(\boldsymbol{\theta}))$.
+Because $u$ is analytic in $\boldsymbol{\theta}$, the function $f$
+is analytic. Because there exists $\boldsymbol{\theta}_0$ such that
+$f(\boldsymbol{\theta}_0) \neq 0$, the function $f$ is not
+identically zero. A standard property of analytic functions is that
+a nonzero analytic function can only vanish on a set of Lebesgue
+measure zero \parencite{Krantz2002,Mityagin2015}. Therefore
+$S = \{f = 0\}$ has measure zero. When $M > p$, the same argument
+applies to any $p \times p$ subdeterminant of $C\,D\phi$ that is
+nonzero at $\boldsymbol{\theta}_0$, and $S$ is contained in its
+zero set.
+
+\textit{Part~3.} At each
+$\boldsymbol{\theta} \in \Theta \setminus S$,
+$J_G(\boldsymbol{\theta})$ has full rank $p$. By the inverse function
+theorem, $G$ is locally injective at such $\boldsymbol{\theta}$: no
+nearby parameter value produces the same choice probabilities.
+
+\textit{Part~4.} Since $\Lambda$ is strictly monotone,
+$G(\boldsymbol{\theta}_1) = G(\boldsymbol{\theta}_2)$ if and only if
+$C\phi(\boldsymbol{\theta}_1) + \mathbf{d} =
+ C\phi(\boldsymbol{\theta}_2) + \mathbf{d}$.
+So $G$ has the same number of preimages at each point as the
+utility-difference map $C\phi + \mathbf{d}$. The multivariate
+change-of-variables formula then gives, for every measurable
+$B \subseteq G(\Theta)$,
+\begin{equation}
+  \int_{G^{-1}(B)}
+    q(G(\boldsymbol{\theta}))\,|\det J_G(\boldsymbol{\theta})|\,
+    d\boldsymbol{\theta}
+  =
+  \int_B q(\boldsymbol{\pi})\,\#G^{-1}(\boldsymbol{\pi})\,
+    d\boldsymbol{\pi}
+  =
+  m \int_B q(\boldsymbol{\pi})\,d\boldsymbol{\pi}.
+  \qedhere
+\end{equation}
+\end{proof}
+
+Identification requires $M \geq p$ interior outcomes and
+$\operatorname{rank}(C) \geq p$. If any lottery pair has $A_r$
+first-order stochastically dominating $B_r$, the corresponding
+$\Delta_r$ is nonnegative for every increasing utility, so that
+comparison fixes the sign of the EU gap. Such comparisons can still
+be informative about utility parameters through the magnitude of
+$\Delta_r$, so non-FOSD is not necessary for identification. It is,
+however, often a useful design feature because non-FOSD pairs allow
+the sign of the EU gap itself to vary with preferences. In any case,
+one still needs $C\,D\phi$ to have rank $p$.
+
+
+\subsection{Sufficient Designs}
+
+The theorem applies to any lottery design whose contrast matrix $C$
+and evaluation Jacobian $D\phi$ jointly produce rank $p$. Two examples
+illustrate this.
+
+\textit{Sure amount versus endpoint lottery.} Fix interior outcomes
+$m_1,\ldots,m_p \in (x_{\min},x_{\max})$ and
+$\lambda_1,\ldots,\lambda_p \in (0,1)$. For each $i$, compare a sure
+amount $m_i$ against a lottery paying $x_{\max}$ with probability
+$\lambda_i$ and $x_{\min}$ otherwise. Normalization gives
+$\operatorname{EU}(B_i) = \lambda_i$, so
+$\Delta_i(\boldsymbol{\theta}) =
+ u(m_i;\,\boldsymbol{\theta}) - \lambda_i$.
+The only interior outcome in pair $i$ is $m_i$, with contrast weight
+$+1$, so $C = I_p$ and the Jacobian simplifies to
+\begin{equation}\label{eq:binary_jac_app}
+  J_G(\boldsymbol{\theta})
+  =
+  \diag\!\bigl(\pi_i(1-\pi_i)\bigr)_{i=1}^p
+  \cdot
+  \left(
+    \frac{\partial u(m_i;\,\boldsymbol{\theta})}{\partial \theta_j}
+  \right)_{\!i,j}.
+\end{equation}
+With this design, identification reduces entirely to the evaluation
+map: the utility family must be such that the matrix of partial
+derivatives $(\partial u(m_i;\,\boldsymbol{\theta})/\partial
+\theta_j)_{i,j}$ has full rank at some $\boldsymbol{\theta}_0$.
+
+\textit{Risk-apportionment tasks.} A risk-apportionment (RA) task of
+order $k$ is a binary lottery comparison in which the first $k-1$
+moments of the two lotteries are matched and the $k$th moments differ
+\parencite{Eeckhoudt2006}. For example, RA2 (risk aversion) matches
+means but differs in variance, RA3 (prudence) matches means and
+variances but differs in skewness, and so on. Each RA task contributes
+a row to $C$. Unlike the binary design, $C$ is no longer the identity,
+so the design-side rank condition is not automatic. However, it is
+straightforward to verify numerically for any given set of RA tasks.
+RA tasks are a natural choice because each task targets a different
+order of the utility function, so for utility families whose parameters
+control these derivatives somewhat independently, the rows of
+$C\,D\phi$ will generically point in different directions.
+
+\subsection{Noise Parameter and Sequential Composition}
+
+The results above identify $p$ utility parameters from $p$ choice
+probabilities. In practice, the choice model also includes a noise
+parameter $\lambda$ that scales the logit link. This can be handled by
+sequential composition: first identify the $p$ utility parameters using
+$p$ lottery pairs as above, then identify $\lambda$ with one additional
+pair whose choice probability varies with $\lambda$ given the utility
+parameters. The $(p+1)$th pair contributes one additional row to the
+system, and the same Jacobian pullback applies to the extended
+$(p+1)$-dimensional map.

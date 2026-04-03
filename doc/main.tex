@@ -1166,109 +1166,159 @@ in Appendix~\ref{app:rk_sensitivity}.
 \label{sec:discussion}
 %==============================================================================
 
-\subsection{Practical Guidance}
+The main contribution of the framework is not to reduce the number of prior
+choices, but to reorganize them into objects that are easier to reason about.
+Instead of choosing hyperpriors directly on latent population parameters, the
+researcher first states beliefs about predictive quantities for a randomly
+selected individual, and then states how much of the resulting uncertainty
+should be attributed to population heterogeneity rather than uncertainty about
+the population mean. This separation is useful because researchers often have
+substantive intuition in experimental units even when they have little
+intuition about hyperprior parameters themselves. The framework therefore
+extends the Bayesian workflow of \textcite{Gabry2019} to the hierarchical
+setting by making the two distinct roles of a hyperprior explicit: anchoring
+the unconditional distribution of observables and allocating uncertainty across
+levels of the hierarchy.
 
-The framework developed in this paper suggests a concrete workflow for
-researchers specifying hyperpriors. The researcher first chooses the
-specification space: beliefs can be stated about structural parameters
-directly, which corresponds to the identity mapping, or about predictive
-quantities such as certainty equivalents, choice probabilities, or indifference
-amounts. The quantity space is preferred when the researcher has stronger
-intuition about quantities in experimental units. For each dimension of the
-specification space, the researcher provides a mean and variance reflecting
-beliefs about a single random individual, informed by published empirical
-estimates, experimental pilot data, or expert judgment. The researcher then
-chooses $\rho$ and $\kappa$ to express beliefs about the degree of population
-heterogeneity and confidence in that specification. Values of $\rho = 0.2$ and
-$\kappa = 0.25$, as used in the application, express substantial heterogeneity
-with moderate confidence. Finally, the implied prior predictive distribution
-should be examined to confirm that the hierarchical structure implied by the
-$\rho$/$\kappa$ decomposition is reasonable. The framework guarantees that the
-first two moments of the unconditional distribution match the direct prior by
-construction, but the allocation between population-mean uncertainty and
-individual heterogeneity should be checked. Estimation then proceeds with
-standard MCMC sampling, adding the Jacobian correction term to the
-log-posterior when using quantity-space specification.
+In practice, the method fits naturally into a prior-predictive workflow. The
+researcher chooses a specification space, either parameter space itself or a
+quantity space such as certainty equivalents, choice probabilities, or
+indifference amounts. For each dimension, the researcher provides a mean and
+variance reflecting beliefs about a single random individual, informed by
+published empirical estimates, pilot data, or expert judgment. The researcher
+then chooses $\rho$ and $\kappa$ to express beliefs about the degree of
+population heterogeneity and confidence in that specification. Values of
+$\rho = 0.2$ and $\kappa = 0.25$, as used in the application, correspond to
+substantial heterogeneity with moderate confidence. The implied prior
+predictive distribution should then be examined, not merely to confirm that the
+first two moments match the direct prior, which they do by construction, but
+also to verify that the allocation between population-mean uncertainty and
+individual heterogeneity is substantively reasonable. The sensitivity analysis
+in Appendix \ref{app:rk_sensitivity} shows that posterior inferences are stable
+across a range of $(\rho, \kappa)$ values, suggesting that these allocation
+choices are not fragile. Estimation then proceeds with standard MCMC sampling,
+adding the Jacobian correction term to the log-posterior when quantity-space
+specification is used.
 
 \subsection{Limitations}
 
 The framework has several limitations. First, the variance decomposition is
 \textit{moment-based}, matching the first two moments of the direct prior. If
 the researcher's beliefs are better captured by higher moments (skewness, heavy
-tails), the two-moment matching may be insufficient. The framework does
-generalize to higher moments via the law of total cumulance (see footnote in
-Section \ref{sec:variance_decomposition}), but at the cost of additional
-researcher choices and numerical rather than closed-form solutions.
+tails), two-moment matching may be insufficient. The framework does generalize
+to higher moments via the law of total cumulance (see footnote in Section
+\ref{sec:variance_decomposition}), but at the cost of additional researcher
+choices and numerical rather than closed-form solutions. An alternative is to
+match cumulative probabilities at distinct points of the direct-prior CDF,
+which would also permit distributions such as the Cauchy that lack the moments
+required by the current method.
 
-Second, the quantity-space specification requires an injective mapping from
-parameters to predictive quantities. This constrains the design of reference
-lotteries (prize diversity is needed for injectivity) and means that not all
-experimental designs are equally suitable for prior specification.
+Second, the current framework is built around independent marginal direct
+priors over the $p$ predictive quantities. In the application, $\CE_1$,
+$\CE_2$, $\CE_3$, and $P$ are treated as independent in the elicited prior even
+though they are deterministic functions of the same underlying parameters $(r,
+\phi, \eta, \lambda)$ and are therefore necessarily dependent. The Jacobian
+correction recovers the appropriate dependence in the induced parameter-space
+prior, so the posterior is not internally inconsistent, but the elicitation
+step in quantity space does not directly encode joint beliefs about the
+quantity vector. In particular, if two reference quantities are very similar,
+independent marginal priors may impose unintended constraints on the implied
+parameter prior. In practice, this risk can be mitigated by choosing
+sufficiently distinct reference lotteries and by checking the implied joint
+prior through prior predictive draws. Extending the framework to allow direct
+joint elicitation in quantity space is an important direction for future work.
 
-Third, the framework specifies independent marginal direct priors over the $p$
-predictive quantities. In the application, $\CE_1$, $\CE_2$, $\CE_3$, and $P$
-are treated as independent in the prior, even though they are deterministic
-functions of the same underlying parameters $(r, \phi, \eta, \lambda)$ and
-therefore necessarily dependent. The Jacobian correction accounts for this
-dependence in the induced parameter-space prior, so the posterior is not
-inconsistent, but the \textit{prior} on the quantity space does not reflect the
-functional relationship between quantities. In practice, this means the
-researcher must choose reference lotteries that are sufficiently different that
-independent marginal beliefs are reasonable. If two reference lotteries are
-very similar, their CEs will be nearly perfectly correlated, and specifying
-independent priors could impose unintended constraints on the parameter space.
-The no-FOSD requirement and the prize diversity condition for injectivity
-mitigate this concern, but the researcher should verify that the implied joint
-prior on parameters is sensible by examining prior predictive draws.
-
-Fourth, the application demonstrates that for a subset of subjects (18
-subjects, or 16\% of the present sample), the hyperprior is the dominant factor
-in posterior inference. This is not a limitation of the framework per se, but
-rather an identification issue inherent to the 4-parameter RDU model estimated
-from 80 binary choices per subject. The quantity-space framework makes this
-dependence transparent. The CDF difference plot (Figure~\ref{fig:cdf_diff})
-reveals exactly which subjects and which lotteries are affected. Researchers
-should examine such diagnostics to assess how sensitive their conclusions are
-to prior specification.
+Finally, quantity-space specification requires an injective mapping from
+parameters to predictive quantities. This is not a cosmetic condition; it
+constrains the design of reference quantities and implies that not all
+experimental designs are equally suitable for prior specification. Proving
+injectivity can also be technically demanding. In the present use case, the
+proof must account for the inverse of the utility function, and the burden
+would only increase for utility specifications with more parameters or more
+complicated structures. Other quantities, such as choice probabilities, avoid
+some of these complications and can support flexible reference designs, at
+least for EUT\@. Appendix \ref{app:global_injectivity} gives the proof for the
+CRRA-Prelec model in the CE space, and Appendix \ref{app:eut_choice_probs}
+shows that broad classes of lottery pairs yield injective maps when the
+predictive quantities are choice probabilities under EUT\@.
 
 
-%==============================================================================
+\subsection{Extensions}
+
+While the current application was largely concerned with how changes in the
+prior specification for a single model might change posterior inferences about
+that model, the proposed method also provides a coherent way to maintain
+consistency in prior beliefs when the researcher considers different models
+that nonetheless make predictions about the same quantities.
+
+For example, the present application makes use of the CRRA utility function and
+2-parameter Prelec PWF, for a total of 3 preference parameters, which are mapped to
+3 CEs. An alternative model would be the Expo-Power utility function
+\parencite{Saha1993} and the Power PWF \parencite{Quiggin1982}, which
+collectively \textit{also} have 3 parameters. If one were concerned with a
+traditional horse race between the two models, the lack of any shared
+parameters means that traditionally a researcher would need to specify
+hyperpriors over the two models separately. The proposed method instead allows
+the researcher to specify a single set of priors over observed quantities,
+provided those quantities admit valid injective maps for each model on the
+relevant support. That common quantity-space specification can then be
+translated into model-specific priors in parameter space. This helps not only
+to alleviate the conceptual burden of multiple hyperprior specifications, but
+also to enforce consistency in beliefs about the behavior of individual
+subjects independently of the latent model used to represent that behavior.
+
+Additionally, the current application limited the number of quantities to equal
+the number of free parameters in the model, but it is entirely reasonable to
+use more quantities than free parameters, as discussed in Section
+\ref{sec:gq_space}. This may be unnecessary when the researcher is primarily
+concerned with the estimation of a single model, but when comparing different
+models that produce the same quantities, say an RDU model against an EUT model
+with fewer parameters, the same prior over quantities can be specified for both
+models.\footnote{
+  When $k > p$, the forward map sends the parameter space into a
+  $p$-dimensional image inside the larger quantity space. In that case, the
+  Gram determinant from Section \ref{sec:gq_space} provides the appropriate
+  change-of-variables correction on this image, so the quantity prior is
+  understood as evaluated along the set of admissible quantity vectors rather
+  than as an unrestricted density on all of $\R^k$.
+}
+This creates the possibility of holding fixed prior beliefs about behavioral
+quantities even when the candidate models have different parameter dimensions.
+That, in turn, offers a natural way to make model comparison less sensitive to
+arbitrary differences in hyperprior specification and more tightly connected to
+the researcher's actual beliefs about observables.
+
+
 \section{Conclusion}
 \label{sec:conclusion}
-%==============================================================================
 
 BHMs require hyperprior specifications that are difficult to construct from
-first principles. I have developed a two-part framework that addresses this
-challenge. First, quantity-space prior specification allows researchers to
-state beliefs about quantities they can reason about directly, such as
-certainty equivalents and choice probabilities, with a Jacobian correction
-translating these beliefs to parameter space exactly. Second, a variance
-decomposition reduces the remaining degrees of freedom to two interpretable
-parameters: the variance partition ratio $\rho$ and the heterogeneity
-confidence $\kappa$.
+first principles. This paper develops a two-part framework that reorganizes
+this problem into objects that are easier to reason about. First,
+quantity-space prior specification allows researchers to state beliefs about
+predictive quantities such as certainty equivalents and choice probabilities,
+with a Jacobian correction translating those beliefs exactly to parameter
+space. Second, a variance decomposition expresses the remaining degrees of
+freedom in terms of two interpretable parameters, the variance partition ratio
+$\rho$ and the heterogeneity confidence $\kappa$, which determine how
+unconditional uncertainty is allocated across levels of the hierarchy.
 
-The application to RDU estimation demonstrates three features of the approach.
-The hyper-posterior predictive CE distributions reveal a lottery-specific
-pattern of risk attitudes, with risk-averse CEs for lotteries with skewed
-probabilities, but risk-seeking CEs for equal-probability lotteries, a
-signature of probability weighting that is immediately visible in quantity
-space but requires post-estimation computation in parameter space. The
-individual-level comparisons show that for the majority of subjects, the
-hyperprior specification has negligible influence, while for a subset with
-weakly informative data, the informative prior provides meaningful
-regularization. The CDF difference analysis makes the prior's influence
-transparent across all subjects, lotteries, and quantiles simultaneously.
+The application to RDU estimation illustrates the methodological value of this
+approach. In quantity space, the substantive implications of a hyperprior are
+directly visible, and diagnostics based on posterior predictive distributions
+and CDF differences make the prior's influence transparent across subjects,
+lotteries, and quantiles. The results also show that informative hyperpriors
+matter most where the data are weak, while leaving well-identified subjects
+largely unchanged.
 
-The framework replaces $4p$ opaque hyperprior parameters with $4p$
-interpretable choices: a mean, variance, variance partition ratio, and
-heterogeneity confidence for each of $p$ quantities. The number of choices is
-the same, but their nature changes. Each input is stated in terms of predictive
-quantities that researchers can reason about directly. When $\rho$ and $\kappa$
-are shared across quantities, as is natural when the researcher lacks strong
-reasons to differentiate, only $2p + 2$ distinct choices are needed. For a
-model with 10 parameters, such as CPT, this would reduce 40 hyperprior
-parameters to 22, with each choice specified in terms of quantities that
-researchers have decades of empirical evidence to draw upon.
+The framework does not eliminate prior choices; it changes their object.
+Instead of asking researchers to specify opaque hyperprior parameters directly,
+it asks them to specify beliefs about observables and about heterogeneity.
+That shift makes hierarchical prior specification easier to justify, easier to
+diagnose, and potentially easier to keep coherent across competing structural
+models that speak to the same behavioral quantities. This is the main advantage
+of the framework, and the reason quantity-space hyperprior specification may be
+useful well beyond the present application.
 
 
 \subsection*{Code and Data Availability}
@@ -1288,6 +1338,7 @@ available at \url{https://github.com/bmonroe3/bhm-prior-selection}.
 
 \input{appendix_hyperprior_families}
 \input{appendix_global_injectivity}
+\input{appendix_eut_choice_probs}
 \input{appendix_rk_sensitivity}
 
 \end{document}

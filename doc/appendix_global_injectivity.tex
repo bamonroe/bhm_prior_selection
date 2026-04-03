@@ -55,7 +55,7 @@ identify~$x$ from the residual.
 
 
 \subsection{Model, Conditions, Theorem, and Proof}
-\label{sec:model}
+\label{appB:model}
 
 The RDU model has three groups of parameters:
 \begin{align}
@@ -136,11 +136,11 @@ on a full-measure subset, which is the level needed for the transformed prior,
 first generally for any utility function and probability weighting function
 (Conditions~A, B, and~C below), followed by proofs that the proposed
 all-binary shared-probability design satisfies them
-(\cref{sec:condition_a_verification,sec:prelec_crra}) for the CRRA and
+(Sections~\ref{appB:condition_a_verification} and~\ref{appB:prelec_crra}) for the CRRA and
 2-parameter Prelec functions.
 
 \subsubsection{Lottery design}
-\label{sec:design}
+\label{appB:design}
 
 We use $K = p + q$ lotteries in two blocks:
 $q$~Block~I lotteries $L_1, \ldots, L_q$ ($k = 1, \ldots, q$)
@@ -151,7 +151,7 @@ determines which parameters each group identifies.
 
 The Block~I lotteries must collectively evaluate $w$ at $q$~distinct
 probability points, enabling the factoring $\Phi_\mu = L \circ W$
-(\cref{sec:same_cdf}). In the recommended \emph{all-binary design},
+(Section~\ref{appB:same_cdf}). In the recommended \emph{all-binary design},
 each Block~I lottery is binary (two-outcome) and evaluates $w$ at
 exactly one probability point; with $q = 2$ binary lotteries having
 distinct probabilities $p_1 \neq p_2$, the $L$-matrix is
@@ -162,14 +162,14 @@ the residual equations. A single additional binary choice task
 identifies the noise parameter~$\lambda$ (Condition~C).
 
 \subsubsection{Condition~A: PWF identification from Block~I}
-\label{sec:condition_a}
+\label{appB:condition_a}
 
 When $\bth$ is fixed, the normalized utilities
 $\mu_j(\bth)$ are known constants, and the $q$~Block~I
 instances of~\eqref{eq:rdu_value} become $q$~equations in
 $q$~unknowns~$\bomega$. Condition~A requires that these
 equations determine $\bomega$ uniquely, which is condition~(i) of
-\cref{prop:sequential}.
+Proposition~\ref{prop:sequential}.
 
 \begin{condition}[A]
 \label{cond:A}
@@ -188,14 +188,14 @@ The condition depends only on the PWF family and the Block~I
 lottery structure, not on the observed CEs or the utility family.
 
 \subsubsection{Condition~B: Utility identification from Block~II}
-\label{sec:condition_b}
+\label{appB:condition_b}
 
 Substituting $\bomega = \bomega_A(\bth;\, \mathbf{c})$ from
 Condition~A into the $p$~Block~II instances of~\eqref{eq:rdu_value}
 eliminates the PWF parameters, yielding $p$~equations in
 $\bth$ alone. Condition~B requires these residual equations
 to determine $\bth$ uniquely, which is condition~(ii) of
-\cref{prop:sequential}.
+Proposition~\ref{prop:sequential}.
 
 \begin{condition}[B]
 \label{cond:B}
@@ -225,8 +225,8 @@ produce identical Block~I CEs). One may therefore reparameterize,
 replacing $\bomega$ with the decision weights. This is most effective
 when Block~II probabilities coincide with Block~I probabilities, so
 that no inversion to PWF parameters is required.
-\Cref{sec:condition_a_verification} establishes Condition~A for the
-Prelec family, and \cref{sec:prelec_crra} exploits the resulting
+Section~\ref{appB:condition_a_verification} establishes Condition~A for the
+Prelec family, and Section~\ref{appB:prelec_crra} exploits the resulting
 $(r, w_1, w_2)$ reparameterization with a shared-probability
 design ($p_3 = p_1$).
 
@@ -243,7 +243,7 @@ where $J_A = \partial \Phi_\mu / \partial \bomega$ (invertible by
 Condition~A).
 
 \subsubsection{Condition~C: Noise identification from a choice probability}
-\label{sec:condition_c}
+\label{appB:condition_c}
 
 Once $(\bth, \bomega)$ are identified from the CEs, the value
 difference $\Delta V = V_A - V_B$ for any additional choice task
@@ -292,7 +292,7 @@ of $(\bth,\bomega)$, but this is a property of the specific design and
 should be checked rather than assumed.
 
 \subsubsection{Main theorem}
-\label{sec:theorem}
+\label{appB:theorem}
 
 \begin{theorem}[Injectivity sufficient for the Bayesian change of variables]
 \label{thm:main}
@@ -321,7 +321,7 @@ is well defined almost everywhere.
 
 \begin{proof}
 The CEs do not depend on~$\lambda$, so the map has
-block-triangular structure: apply \cref{prop:sequential} with
+block-triangular structure: apply Proposition~\ref{prop:sequential} with
 $X = (\bth, \bomega)$, $Y = \lambda$, and
 $Z = (c_1, \ldots, c_{p+q},\, P_{K+1})$.
 Suppose
@@ -338,7 +338,7 @@ the Block~II equations yields $p$~equations in $\bth$ alone;
 by Condition~B, $\bth = \bth'$, and then $\bomega = \bomega'$.
 With $(\bth, \bomega)$ identified, $\Delta V$ is determined. Because
 $(\bth,\bomega) \notin \mathcal{I}$, we have $\Delta V \neq 0$, so
-\cref{prop:noise} gives $\lambda = \lambda'$.
+Proposition~\ref{prop:noise} gives $\lambda = \lambda'$.
 Thus $\widetilde{F}$ is injective on
 $((\Theta \times \mathcal{W}) \setminus \mathcal{I}) \times (0,\infty)$.
 The final statement follows because an absolutely continuous prior assigns
@@ -348,7 +348,7 @@ do not affect the induced prior measure.
 
 
 \subsection{Verifying Condition~A: Two-Point Injectivity and the $L \circ W$ Factoring}
-\label{sec:condition_a_verification}
+\label{appB:condition_a_verification}
 
 Conditions~A and~B require verification for specific utility and
 PWF families; Condition~C requires a non-degenerate choice task
@@ -361,7 +361,7 @@ matrix determined by the lottery structure. When $\det(L) \neq 0$,
 Condition~A reduces to injectivity of~$W$.
 
 \subsubsection{Two-point injectivity}
-\label{sec:two_point}
+\label{appB:two_point}
 
 For the Prelec PWF
 $w(p;\, \phi, \eta) = \exp\bigl(-\eta\, t^\phi\bigr)$ with
@@ -409,7 +409,7 @@ injectivity by the same argument.
 
 
 \subsubsection{$W$ is a bijection: the $(r, w_1, w_2)$ reparameterization}
-\label{sec:W_bijection}
+\label{appB:W_bijection}
 
 Injectivity of~$W$ alone enables the change of variables from
 $(\phi, \eta)$ to $(w_1, w_2)$: one works in the image
@@ -430,7 +430,7 @@ order-compatible region
     \{(w_1, w_2) : 0 < w_2 < w_1 < 1\}, & \text{if } p_1 > p_2.
   \end{cases}
 \end{equation}
-The proof of \cref{lem:prelec_two_point} provides the explicit
+The proof of Lemma~\ref{lem:prelec_two_point} provides the explicit
 inverse. Given observed values $w_1 = w(p_1)$ and
 $w_2 = w(p_2)$ with $t_i = -\ln p_i$:
 \begin{equation}\label{eq:W_inverse}
@@ -460,7 +460,7 @@ probability $p_k$ on the better outcome. When $p_1 \neq p_2$,
 the $L$-matrix in the $L \circ W$ factoring is
 $L = \diag(\Delta\mu_1, \Delta\mu_2)$ with
 $\det(L) = \Delta\mu_1\,\Delta\mu_2 > 0$
-(\cref{sec:same_cdf} below), and Condition~A holds
+(Section~\ref{appB:same_cdf} below), and Condition~A holds
 unconditionally.
 
 \begin{proposition}[All-binary Condition~A]
@@ -473,12 +473,12 @@ utility parameters, with no restrictions on outcomes.
 \begin{proof}
 Each binary lottery evaluates $w$ at one probability, giving
 $L = \diag(\Delta\mu_1, \Delta\mu_2)$ with $\det(L) > 0$.
-By \cref{lem:prelec_two_point} and the invertibility of $L$,
+By Lemma~\ref{lem:prelec_two_point} and the invertibility of $L$,
 Condition~A holds.
 \end{proof}
 
 \subsubsection{The $L \circ W$ factoring}
-\label{sec:same_cdf}
+\label{appB:same_cdf}
 
 For a binary lottery $L_k$ with outcomes $(\xlo_k, \xhi_k)$
 and probability $p_k$ on the better outcome, the normalized RDU
@@ -503,24 +503,24 @@ With two binary lotteries having $p_1 \neq p_2$:
 \end{equation}
 with $\det(L) = \Delta\mu_1\,\Delta\mu_2 > 0$. For fixed
 $\bth$, Condition~A reduces to injectivity of $W$, which holds
-by \cref{lem:prelec_two_point}.
+by Lemma~\ref{lem:prelec_two_point}.
 
 
 \subsection{Application: Prelec--CRRA in $(r, w_1, w_2)$ Space}
-\label{sec:prelec_crra}
+\label{appB:prelec_crra}
 
 For the concrete case in the main text:
 $\bth = r$ (CRRA coefficient, $p = 1$) and
 $\bomega = (\phi, \eta)$ (Prelec parameters, $q = 2$), with utility
 $u(x; r) = x^{1-r}/(1-r)$ and PWF
 $w(p; \phi, \eta) = \exp\bigl(-\eta(-\ln p)^\phi\bigr)$.
-By the $W$-bijectivity of \cref{sec:W_bijection}, the model is
+By the $W$-bijectivity of Section~\ref{appB:W_bijection}, the model is
 reparameterized as $F \colon (r, w_1, w_2) \mapsto (c_1, c_2, c_3)$.
 All analysis in this section operates in $(r, w_1, w_2)$ space.
 
 
 \subsubsection{The CE map}
-\label{sec:ce_function}
+\label{appB:ce_function}
 
 For a binary lottery $L_k = (\xlo_k, \xhi_k)$ with decision
 weight~$w_k$ on the better outcome, write $s = 1 - r$. The CRRA
@@ -535,7 +535,7 @@ Condition~A is immediate in $(r, w_1, w_2)$ space: given~$r$,
 each $c_k$ is uniquely determined by~$w_k$.
 
 \subsubsection{Condition~B: CRRA identification via shared probability}
-\label{sec:cond_b_crra}
+\label{appB:cond_b_crra}
 
 With $p = 1$, Condition~B reduces to the scalar condition
 $dc_3/dr\big|_{c_1} \neq 0$. The shared-probability design
@@ -865,7 +865,7 @@ we have
 \]
 So the normalized lottery has a different low/high outcome ratio from $L_1$.
 
-Now fix any $s \neq 0$. By \cref{lem:condB_derivative_identity},
+Now fix any $s \neq 0$. By Lemma~\ref{lem:condB_derivative_identity},
 $dc_3/ds$ is the
 product of two terms:
 \[
@@ -887,7 +887,7 @@ $(0,\infty)$, so
 \]
 for every $s \neq 0$.
 
-By \cref{lem:Hw_monotone}, $H_{w_1(s)}$ is strictly decreasing in $\rho$, so
+By Lemma~\ref{lem:Hw_monotone}, $H_{w_1(s)}$ is strictly decreasing in $\rho$, so
 $\rho_3 \neq \rho_1$ implies
 \[
   H_{w_1(s)}(\rho_3) - H_{w_1(s)}(\rho_1) \neq 0.
@@ -918,14 +918,14 @@ and $\xhi_1 \neq \xlo_1$.
 
 
 \subsubsection{Full three-parameter identification}
-\label{sec:full_identification}
+\label{appB:full_identification}
 
 Combining the results: the $W$-bijectivity of
-\cref{sec:W_bijection} and the diagonal $L$-matrix establish
-Condition~A (\cref{prop:binary}) for any $p_1 \neq p_2$.
+Section~\ref{appB:W_bijection} and the diagonal $L$-matrix establish
+Condition~A (Proposition~\ref{prop:binary}) for any $p_1 \neq p_2$.
 The shared-probability design $p_3 = p_1$ with
 $b \neq 0$ (equivalently $\xhi_1/\xlo_1 \neq \xhi_3/\xlo_3$) establishes Condition~B
-(\cref{prop:shared_prob_condB}) on the power-CRRA domain
+(Proposition~\ref{prop:shared_prob_condB}) on the power-CRRA domain
 $\R_{>0} \setminus \{1\}$, equivalently $s = 1-r \neq 0$.
 Thus the CE map
 $F \colon (r, w_1, w_2) \mapsto (c_1, c_2, c_3)$
@@ -938,11 +938,11 @@ immaterial for the Bayesian change-of-variables prior.
 
 
 \subsubsection{Condition~C: noise identification}
-\label{sec:noise}
+\label{appB:noise}
 
 The main text uses a logistic Fechner model
 with $\Lambda(t) = 1/(1 + e^{-t})$. Condition~C
-(\cref{sec:condition_c}) holds for any choice task with
+(Section~\ref{appB:condition_c}) holds for any choice task with
 $\Delta V \neq 0$. For a non-degenerate design, the indifference locus
 $\Delta V = 0$ is a lower-dimensional exceptional set, so combined with
 Conditions~A and~B the full map
@@ -953,7 +953,7 @@ the transformed prior in the main text.
 
 
 \subsection{Extensions and Discussion}
-\label{sec:inj_extensions}
+\label{appB:inj_extensions}
 
 The sequential approach scales linearly: $q$ Block~I lotteries plus
 $p$ Block~II lotteries, plus one choice task for~$\lambda$.
@@ -968,8 +968,3 @@ scalar derivative-sign argument used for CRRA is replaced by a higher-dimensiona
 reduced system, but the same sequential decomposition into Block~I, Block~II,
 and the noise task still applies.
 
-The change-of-variables computation in the main text also requires the
-Jacobian of the Condition~A map, which factors as
-$J_A = L \cdot J_W$ by the chain rule in the all-binary design.
-That factorization is separate from the injectivity argument developed
-here and is not pursued further in this appendix.

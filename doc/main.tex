@@ -118,6 +118,7 @@ info_ce_below_15 = fmt(float(_ce_overlay.get('info_pct_below_15', 0)), 1)
 info_ce_above_40 = fmt(float(_ce_overlay.get('info_pct_above_40', 0)), 1)
 uninf_ce_below_15 = fmt(float(_ce_overlay.get('uninf_pct_below_15', 0)), 1)
 uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
+
 \end{pycode}
 
 
@@ -128,22 +129,20 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
 \begin{abstract}
   \begin{justify}
 
-  Bayesian hierarchical models for heterogeneous preferences typically require
-  $4p$ hyperprior choices that lack direct interpretation, where $p$ is the
-  number of individual-level parameters. I develop a framework that replaces
-  these with substantively meaningful inputs. First, researchers specify prior
-  beliefs on predictive quantities, such as certainty equivalents, rather than
-  structural parameters, using a Jacobian correction to translate exactly
-  between spaces. Second, a variance decomposition reduces the
-  remaining degrees of freedom to two interpretable parameters: a variance
-  partition ratio $\rho$ and a coefficient of variation $\kappa$ that, for a
-  chosen distributional family, determine the moment-matched hyperprior. I
-  demonstrate the approach with rank-dependent utility estimation using lottery
-  choice data. The quantity-space framework reveals a lottery-specific pattern
-  of risk attitudes, with probability weighting producing risk-seeking certainty
-  equivalents for equal-probability lotteries despite risk-averse equivalents
-  for skewed lotteries, a pattern immediately visible in quantity space but
-  requiring post-estimation computation in parameter space.
+  Bayesian hierarchical models require hyperprior specifications over population
+  parameters that researchers rarely have direct intuition about. This paper
+  develops a framework that recasts these choices in terms of interpretable
+  predictive quantities. Rather than placing priors directly on structural
+  parameters, the researcher specifies beliefs about observables such as
+  certainty equivalents or choice probabilities, and a Jacobian correction maps
+  those beliefs exactly into parameter space. A variance decomposition then
+  clarifies how the prior distributes uncertainty between population-level
+  variation and within-population heterogeneity. The result is a hyperprior
+  specification that is easier to interpret, communicate, and scrutinize in
+  substantive terms. The approach is illustrated in a rank-dependent utility
+  model estimated on real lottery choice data, where it makes prior
+  implications transparent and yields conclusions that remain stable across a
+  wide range of hierarchical specifications.
 
   \end{justify}
 \end{abstract}

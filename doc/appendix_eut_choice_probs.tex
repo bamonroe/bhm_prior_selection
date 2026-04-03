@@ -2,7 +2,7 @@
 \label{app:eut_choice_probs}
 %==============================================================================
 
-The quantity-space prior specification of Section~\ref{sec:framework}
+The quantity-space prior specification of Section~\ref{sec:gq_space}
 requires an injective mapping from parameters to predictive quantities,
 and the Jacobian pullback must faithfully recover the intended prior on
 the feasible image. As noted in Section~\ref{sec:discussion}, certainty
@@ -29,12 +29,12 @@ structure of $C\phi + \mathbf{d}$, is left for future work.
 \subsection{Setup}
 
 Let $\Theta \subseteq \mathbb{R}^p$ be open and bounded, and let
-$\{u(\cdot;\,\boldsymbol{\theta})\}_{\boldsymbol{\theta} \in \Theta}$
+$\{u(\cdot;\,\bth)\}_{\bth \in \Theta}$
 be a family of utility functions on $[x_{\min}, x_{\max}]$ such that for
-each $\boldsymbol{\theta}$, $x \mapsto u(x;\,\boldsymbol{\theta})$ is
-strictly increasing with $u(x_{\min};\,\boldsymbol{\theta}) = 0$ and
-$u(x_{\max};\,\boldsymbol{\theta}) = 1$. Assume $u$ is analytic in
-$\boldsymbol{\theta}$ and $C^1$ in $(x,\boldsymbol{\theta})$.
+each $\bth$, $x \mapsto u(x;\,\bth)$ is
+strictly increasing with $u(x_{\min};\,\bth) = 0$ and
+$u(x_{\max};\,\bth) = 1$. Assume $u$ is analytic in
+$\bth$ and $C^1$ in $(x,\bth)$.
 
 We observe $R = p$ pairwise comparisons. Across all comparisons, let
 \begin{equation}
@@ -47,40 +47,40 @@ $w_{r\ell} \coloneqq \Pr_{A_r}(y_\ell) - \Pr_{B_r}(y_\ell)$ be the
 signed probability contrast at outcome $y_\ell$. Under EUT, the
 expected-utility difference is
 \begin{equation}\label{eq:delta_common_app}
-  \Delta_r(\boldsymbol{\theta})
+  \Delta_r(\bth)
   =
-  \sum_{\ell=0}^{M+1} w_{r\ell}\,u(y_\ell;\,\boldsymbol{\theta}).
+  \sum_{\ell=0}^{M+1} w_{r\ell}\,u(y_\ell;\,\bth).
 \end{equation}
 
 Define the \textit{evaluation map}
 \begin{equation}\label{eq:phi_def_app}
-  \phi(\boldsymbol{\theta})
+  \phi(\bth)
   =
-  \bigl(u(m_1;\,\boldsymbol{\theta}), \ldots,
-        u(m_M;\,\boldsymbol{\theta})\bigr)
+  \bigl(u(m_1;\,\bth), \ldots,
+        u(m_M;\,\bth)\bigr)
   \in (0,1)^M,
 \end{equation}
 which records utility at the $M$ interior outcomes. Since
-$u(x_{\min};\,\boldsymbol{\theta}) = 0$ kills the $\ell = 0$ term and
-$u(x_{\max};\,\boldsymbol{\theta}) = 1$ reduces the $\ell = M{+}1$ term
+$u(x_{\min};\,\bth) = 0$ kills the $\ell = 0$ term and
+$u(x_{\max};\,\bth) = 1$ reduces the $\ell = M{+}1$ term
 to the contrast weight alone, \eqref{eq:delta_common_app} simplifies to
 \begin{equation}\label{eq:Delta_linear_app}
-  \boldsymbol{\Delta}(\boldsymbol{\theta})
+  \boldsymbol{\Delta}(\bth)
   =
-  C\,\phi(\boldsymbol{\theta}) + \mathbf{d},
+  C\,\phi(\bth) + \mathbf{d},
 \end{equation}
 where $C = (w_{ri})$ is the $p \times M$ \textit{contrast matrix} and
 $d_r = w_{r,\,M+1}$. The observed choice probability is
-$\pi_r(\boldsymbol{\theta}) = \Lambda(\Delta_r(\boldsymbol{\theta}))$
+$\pi_r(\bth) = \Lambda(\Delta_r(\bth))$
 with $\Lambda(t) = e^t/(1+e^t)$, giving the
 \textit{choice-probability map}
 \begin{equation}\label{eq:factorization_app}
-  G(\boldsymbol{\theta})
+  G(\bth)
   =
-  \bigl(\pi_1(\boldsymbol{\theta}), \ldots,
-        \pi_p(\boldsymbol{\theta})\bigr)
+  \bigl(\pi_1(\bth), \ldots,
+        \pi_p(\bth)\bigr)
   =
-  \Lambda\!\bigl(C\,\phi(\boldsymbol{\theta}) + \mathbf{d}\bigr).
+  \Lambda\!\bigl(C\,\phi(\bth) + \mathbf{d}\bigr).
 \end{equation}
 
 Normalization matters here in a way it does not for certainty
@@ -98,37 +98,37 @@ scale.
 Let $G \colon \Theta \to (0,1)^p$ be the choice-probability map
 \eqref{eq:factorization_app}.
 \begin{enumerate}
-  \item \textit{Jacobian.} $J_G(\boldsymbol{\theta}) =
-    D_\Lambda(\boldsymbol{\theta})\,C\,D\phi(\boldsymbol{\theta})$, where
+  \item \textit{Jacobian.} $J_G(\bth) =
+    D_\Lambda(\bth)\,C\,D\phi(\bth)$, where
     $D_\Lambda = \diag(\pi_r(1-\pi_r))_{r=1}^p$, which is a
     positive diagonal matrix since each $\pi_r \in (0,1)$. Hence
     \begin{equation}\label{eq:rank_equiv_app}
-      \operatorname{rank}(J_G(\boldsymbol{\theta}))
-      = \operatorname{rank}\!\bigl(C\,D\phi(\boldsymbol{\theta})\bigr).
+      \operatorname{rank}(J_G(\bth))
+      = \operatorname{rank}\!\bigl(C\,D\phi(\bth)\bigr).
     \end{equation}
   \item \textit{Singular set.} At some parameter values the
     Jacobian may lose rank, so that $G$ is not locally injective
     there. Call these the \textit{singular set}
-    $S = \{\boldsymbol{\theta} :
+    $S = \{\bth :
       \operatorname{rank}(J_G) < p\}$. If
-    $\operatorname{rank}(C\,D\phi(\boldsymbol{\theta}_0)) = p$ at even
-    one point $\boldsymbol{\theta}_0 \in \Theta$, then $S$ has Lebesgue
+    $\operatorname{rank}(C\,D\phi(\bth_0)) = p$ at even
+    one point $\bth_0 \in \Theta$, then $S$ has Lebesgue
     measure zero and $\Theta \setminus S$ is open and dense. In other
-    words, rank failure is the exception, not the rule: it can occur,
+    words, rank failure is the exception, not the rule. It can occur,
     but only on a negligible set of parameter values.
   \item \textit{Local identification.} At every
-    $\boldsymbol{\theta} \in \Theta \setminus S$ the Jacobian has full
-    rank, so $G$ is locally injective: nearby parameter values produce
+    $\bth \in \Theta \setminus S$ the Jacobian has full
+    rank, so $G$ is locally injective and nearby parameter values produce
     distinct choice probabilities.
   \item \textit{Bayesian pullback.} Let $q$ be a prior density on
     $(0,1)^p$. If, for almost every
     $\boldsymbol{\pi} \in G(\Theta)$, the equation
-    $G(\boldsymbol{\theta}) = \boldsymbol{\pi}$ has exactly $m$
+    $G(\bth) = \boldsymbol{\pi}$ has exactly $m$
     solutions, then the pullback
     \begin{equation}
-      \tilde q(\boldsymbol{\theta})
+      \tilde q(\bth)
       \propto
-      q(G(\boldsymbol{\theta}))\,|\det J_G(\boldsymbol{\theta})|
+      q(G(\bth))\,|\det J_G(\bth)|
     \end{equation}
     induces the density $m\,q(\boldsymbol{\pi})$ on $G(\Theta)$.
     After normalization, this is exactly the intended prior restricted
@@ -144,41 +144,41 @@ $\Lambda'(t) = \Lambda(t)(1-\Lambda(t)) > 0$, the chain rule gives
 $J_G = D_\Lambda\,C\,D\phi$. Since $D_\Lambda$ is a positive
 diagonal matrix, multiplying by it does not change rank.
 
-\textit{Part~2.} Whether $J_G$ has full rank at $\boldsymbol{\theta}$
+\textit{Part~2.} Whether $J_G$ has full rank at $\bth$
 depends, by Part~1, on whether
-$C\,D\phi(\boldsymbol{\theta})$ has full rank, which in the square case
+$C\,D\phi(\bth)$ has full rank, which in the square case
 ($M = p$) amounts to whether
-$\det(C\,D\phi(\boldsymbol{\theta}))$ is nonzero. Write
-$f(\boldsymbol{\theta}) = \det(C\,D\phi(\boldsymbol{\theta}))$.
-Because $u$ is analytic in $\boldsymbol{\theta}$, the function $f$
-is analytic. Because there exists $\boldsymbol{\theta}_0$ such that
-$f(\boldsymbol{\theta}_0) \neq 0$, the function $f$ is not
+$\det(C\,D\phi(\bth))$ is nonzero. Write
+$f(\bth) = \det(C\,D\phi(\bth))$.
+Because $u$ is analytic in $\bth$, the function $f$
+is analytic. Because there exists $\bth_0$ such that
+$f(\bth_0) \neq 0$, the function $f$ is not
 identically zero. A standard property of analytic functions is that
 a nonzero analytic function can only vanish on a set of Lebesgue
 measure zero \parencite{Krantz2002,Mityagin2015}. Therefore
 $S = \{f = 0\}$ has measure zero. When $M > p$, the same argument
 applies to any $p \times p$ subdeterminant of $C\,D\phi$ that is
-nonzero at $\boldsymbol{\theta}_0$, and $S$ is contained in its
+nonzero at $\bth_0$, and $S$ is contained in its
 zero set.
 
 \textit{Part~3.} At each
-$\boldsymbol{\theta} \in \Theta \setminus S$,
-$J_G(\boldsymbol{\theta})$ has full rank $p$. By the inverse function
-theorem, $G$ is locally injective at such $\boldsymbol{\theta}$: no
+$\bth \in \Theta \setminus S$,
+$J_G(\bth)$ has full rank $p$. By the inverse function
+theorem, $G$ is locally injective at such $\bth$, and no
 nearby parameter value produces the same choice probabilities.
 
 \textit{Part~4.} Since $\Lambda$ is strictly monotone,
-$G(\boldsymbol{\theta}_1) = G(\boldsymbol{\theta}_2)$ if and only if
-$C\phi(\boldsymbol{\theta}_1) + \mathbf{d} =
- C\phi(\boldsymbol{\theta}_2) + \mathbf{d}$.
+$G(\bth_1) = G(\bth_2)$ if and only if
+$C\phi(\bth_1) + \mathbf{d} =
+ C\phi(\bth_2) + \mathbf{d}$.
 So $G$ has the same number of preimages at each point as the
 utility-difference map $C\phi + \mathbf{d}$. The multivariate
 change-of-variables formula then gives, for every measurable
 $B \subseteq G(\Theta)$,
 \begin{equation}
   \int_{G^{-1}(B)}
-    q(G(\boldsymbol{\theta}))\,|\det J_G(\boldsymbol{\theta})|\,
-    d\boldsymbol{\theta}
+    q(G(\bth))\,|\det J_G(\bth)|\,
+    d\bth
   =
   \int_B q(\boldsymbol{\pi})\,\#G^{-1}(\boldsymbol{\pi})\,
     d\boldsymbol{\pi}
@@ -212,23 +212,23 @@ $\lambda_1,\ldots,\lambda_p \in (0,1)$. For each $i$, compare a sure
 amount $m_i$ against a lottery paying $x_{\max}$ with probability
 $\lambda_i$ and $x_{\min}$ otherwise. Normalization gives
 $\operatorname{EU}(B_i) = \lambda_i$, so
-$\Delta_i(\boldsymbol{\theta}) =
- u(m_i;\,\boldsymbol{\theta}) - \lambda_i$.
+$\Delta_i(\bth) =
+ u(m_i;\,\bth) - \lambda_i$.
 The only interior outcome in pair $i$ is $m_i$, with contrast weight
 $+1$, so $C = I_p$ and the Jacobian simplifies to
 \begin{equation}\label{eq:binary_jac_app}
-  J_G(\boldsymbol{\theta})
+  J_G(\bth)
   =
   \diag\!\bigl(\pi_i(1-\pi_i)\bigr)_{i=1}^p
   \cdot
   \left(
-    \frac{\partial u(m_i;\,\boldsymbol{\theta})}{\partial \theta_j}
+    \frac{\partial u(m_i;\,\bth)}{\partial \theta_j}
   \right)_{\!i,j}.
 \end{equation}
 With this design, identification reduces entirely to the evaluation
 map: the utility family must be such that the matrix of partial
-derivatives $(\partial u(m_i;\,\boldsymbol{\theta})/\partial
-\theta_j)_{i,j}$ has full rank at some $\boldsymbol{\theta}_0$.
+derivatives $(\partial u(m_i;\,\bth)/\partial
+\theta_j)_{i,j}$ has full rank at some $\bth_0$.
 
 \textit{Risk-apportionment tasks.} A risk-apportionment (RA) task of
 order $k$ is a binary lottery comparison in which the first $k-1$

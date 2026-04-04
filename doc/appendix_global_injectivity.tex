@@ -110,7 +110,7 @@ $P = \Lambda\bigl((V_A - V_B)/(\lambda\,\Delta u)\bigr)$ depends on $(\bth,
 \bomega)$ through the value difference and on~$\lambda$ through the noise
 scaling, where $\Lambda$ is a strictly increasing link function and $\Delta u =
 u(\xhi) - u(\xlo)$, where $\xhi$ and $\xlo$ are respectively the greatest and
-least outcomes in lottery $k$.
+least outcomes appearing with positive probability across the choice pair.
 
 The goal is to show that the extended map
 \begin{equation}
@@ -354,6 +354,16 @@ Conditions~A and~B require verification for specific utility and
 PWF families; Condition~C requires a non-degenerate choice task
 ($\Delta V \neq 0$). This section and the next verify all three
 conditions for Prelec--CRRA.
+
+The proof strategy is sequential. Condition~A identifies the Prelec
+probability-weighting parameters from two probability points, reducing the
+Block~I system to a diagonal problem. Condition~B is the substantive step: once
+the decision weights are pinned down, it remains to show that the residual CE
+equation identifies the CRRA parameter through a monotonicity argument. That is
+done first by deriving an explicit identity for the derivative of the third CE,
+and then by proving monotonicity of the kernel appearing in that identity.
+Condition~C then identifies the noise parameter from one additional
+non-degenerate choice task.
 
 For $q = 2$, the map $\Phi_\mu$ factors as $L \circ W$, where
 $W$ is the two-point evaluation map and $L$ is a $2 \times 2$
@@ -747,6 +757,8 @@ It remains to show that the kernel difference
 $H_{w_1(s)}(\rho_3) - H_{w_1(s)}(\rho_1)$ in~(\ref{eq:dc3ds_H}) is nonzero
 whenever $b \neq 0$. This follows if $H_w$ is strictly monotone in~$\rho$,
 since $b \neq 0$ changes the outcome ratio and therefore $\rho_3 \neq \rho_1$.
+In other words, the derivative-sign question has now been reduced to a
+comparison of two outcome ratios passed through a one-dimensional kernel.
 
 \begin{lemma}[Monotonicity of the Condition~B kernel]
 \label{lem:Hw_monotone}
@@ -791,14 +803,10 @@ The constant terms $\pm(1{-}w)$ cancel, leaving
   = (1{-}w)\,
     \ln\frac{\rho}{w + (1{-}w)\rho}.
 \end{equation}
-This already tells us something useful: since
-\[
-  \rho < w + (1-w)\rho
-\]
-for every $w \in (0,1)$ and $\rho > 0$, the logarithm is negative, so
-$f_w'(\rho) < 0$ everywhere.
+The sign of $f_w'(\rho)$ changes at $\rho = 1$, so $f_w'$ alone is not enough
+to establish monotonicity of $H_w$ on the full domain. We therefore return to
+$H_w$ itself and apply the quotient rule.
 
-We now return to $H_w$ itself and apply the quotient rule:
 \begin{equation}\label{eq:qr_num}
   H_w'(\rho)
   = \frac{f_w'(\rho)(1-\rho) + f_w(\rho)}{(1-\rho)^2}.
@@ -839,6 +847,10 @@ every $\rho \neq 1$. Going back to~(\ref{eq:qr_num}), this implies
 $H_w'(\rho) < 0$ for all $\rho \neq 1$, and therefore $H_w$ is strictly decreasing on
 $(0,\infty) \setminus \{1\}$.
 \end{proof}
+
+This is exactly the property needed for Condition~B: once $b \neq 0$ changes
+the low/high outcome ratio, the kernel terms cannot cancel, so the derivative
+of the residual CE equation cannot vanish away from the log-utility limit.
 
 \begin{proposition}[Shared-probability Condition~B for CRRA]
 \label{prop:shared_prob_condB}
@@ -893,14 +905,55 @@ $\rho_3 \neq \rho_1$ implies
   H_{w_1(s)}(\rho_3) - H_{w_1(s)}(\rho_1) \neq 0.
 \]
 
-Now consider the prefactor. It is also nonzero:
-$s^2 > 0$, $c_3^{s-1} > 0$, and $\yhi^s - \ylo^s \neq 0$ because
-$0 < \ylo < \yhi$ and $z \mapsto z^s$ is strictly monotone on $(0,\infty)$
+Now consider the prefactor. Since $0 < \ylo < \yhi$, the difference
+$\yhi^s - \ylo^s$ has the same sign as $s$, and $s^2 c_3^{s-1} > 0$, so
+the prefactor is nonzero for every $s \neq 0$.
+
+Both terms in~(\ref{eq:dc3ds_H}) are therefore nonzero, so
+$dc_3/ds \neq 0$. In fact, its sign is constant across the entire domain.
+To see this, let $q_1 = \xlo_1/\xhi_1$ and $q_3 = \ylo/\yhi$.
+Since $q_3 - q_1$ has the sign of $e$, the map $z \mapsto z^s$ implies that
+$\rho_3 - \rho_1$ has the sign of $e$ when $s > 0$ and the opposite sign when
+$s < 0$. Because $H_{w_1(s)}$ is strictly decreasing, the kernel difference
+$H_{w_1(s)}(\rho_3) - H_{w_1(s)}(\rho_1)$ reverses that sign. The prefactor
+has the sign of $s$, as noted above. Combining these,
+\[
+  \operatorname{sign}\!\left(\frac{dc_3}{ds}\right) = -\operatorname{sign}(e)
+\]
 for every $s \neq 0$.
 
-We have now shown that both terms in~(\ref{eq:dc3ds_H}) are nonzero, so
-$dc_3/ds \neq 0$. Since this holds for every $s \neq 0$, Condition~B holds for
-all $s \neq 0$, equivalently for all $r \neq 1$.
+Thus $c_3(s)$ is strictly monotone on each branch
+$(-\infty,0)$ and $(0,\infty)$, with the same direction on both.
+
+To connect the two branches, note that
+\[
+  w_1(s) = \frac{c_1^s - \xlo_1^s}{\xhi_1^s - \xlo_1^s}
+\]
+has the finite limit
+\[
+  w_1(0)
+  = \lim_{s \to 0} w_1(s)
+  = \frac{\ln c_1 - \ln \xlo_1}{\ln \xhi_1 - \ln \xlo_1}
+  \in (0,1),
+\]
+by L'H\^opital's rule. Writing
+\[
+  c_3(s)^s = w_1(s)\,\yhi^s + (1-w_1(s))\,\ylo^s,
+\]
+the expansion $z^s = 1 + s\ln z + o(s)$ gives
+\[
+  c_3(s)^s
+  = 1 + s\bigl[w_1(0)\ln\yhi + (1-w_1(0))\ln\ylo\bigr] + o(s),
+\]
+so
+\[
+  \lim_{s \to 0} c_3(s)
+  = \yhi^{\,w_1(0)}\,\ylo^{\,1-w_1(0)}.
+\]
+Thus $c_3$ extends continuously through $s=0$. Since $c_3$ is strictly
+monotone on each side of $0$ with the same direction, continuity at $0$
+implies that no value can be attained on both branches. Therefore Condition~B
+holds for all $s \neq 0$, equivalently for all $r \neq 1$.
 
 Finally, $b = 0$ if and only if
 $\xhi_1/\xlo_1 = \xhi_3/\xlo_3$. One direction is immediate from
@@ -967,4 +1020,3 @@ Condition~B becomes a $p \times p$ injectivity condition. In those cases the
 scalar derivative-sign argument used for CRRA is replaced by a higher-dimensional
 reduced system, but the same sequential decomposition into Block~I, Block~II,
 and the noise task still applies.
-

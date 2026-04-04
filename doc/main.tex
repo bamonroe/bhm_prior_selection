@@ -172,7 +172,7 @@ elicitation, quantity-space priors, risk preferences, rank-dependent utility
 \label{sec:introduction}
 %==============================================================================
 
-BHMs are becoming a standard tool for estimating heterogeneous preferences in
+Bayesian hierarchical models (BHMs) are becoming a standard tool for estimating heterogeneous preferences in
 experimental economics \parencite{Gao2022,Nilsson2011}. These models jointly
 estimate individual-level parameters and the hyperparameters that govern their
 population distribution. By assuming exchangeability across subjects, BHMs use
@@ -337,7 +337,7 @@ discuss the detailed mathematical derivation of this formula and note the
 correction via the Coarea Formula needed when $k < p$. Given the focus of
 risk preference models, and the abundance of economically meaningful predictive
 quantities they generate, I focus on the case $k = p$ in the main text, while
-noting that the same logic extends to $k > p$. \footnote{
+noting that the same logic extends to $k > p$.\footnote{
   When $k > p$, the image of $\bg$ is a $p$-dimensional submanifold of $\R^k$,
   and the researcher's quantity-space density should be understood as evaluated
   on this image rather than as a free-standing density on all of $\R^k$. In
@@ -372,12 +372,6 @@ individual-level quantity prior as the \enquote{direct prior}. For a model of a
 single random individual, the direct prior completes the prior specification
 exercise. For a BHM, however, it remains to construct a hyperprior that is
 compatible with it.
-
-% Since the
-%function $\bg$ is generally non-linear, specifying independent marginal
-%distributions for each $\bv$ does not result in induced independent marginal
-%distributions on $\bth$. The Jacobian correction in (\ref{eq:jacobian_prior})
-%induces the appropriate dependence structure in parameter space.
 
 
 \subsection{Hyperprior Construction via Variance Decomposition}

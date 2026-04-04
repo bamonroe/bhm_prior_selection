@@ -73,13 +73,18 @@ prior-dominated subjects from \py{_bl_pct}\% in the baseline to
 \py{_s_pct[1]}\% when $\rho = 0.8$ and $\kappa = 0.25$, consistent
 with allocating more uncertainty to population-mean variation. Raising
 $\kappa$ alone lowers the prior-dominated share to \py{_s_pct[0]}\%,
-reflecting the weaker concentration of the hyperprior over heterogeneity.
+reflecting the weaker concentration of the hyperprior over heterogeneity. The
+figures below show the same pattern from three complementary angles: CDF
+differences, posterior predictive CE overlays, and the induced parameter-space
+prior.
 
 \subsection{CDF Difference Plots}
 
 The following figures show the CDF difference between the informative and
 diffuse posteriors for each configuration, using the same format as
-Figure~\ref{fig:cdf_diff} in the main text.
+Figure~\ref{fig:cdf_diff} in the main text. Read together, they separate the
+roles of $\kappa$ and $\rho$ before showing how the two interact when both are
+large.
 
 \begin{figure}[htbp]
   \centering
@@ -89,9 +94,11 @@ Figure~\ref{fig:cdf_diff} in the main text.
 \end{figure}
 
 With $\kappa$ raised to 1.50 while $\rho$ remains at 0.2, the hyperprior
-over heterogeneity is substantially less concentrated. The CDF differences
-are slightly attenuated relative to the baseline, consistent with the
-lower prior-dominated share reported in the table above.
+over heterogeneity is substantially less concentrated. Relative to the
+baseline, the CDF differences are slightly attenuated rather than qualitatively
+changed, which matches the lower prior-dominated share reported in the table
+above. In other words, increasing $\kappa$ mainly weakens the strength of the
+regularization without changing where it shows up.
 
 \begin{figure}[htbp]
   \centering
@@ -100,11 +107,13 @@ lower prior-dominated share reported in the table above.
   \includegraphics[width=0.85\textwidth]{../plots/paper/rho0p8_kappa0p25/cdf_difference_by_subject.pdf}
 \end{figure}
 
-Raising $\rho$ to 0.8 allocates the majority of direct prior variance to
-uncertainty about the population mean, leaving less room for individual
-heterogeneity. This produces the highest prior-dominated share across the
-four configurations, with slightly larger CDF deviations for the
-prior-sensitive subjects.
+By contrast, raising $\rho$ to 0.8 allocates the majority of direct prior
+variance to uncertainty about the population mean, leaving less room for
+individual heterogeneity. This produces the highest prior-dominated share
+across the four configurations, with larger CDF deviations for the same
+prior-sensitive subjects. So the main effect of higher $\rho$ is not to create
+new problem cases, but to amplify prior influence for subjects who were already
+weakly identified.
 
 \begin{figure}[htbp]
   \centering
@@ -113,15 +122,20 @@ prior-sensitive subjects.
   \includegraphics[width=0.85\textwidth]{../plots/paper/rho0p8_kappa1p50/cdf_difference_by_subject.pdf}
 \end{figure}
 
-When both $\rho$ and $\kappa$ are high, the effects partially offset.
-The large $\rho$ concentrates heterogeneity while the large $\kappa$
-expresses uncertainty about that concentrated specification, returning the
-prior-dominated share close to the baseline level.
+When both $\rho$ and $\kappa$ are high, the effects partially offset. The
+large $\rho$ concentrates heterogeneity while the large $\kappa$ expresses
+uncertainty about that concentrated specification, returning the prior-dominated
+share close to the baseline level. This final panel is therefore useful mainly
+as an interaction check: it shows that the separate directional effects of
+$\rho$ and $\kappa$ remain visible, but neither dominates completely once both
+are moved away from the baseline.
 
 \subsection{Predictive CE Overlays}
 
 The following figures compare the hyper-posterior predictive CE distributions
-across configurations.
+across configurations. They present the same sensitivity exercise in levels
+rather than CDF differences, making it easier to see whether the substantive
+ordering of lottery evaluations changes as $(\rho,\kappa)$ moves.
 
 \begin{figure}[htbp]
   \centering
@@ -145,11 +159,13 @@ across configurations.
 \end{figure}
 
 Across all three alternatives, the overlay figures show that changing
-$(\rho,\kappa)$ mostly affects the dispersion and shrinkage of the posterior
-predictive distributions rather than their qualitative ordering. The same
-lottery-specific pattern remains visible across configurations, with the
-largest differences concentrated in the wider-range lotteries where the
-informative prior has more room to move posterior mass.
+$(\rho,\kappa)$ mostly affects dispersion and shrinkage rather than qualitative
+ordering. The same lottery-specific pattern remains visible across
+configurations, with the largest differences concentrated in the wider-range
+lotteries where the informative prior has more room to move posterior mass.
+This is the level-space counterpart to the CDF plots above: prior influence
+changes in magnitude, but the substantive ranking of posterior predictive CEs
+remains stable.
 
 \subsection{Induced Prior in Parameter Space}
 
@@ -179,9 +195,10 @@ choice probability.
 \subsection{Structural Parameter Posteriors for Selected Subjects}
 
 The following figures show how data updates the induced prior for individual
-subjects. The most affected subject in the baseline configuration is shown in
-Figure~\ref{fig:params_most}, and the least affected is shown in
-Figure~\ref{fig:params_least}.
+subjects. Together they connect the sensitivity patterns above back to
+parameter space: Figure~\ref{fig:params_most} shows a subject for whom the
+prior meaningfully shapes the posterior, while Figure~\ref{fig:params_least}
+shows a subject for whom the likelihood largely overwhelms it.
 
 \begin{figure}[htbp]
   \centering

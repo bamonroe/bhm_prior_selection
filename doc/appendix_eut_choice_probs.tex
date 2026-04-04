@@ -24,6 +24,10 @@ identification content lies in the product $C\,D\phi$. The results here
 apply to EUT specifically; extending to non-expected utility functionals
 such as RDU, where the probability weighting layer breaks the affine
 structure of $C\phi + \mathbf{d}$, is left for future work.
+In that sense, this appendix complements Appendix~\ref{app:global_injectivity}:
+Appendix~\ref{app:global_injectivity} handles a richer RDU specification using
+certainty equivalents, while the present appendix trades that richer behavioral
+structure for a cleaner design-side factorization in choice-probability space.
 
 
 \subsection{Setup}
@@ -188,6 +192,10 @@ $B \subseteq G(\Theta)$,
 \end{equation}
 \end{proof}
 
+Part~4 is the key Bayesian consequence. It shows that the researcher's
+quantity-space prior is recovered on the feasible image even when the forward
+map is only finitely many-to-one, provided the multiplicity is constant.
+
 Identification requires $M \geq p$ interior outcomes and
 $\operatorname{rank}(C) \geq p$. If any lottery pair has $A_r$
 first-order stochastically dominating $B_r$, the corresponding
@@ -229,6 +237,8 @@ With this design, identification reduces entirely to the evaluation
 map: the utility family must be such that the matrix of partial
 derivatives $(\partial u(m_i;\,\bth)/\partial
 \theta_j)_{i,j}$ has full rank at some $\bth_0$.
+For any concrete design, this rank condition can be checked numerically at a
+single convenient parameter value before estimation.
 
 \textit{Risk-apportionment tasks.} A risk-apportionment (RA) task of
 order $k$ is a binary lottery comparison in which the first $k-1$

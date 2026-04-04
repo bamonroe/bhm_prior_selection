@@ -162,7 +162,8 @@ the sensitivity heatmaps in Figure~\ref{fig:nig_sensitivity} apply without
 modification: panel~(a) gives the between-population SD, panel~(b) the
 within-population SD, and panel~(c) the within-population SD IQR for the
 Gamma-IG hierarchy as well. The between-population SD is
-$\sqrt{\rho\,\dpv}$ regardless of family.
+$\sqrt{\rho\,\dpv}$ regardless of family, so these sensitivity surfaces are
+family-invariant.
 
 The two families differ in the shape of the compound distribution:
 the NIG compound is symmetric with Student-$t$-like tails, while the
@@ -248,7 +249,9 @@ from the already-determined Beta$(a_\mu^k, b_\mu^k)$ hyperprior.
 The parameter $\kappa_k$ is the coefficient of variation of the conditional
 variance $\mu_k(1-\mu_k)\psi_k$, as defined in Section
 \ref{sec:variance_decomposition}. Because the conditional variance is a product
-of two independent random variables, its variance involves cross-moments:
+of two independent random variables, its variance involves cross-moments. The
+complication is structural, not accidental, since Beta conditional variance
+depends on both the mean and the dispersion hyperparameters:
 \begin{equation}
   \Var{\mu_k(1 - \mu_k)\psi_k}
   = \E{\mu_k^2(1 - \mu_k)^2}\,\Var{\psi_k}
@@ -364,4 +367,6 @@ largest (up to 0.20 at extreme feasible values). In all three cases, the
 moment-matching construction guarantees that the first two moments of the
 compound distribution match the direct prior exactly; only the higher moments
 differ, with the discrepancy concentrated in the tails and shoulders of the
-distribution.
+distribution. Thus, family choice governs two distinct objects: which
+$(\rho,\kappa)$ combinations are feasible at all, and how closely the resulting
+compound predictive resembles the direct prior beyond its first two moments.

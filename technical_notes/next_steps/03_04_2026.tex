@@ -1,0 +1,286 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{setspace}
+\onehalfspacing
+
+\title{Appendix Audit: Issues and Revision Guidance}
+\author{Technical Note}
+\date{3 April 2026}
+
+\begin{document}
+\maketitle
+
+This note documents issues found during a systematic audit of all four
+appendices, combining mechanical findings with substantive exposition
+feedback (the latter drawing on a parallel review by Codex). Mechanical
+issues have been resolved; substantive revision suggestions remain for a
+focused prose pass.
+
+%==============================================================================
+\section{Appendix A: Hyperprior Derivation by Distributional Family}
+%==============================================================================
+
+\texttt{appendix\_hyperprior\_families.tex} \hfill Label:
+\texttt{app:hyperprior\_families}
+
+\subsection{Status: Clean}
+
+No mechanical issues. All cross-references resolve, all 12 figures exist
+on disk, style conforms to guidelines.
+
+\subsection{Substantive suggestions}
+
+\paragraph{Gamma-IG figure reuse.}
+The Gamma-IG subsection reuses the NIG sensitivity heatmaps for
+within/between-population standard deviations rather than producing its
+own. This is reasonable since the analytical sensitivity is identical
+across NIG and Gamma-IG (the heatmaps depend only on $\rho$, $\kappa$,
+and $v^*$, not on the distributional family). However, the text does not
+explain this. One sentence noting that the sensitivity surfaces are
+family-invariant and therefore shared with the NIG case would make the
+reuse feel intentional rather than accidental.
+
+\paragraph{Beta-Beta cross-moment intuition.}
+The derivation of $\operatorname{Var}[\mu_k(1-\mu_k)\psi_k]$ becomes algebraically
+dense. An extra sentence before this calculation explaining \emph{why}
+the cross-moment term arises (the Beta variance is a nonlinear function
+of both $\mu$ and $\psi$, so even with independence between the
+hyperpriors, the unconditional variance of $z_{ik}$ involves their
+product) would help the reader understand that the complication is
+structural.
+
+\paragraph{Summary subsection.}
+The summary currently emphasizes ordering by KS distance. It could also
+state explicitly that the family choice governs two distinct things: the
+feasibility of $(\rho, \kappa)$ pairs (each family has a different
+feasibility region) and how closely the compound predictive distribution
+matches the direct prior away from its first two moments. These are
+related but not identical, and separating them would sharpen the
+comparative discussion.
+
+
+%==============================================================================
+\section{Appendix B: Injectivity Analysis}
+%==============================================================================
+
+\texttt{appendix\_global\_injectivity.tex} \hfill Label:
+\texttt{app:global\_injectivity}
+
+\subsection{Mechanical issues (resolved)}
+
+\begin{enumerate}[label=\arabic*.]
+  \item Three em-dash violations removed (lines 171, 197, 282--283).
+  \item All \texttt{\textbackslash cref\{\}} calls replaced with
+    explicit \texttt{\textbackslash ref\{\}} plus type prefix.
+  \item All 16 internal labels renamed from \texttt{sec:} to
+    \texttt{appB:} namespace.
+  \item Dangling Jacobian factorization note (lines 971--975) removed.
+\end{enumerate}
+
+\subsection{Substantive suggestions}
+
+This is the most technically demanding appendix (975 lines, the longest
+in the paper). The mathematics is correct and the sequential
+decomposition strategy is elegant, but the reader load rises sharply in
+the middle third. The following additions would improve navigability
+without changing any results.
+
+\paragraph{Roadmap before the CRRA proof sequence.}
+The appendix establishes three conditions (A, B, C) and then verifies
+each for the CRRA-Prelec case. Before the verification begins (around
+the start of what is now the Condition~A verification section),
+a short paragraph previewing the proof strategy would help. Something
+like: ``The remainder of this appendix verifies Conditions A, B, and C
+for the CRRA-Prelec specification used in the main text. Condition~A is
+established via a two-point injectivity lemma for the Prelec family
+(Section~X), which reduces the PWF identification to a diagonal system.
+Condition~B is the most involved step: it requires showing that the CRRA
+CE function, viewed as a function of $r$ alone after fixing decision
+weights, is strictly monotone. This is accomplished through a derivative
+identity (Lemma~Y) and a kernel monotonicity argument (Lemma~Z).
+Condition~C follows immediately from the Fechner noise structure.''
+
+\paragraph{Interpretive sentence after the derivative identity.}
+After the derivative identity lemma (currently Lemma~B.5), the proof has
+reduced the Condition~B sign question to comparing two outcome ratios
+through a monotone kernel. One sentence stating this strategic
+consequence in plain language would prevent the reader from losing the
+thread. For example: ``This identity reduces the question of whether
+$\text{CE}_1(r) = \text{CE}_1(r')$ to whether a weighted integral of a
+kernel function $H_w$ can vanish, which the next lemma rules out by
+showing $H_w$ is strictly monotone.''
+
+\paragraph{Interpretive sentence after kernel monotonicity.}
+The kernel monotonicity proof (Lemma~B.6) is careful but ends with the
+mathematical conclusion $\partial H_w / \partial \rho < 0$. One sentence
+explaining why this is the exact property needed for Condition~B
+(``Because $H_w$ is strictly decreasing in $\rho$ and the integration
+kernel is positive, the integral cannot vanish unless $s = 0$, which
+gives $r = r'$'') would connect the lemma back to the proposition it
+serves.
+
+\paragraph{Notation slip around $\Delta u$.}
+Around lines 107--113 of the original, the wording shifts between a
+binary choice task comparing $A$ and $B$ and language referring to
+``lottery $k$''. This is minor but tightening it would improve local
+clarity.
+
+
+%==============================================================================
+\section{Appendix C: Identification from Choice Probabilities under EUT}
+%==============================================================================
+
+\texttt{appendix\_eut\_choice\_probs.tex} \hfill Label:
+\texttt{app:eut\_choice\_probs}
+
+\subsection{Mechanical issues (resolved)}
+
+\begin{enumerate}[label=\arabic*.]
+  \item Broken \texttt{\textbackslash ref\{sec:framework\}} changed to
+    \texttt{\textbackslash ref\{sec:gq\_space\}}.
+  \item All 52 occurrences of
+    \texttt{\textbackslash boldsymbol\{\textbackslash theta\}} replaced
+    with the \texttt{\textbackslash bth} macro.
+  \item Three elaborative colons restructured into separate sentences or
+    conjunctions.
+\end{enumerate}
+
+\subsection{Substantive suggestions}
+
+\paragraph{Positioning relative to Appendix B.}
+The opening paragraph now connects to the main text's discussion of
+injectivity and scopes the result to EUT. However, the relationship
+between this appendix and Appendix~B could be made more explicit.
+Appendix~B proves injectivity for a specific RDU model using CEs;
+Appendix~C proves injectivity for a broad class of EUT models using
+choice probabilities. These are complementary results, not competing
+ones. One sentence noting that Appendix~C trades the richer behavioral
+functional (RDU) for a cleaner design-side structure (the logistic link
+is a diffeomorphism, so the contrast matrix $C$ carries all the
+design-side identification content) would help the reader understand the
+division of labor.
+
+\paragraph{Part 4 interpretation.}
+Part~4 of the theorem (the $m$-to-1 pullback) is one of the more
+interesting results because it directly justifies the Bayesian
+change-of-variables prior even when the forward map is not globally
+injective. An extra sentence of interpretation connecting this to the
+paper's framework (``This means the researcher's quantity-space prior is
+recovered on the feasible image regardless of whether the forward map
+has finitely many preimages, provided the multiplicity is constant'')
+would strengthen the link.
+
+\paragraph{``Easy to verify'' claim.}
+The opening paragraph promises that the rank condition is ``easy to
+verify.'' The appendix gives enough structure for this to be plausible,
+but does not quite cash it out. Consider adding a one-sentence remark
+after the binary design example noting that for any specific design, the
+researcher can check the rank condition numerically by evaluating $C
+\cdot D\phi(\bm{\theta}_0)$ at a single convenient parameter value.
+
+
+%==============================================================================
+\section{Appendix D: Sensitivity to $(\rho, \kappa)$}
+%==============================================================================
+
+\texttt{appendix\_rk\_sensitivity.tex} \hfill Label:
+\texttt{app:rk\_sensitivity}
+
+\subsection{Mechanical issues (resolved)}
+
+\begin{enumerate}[label=\arabic*.]
+  \item Subject references reworded from
+    ``Subject~\textbackslash ref\{fig:...\}'' to proper figure references.
+  \item Stale median updated from 1.09 to 1.08.
+  \item Closing synthesis paragraph added (by author).
+\end{enumerate}
+
+\subsection{Substantive suggestions}
+
+\paragraph{Pythontex integration.}
+All numerical values in this appendix are hardcoded in the \LaTeX{}
+source. This makes them fragile against re-runs. The main text avoids
+this by loading values from \texttt{paper\_data.npz} via pythontex. The
+same approach should be extended here: save the prior predictive medians
+and subject classification counts into the NPZ during the pipeline, and
+load them with \texttt{\textbackslash py\{D['...']\}}.
+
+\paragraph{Summary table.}
+Codex suggested adding a small table with one or two quantitative
+metrics per configuration (e.g., prior-dominated share, median absolute
+CE shift). The data for this already exists in
+\texttt{rk\_sensitivity\_summary.npz}. A 4-row table showing the
+classification counts across all four configurations would make the
+appendix feel more analytical and give the closing synthesis paragraph
+concrete numbers to reference. This could be generated via pythontex
+from the summary NPZ.
+
+\paragraph{CDF difference and CE overlay subsections.}
+These subsections currently present figures with minimal interpretive
+text. Even one sentence per configuration noting the main difference
+from the baseline (e.g., ``With $\rho = 0.8$, the prior-dominated share
+increases to X\%, reflecting the larger fraction of variance attributed
+to mean uncertainty'') would make the appendix read less like a figure
+repository.
+
+
+%==============================================================================
+\section{Cross-Cutting Notes}
+%==============================================================================
+
+\paragraph{Genre consistency.}
+The four appendices span different styles: pedagogical derivation (A),
+theorem-proof (B), compact methodological extension (C), and visual
+evidence (D). This is not inherently a problem, but slightly stronger
+framing at the start of each appendix (one sentence on what the appendix
+does and why it is here) would make the package feel more cohesive.
+
+\paragraph{Uninformative model re-run.}
+The diffuse NIG model (\texttt{rdu\_bhm\_uninf}) has not been re-run
+with float64. Its MCMC data dates from 23 March 2026 (float32). While
+the NIG model does not use the CRRA utility function directly in its
+posterior (it operates in parameter space with NIG hyperpriors, not
+through a CE forward map), the float32 data may still contain minor
+numerical artifacts. Before final submission, this model should be
+re-run with \texttt{use\_double: True} via \texttt{do\_sampling\_uninf}
+in \texttt{main.py}.
+
+
+%==============================================================================
+\section{Summary of Remaining Work}
+%==============================================================================
+
+\begin{center}
+\begin{tabular}{llll}
+  \toprule
+  Appendix & Item & Type & Effort \\
+  \midrule
+  A & Gamma-IG figure reuse note & 1 sentence & Small \\
+  A & Beta-Beta cross-moment intuition & 1 sentence & Small \\
+  A & Summary: family choice governs two things & 2 sentences & Small \\
+  B & Roadmap paragraph before CRRA proofs & 1 paragraph & Medium \\
+  B & Interpretive sentence after derivative identity & 1 sentence & Small \\
+  B & Interpretive sentence after kernel monotonicity & 1 sentence & Small \\
+  B & $\Delta u$ notation slip & Wording & Small \\
+  C & Position relative to Appendix B & 1 sentence & Small \\
+  C & Part 4 interpretation & 1 sentence & Small \\
+  C & ``Easy to verify'' remark & 1 sentence & Small \\
+  D & Pythontex integration & Pipeline + \LaTeX & Medium \\
+  D & Summary table & Pythontex table & Medium \\
+  D & Per-configuration interpretive sentences & 3 sentences & Small \\
+  -- & Re-run uninf model with float64 & MCMC & Large \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Most items are single-sentence additions that can be done in one focused
+pass through the appendices. The two medium items for Appendix~D
+(pythontex wiring and summary table) require pipeline changes. The
+uninformative model re-run is the largest item but is a single
+\texttt{do\_sampling\_uninf = True} run.
+
+\end{document}

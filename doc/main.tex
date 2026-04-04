@@ -288,7 +288,11 @@ numerically match the prior predictive to some prior distribution.
 \textcite{Segert2019} develop Jacobian-based transformations between parameter
 and observable spaces for individual-level models. Their emphasis is on the
 conceptual interpretation of predictive distributions, but the same machinery is
-directly useful for informed priors.
+directly useful for informed priors. Relative to this literature, the present
+paper contributes two things: an exact Jacobian-based translation from
+quantity-space beliefs to parameter-space priors, and a hierarchical extension
+that organizes the remaining hyperprior choices through a variance
+decomposition.
 
 These contributions establish the foundation on which the present paper builds.
 What has been much less developed is how to extend predictive, quantity-based
@@ -558,26 +562,25 @@ upper bound (from the requirement that the dispersion hyperprior remain
 proper). In all cases, the feasibility constraints are computable in closed
 form from the researcher's direct prior and can be checked before estimation.
 
-\subsection{The researcher's problem restated}
+\subsection{Practical Interpretation}
 
 When $p > 1$, the decomposition applies separately to each of the $p$
 predictive quantities. Each quantity $k$ requires a direct prior mean $\dpm_k$
 and variance $\dpv_k$, a variance partition ratio $\rho_k$, and a heterogeneity
-confidence $\kappa_k$, yielding $4p$ researcher inputs in total. There is no
-free lunch here; this is the same number of inputs required to specify the
-hyperprior directly. It is therefore reasonable to ask why this reorganization
-is useful. The answer is twofold.
+confidence $\kappa_k$, yielding $4p$ researcher inputs in total. The value of
+the framework is therefore not parsimony in the number of choices, but a
+change in what those choices mean.
 
 First, the method guarantees that the hyperprior predictive matches the direct
 prior in its first two moments by construction, making the calibration more
 direct \parencite{Gabry2019, Bland2025}.
-Second, specifying a hyperprior directly is difficult: the researcher must
-simultaneously satisfy (\ref{eq:dp_total}) and ensure that the implied degree
-of population heterogeneity is reasonable, with no transparent link between
-hyperprior parameters and either goal. With a direct prior specified, $\rho$
-and $\kappa$ provide a transparent way to encode the researcher's beliefs about
-the \textit{level} of heterogeneity through $\rho$ and their \textit{confidence}
-in that level through $\kappa$.
+Second, once a direct prior has been specified, the remaining hierarchical
+choices become interpretable. The parameter $\rho$ governs how much
+uncertainty is attributed to heterogeneity across individuals rather than to
+uncertainty about the population mean, while $\kappa$ governs how tightly that
+heterogeneity level is held. The benefit is therefore operational rather than
+numerical: the researcher reasons about observables and about the structure of
+heterogeneity, rather than about opaque hyperprior parameters.
 
 The practical workflow is therefore two-step. First, specify a quantity-space
 prior for a randomly selected individual using predictive quantities that admit
@@ -1161,9 +1164,10 @@ predictive distribution should then be examined, not merely to confirm that the
 first two moments match the direct prior, which they do by construction, but
 also to verify that the allocation between population-mean uncertainty and
 individual heterogeneity is substantively reasonable. The sensitivity analysis
-in Appendix \ref{app:rk_sensitivity} shows that posterior inferences are stable
-across a range of $(\rho, \kappa)$ values, suggesting that these allocation
-choices are not fragile. Estimation then proceeds with standard MCMC sampling,
+in Appendix \ref{app:rk_sensitivity} indicates that the broad posterior
+patterns are stable across a range of $(\rho, \kappa)$ values, even though the
+magnitude of prior influence moves in the expected direction. Estimation then
+proceeds with standard MCMC sampling,
 adding the Jacobian correction term to the log-posterior when quantity-space
 specification is used.
 
@@ -1268,10 +1272,10 @@ this problem into objects that are easier to reason about. First,
 quantity-space prior specification allows researchers to state beliefs about
 predictive quantities such as certainty equivalents and choice probabilities,
 with a Jacobian correction translating those beliefs exactly to parameter
-space. Second, a variance decomposition expresses the remaining degrees of
-freedom in terms of two interpretable parameters, the variance partition ratio
-$\rho$ and the heterogeneity confidence $\kappa$, which determine how
-unconditional uncertainty is allocated across levels of the hierarchy.
+space. Second, a variance decomposition expresses how unconditional uncertainty
+is allocated across levels of the hierarchy, separating beliefs about
+population heterogeneity from beliefs about the location of the population
+mean.
 
 The application to RDU estimation illustrates the methodological value of this
 approach. In quantity space, the substantive implications of a hyperprior are
@@ -1281,14 +1285,14 @@ lotteries, and quantiles. The results also show that informative hyperpriors
 matter most where the data are weak, while leaving well-identified subjects
 largely unchanged.
 
-The framework does not eliminate prior choices; it changes their object.
-Instead of asking researchers to specify opaque hyperprior parameters directly,
-it asks them to specify beliefs about observables and about heterogeneity.
-That shift makes hierarchical prior specification easier to justify, easier to
-diagnose, and potentially easier to keep coherent across competing structural
-models that speak to the same behavioral quantities. This is the main advantage
-of the framework, and the reason quantity-space hyperprior specification may be
-useful well beyond the present application.
+The framework changes the object of prior specification. Instead of asking
+researchers to work directly with opaque hyperprior parameters, it asks them to
+reason about observables and about the structure of heterogeneity in the
+population. That shift makes hierarchical prior specification easier to
+interpret, easier to diagnose, and easier to keep coherent across competing
+structural models that speak to the same behavioral quantities. This is the
+main advantage of the framework, and the reason quantity-space hyperprior
+specification may be useful well beyond the present application.
 
 
 \subsection*{Code and Data Availability}

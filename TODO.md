@@ -3,7 +3,7 @@
 ## Project Status: JoE Paper — Single-Application (RDU with Real Data)
 
 Paper restructured for Journal of Econometrics:
-- 7 sections + 1 appendix (A: Global Injectivity)
+- 7 sections + 4 appendices
 - Single model: Beta-Beta CE-space hierarchy (`rdu_bhm_ce`)
 - Comparison model: NIG parameter-space with Gao (2022) diffuse prior (`rdu_bhm`)
 - Full pipeline: prior selection, sampling (both models), preprocessing, paper plots
@@ -37,7 +37,7 @@ Paper restructured for Journal of Econometrics:
 ## Completed
 
 ### Paper Structure & Content
-- [x] Restructure for JoE (7 sections + appendix)
+- [x] Restructure for JoE (7 sections + appendices)
 - [x] Section 3: quantity-space priors + variance decomposition + NIG example + heatmaps
 - [x] Terminology: "generated quantities" → "predictive quantities"
 - [x] Drop Appendices A (Full Covariance), C (Jacobian Correction), D (MCMC Details)

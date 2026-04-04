@@ -401,11 +401,14 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 3. **General Hyperprior Specification from Predictive Quantities** - Framework, variance decomposition, NIG example with heatmaps, κ parameterization
 4. **Application: RDU with Real Data** - Model, CE mapping, Beta-Beta hierarchy, comparison prior (Gao 2022)
 5. **Estimation** - Data, MCMC, CE overlay (3 panels), subject comparisons
-6. **Discussion** - Practical guidance, limitations, Bayes factor comparison
+6. **Discussion** - Practical guidance, limitations, extensions
 7. **Conclusion**
 
-### Appendices (1 total, loaded via `\input{}`)
-- **A**: Global Injectivity — `appendix_global_injectivity.tex`
+### Appendices (4 total, loaded via `\input{}`)
+- **A**: Hyperprior Derivation by Distributional Family — `appendix_hyperprior_families.tex`
+- **B**: Injectivity Analysis for the Change-of-Variables Prior — `appendix_global_injectivity.tex`
+- **C**: Identification from Choice Probabilities under EUT — `appendix_eut_choice_probs.tex`
+- **D**: Sensitivity to `(\rho, \kappa)` — `appendix_rk_sensitivity.tex`
 
 ### Compiling
 
@@ -445,4 +448,3 @@ reference lottery probabilities, CE bounds, and prior selection choices (ρ, κ)
 - 1 reference pair (`REFERENCE_PAIR`) identifies noise parameter λ
 - Uses `rho` and `kappa` for variance decomposition (`PRIOR_SELECTION_CE`)
 - Hyperparams are logit-scale internally; diagnostic plots show natural scale
-

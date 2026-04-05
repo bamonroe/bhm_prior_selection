@@ -346,14 +346,16 @@ Keep TODO.md current so future sessions can quickly understand project status.
 ## Writing Tone for the Paper
 
 The paper builds on the work of others and the tone must reflect that. The
-cited authors (Bland, Manderson, Segert, Gelman, Simpson, etc.) are the most
-likely reviewers. Do not characterize their methods negatively — avoid words
-like "informal," "black-box," "ad hoc," "naive," or "limited." Instead,
-describe what each contribution does and then state what the present paper adds
-as a complement or extension, not a correction. The framing is: "X did Y; I
-extend this by adding Z" — never "X is insufficient; I fix it."
+cited authors (Bland, Manderson, Segert, Gelman, Simpson, Fuglstad, etc.)
+are the most likely reviewers. The overall approach is "yes, and" rather
+than "no, but": describe what each contribution does, affirm its value,
+and then state what the present paper adds as a complement or extension.
+The framing is: "X did Y; the present paper shares that goal and extends
+it by adding Z" — never "X is insufficient; I fix it."
 
-When contrasting approaches, use neutral language: "requires numerical
+Do not characterize others' methods negatively — avoid words like
+"informal," "black-box," "ad hoc," "naive," or "limited." When
+contrasting approaches, use neutral language: "requires numerical
 optimization" rather than "requires black-box numerical optimization";
 "relies on visual calibration" rather than "relies on informal visual
 inspection." The goal is to position the contribution clearly without

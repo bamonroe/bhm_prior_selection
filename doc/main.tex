@@ -294,6 +294,21 @@ quantity-space beliefs to parameter-space priors, and a hierarchical extension
 that organizes the remaining hyperprior choices through a variance
 decomposition.
 
+In the hierarchical setting specifically, \textcite{Fuglstad2020} develop a
+framework for specifying joint priors on variance parameters by decomposing
+total variance along a tree structure, with Dirichlet or penalized complexity
+priors at each split. Their approach makes variance allocation interpretable for
+additive Gaussian models, and is implemented in the \texttt{makemyprior} R
+package. The present paper shares that goal of making variance allocation an
+explicit researcher input and extends it in a different direction. Here the
+decomposition is expressed through two scalar parameters ($\rho$ and $\kappa$)
+combined with closed-form moment-matching, which is convenient for hierarchies
+where the conditional variance may itself depend on the mean hyperparameter.
+In addition, the quantity-space mapping with Jacobian correction moves the
+elicitation problem from the model's native parameters to predictive
+quantities, allowing the variance decomposition to be applied after beliefs
+about observables have been specified.
+
 These contributions establish the foundation on which the present paper builds.
 What has been much less developed is how to extend predictive, quantity-based
 prior reasoning to hierarchical models, where the hyperprior specification
@@ -1188,16 +1203,21 @@ Second, the current framework is built around independent marginal direct
 priors over the $p$ predictive quantities. In the application, $\CE_1$,
 $\CE_2$, $\CE_3$, and $P$ are treated as independent in the elicited prior even
 though they are deterministic functions of the same underlying parameters $(r,
-\phi, \eta, \lambda)$ and are therefore necessarily dependent. The Jacobian
-correction recovers the appropriate dependence in the induced parameter-space
-prior, so the posterior is not internally inconsistent, but the elicitation
-step in quantity space does not directly encode joint beliefs about the
-quantity vector. In particular, if two reference quantities are very similar,
-independent marginal priors may impose unintended constraints on the implied
-parameter prior. In practice, this risk can be mitigated by choosing
-sufficiently distinct reference lotteries and by checking the implied joint
-prior through prior predictive draws. Extending the framework to allow direct
-joint elicitation in quantity space is an important direction for future work.
+\phi, \eta, \lambda)$ and are therefore necessarily dependent. This use of
+independent marginals is deliberate: in many applications, a researcher may be
+able to articulate marginal beliefs about several observables more easily than
+their full joint dependence. Those independent marginal beliefs do not imply an
+independent parameter prior. The Jacobian correction transports them through
+the shared structural map, so the induced prior on $(r, \phi, \eta, \lambda)$
+is generally dependent and can exhibit nonzero covariance across parameters.
+What the elicitation step does not do is directly encode the researcher's joint
+beliefs about the quantity vector itself. In particular, if two reference
+quantities are very similar, independent marginal priors may impose unintended
+constraints on the implied parameter prior. In practice, this risk can be
+mitigated by choosing sufficiently distinct reference lotteries and by checking
+the implied joint prior through prior predictive draws. Extending the framework
+to allow direct joint elicitation in quantity space is an important direction
+for future work.
 
 Finally, quantity-space specification requires an injective mapping from
 parameters to predictive quantities. This is not a cosmetic condition; it

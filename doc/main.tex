@@ -136,8 +136,8 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
 \begin{abstract}
   \begin{justify}
 
-  Bayesian hierarchical models require hyperprior specifications over population
-  parameters that researchers rarely have direct intuition about. This paper
+  Bayesian hierarchical models require hyperpriors that researchers rarely
+  have direct intuition about. This paper
   develops a framework that recasts these choices in terms of interpretable
   predictive quantities. Rather than placing priors directly on structural
   parameters, the researcher specifies beliefs about observables such as
@@ -462,7 +462,6 @@ hyperprior family with defined first and second moments. They are not tied to a
 particular distributional choice. At this stage they provide two of the four
 constraints needed to determine $\hprior{}$.
 
-%claude0
 The remaining two constraints come from decomposing $\dpv$ into components that
 have a direct interpretation. Equation (\ref{eq:total_var}) separates total
 uncertainty into expected within-population heterogeneity
@@ -500,10 +499,10 @@ moment conditions that uniquely determine $\hpriormm{}$ and $\hpriormv{}$:
 \noindent These are known quantities, and the hyperprior family is assumed
 bijective in its first two moments, so this system has a unique solution
 $\hpriormm{}$ and $\hpriormv{}$.
-%claude1
 
-With $\rho$, $\dpm$, and $\dpv$ specified, only one degree of freedom remains.
-To parameterize it in a unit-free way, I introduce the coefficient of variation
+With $\rho$, $\dpm$, and $\dpv$ specified, the remaining hierarchical choice
+concerns how uncertain the researcher is about the heterogeneity level. To
+parameterize this in a unit-free way, I introduce the coefficient of variation
 of heterogeneity:
 \begin{align}
   \label{eq:kappa_def}
@@ -748,8 +747,7 @@ in the NIG case because the conditional variance depends on both $\mu_k$ and
 $\psi_k$, so the mapping requires cross-moment calculations. The complete
 derivation, including the feasibility region and $\kappa$ bounds, is given in
 Appendix~\ref{app:beta_beta}. Because $\rho_k$ and $\kappa_k$ are unit-free
-ratios, it is reasonable to share them across quantities, reducing the
-researcher's degrees of freedom to two scalar choices.
+ratios, it is reasonable in this application to share them across quantities.
 Appendix~\ref{app:rk_sensitivity} shows that this CE-space specification
 induces a sensible prior in parameter space, centered near mild risk aversion
 with approximately linear probability weighting, without requiring the
@@ -886,7 +884,7 @@ still permitting the data to move it.\footnote{
   predictive closely tracks the direct prior.
 }
 
-The quantity-space hierarchy defines a joint prior on $(\CE_1, \CE_2, \CE_3,
+The quantity-space hierarchy defines a prior on $(\CE_1, \CE_2, \CE_3,
 P)$. The change-of-variables formula transforms this to the parameter-space
 prior $p(r, \phi, \eta, \lambda)$ used in sampling:
 \begin{equation}
@@ -1185,6 +1183,24 @@ magnitude of prior influence moves in the expected direction. Estimation then
 proceeds with standard MCMC sampling,
 adding the Jacobian correction term to the log-posterior when quantity-space
 specification is used.
+
+The framework also fits naturally alongside the iterative prior-predictive
+workflow of \textcite{Gabry2019} rather than replacing it. In practice,
+specifying a prior is rarely a one-shot exercise: researchers form beliefs,
+examine implications, and revise. \textcite{Gabry2019} make this loop explicit
+by iterating over hyperprior parameters until the prior predictive distribution
+of relevant quantities looks reasonable. The framework developed here changes
+where the iteration happens. Instead of iterating over $4p$ hyperprior
+parameters whose individual effects on observables are difficult to anticipate,
+the researcher iterates over direct prior beliefs about $p$ predictive
+quantities, with the variance decomposition handling the hierarchical layer
+automatically. When the researcher has substantive intuitions about more than
+one predictive quantity, say choice probabilities for one set of lotteries and
+relative risk aversion implied for another set, the same loop applies: specify
+direct priors over the elicited quantities, examine the implied priors over
+the others, and revise. Both the iterative and the analytic component address
+the same underlying problem at different points in the workflow, and they
+combine naturally rather than competing.
 
 \subsection{Limitations}
 

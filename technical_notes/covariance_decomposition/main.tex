@@ -1,0 +1,340 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{remark}[theorem]{Remark}
+
+% Notation
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Cov}{\mathrm{Cov}}
+\newcommand{\Corr}{\mathrm{Corr}}
+\newcommand{\dpm}{m^*}
+\newcommand{\dpv}{v^*}
+\newcommand{\dpc}{c^*}
+\newcommand{\dpr}{r^*}
+\newcommand{\CE}{\mathrm{CE}}
+
+\title{Covariance Decomposition for Quantity-Space Hyperpriors:\\
+A First Pass}
+\author{Technical Note}
+\date{9 April 2026}
+
+\begin{document}
+\maketitle
+
+\section{Motivation}
+
+The published framework decomposes the variance of a single direct prior
+$\dpv_k$ into a between-population component $\rho_k \dpv_k$ and a
+within-population component $(1-\rho_k) \dpv_k$, then parameterizes the
+heterogeneity confidence with $\kappa_k$. Each predictive quantity $k$
+gets its own univariate decomposition, and the joint direct prior is
+constructed by stacking independent marginals.
+
+This is a deliberate simplification. In some applications, the researcher
+has substantive beliefs about the joint distribution of two or more
+predictive quantities. Two CEs computed for similar lotteries are an
+obvious example: a researcher who believes the population is mostly
+risk-averse should also believe the two CEs are positively correlated,
+both within an individual (risk-averse subjects have low CEs for both
+lotteries) and across the population (a more risk-averse population has
+lower mean CEs for both). Stacking independent marginal direct priors
+ignores this dependence.
+
+This note develops a multivariate extension of the variance decomposition
+that allows the researcher to specify a joint direct prior with nonzero
+covariance between predictive quantities, and to decompose that joint
+prior into a between-population and a within-population component using
+the law of total covariance. I work through the simplest nontrivial case
+($k = 2$ CEs that the researcher believes are positively correlated) and
+sketch the open issues for the general case.
+
+\section{Setup}
+
+Let $v_i^1$ and $v_i^2$ be two predictive quantities for individual $i$
+in an exchangeable population. The researcher specifies a joint direct
+prior with means $\dpm_1, \dpm_2$, variances $\dpv_1, \dpv_2$, and
+covariance $\dpc_{12}$ (or equivalently a correlation
+$\dpr_{12} = \dpc_{12} / \sqrt{\dpv_1 \dpv_2}$). The hierarchical model
+has individual-level distributions $p(v_i^k \mid \mu_k, V_k)$ for each
+$k$, where $\mu_k$ is the population mean of quantity $k$ and $V_k$ is
+the within-population variance, both treated as random under the
+hyperprior.
+
+The univariate framework matches two moments per quantity. The bivariate
+extension matches the same two moments per quantity plus one cross-moment
+($\dpc_{12}$), giving five constraints total. With a joint hyperprior on
+$(\mu_1, \mu_2, V_1, V_2)$ that has enough free parameters, all five
+constraints can be matched by moment-matching.
+
+\section{The Law of Total Covariance}
+
+The univariate decomposition rests on the law of total variance:
+\begin{equation}
+  \dpv_k
+  = \E[\Var(v_i^k \mid \mu_k, V_k)] + \Var[\E(v_i^k \mid \mu_k, V_k)]
+  = \E[V_k] + \Var[\mu_k].
+\end{equation}
+The first term is the expected within-population variance and the
+second is the between-population variance.
+
+The bivariate analogue is the law of total covariance:
+\begin{equation}
+  \label{eq:total_cov}
+  \dpc_{12}
+  = \E[\Cov(v_i^1, v_i^2 \mid \mu_1, \mu_2, V_1, V_2)]
+  + \Cov[\E(v_i^1 \mid \cdot), \E(v_i^2 \mid \cdot)],
+\end{equation}
+which decomposes the total covariance between the two predictive
+quantities into an expected within-population covariance and a
+between-population covariance of population means:
+\begin{equation}
+  \label{eq:cov_decomp}
+  \dpc_{12}
+  = \underbrace{\E[\Cov_{\text{within}}(v_i^1, v_i^2 \mid \cdot)]}
+        _{\text{within-pop covariance}}
+  + \underbrace{\Cov[\mu_1, \mu_2]}_{\text{between-pop covariance}}.
+\end{equation}
+
+This decomposition is the natural multivariate generalization of
+$\dpv_k = \E[V_k] + \Var[\mu_k]$. It says that two individuals from the
+same population can have correlated quantities (the within term), and
+that uncertainty about the population mean of one quantity can correlate
+with uncertainty about the other (the between term).
+
+\section{Two Substantively Distinct Sources of Correlation}
+
+The two terms in~(\ref{eq:cov_decomp}) reflect distinct beliefs and the
+researcher should be able to specify them separately.
+
+\paragraph{Between-population covariance.}
+This is the part of the joint uncertainty that comes from not knowing
+which population the subjects are drawn from. If the researcher's belief
+is that the population could be either ``mostly risk-averse'' (low mean
+CE for both lotteries) or ``mostly risk-tolerant'' (high mean CE for
+both), then $\Cov[\mu_1, \mu_2] > 0$. If the researcher believes the two
+population means are independent (perhaps because they reflect different
+preference channels), then $\Cov[\mu_1, \mu_2] = 0$.
+
+\paragraph{Within-population covariance.}
+This is the part of the joint uncertainty that comes from individual
+heterogeneity even if the population means were known exactly. For two
+CEs computed from the same individual under the same preference
+parameters $(r, \phi, \eta)$, this within-individual covariance is
+mechanically nonzero: a subject with high $r$ has low CEs for both
+lotteries. The within-population covariance reflects the average
+strength of this mechanical link across individuals.
+
+\section{Parameterization Through Correlations}
+
+Just as the univariate $\rho_k$ partitions $\dpv_k$ into between and
+within components, the bivariate covariance can be parameterized through
+two correlation-like quantities, one for each component
+of~(\ref{eq:cov_decomp}).
+
+Let $\rho^{\text{pop}}_{12}$ denote the correlation between the
+population means $\mu_1$ and $\mu_2$, and let
+$\rho^{\text{wn}}_{12}$ denote the expected within-population
+correlation. Then
+\begin{equation}
+  \Cov[\mu_1, \mu_2]
+  = \rho^{\text{pop}}_{12}\,\sqrt{\Var[\mu_1]\,\Var[\mu_2]}
+  = \rho^{\text{pop}}_{12}\,\sqrt{\rho_1\,\dpv_1}\,\sqrt{\rho_2\,\dpv_2}
+\end{equation}
+and (under the simplifying assumption that the within-population
+correlation does not depend on $V_1, V_2$)
+\begin{equation}
+  \E[\Cov_{\text{within}}(v_i^1, v_i^2 \mid \cdot)]
+  \approx \rho^{\text{wn}}_{12}\,\sqrt{\E[V_1]\,\E[V_2]}
+  = \rho^{\text{wn}}_{12}\,\sqrt{(1-\rho_1)\dpv_1}\,\sqrt{(1-\rho_2)\dpv_2}.
+\end{equation}
+Substituting into~(\ref{eq:cov_decomp}) and dividing through by
+$\sqrt{\dpv_1 \dpv_2}$ gives the total correlation as a weighted
+combination of the two component correlations:
+\begin{equation}
+  \label{eq:total_corr}
+  \dpr_{12}
+  = \rho^{\text{pop}}_{12}\sqrt{\rho_1 \rho_2}
+  + \rho^{\text{wn}}_{12}\sqrt{(1-\rho_1)(1-\rho_2)}.
+\end{equation}
+
+The weights $\sqrt{\rho_1 \rho_2}$ and $\sqrt{(1-\rho_1)(1-\rho_2)}$
+are the geometric means of the variance-partition ratios for the two
+quantities. In the symmetric case $\rho_1 = \rho_2 = \rho$, these reduce
+to $\rho$ and $1 - \rho$, recovering the univariate intuition.
+Equation~(\ref{eq:total_corr}) is the bivariate generalization of the
+total-variance decomposition: it tells the researcher how the elicited
+total correlation $\dpr_{12}$ partitions into between- and
+within-population components, given the chosen variance-partition ratios.
+
+\section{Researcher Inputs in the Bivariate Case}
+
+For two quantities, the researcher specifies:
+\begin{itemize}
+  \item Marginal direct prior moments $(\dpm_k, \dpv_k)$ for each
+    quantity $k = 1, 2$.
+  \item Variance partition ratios $\rho_1, \rho_2$ as in the univariate
+    case.
+  \item Heterogeneity confidence parameters $\kappa_1, \kappa_2$ as in
+    the univariate case.
+  \item One additional input governing the joint structure: either the
+    between-population correlation $\rho^{\text{pop}}_{12}$, or the
+    within-population correlation $\rho^{\text{wn}}_{12}$, or the total
+    correlation $\dpr_{12}$ (with a choice of how to partition it).
+\end{itemize}
+This is one extra researcher input per pair of quantities. With $p$
+quantities the joint specification adds $\binom{p}{2}$ correlation
+inputs in addition to the $4p$ univariate inputs already required.
+
+A natural way to organize these is to elicit the total correlation
+$\dpr_{12}$ (the easiest object for a researcher to reason about) and
+then choose how to split it between the two components. Two practical
+defaults are:
+\begin{itemize}
+  \item \textit{Match the variance partition.} Set
+    $\rho^{\text{pop}}_{12} = \rho^{\text{wn}}_{12} = \dpr_{12}$.
+    This is consistent with the univariate ratio:
+    the same fraction of the joint uncertainty is allocated to the
+    between-population component as in the marginal case.
+  \item \textit{Concentrate within.} Set
+    $\rho^{\text{pop}}_{12} = 0$ and let the within-population
+    correlation absorb all of $\dpr_{12}$. This reflects a belief that
+    the two quantities co-vary because they are functions of the same
+    individual parameters, but not because the population mean is
+    uncertain in a way that links them.
+\end{itemize}
+The first default is the most parsimonious starting point. The second
+is appropriate when the researcher believes $\Cov[\mu_1, \mu_2] = 0$ on
+substantive grounds.
+
+\section{A Concrete Example: Two Positively Correlated CEs}
+
+Consider two binary lotteries from the running example: $L_1$ paying
+$(\$10, \$50)$ with probability $0.25$ on the high outcome, and $L_2$
+paying $(\$20, \$40)$ with probability $0.5$. Both lotteries have
+expected value $\$20$. Suppose the researcher elicits the following
+direct prior beliefs:
+\begin{align*}
+  \dpm_1 &= 18.5,
+  & \dpv_1 &= 2.08,
+  & \dpr_{12} &= 0.6, \\
+  \dpm_2 &= 28.5,
+  & \dpv_2 &= 2.05.
+\end{align*}
+The marginal moments come from the published application. The joint
+input is the total correlation $\dpr_{12} = 0.6$, reflecting a belief
+that subjects with low $\CE_1$ also tend to have low $\CE_2$, both
+within the population (because the mechanical channel through $r$ is
+strong) and between possible populations (because the population is
+either mostly risk-averse or mostly risk-tolerant).
+
+Take the symmetric variance-partition $\rho_1 = \rho_2 = 0.2$ used in
+the published application. Under the parsimonious default
+$\rho^{\text{pop}}_{12} = \rho^{\text{wn}}_{12} = 0.6$,
+equation~(\ref{eq:total_corr}) gives
+\[
+  \dpr_{12} = 0.6 \cdot 0.2 + 0.6 \cdot 0.8 = 0.6,
+\]
+as required. The between-population covariance is
+\[
+  \Cov[\mu_1, \mu_2]
+  = 0.6 \cdot \sqrt{0.2 \cdot 2.08 \cdot 0.2 \cdot 2.05}
+  \approx 0.246,
+\]
+and the expected within-population covariance is
+\[
+  \E[\Cov_{\text{within}}]
+  = 0.6 \cdot \sqrt{0.8 \cdot 2.08 \cdot 0.8 \cdot 2.05}
+  \approx 0.984.
+\]
+These two pieces sum to $\dpc_{12} = 0.6 \cdot \sqrt{2.08 \cdot 2.05}
+\approx 1.230$, as required by~(\ref{eq:cov_decomp}).
+
+\section{Implementing the Joint Hyperprior}
+
+The decomposition above tells the researcher how the elicited
+correlation partitions into between- and within-population components.
+The remaining problem is to construct a joint hyperprior over
+$(\mu_1, \mu_2, V_1, V_2)$ whose induced moments match these targets.
+For the bivariate case, this requires choosing:
+\begin{itemize}
+  \item A joint distribution for $(\mu_1, \mu_2)$ with specified means,
+    variances, and correlation $\rho^{\text{pop}}_{12}$.
+  \item A joint distribution for the individual-level draws
+    $(v_i^1, v_i^2)$ given $(\mu_1, \mu_2, V_1, V_2)$ that delivers the
+    target within-population correlation.
+\end{itemize}
+
+For Normal-Inverse-Gamma hierarchies, both pieces are straightforward:
+$(\mu_1, \mu_2)$ can be jointly Normal with the required correlation,
+and the individual-level draws can be jointly Normal with a correlation
+matrix encoding $\rho^{\text{wn}}_{12}$. The variances $V_1, V_2$ can
+be marginally Inverse-Gamma and either independent or coupled through a
+copula.
+
+For the Beta-Beta hierarchy used in the application, the joint
+construction is more involved. Bivariate Beta distributions on the
+unit square exist (Sarmanov, FGM, copula constructions) but the
+moment-matching from $(\rho^{\text{pop}}_{12}, \rho^{\text{wn}}_{12})$
+to the parameters of the joint distribution is no longer closed-form.
+A practical approach is to sample-based moment-matching: simulate from
+the candidate joint hyperprior, compute the empirical correlations, and
+adjust the hyperparameters until they match the targets. This
+sacrifices the closed-form solution of the univariate framework but
+preserves the interpretability of the inputs.
+
+\section{Open Issues}
+
+Three issues remain for the general case.
+
+\textit{Higher-order joint moments.} The decomposition above matches
+first and second moments only. The bivariate generalization of $\kappa$
+would require parameterizing the joint variance-of-variances in some
+interpretable way, which is not obvious.
+
+\textit{Feasibility regions.} For the univariate Beta-Beta hierarchy
+the feasibility region is already a proper subset of $(0,1) \times
+(0,\infty)$. With joint inputs the feasibility region becomes
+higher-dimensional and may shrink considerably. Mapping out feasible
+$(\rho^{\text{pop}}_{12}, \rho^{\text{wn}}_{12})$ pairs for a given
+marginal specification is an open problem.
+
+\textit{Beyond pairs.} For $p > 2$ the joint specification involves a
+$p \times p$ correlation matrix at each level, with positive
+semidefiniteness constraints linking the entries. Eliciting and
+verifying these constraints is the main practical barrier to scaling
+beyond bivariate joint priors.
+
+\section{Summary}
+
+The univariate variance decomposition extends naturally to a bivariate
+covariance decomposition via the law of total covariance. The
+researcher specifies one extra input per pair of quantities (a total
+correlation $\dpr_{12}$, or equivalently a between-population
+correlation), and the decomposition partitions it into between- and
+within-population components using the same variance-partition ratios
+$\rho_1, \rho_2$ already required by the univariate framework.
+
+The implementation problem is the main remaining gap. For
+Normal-Inverse-Gamma hierarchies it is straightforward; for Beta-Beta
+and other non-Gaussian families it requires either sample-based
+moment-matching or new analytical work on bivariate distributions with
+prescribed marginals and correlation. The extension to $p > 2$ is
+conceptually clean but practically demanding, mainly because of the
+positive-semidefiniteness constraints on the joint correlation matrix.
+
+\end{document}

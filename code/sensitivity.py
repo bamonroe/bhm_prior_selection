@@ -79,7 +79,7 @@ def _sample_beta_beta_ce(
 
 def compute_sensitivity_grid(
     ce_direct_prior: Dict,
-    rho_values: List[float],
+    alpha_values: List[float],
     kappa_values: List[float],
     quantity_idx: int = 0,
     n_mc_draws: int = 50000,
@@ -101,7 +101,7 @@ def compute_sensitivity_grid(
 
     Args:
         ce_direct_prior: CE-space direct prior (same format as main.py DIRECT_PRIOR_CE)
-        rho_values: List of ρ values to evaluate
+        alpha_values: List of ρ values to evaluate
         kappa_values: List of κ values to evaluate
         quantity_idx: Which quantity to analyze (0=CE1, 1=CE2, 2=CE3, 3=pchoice)
         n_mc_draws: MC draws per grid point
@@ -110,10 +110,10 @@ def compute_sensitivity_grid(
 
     Returns:
         Dict with keys:
-            'rho_values', 'kappa_values': 1D arrays
-            'between_sd': (n_rho, n_kappa) — robust SD of population-mean CEs
-            'within_sd': (n_rho, n_kappa) — median within-population CE SD
-            'within_iqr': (n_rho, n_kappa) — IQR of within-population CE SDs
+            'alpha_values', 'kappa_values': 1D arrays
+            'between_sd': (n_alpha, n_kappa) — robust SD of population-mean CEs
+            'within_sd': (n_alpha, n_kappa) — median within-population CE SD
+            'within_iqr': (n_alpha, n_kappa) — IQR of within-population CE SDs
     """
     from prior_selection import ce_space_prior_selection, derive_hyperpriors_beta
 
@@ -124,25 +124,25 @@ def compute_sensitivity_grid(
     bounds_lo = np.array([ce_direct_prior[k]['lo'] for k in quantity_keys])
     bounds_hi = np.array([ce_direct_prior[k]['hi'] for k in quantity_keys])
 
-    n_rho = len(rho_values)
+    n_alpha = len(alpha_values)
     n_kappa = len(kappa_values)
 
     # Output arrays
-    between_sd = np.zeros((n_rho, n_kappa))
-    within_sd = np.zeros((n_rho, n_kappa))
-    within_iqr = np.zeros((n_rho, n_kappa))
+    between_sd = np.zeros((n_alpha, n_kappa))
+    within_sd = np.zeros((n_alpha, n_kappa))
+    within_iqr = np.zeros((n_alpha, n_kappa))
 
-    total = n_rho * n_kappa
+    total = n_alpha * n_kappa
     count = 0
 
-    for i, rho in enumerate(rho_values):
+    for i, alpha in enumerate(alpha_values):
         for j, kappa in enumerate(kappa_values):
             count += 1
-            print(f"  [{count}/{total}] ρ={rho:.2f}, κ={kappa:.2f}")
+            print(f"  [{count}/{total}] ρ={alpha:.2f}, κ={kappa:.2f}")
 
             # Derive Beta-Beta hyperpriors
             hp = derive_hyperpriors_beta(ps, bounds_lo, bounds_hi,
-                                         rho=rho, kappa=kappa)
+                                         alpha=alpha, kappa=kappa)
 
             # Sample prior predictive CEs: shape (n_mc_draws, n_subjects)
             grid_seed = seed + i * n_kappa + j
@@ -162,7 +162,7 @@ def compute_sensitivity_grid(
             within_iqr[i, j] = q75_s - q25_s
 
     return {
-        'rho_values': np.array(rho_values),
+        'alpha_values': np.array(alpha_values),
         'kappa_values': np.array(kappa_values),
         'between_sd': between_sd,
         'within_sd': within_sd,
@@ -187,7 +187,7 @@ def format_latex_table(results: Dict, prizes: np.ndarray,
     Returns:
         LaTeX table string
     """
-    rho_vals = results['rho_values']
+    alpha_vals = results['alpha_values']
     kappa_vals = results['kappa_values']
     n_kappa = len(kappa_vals)
     ncol = n_kappa + 1
@@ -203,14 +203,14 @@ def format_latex_table(results: Dict, prizes: np.ndarray,
     prize_str = '/'.join(f'\\${p:.0f}' for p in prizes)
     prob_str = '/'.join(f'{p:.1f}' for p in probs)
     lines.append(f'\\caption{{Hierarchical variance allocation across '
-                 f'$(\\rho, \\kappa)$ grid. '
+                 f'$(\\alpha, \\kappa)$ grid. '
                  f'Reference lottery: ${prize_str}$ with probabilities '
                  f'$({prob_str})$, $\\text{{EV}} = \\${ev:.0f}$.}}')
     lines.append(r'\label{tab:sensitivity}')
     lines.append(r'\begin{tabular}{' + col_spec + '}')
     lines.append(r'\toprule')
 
-    header = r'$\rho$'
+    header = r'$\alpha$'
     for k in kappa_vals:
         header += f' & $\\kappa = {k:.2f}$'
     header += r' \\'
@@ -223,8 +223,8 @@ def format_latex_table(results: Dict, prizes: np.ndarray,
     ]:
         lines.append(r'\midrule')
         lines.append(f'\\multicolumn{{{ncol}}}{{l}}{{\\textit{{{label}}}}} \\\\')
-        for i, rho in enumerate(rho_vals):
-            row = f'{rho:.2f}'
+        for i, alpha in enumerate(alpha_vals):
+            row = f'{alpha:.2f}'
             for j in range(n_kappa):
                 row += f' & ${results[key][i, j]:.2f}$'
             row += r' \\'
@@ -241,7 +241,7 @@ def run_sensitivity(
     ce_direct_prior: Dict,
     output_dir: Path,
     lottery: Optional[Dict] = None,
-    rho_values: Optional[List[float]] = None,
+    alpha_values: Optional[List[float]] = None,
     kappa_values: Optional[List[float]] = None,
     quantity_idx: int = 0,
     n_mc_draws: int = 50000,
@@ -255,15 +255,15 @@ def run_sensitivity(
         ce_direct_prior: CE-space direct prior specification
         output_dir: Path to save results
         lottery: Dict with 'prizes' and 'probs' keys (for table caption)
-        rho_values: ρ grid values (default: [0.05, 0.1, 0.2, 0.3, 0.5])
+        alpha_values: ρ grid values (default: [0.05, 0.1, 0.2, 0.3, 0.5])
         kappa_values: κ grid values (default: [0.15, 0.25, 0.5, 1.0])
         quantity_idx: Which quantity to analyze (0=CE1)
         n_mc_draws: MC draws per grid point
         n_subjects: Subjects per MC draw
         seed: Random seed
     """
-    if rho_values is None:
-        rho_values = [0.05, 0.1, 0.2, 0.3, 0.5]
+    if alpha_values is None:
+        alpha_values = [0.05, 0.1, 0.2, 0.3, 0.5]
     if kappa_values is None:
         kappa_values = [0.15, 0.25, 0.50, 1.00]
 
@@ -284,9 +284,9 @@ def run_sensitivity(
     ev = np.dot(prizes, probs) if probs is not None else np.mean(prizes)
     prob_str = ', '.join(f'{p:.1f}' for p in probs) if probs is not None else 'equal'
     quantity_names = ['CE₁', 'CE₂', 'CE₃', 'P(choose L₁)']
-    print(f"Sensitivity analysis over {len(rho_values)} × {len(kappa_values)} grid")
+    print(f"Sensitivity analysis over {len(alpha_values)} × {len(kappa_values)} grid")
     print(f"  Quantity: {quantity_names[quantity_idx]}")
-    print(f"  ρ ∈ {rho_values}")
+    print(f"  ρ ∈ {alpha_values}")
     print(f"  κ ∈ {kappa_values}")
     print(f"  Reference lottery: prizes={prizes}, probs=({prob_str}), EV=${ev:.0f}")
     print(f"  MC draws: {n_mc_draws}, subjects/draw: {n_subjects}")
@@ -294,7 +294,7 @@ def run_sensitivity(
 
     results = compute_sensitivity_grid(
         ce_direct_prior=ce_direct_prior,
-        rho_values=rho_values,
+        alpha_values=alpha_values,
         kappa_values=kappa_values,
         quantity_idx=quantity_idx,
         n_mc_draws=n_mc_draws,
@@ -326,8 +326,8 @@ def run_sensitivity(
         header += f"  {'κ=' + f'{k:.2f}':>12}"
     print(header)
     print("-" * 70)
-    for i, rho in enumerate(rho_values):
-        row = f"{rho:>6.2f}"
+    for i, alpha in enumerate(alpha_values):
+        row = f"{alpha:>6.2f}"
         for j in range(len(kappa_values)):
             row += f"  {results['between_sd'][i, j]:>10.2f}"
         print(row)
@@ -342,8 +342,8 @@ def run_sensitivity(
         header += f"  {'κ=' + f'{k:.2f}':>12}"
     print(header)
     print("-" * 70)
-    for i, rho in enumerate(rho_values):
-        row = f"{rho:>6.2f}"
+    for i, alpha in enumerate(alpha_values):
+        row = f"{alpha:>6.2f}"
         for j in range(len(kappa_values)):
             row += f"  {results['within_sd'][i, j]:>10.2f}"
         print(row)
@@ -358,8 +358,8 @@ def run_sensitivity(
         header += f"  {'κ=' + f'{k:.2f}':>12}"
     print(header)
     print("-" * 70)
-    for i, rho in enumerate(rho_values):
-        row = f"{rho:>6.2f}"
+    for i, alpha in enumerate(alpha_values):
+        row = f"{alpha:>6.2f}"
         for j in range(len(kappa_values)):
             row += f"  {results['within_iqr'][i, j]:>10.2f}"
         print(row)

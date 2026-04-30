@@ -41,7 +41,7 @@ Target: Journal of Econometrics, full-length paper (~30-35 pages with appendices
 
 2. **Distribution-free variance decomposition** — Reduce 4p hyperprior choices
    to 2 interpretable parameters:
-   - **ρ (rho):** Variance partition ratio — fraction of variance from
+   - **α (alpha):** Variance partition ratio — fraction of variance from
      uncertainty about population mean vs. population heterogeneity
    - **κ (kappa):** Coefficient of variation of heterogeneity — replaces α₀
      with a distribution-free measure: κ = SD[σ²]/E[σ²]
@@ -100,7 +100,7 @@ A copy is in the `lit/` directory.
 - **`code/gen_paper_data.py`** - Generate `paper_data.npz` for pythontex
   - Data summaries (n_subjects, n_choices, prize/probability ranges)
   - CE-space config: direct prior bounds, reference lotteries, reference pair, prior selection
-  - NPZ keys: `ce_mu_1`, `ce_lo_1`, `ref_lot_1_prize_1`, `ref_pair_A_prob_2`, `ce_ps_rho`, etc.
+  - NPZ keys: `ce_mu_1`, `ce_lo_1`, `ref_lot_1_prize_1`, `ref_pair_A_prob_2`, `ce_ps_alpha`, etc.
 
 - **`code/plotting.py`** - Diagnostic plotting for CE-space model
   - CE hyperparameter plots apply sigmoid transform to display natural scale
@@ -126,7 +126,7 @@ For each quantity k on [lo, hi], normalized to z ∈ [0,1]:
 - z_ik | μ_k, ψ_k ~ Beta(μ(1-ψ)/ψ, (1-μ)(1-ψ)/ψ)
 
 Researcher choices:
-- **ρ (rho):** Fraction of variance from uncertainty about population mean (default: 0.2)
+- **α (alpha):** Fraction of variance from uncertainty about population mean (default: 0.2)
 - **κ (kappa):** Coefficient of variation of heterogeneity (default: 0.25)
   - Distribution-free: defined without reference to any specific family
   - Interpretable as "confidence in heterogeneity specification"
@@ -410,7 +410,7 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 - **A**: Hyperprior Derivation by Distributional Family — `appendix_hyperprior_families.tex`
 - **B**: Injectivity Analysis for the Change-of-Variables Prior — `appendix_global_injectivity.tex`
 - **C**: Identification from Choice Probabilities under EUT — `appendix_eut_choice_probs.tex`
-- **D**: Sensitivity to `(\rho, \kappa)` — `appendix_rk_sensitivity.tex`
+- **D**: Sensitivity to `(\alpha, \kappa)` — `appendix_rk_sensitivity.tex`
 
 ### Compiling
 
@@ -448,5 +448,5 @@ reference lottery probabilities, CE bounds, and prior selection choices (ρ, κ)
 - Beta-Beta hierarchy: (mu, sigma2, lo, hi) per quantity on bounded domain
 - 3 reference lotteries (`REFERENCE_LOTTERIES`) define CE quantities
 - 1 reference pair (`REFERENCE_PAIR`) identifies noise parameter λ
-- Uses `rho` and `kappa` for variance decomposition (`PRIOR_SELECTION_CE`)
+- Uses `alpha` and `kappa` for variance decomposition (`PRIOR_SELECTION_CE`)
 - Hyperparams are logit-scale internally; diagnostic plots show natural scale

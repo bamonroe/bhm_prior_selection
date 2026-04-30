@@ -105,7 +105,7 @@ DIRECT_PRIOR_CE = build_ce_direct_prior(
 
 # Researcher choices for CE-space variance decomposition
 PRIOR_SELECTION_CE = {
-    'rho': 0.2,
+    'alpha': 0.2,
     'kappa': 0.25,
 }
 
@@ -157,13 +157,13 @@ DIAGNOSTIC_PLOT_CONFIG = {
 
 # Sensitivity analysis grid
 SENSITIVITY_CONFIG = {
-    'rho_values': [0.05, 0.1, 0.2, 0.3, 0.5],
+    'alpha_values': [0.05, 0.1, 0.2, 0.3, 0.5],
     'kappa_values': [0.15, 0.25, 0.50, 1.00],
     'n_mc_draws': 50000,
     'n_subjects': 50,
 }
 
-# (rho, kappa) sensitivity: full model re-estimation at alternative configs
+# (alpha, kappa) sensitivity: full model re-estimation at alternative configs
 RK_SENSITIVITY_CONFIGS = [
     (0.2, 1.50),   # same heterogeneity, much less confidence
     (0.8, 0.25),   # most variance from mean uncertainty, confident

@@ -1,4 +1,4 @@
-\appsection{Sensitivity to $(\rho, \kappa)$}
+\appsection{Sensitivity to $(\alpha, \kappa)$}
 \label{app:rk_sensitivity}
 %==============================================================================
 
@@ -22,25 +22,25 @@ pp_r_median = fmt(float(_pp.get('pp_median_r', 1.08)))
 \end{pycode}
 
 This appendix reports results from re-estimating the CE-space Beta-Beta model
-at three additional $(\rho, \kappa)$ configurations beyond the baseline
-($\rho = 0.2$, $\kappa = 0.25$). The four configurations span the corners of
+at three additional $(\alpha, \kappa)$ configurations beyond the baseline
+($\alpha = 0.2$, $\kappa = 0.25$). The four configurations span the corners of
 the interpretable region:
 
 \begin{center}
 \begin{tabular}{lcc}
   \toprule
-  Configuration & $\rho$ & $\kappa$ \\
+  Configuration & $\alpha$ & $\kappa$ \\
   \midrule
   Baseline        & 0.2 & 0.25 \\
   High $\kappa$   & 0.2 & 1.50 \\
-  High $\rho$     & 0.8 & 0.25 \\
+  High $\alpha$     & 0.8 & 0.25 \\
   Both high       & 0.8 & 1.50 \\
   \bottomrule
 \end{tabular}
 \end{center}
 
-\noindent Low $\rho$ (0.2) allocates most direct prior variance to
-within-population heterogeneity; high $\rho$ (0.8) attributes most of it to
+\noindent Low $\alpha$ (0.2) allocates most direct prior variance to
+within-population heterogeneity; high $\alpha$ (0.8) attributes most of it to
 uncertainty about the population mean. Low $\kappa$ (0.25) expresses high
 confidence in the heterogeneity level; high $\kappa$ (1.50) expresses
 substantial uncertainty.
@@ -52,7 +52,7 @@ main text. The only thing that changes is the
 hierarchical allocation of prior variance.
 
 \begin{pycode}
-_labels = ['Baseline', r'High $\kappa$', r'High $\rho$', 'Both high']
+_labels = ['Baseline', r'High $\kappa$', r'High $\alpha$', 'Both high']
 _rows = []
 _rows.append(f"  {_labels[0]:20s} & 0.2 & 0.25 & {_bl_w} & {_bl_m} & {_bl_d} & {_bl_pct} \\\\")
 for _i in range(len(_s_rho)):
@@ -60,7 +60,7 @@ for _i in range(len(_s_rho)):
 print(r"""\begin{center}
 \begin{tabular}{lcccccc}
   \toprule
-  Configuration & $\rho$ & $\kappa$ & Well & Moderate & Dominated & Dominated (\%) \\
+  Configuration & $\alpha$ & $\kappa$ & Well & Moderate & Dominated & Dominated (\%) \\
   \midrule
 """ + "\n".join(_rows) + r"""
   \bottomrule
@@ -68,9 +68,9 @@ print(r"""\begin{center}
 \end{center}""")
 \end{pycode}
 
-The table makes the main pattern clear. Raising $\rho$ increases the share of
+The table makes the main pattern clear. Raising $\alpha$ increases the share of
 prior-dominated subjects from \py{_bl_pct}\% in the baseline to
-\py{_s_pct[1]}\% when $\rho = 0.8$ and $\kappa = 0.25$, consistent
+\py{_s_pct[1]}\% when $\alpha = 0.8$ and $\kappa = 0.25$, consistent
 with allocating more uncertainty to population-mean variation. Raising
 $\kappa$ alone lowers the prior-dominated share to \py{_s_pct[0]}\%,
 reflecting the weaker concentration of the hyperprior over heterogeneity. The
@@ -83,17 +83,17 @@ prior.
 The following figures show the CDF difference between the informative and
 diffuse posteriors for each configuration, using the same format as
 Figure~\ref{fig:cdf_diff} in the main text. Read together, they separate the
-roles of $\kappa$ and $\rho$ before showing how the two interact when both are
+roles of $\kappa$ and $\alpha$ before showing how the two interact when both are
 large.
 
 \begin{figure}[htbp]
   \centering
-  \mycaption{CDF differences: $\rho = 0.2$, $\kappa = 1.50$}
+  \mycaption{CDF differences: $\alpha = 0.2$, $\kappa = 1.50$}
   \label{fig:cdf_diff_rho0p2_kappa1p50}
   \includegraphics[width=0.85\textwidth]{../plots/paper/rho0p2_kappa1p50/cdf_difference_by_subject.pdf}
 \end{figure}
 
-With $\kappa$ raised to 1.50 while $\rho$ remains at 0.2, the hyperprior
+With $\kappa$ raised to 1.50 while $\alpha$ remains at 0.2, the hyperprior
 over heterogeneity is substantially less concentrated. Relative to the
 baseline, the CDF differences are slightly attenuated rather than qualitatively
 changed, which matches the lower prior-dominated share reported in the table
@@ -102,32 +102,32 @@ regularization without changing where it shows up.
 
 \begin{figure}[htbp]
   \centering
-  \mycaption{CDF differences: $\rho = 0.8$, $\kappa = 0.25$}
+  \mycaption{CDF differences: $\alpha = 0.8$, $\kappa = 0.25$}
   \label{fig:cdf_diff_rho0p8_kappa0p25}
   \includegraphics[width=0.85\textwidth]{../plots/paper/rho0p8_kappa0p25/cdf_difference_by_subject.pdf}
 \end{figure}
 
-By contrast, raising $\rho$ to 0.8 allocates the majority of direct prior
+By contrast, raising $\alpha$ to 0.8 allocates the majority of direct prior
 variance to uncertainty about the population mean, leaving less room for
 individual heterogeneity. This produces the highest prior-dominated share
 across the four configurations, with larger CDF deviations for the same
-prior-sensitive subjects. So the main effect of higher $\rho$ is not to create
+prior-sensitive subjects. So the main effect of higher $\alpha$ is not to create
 new problem cases, but to amplify prior influence for subjects who were already
 weakly identified.
 
 \begin{figure}[htbp]
   \centering
-  \mycaption{CDF differences: $\rho = 0.8$, $\kappa = 1.50$}
+  \mycaption{CDF differences: $\alpha = 0.8$, $\kappa = 1.50$}
   \label{fig:cdf_diff_rho0p8_kappa1p50}
   \includegraphics[width=0.85\textwidth]{../plots/paper/rho0p8_kappa1p50/cdf_difference_by_subject.pdf}
 \end{figure}
 
-When both $\rho$ and $\kappa$ are high, the effects partially offset. The
-large $\rho$ concentrates heterogeneity while the large $\kappa$ expresses
+When both $\alpha$ and $\kappa$ are high, the effects partially offset. The
+large $\alpha$ concentrates heterogeneity while the large $\kappa$ expresses
 uncertainty about that concentrated specification, returning the prior-dominated
 share close to the baseline level. This final panel is therefore useful mainly
 as an interaction check: it shows that the separate directional effects of
-$\rho$ and $\kappa$ remain visible, but neither dominates completely once both
+$\alpha$ and $\kappa$ remain visible, but neither dominates completely once both
 are moved away from the baseline.
 
 \subsection{Predictive CE Overlays}
@@ -135,31 +135,31 @@ are moved away from the baseline.
 The following figures compare the hyper-posterior predictive CE distributions
 across configurations. They present the same sensitivity exercise in levels
 rather than CDF differences, making it easier to see whether the substantive
-ordering of lottery evaluations changes as $(\rho,\kappa)$ moves.
+ordering of lottery evaluations changes as $(\alpha,\kappa)$ moves.
 
 \begin{figure}[htbp]
   \centering
-  \mycaption{Predictive CE overlay: $\rho = 0.2$, $\kappa = 1.50$}
+  \mycaption{Predictive CE overlay: $\alpha = 0.2$, $\kappa = 1.50$}
   \label{fig:ce_overlay_rho0p2_kappa1p50}
   \includegraphics[width=\textwidth]{../plots/paper/rho0p2_kappa1p50/predictive_ce_overlay.pdf}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \mycaption{Predictive CE overlay: $\rho = 0.8$, $\kappa = 0.25$}
+  \mycaption{Predictive CE overlay: $\alpha = 0.8$, $\kappa = 0.25$}
   \label{fig:ce_overlay_rho0p8_kappa0p25}
   \includegraphics[width=\textwidth]{../plots/paper/rho0p8_kappa0p25/predictive_ce_overlay.pdf}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \mycaption{Predictive CE overlay: $\rho = 0.8$, $\kappa = 1.50$}
+  \mycaption{Predictive CE overlay: $\alpha = 0.8$, $\kappa = 1.50$}
   \label{fig:ce_overlay_rho0p8_kappa1p50}
   \includegraphics[width=\textwidth]{../plots/paper/rho0p8_kappa1p50/predictive_ce_overlay.pdf}
 \end{figure}
 
 Across all three alternatives, the overlay figures show that changing
-$(\rho,\kappa)$ mostly affects dispersion and shrinkage rather than qualitative
+$(\alpha,\kappa)$ mostly affects dispersion and shrinkage rather than qualitative
 ordering. The same lottery-specific pattern remains visible across
 configurations, with the largest differences concentrated in the wider-range
 lotteries where the informative prior has more room to move posterior mass.
@@ -228,7 +228,7 @@ models. The data are sufficiently informative that the prior specification has
 negligible influence on the structural parameter estimates.
 
 Taken together, these sensitivity checks reinforce the main text's
-interpretation of $(\rho, \kappa)$. Changing the variance allocation and the
+interpretation of $(\alpha, \kappa)$. Changing the variance allocation and the
 researcher's confidence in that allocation does move the induced prior and, for
 some weakly identified subjects, can shift posterior inferences in noticeable
 ways. But the broad qualitative pattern is stable across the four
@@ -236,5 +236,5 @@ configurations: the same subset of subjects remains prior-sensitive, the
 lottery-specific ordering of posterior predictive CEs is preserved, and the
 informative prior continues to act primarily as a regularizer where the data are
 least informative. In that sense, the substantive conclusions are not tied to a
-single baseline choice of $(\rho, \kappa)$, even though the magnitude of prior
+single baseline choice of $(\alpha, \kappa)$, even though the magnitude of prior
 influence varies in the expected direction across configurations.

@@ -301,7 +301,7 @@ priors at each split. Their approach makes variance allocation interpretable for
 additive Gaussian models, and is implemented in the \texttt{makemyprior} R
 package. The present paper shares that goal of making variance allocation an
 explicit researcher input and extends it in a different direction. Here the
-decomposition is expressed through two scalar parameters ($\rho$ and $\kappa$)
+decomposition is expressed through two scalar parameters ($\alpha$ and $\kappa$)
 combined with closed-form moment-matching, which is convenient for hierarchies
 where the conditional variance may itself depend on the mean hyperparameter.
 In addition, the quantity-space mapping with Jacobian correction moves the
@@ -468,39 +468,39 @@ uncertainty into expected within-population heterogeneity
 ($\Ehpv{\hypev{}}$) and uncertainty about the population mean
 ($\Varhpm{\hypem{}}$). I parameterize this partition with the ratio
 \begin{align}
-  \label{eq:rho_def}
-  \rho \, v^* &= \Varhpm{\hypem{}} \\
-  \label{eq:one_minus_rho}
-  (1 - \rho) \, v^* &= \Ehpv{\hypev{}}
+  \label{eq:alpha_def}
+  \alpha \, v^* &= \Varhpm{\hypem{}} \\
+  \label{eq:one_minus_alpha}
+  (1 - \alpha) \, v^* &= \Ehpv{\hypev{}}
 \end{align}
-where $\rho \in (0, 1)$ is the variance partition ratio, chosen by the
+where $\alpha \in (0, 1)$ is the variance partition ratio, chosen by the
 researcher.\footnote{
-  The ratio $\rho$ is numerically equivalent to the variance partition
+  The ratio $\alpha$ is numerically equivalent to the variance partition
   coefficient \parencite{Goldstein2002} and the intraclass correlation
   coefficient, which are widely used as posterior diagnostics in multilevel
   modelling. \textcite{Fuglstad2020} also use variance proportions as prior
   inputs, but they partition variance across model components, with the
   proportions treated as random variables. In the proposed framework, this
   ratio is an input specified by the researcher, and is not estimated.
-} Because $\rho$ is a ratio of variances, it is unit-free. The same value of
-$\rho$ therefore expresses the same structural belief about the balance between
+} Because $\alpha$ is a ratio of variances, it is unit-free. The same value of
+$\alpha$ therefore expresses the same structural belief about the balance between
 population-mean uncertainty and individual heterogeneity regardless of the
-units of the quantity being modeled. Low $\rho$ reflects a belief in
-substantial heterogeneity; high $\rho$ reflects a belief that most uncertainty
+units of the quantity being modeled. Low $\alpha$ reflects a belief in
+substantial heterogeneity; high $\alpha$ reflects a belief that most uncertainty
 comes from the location of the population mean.
 
-Equations (\ref{eq:iterated_exp}) and (\ref{eq:rho_def}) together provide two
+Equations (\ref{eq:iterated_exp}) and (\ref{eq:alpha_def}) together provide two
 moment conditions that uniquely determine $\hpriormm{}$ and $\hpriormv{}$:
 \begin{align}
 \label{eq:hyperm_solved}
 \Ehpm{\hypem{}} &= m^* \\
-\Varhpm{\hypem{}} &= \rho \, v^*
+\Varhpm{\hypem{}} &= \alpha \, v^*
 \end{align}
 \noindent These are known quantities, and the hyperprior family is assumed
 bijective in its first two moments, so this system has a unique solution
 $\hpriormm{}$ and $\hpriormv{}$.
 
-With $\rho$, $\dpm$, and $\dpv$ specified, the remaining hierarchical choice
+With $\alpha$, $\dpm$, and $\dpv$ specified, the remaining hierarchical choice
 concerns how uncertain the researcher is about the heterogeneity level. To
 parameterize this in a unit-free way, I introduce the coefficient of variation
 of heterogeneity:
@@ -508,21 +508,21 @@ of heterogeneity:
   \label{eq:kappa_def}
   \begin{split}
     \kappa &\coloneqq \frac{\SDhpv{\hypev{}}}{\Ehpv{\hypev{}}} \\[.75em]
-    {} &\coloneqq \frac{\SDhpv{\hypev{}}}{(1 - \rho) \, v^*}
+    {} &\coloneqq \frac{\SDhpv{\hypev{}}}{(1 - \alpha) \, v^*}
   \end{split}
 \end{align}
 which measures relative uncertainty about the variance hyperparameter. As
 $\kappa \to 0$, the researcher is expressing near-certainty that population
-heterogeneity is close to its target level $(1-\rho)v^*$. Larger values of
+heterogeneity is close to its target level $(1-\alpha)v^*$. Larger values of
 $\kappa$ represent greater uncertainty. At $\kappa = 1$ the standard deviation
 of the variance equals its mean, and $\kappa > 1$ indicates very diffuse
-beliefs about heterogeneity. Equations (\ref{eq:one_minus_rho}) and
+beliefs about heterogeneity. Equations (\ref{eq:one_minus_alpha}) and
 (\ref{eq:kappa_def}) then provide two moment conditions that uniquely
 determine $\hpriorvm{}$ and $\hpriorvv{}$:
 \begin{align}
 \label{eq:hyperv_solved}
-\Ehpv{\hypev{}} &= (1 - \rho) \, v^* \\
-\Varhpv{\hypev{}} &= \kappa^2 (1 - \rho)^2 (v^*)^2
+\Ehpv{\hypev{}} &= (1 - \alpha) \, v^* \\
+\Varhpv{\hypev{}} &= \kappa^2 (1 - \alpha)^2 (v^*)^2
 \end{align}
 \noindent As in (\ref{eq:hyperm_solved}), the right-hand side of
 (\ref{eq:hyperv_solved}) is composed of researcher-specified constants, and
@@ -531,7 +531,7 @@ parameters to its first two moments, so (\ref{eq:hyperv_solved}) has a unique
 solution $\hpriorvm{}$ and $\hpriorvv{}$.
 Thus, all four hyperprior parameters $(\hpriormm{}, \hpriormv{}, \hpriorvm{},
 \hpriorvv{})$ are now determined. The researcher's beliefs about heterogeneity
-are fully characterized by $\rho$, which controls the level of heterogeneity
+are fully characterized by $\alpha$, which controls the level of heterogeneity
 relative to population-mean uncertainty, and $\kappa$, which controls
 confidence in that level.
 
@@ -539,13 +539,13 @@ The resulting hierarchical predictive matches the direct prior exactly in its
 first two moments by construction. Higher moments, such as skewness, kurtosis,
 and tail probabilities, will generally differ because the compound
 distribution produced by the hierarchy is not in the same family as the direct
-prior. The size of this discrepancy depends in part on $\rho$ and $\kappa$. As
+prior. The size of this discrepancy depends in part on $\alpha$ and $\kappa$. As
 both approach zero, the hyperprior concentrates and the compound distribution
 collapses toward the individual-level distribution with mean $\dpm$ and
 variance $\dpv$. If the direct prior uses the same family as the
 individual-level distribution, it is recovered exactly in this limit. That is
 not required by the construction, but it is convenient and is the approach used
-in the application below. For nonzero $\rho$ and $\kappa$, the discrepancy is
+in the application below. For nonzero $\alpha$ and $\kappa$, the discrepancy is
 typically small, but it should be checked by comparing the hierarchical
 predictive to the direct prior. Appendix~\ref{app:hyperprior_families} provides
 this comparison for three standard families.
@@ -555,7 +555,7 @@ this comparison for three standard families.
 
 The moment conditions (\ref{eq:hyperm_solved})--(\ref{eq:hyperv_solved}) can be
 solved in closed form for standard families, but the translation from
-$(\rho, \kappa)$ to actual hyperprior parameters is family-specific. In the
+$(\alpha, \kappa)$ to actual hyperprior parameters is family-specific. In the
 Normal-Inverse-Gamma hierarchy, the conditional variance is a single parameter
 $\sigma^2$ with its own independent hyperprior, so $\kappa$ maps directly to
 the Inverse-Gamma shape: $\alpha_0 = 2 + 1/\kappa^2$. In the Beta-Beta
@@ -566,9 +566,9 @@ full derivations, graphical calibrations, and approximation analysis for three
 families: Normal-Inverse-Gamma (support on $\mathbb{R}$), Beta-Beta (support on
 $[0,1]$), and Gamma-Inverse-Gamma (support on $(0,\infty)$).
 
-The feasibility region in $(\rho, \kappa)$ space is also family-dependent.
+The feasibility region in $(\alpha, \kappa)$ space is also family-dependent.
 Families where the conditional variance is a single parameter (NIG,
-Gamma-Inverse-Gamma) admit all $\kappa > 0$ with no joint constraint on $\rho$.
+Gamma-Inverse-Gamma) admit all $\kappa > 0$ with no joint constraint on $\alpha$.
 Families where the conditional variance depends on the mean hyperparameter
 (Beta-Beta) impose both a lower bound on $\kappa$ (from the irreducible
 conditional variance variation contributed by the mean hyperparameter) and an
@@ -580,7 +580,7 @@ form from the researcher's direct prior and can be checked before estimation.
 
 When $p > 1$, the decomposition applies separately to each of the $p$
 predictive quantities. Each quantity $k$ requires a direct prior mean $\dpm_k$
-and variance $\dpv_k$, a variance partition ratio $\rho_k$, and a heterogeneity
+and variance $\dpv_k$, a variance partition ratio $\alpha_k$, and a heterogeneity
 confidence $\kappa_k$, yielding $4p$ researcher inputs in total. The value of
 the framework is therefore not parsimony in the number of choices, but a
 change in what those choices mean.
@@ -589,7 +589,7 @@ First, the method guarantees that the hyperprior predictive matches the direct
 prior in its first two moments by construction, making the calibration more
 direct \parencite{Gabry2019, Bland2025}.
 Second, once a direct prior has been specified, the remaining hierarchical
-choices become interpretable. The parameter $\rho$ governs how much
+choices become interpretable. The parameter $\alpha$ governs how much
 uncertainty is attributed to heterogeneity across individuals rather than to
 uncertainty about the population mean, while $\kappa$ governs how tightly that
 heterogeneity level is held. The benefit is therefore operational rather than
@@ -741,12 +741,12 @@ parameterizing in terms of mean and variance directly.
 The hierarchical model has 4 hyperprior parameters per quantity. The variance
 decomposition of Section \ref{sec:variance_decomposition} replaces these with
 4 interpretable inputs per quantity: a direct prior mean $\dpm_k$ and variance
-$\dpv_k$, a variance partition ratio $\rho_k$, and a heterogeneity confidence
+$\dpv_k$, a variance partition ratio $\alpha_k$, and a heterogeneity confidence
 $\kappa_k$. For the Beta-Beta hierarchy, this translation is not as simple as
 in the NIG case because the conditional variance depends on both $\mu_k$ and
 $\psi_k$, so the mapping requires cross-moment calculations. The complete
 derivation, including the feasibility region and $\kappa$ bounds, is given in
-Appendix~\ref{app:beta_beta}. Because $\rho_k$ and $\kappa_k$ are unit-free
+Appendix~\ref{app:beta_beta}. Because $\alpha_k$ and $\kappa_k$ are unit-free
 ratios, it is reasonable in this application to share them across quantities.
 Appendix~\ref{app:rk_sensitivity} shows that this CE-space specification
 induces a sensible prior in parameter space, centered near mild risk aversion
@@ -867,13 +867,13 @@ Table \ref{tab:prior_beliefs} specifies the resulting direct prior for each
 quantity. The variance decomposition of Section
 \ref{sec:variance_decomposition} splits each direct prior variance into
 population-mean uncertainty and within-population heterogeneity, governed by
-$\rho_k$ and $\kappa_k$. Because $\rho_k$ is a variance ratio and $\kappa_k$ is
+$\alpha_k$ and $\kappa_k$. Because $\alpha_k$ is a variance ratio and $\kappa_k$ is
 a coefficient of variation, both are unit-free and can reasonably be shared
-across quantities with different natural units. I set $\rho_k =
-\py{fmt(D['ce_ps_rho'], 1)}$ for all quantities, meaning that
-\py{fmt(D['rho_pct'], 0)}\% of the direct prior variance is attributed to
+across quantities with different natural units. I set $\alpha_k =
+\py{fmt(D['ce_ps_alpha'], 1)}$ for all quantities, meaning that
+\py{fmt(D['alpha_pct'], 0)}\% of the direct prior variance is attributed to
 uncertainty about the population mean and the remaining
-\py{fmt(D['one_minus_rho_pct'], 0)}\% to heterogeneity across individuals. I
+\py{fmt(D['one_minus_alpha_pct'], 0)}\% to heterogeneity across individuals. I
 set $\kappa_k = \py{fmt(D['ce_ps_kappa'], 2)}$, so the coefficient of variation
 of the within-population variance is \py{fmt(D['kappa_pct'], 0)}\%. This
 reflects moderately high confidence in the heterogeneity specification, meaning
@@ -1066,12 +1066,12 @@ posterior around its mode and reducing right-tail mass relative to the diffuse
 model. This variance reduction is smaller for $L_2$ because its narrower CE
 range (\$20--\$40) leaves less room for the two models to disagree.
 
-\subsection{Sensitivity to $\rho$ and $\kappa$}
+\subsection{Sensitivity to $\alpha$ and $\kappa$}
 
-The preceding results use a single $(\rho, \kappa)$ specification. To assess
+The preceding results use a single $(\alpha, \kappa)$ specification. To assess
 how sensitive the subject classification is to these choices, I re-estimate the
 model at three additional configurations spanning a wide range of the
-$(\rho, \kappa)$ space, holding all other aspects of the specification fixed and
+$(\alpha, \kappa)$ space, holding all other aspects of the specification fixed and
 using the same subject classification rule based on average absolute median CE
 differences. Table~\ref{tab:rk_sensitivity} reports the subject classification
 for each.
@@ -1110,12 +1110,12 @@ print(r"""
   \centering
   \begin{tabular}{cc|cccc}
     \toprule
-    $\rho$ & $\kappa$ & Well-identified & Moderate & Prior-dominated & \% dominated \\
+    $\alpha$ & $\kappa$ & Well-identified & Moderate & Prior-dominated & \% dominated \\
     \midrule
 """ + _rk_table_rows + r"""
     \bottomrule
   \end{tabular}
-  \caption{Subject classification across $(\rho, \kappa)$ configurations.
+  \caption{Subject classification across $(\alpha, \kappa)$ configurations.
     Each row uses the same direct prior, data, and comparison model;
     only the hierarchical variance allocation changes.}
   \label{tab:rk_sensitivity}
@@ -1125,16 +1125,16 @@ print(r"""
 
 The prior-dominated share ranges from \py{_pct_min}\% to \py{_pct_max}\%
 across the four configurations, confirming that the finding is structurally
-stable rather than an artifact of a particular $(\rho, \kappa)$ choice. The
+stable rather than an artifact of a particular $(\alpha, \kappa)$ choice. The
 direction of movement is consistent with the theory. Holding $\kappa$ fixed,
-higher $\rho$ (tighter population prior, less heterogeneity) increases the
+higher $\alpha$ (tighter population prior, less heterogeneity) increases the
 prior-dominated share from \py{_pct_lo_lo}\% to \py{_pct_hi_lo}\% at low
 $\kappa$ and from \py{_pct_lo_hi}\% to \py{_pct_hi_hi}\% at high $\kappa$,
 because the narrower population distribution assigns lower density to extreme
-parameter values. Holding $\rho$ fixed, higher $\kappa$ (less confidence in
+parameter values. Holding $\alpha$ fixed, higher $\kappa$ (less confidence in
 the heterogeneity level) reduces the prior-dominated share from
-\py{_pct_lo_lo}\% to \py{_pct_lo_hi}\% at low $\rho$ and from
-\py{_pct_hi_lo}\% to \py{_pct_hi_hi}\% at high $\rho$, because the looser
+\py{_pct_lo_lo}\% to \py{_pct_lo_hi}\% at low $\alpha$ and from
+\py{_pct_hi_lo}\% to \py{_pct_hi_hi}\% at high $\alpha$, because the looser
 variance hyperprior gives the data more room to pull weakly-identified subjects
 away from the prior mode.
 The moderate group is notably stable at \py{_mod_min}--\py{_mod_max} subjects
@@ -1169,16 +1169,16 @@ quantity space such as certainty equivalents, choice probabilities, or
 indifference amounts. For each dimension, the researcher provides a mean and
 variance reflecting beliefs about a single random individual, informed by
 published empirical estimates, pilot data, or expert judgment. The researcher
-then chooses $\rho$ and $\kappa$ to express beliefs about the degree of
+then chooses $\alpha$ and $\kappa$ to express beliefs about the degree of
 population heterogeneity and confidence in that specification. Values of
-$\rho = 0.2$ and $\kappa = 0.25$, as used in the application, correspond to
+$\alpha = 0.2$ and $\kappa = 0.25$, as used in the application, correspond to
 substantial heterogeneity with moderate confidence. The implied prior
 predictive distribution should then be examined, not merely to confirm that the
 first two moments match the direct prior, which they do by construction, but
 also to verify that the allocation between population-mean uncertainty and
 individual heterogeneity is substantively reasonable. The sensitivity analysis
 in Appendix \ref{app:rk_sensitivity} indicates that the broad posterior
-patterns are stable across a range of $(\rho, \kappa)$ values, even though the
+patterns are stable across a range of $(\alpha, \kappa)$ values, even though the
 magnitude of prior influence moves in the expected direction. Estimation then
 proceeds with standard MCMC sampling,
 adding the Jacobian correction term to the log-posterior when quantity-space

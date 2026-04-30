@@ -43,7 +43,7 @@ def run_prior_selection_ce(data_dir, ce_direct_prior, prior_selection_ce):
     Args:
         data_dir: Data directory root
         ce_direct_prior: Dict with per-quantity mu, sigma2, lo, hi
-        prior_selection_ce: Dict with rho and kappa
+        prior_selection_ce: Dict with alpha and kappa
     """
     print("\n" + "=" * 60)
     print("Running: Quantity-Space Prior Selection (Beta-Beta)")
@@ -52,7 +52,7 @@ def run_prior_selection_ce(data_dir, ce_direct_prior, prior_selection_ce):
     output_path = Path(data_dir) / 'output' / 'prior_params_ce.npz'
     _run(
         ce_direct_prior=ce_direct_prior,
-        rho=prior_selection_ce['rho'],
+        alpha=prior_selection_ce['alpha'],
         kappa=prior_selection_ce['kappa'],
         output_path=output_path,
     )
@@ -194,7 +194,7 @@ def run_sensitivity(ce_direct_prior, output_dir, lottery=None,
         ce_direct_prior=ce_direct_prior,
         output_dir=Path(output_dir),
         lottery=lottery,
-        rho_values=config.get('rho_values') if config else None,
+        alpha_values=config.get('alpha_values') if config else None,
         kappa_values=config.get('kappa_values') if config else None,
         n_mc_draws=config.get('n_mc_draws', 50000) if config else 50000,
         n_subjects=config.get('n_subjects', 50) if config else 50,
@@ -338,14 +338,14 @@ def run_injectivity_analysis(output_dir, config=None):
 # =============================================================================
 
 
-def run_prior_selection(data_dir, rho=0.3, alpha_0=None, kappa=None, direct_prior=None):
+def run_prior_selection(data_dir, alpha=0.3, alpha_0=None, kappa=None, direct_prior=None):
     """Run NIG prior selection and save hyperpriors."""
     print("\n" + "=" * 60)
     print("Running: Prior Selection")
     print("=" * 60)
     from prior_selection import run_prior_selection as _run_prior_selection
     output_path = Path(data_dir) / 'output' / 'prior_params.npz'
-    _run_prior_selection(rho=rho, alpha_0=alpha_0, kappa=kappa,
+    _run_prior_selection(alpha=alpha, alpha_0=alpha_0, kappa=kappa,
                          output_path=output_path, direct_prior=direct_prior)
     print("Done.\n")
 
@@ -647,29 +647,29 @@ def run_prior_predictive_params_plot(prior_subjects_dir, output_path):
 
 
 # =============================================================================
-# (rho, kappa) Sensitivity Analysis
+# (alpha, kappa) Sensitivity Analysis
 # =============================================================================
 
-def _rk_config_label(rho, kappa):
-    """Generate directory label for a (rho, kappa) configuration."""
-    return f"rho{rho:.1f}_kappa{kappa:.2f}".replace('.', 'p')
+def _rk_config_label(alpha, kappa):
+    """Generate directory label for a (alpha, kappa) configuration."""
+    return f"alpha{alpha:.1f}_kappa{kappa:.2f}".replace('.', 'p')
 
 
-def run_rk_sensitivity_config(rho, kappa, direct_prior_ce, reference_lotteries,
+def run_rk_sensitivity_config(alpha, kappa, direct_prior_ce, reference_lotteries,
                                reference_pair, sampling_opts, seeds,
                                data_dir, plots_dir):
-    """Run full pipeline for a single (rho, kappa) sensitivity configuration.
+    """Run full pipeline for a single (alpha, kappa) sensitivity configuration.
 
     Executes: prior selection -> sampling -> preprocessing -> paper plots.
 
     Returns:
-        dict with keys: rho, kappa, label, n_well, n_moderate, n_dominated
+        dict with keys: alpha, kappa, label, n_well, n_moderate, n_dominated
     """
     import numpy as np
-    label = _rk_config_label(rho, kappa)
+    label = _rk_config_label(alpha, kappa)
 
     print("\n" + "=" * 70)
-    print(f"  Configuration: rho={rho}, kappa={kappa} ({label})")
+    print(f"  Configuration: alpha={alpha}, kappa={kappa} ({label})")
     print("=" * 70)
 
     # --- Prior selection ---
@@ -681,13 +681,13 @@ def run_rk_sensitivity_config(rho, kappa, direct_prior_ce, reference_lotteries,
     bounds_lo = np.array([direct_prior_ce[k]['lo'] for k in quantity_keys])
     bounds_hi = np.array([direct_prior_ce[k]['hi'] for k in quantity_keys])
 
-    hp = derive_hyperpriors_beta(ps, bounds_lo, bounds_hi, rho=rho, kappa=kappa)
+    hp = derive_hyperpriors_beta(ps, bounds_lo, bounds_hi, alpha=alpha, kappa=kappa)
     print_hyperprior_summary_beta(hp)
     verify_hyperpriors_beta(hp)
 
     # Save prior params
     prior_params_path = data_dir / 'output' / f'prior_params_ce_{label}.npz'
-    save_dict = {'distribution': 'beta', 'rho': rho, 'kappa': kappa}
+    save_dict = {'distribution': 'beta', 'alpha': alpha, 'kappa': kappa}
     for k, qname in enumerate(quantity_keys):
         save_dict[f'{qname}_a_mu'] = hp.a_mu[k]
         save_dict[f'{qname}_b_mu'] = hp.b_mu[k]
@@ -762,7 +762,7 @@ def run_rk_sensitivity_config(rho, kappa, direct_prior_ce, reference_lotteries,
           f"{n_dominated} prior-dominated")
 
     return {
-        'rho': rho, 'kappa': kappa, 'label': label,
+        'alpha': alpha, 'kappa': kappa, 'label': label,
         'n_well': n_well, 'n_moderate': n_moderate,
         'n_dominated': n_dominated,
     }
@@ -771,13 +771,13 @@ def run_rk_sensitivity_config(rho, kappa, direct_prior_ce, reference_lotteries,
 def run_rk_sensitivity(sensitivity_configs, direct_prior_ce,
                         reference_lotteries, reference_pair,
                         sampling_opts, seeds, data_dir, plots_dir):
-    """Run (rho, kappa) sensitivity analysis across multiple configurations.
+    """Run (alpha, kappa) sensitivity analysis across multiple configurations.
 
     For each configuration, runs the full pipeline (prior selection, sampling,
     preprocessing, paper plots) and then saves an aggregate summary NPZ.
 
     Args:
-        sensitivity_configs: List of (rho, kappa) tuples
+        sensitivity_configs: List of (alpha, kappa) tuples
         direct_prior_ce: CE-space direct prior dict
         reference_lotteries: List of reference lottery dicts
         reference_pair: Reference pair dict
@@ -789,22 +789,22 @@ def run_rk_sensitivity(sensitivity_configs, direct_prior_ce,
     import numpy as np
 
     print("\n" + "=" * 70)
-    print("Running: (rho, kappa) Sensitivity Analysis")
+    print("Running: (alpha, kappa) Sensitivity Analysis")
     print("=" * 70)
 
     results = []
-    for rho, kappa in sensitivity_configs:
+    for alpha, kappa in sensitivity_configs:
         result = run_rk_sensitivity_config(
-            rho, kappa, direct_prior_ce, reference_lotteries, reference_pair,
+            alpha, kappa, direct_prior_ce, reference_lotteries, reference_pair,
             sampling_opts, seeds, data_dir, plots_dir,
         )
         results.append(result)
 
     # Print summary table (include baseline)
     print("\n" + "=" * 70)
-    print("  (rho, kappa) Sensitivity Summary")
+    print("  (alpha, kappa) Sensitivity Summary")
     print("=" * 70)
-    print(f"  {'rho':>5} {'kappa':>6} | {'Well-ID':>8} {'Moderate':>9} {'Prior-Dom':>10}")
+    print(f"  {'alpha':>5} {'kappa':>6} | {'Well-ID':>8} {'Moderate':>9} {'Prior-Dom':>10}")
     print("  " + "-" * 48)
 
     baseline_comp = data_dir / 'output' / 'posterior_ce_comparison.npz'
@@ -819,7 +819,7 @@ def run_rk_sensitivity(sensitivity_configs, direct_prior_ce,
         n_w, n_m, n_d = 0, 0, 0
 
     for r in results:
-        print(f"  {r['rho']:5.1f} {r['kappa']:6.2f} | "
+        print(f"  {r['alpha']:5.1f} {r['kappa']:6.2f} | "
               f"{r['n_well']:8d} {r['n_moderate']:9d} {r['n_dominated']:10d}")
 
     # Save summary NPZ
@@ -836,7 +836,7 @@ def run_rk_sensitivity(sensitivity_configs, direct_prior_ce,
     }
 
     np.savez(summary_path,
-             rho=np.array([r['rho'] for r in results]),
+             alpha=np.array([r['alpha'] for r in results]),
              kappa=np.array([r['kappa'] for r in results]),
              n_well=np.array([r['n_well'] for r in results]),
              n_moderate=np.array([r['n_moderate'] for r in results]),

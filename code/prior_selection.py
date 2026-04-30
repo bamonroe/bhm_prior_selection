@@ -6,7 +6,7 @@ This module implements quantity-space prior specification with Beta-Beta hierarc
 1. Prior Selection: Specify beliefs about certainty equivalents (CEs) and choice
    probabilities for reference lotteries — cognitively tractable quantities.
 2. Hyperprior Derivation: Derive Beta-Beta hyperpriors via variance decomposition
-   with (rho, kappa) researcher choices.
+   with (alpha, kappa) researcher choices.
 
 The hierarchy for each quantity k (3 CEs + 1 choice probability):
     z_i^k | mu_k, psi_k ~ Beta(mu_k(1-psi_k)/psi_k, (1-mu_k)(1-psi_k)/psi_k)
@@ -146,7 +146,7 @@ class DerivedHyperpriorsBeta:
     bounds_hi: np.ndarray  # hi_k per quantity
 
     # Researcher choices
-    rho: float    # variance partition ratio
+    alpha: float    # variance partition ratio
     kappa: float  # CV of heterogeneity
 
     # Mean hyperprior: mu_k ~ Beta(a_mu, b_mu)
@@ -230,7 +230,7 @@ def derive_hyperpriors_beta(
     quantity_prior: PriorSelectionResult,
     bounds_lo: np.ndarray,
     bounds_hi: np.ndarray,
-    rho: float = 0.2,
+    alpha: float = 0.2,
     kappa: float = 0.25,
 ) -> DerivedHyperpriorsBeta:
     """
@@ -249,7 +249,7 @@ def derive_hyperpriors_beta(
         Lower bound for each quantity.
     bounds_hi : np.ndarray, shape (4,)
         Upper bound for each quantity.
-    rho : float in (0, 1)
+    alpha : float in (0, 1)
         Variance partition ratio.
     kappa : float > 0
         Coefficient of variation of heterogeneity. Controls how confident
@@ -259,8 +259,8 @@ def derive_hyperpriors_beta(
     --------
     DerivedHyperpriorsBeta
     """
-    if not 0 < rho < 1:
-        raise ValueError(f"rho must be in (0, 1), got {rho}")
+    if not 0 < alpha < 1:
+        raise ValueError(f"alpha must be in (0, 1), got {alpha}")
     if kappa <= 0:
         raise ValueError(f"kappa must be > 0, got {kappa}")
 
@@ -299,7 +299,7 @@ def derive_hyperpriors_beta(
             )
 
     # --- Step 3: Mean hyperprior mu_k ~ Beta(a_mu, b_mu) ---
-    nu_mu = bernoulli_bound / (rho * v_tilde) - 1
+    nu_mu = bernoulli_bound / (alpha * v_tilde) - 1
     a_mu = mu_tilde * nu_mu
     b_mu = (1 - mu_tilde) * nu_mu
 
@@ -307,13 +307,13 @@ def derive_hyperpriors_beta(
         if nu_mu[k] <= 0:
             raise ValueError(
                 f"'{q_names[k]}': nu_mu = {nu_mu[k]:.4f} <= 0. "
-                f"rho * v_tilde = {rho * v_tilde[k]:.6f} >= Bernoulli bound "
-                f"{bernoulli_bound[k]:.6f}. Reduce rho or sigma2."
+                f"alpha * v_tilde = {alpha * v_tilde[k]:.6f} >= Bernoulli bound "
+                f"{bernoulli_bound[k]:.6f}. Reduce alpha or sigma2."
             )
 
     # --- Step 4: Variance fraction target psi* ---
-    denom = bernoulli_bound - rho * v_tilde
-    psi_star = (1 - rho) * v_tilde / denom
+    denom = bernoulli_bound - alpha * v_tilde
+    psi_star = (1 - alpha) * v_tilde / denom
 
     for k in range(n_q):
         if not (0 < psi_star[k] < 1):
@@ -333,7 +333,7 @@ def derive_hyperpriors_beta(
     c_mu = denom  # = E[μ(1-μ)] = μ̃(1-μ̃) - ρṽ
     d_mu = e_mu - c_mu**2  # Var[μ(1-μ)]
 
-    target_var_cond = kappa**2 * ((1 - rho) * v_tilde)**2
+    target_var_cond = kappa**2 * ((1 - alpha) * v_tilde)**2
     var_psi = (target_var_cond - d_mu * psi_star**2) / e_mu
 
     for k in range(n_q):
@@ -361,7 +361,7 @@ def derive_hyperpriors_beta(
         quantity_names=q_names,
         bounds_lo=bounds_lo,
         bounds_hi=bounds_hi,
-        rho=rho,
+        alpha=alpha,
         kappa=kappa,
         a_mu=a_mu,
         b_mu=b_mu,
@@ -385,7 +385,7 @@ def verify_hyperpriors_beta(hp: DerivedHyperpriorsBeta, n_mc: int = 100_000,
     Draws from the full hierarchy and checks:
     1. E[z_k] ≈ mu_star[k]  (unconditional mean)
     2. Var[z_k] ≈ v_star[k]  (unconditional variance)
-    3. Var[mu_k] ≈ rho * v_star[k]  (variance decomposition)
+    3. Var[mu_k] ≈ alpha * v_star[k]  (variance decomposition)
     """
     rng = np.random.default_rng(seed)
     n_q = len(hp.quantity_names)
@@ -394,7 +394,7 @@ def verify_hyperpriors_beta(hp: DerivedHyperpriorsBeta, n_mc: int = 100_000,
     print("Beta-Beta Hyperprior Verification (Monte Carlo)")
     print("=" * 70)
     print(f"  MC draws: {n_mc:,}")
-    print(f"  rho = {hp.rho}, kappa = {hp.kappa:.4f}")
+    print(f"  alpha = {hp.alpha}, kappa = {hp.kappa:.4f}")
 
     for k in range(n_q):
         mu_draws = rng.beta(hp.a_mu[k], hp.b_mu[k], size=n_mc)
@@ -414,7 +414,7 @@ def verify_hyperpriors_beta(hp: DerivedHyperpriorsBeta, n_mc: int = 100_000,
 
         target_mean = hp.mu_star[k]
         target_var = hp.v_star[k]
-        target_var_mu = hp.rho * hp.v_star[k]
+        target_var_mu = hp.alpha * hp.v_star[k]
         target_kappa = hp.kappa
 
         mean_ok = np.abs(mc_mean - target_mean) < 0.01
@@ -447,7 +447,7 @@ def print_hyperprior_summary_beta(hp: DerivedHyperpriorsBeta):
 
     print("\nBeta-Beta Hyperprior Summary")
     print("=" * 78)
-    print(f"Researcher choices: rho = {hp.rho}, kappa = {hp.kappa:.4f}")
+    print(f"Researcher choices: alpha = {hp.alpha}, kappa = {hp.kappa:.4f}")
 
     # Raw-scale beliefs
     print(f"\n{'Qty':<9} {'mu':>8} {'sd':>8} {'lo':>9} {'hi':>9} "
@@ -481,7 +481,7 @@ def print_hyperprior_summary_beta(hp: DerivedHyperpriorsBeta):
 
 def run_prior_selection_ce(
     ce_direct_prior: Dict,
-    rho: float = 0.2,
+    alpha: float = 0.2,
     kappa: float = 0.25,
     output_path=None,
 ):
@@ -491,7 +491,7 @@ def run_prior_selection_ce(
     Args:
         ce_direct_prior: Dict with keys 'ce1', 'ce2', 'ce3', 'pchoice',
             each having 'mu', 'sigma2', 'lo', 'hi'.
-        rho: Variance partition ratio
+        alpha: Variance partition ratio
         kappa: CV of heterogeneity
         output_path: Path to save NPZ (default: data/output/prior_params_ce.npz)
 
@@ -515,7 +515,7 @@ def run_prior_selection_ce(
     bounds_hi = np.array([ce_direct_prior[k]['hi'] for k in quantity_keys])
 
     hp = derive_hyperpriors_beta(
-        ps, bounds_lo, bounds_hi, rho=rho, kappa=kappa,
+        ps, bounds_lo, bounds_hi, alpha=alpha, kappa=kappa,
     )
     print_hyperprior_summary_beta(hp)
 
@@ -534,7 +534,7 @@ def run_prior_selection_ce(
         params[f'{name}_bound_lo'] = float(hp.bounds_lo[k])
         params[f'{name}_bound_hi'] = float(hp.bounds_hi[k])
 
-    params['rho'] = rho
+    params['alpha'] = alpha
     params['kappa'] = float(hp.kappa)
 
     np.savez(output_path, **params)

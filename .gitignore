@@ -53,6 +53,10 @@ jax_cache/
 
 # Local settings
 .claude/
+.codex/
+
+# AI review artifacts
+ai reviews/
 
 # IDE
 .vscode/

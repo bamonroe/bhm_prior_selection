@@ -96,8 +96,14 @@ def run_sampling_ce(sampling_opts, ref_lotteries, ref_pair,
         print(f"  Deleted {len(result['deleted_histories'])} histories")
 
     from sampling_ce import run_sampling as _run_sampling
+    _run_sampling_model(sampling_opts, ref_lotteries, ref_pair, _run_sampling)
+    print("Done.\n")
+
+
+def _run_sampling_model(sampling_opts, ref_lotteries, ref_pair, run_fn):
+    """Shared sampling dispatch for any quantity-space model."""
     num_chains = sampling_opts['num_chains']
-    _run_sampling(
+    run_fn(
         output_dir=sampling_opts['output_dir'],
         ref_lotteries=ref_lotteries,
         ref_pair=ref_pair,
@@ -108,7 +114,7 @@ def run_sampling_ce(sampling_opts, ref_lotteries, ref_pair,
             'num_chains_a': num_chains,
             'num_chains_b': num_chains,
             'thin_iteration': sampling_opts['thin_iteration'],
-            'chunk_size': sampling_opts.get('chunk_size', 100),
+            'chunk_size': sampling_opts.get('chunk_size', 10),
             'rng_seed': sampling_opts['seed'],
             'use_double': sampling_opts.get('use_double', True),
             'n_temperatures': max(sampling_opts.get('n_temperatures', 1), 1),
@@ -117,6 +123,41 @@ def run_sampling_ce(sampling_opts, ref_lotteries, ref_pair,
             'use_deo': sampling_opts.get('use_deo', True),
         },
     )
+
+
+def run_sampling_ep(sampling_opts, ref_lotteries, ref_pair,
+                    prior_params_path=None):
+    """Run MCMC sampling with EP+TK quantity-space Beta-Beta BHM.
+
+    Same interface as run_sampling_ce but uses the Expo-Power + TK92 posterior.
+    Uses the same hyperprior array (same quantity-space prior).
+    """
+    print("\n" + "=" * 60)
+    print("Running: MCMC Sampling (EP+TK Quantity-Space Beta-Beta Prior)")
+    print("=" * 60)
+
+    from bamcmc.mcmc.compile import get_compiled_kernel_cache
+    cache = get_compiled_kernel_cache()
+    if cache:
+        print(f"Clearing {len(cache)} cached kernel(s)...")
+        cache.clear()
+
+    # Load hyperpriors — uses same file as CRRA model (same quantity-space prior)
+    if prior_params_path is not None:
+        from posteriors.rdu_ep_bhm_ce import load_hyperpriors_from_file
+        load_hyperpriors_from_file(prior_params_path)
+
+    if sampling_opts.get('clean', False):
+        from bamcmc import clean_model_files
+        output_dir = str(sampling_opts['output_dir'])
+        model_name = sampling_opts['model']
+        print(f"Cleaning existing files for {model_name}...")
+        result = clean_model_files(output_dir, model_name, mode='all')
+        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
+        print(f"  Deleted {len(result['deleted_histories'])} histories")
+
+    from sampling_ep import run_sampling as _run_sampling_ep
+    _run_sampling_model(sampling_opts, ref_lotteries, ref_pair, _run_sampling_ep)
     print("Done.\n")
 
 

@@ -180,7 +180,7 @@ sampling_opts_ce = {
     'num_chains': 1000,
     'num_collect': 100,
     'thin_iteration': 10,
-    'chunk_size': 100,
+    'chunk_size': 10,
     'seed': SEEDS['sampling'],
     'use_double': True,
     'n_temperatures': 0,
@@ -198,11 +198,29 @@ sampling_opts_uninf = {
     'num_chains': 1000,
     'num_collect': 100,
     'thin_iteration': 10,
-    'chunk_size': 100,
+    'chunk_size': 10,
     'seed': SEEDS['sampling'],
     'use_double': True,
     'n_temperatures': 0,
     'beta_0_min': 0.1,
+}
+
+# Expo-Power + TK92 model config (same quantity-space Beta-Beta prior)
+sampling_opts_ep = {
+    'model': 'rdu_ep_bhm_ce',
+    'output_dir': DATA_DIR / 'output',
+    'plots_dir': PLOTS_DIR / 'rdu_ep_bhm_ce',
+    'clean': True,
+    'reset_runs': 1,
+    'resume_runs': 5,
+    'num_chains': 1000,
+    'num_collect': 100,
+    'thin_iteration': 10,
+    'chunk_size': 10,
+    'seed': SEEDS['sampling'],
+    'use_double': True,
+    'n_temperatures': 0,
+    'beta_min': 0.1,
 }
 
 # Stan/NUTS config (quantity-space Beta-Beta prior)
@@ -227,7 +245,7 @@ sampling_opts_prior = {
     'num_chains': 1000,
     'num_collect': 100,
     'thin_iteration': 10,
-    'chunk_size': 100,
+    'chunk_size': 10,
     'seed': SEEDS['sampling'],
     'use_double': True,
 }
@@ -253,6 +271,7 @@ do_sensitivity          = False
 
 # --- MCMC Sampling ---
 do_sampling_ce             = False
+do_sampling_ep             = False
 do_sampling_uninf          = False
 do_sampling_stan           = False
 do_sampling_prior          = False
@@ -261,6 +280,8 @@ do_sampling_prior          = False
 do_generate_prior_ce       = False
 do_preprocess_hyper_ce     = False
 do_preprocess_subjects_ce  = False
+do_preprocess_hyper_ep     = False
+do_preprocess_subjects_ep  = False
 do_preprocess_hyper_uninf  = False
 do_preprocess_subjects_uninf = False
 do_preprocess_subjects_prior = False
@@ -354,6 +375,16 @@ if __name__ == '__main__':
             prior_params_path=prior_params_ce_path,
         )
 
+    if do_sampling_ep:
+        check_dependency('sampling_ep', ['clean_data'])
+        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
+        pipelines.run_sampling_ep(
+            sampling_opts_ep,
+            ref_lotteries=REFERENCE_LOTTERIES,
+            ref_pair=REFERENCE_PAIR,
+            prior_params_path=prior_params_ce_path,
+        )
+
     if do_sampling_stan:
         check_dependency('sampling_stan', ['clean_data'])
         prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
@@ -391,6 +422,24 @@ if __name__ == '__main__':
             pipelines.run_preprocess_subjects_ce(history_dir_ce, preprocess_dir_ce / 'subjects')
         else:
             print(f"Skipping CE subject preprocessing: {history_dir_ce} not found")
+
+    # -------------------------------------------------------------------------
+    # Preprocessing (EP+TK Model)
+    # -------------------------------------------------------------------------
+    history_dir_ep = get_mcmc_dir('rdu_ep_bhm_ce') / 'history' / 'full'
+    preprocess_dir_ep = get_mcmc_dir('rdu_ep_bhm_ce') / 'preprocessed'
+
+    if do_preprocess_hyper_ep:
+        if history_dir_ep.exists():
+            pipelines.run_preprocess_hyperparams_ce(history_dir_ep, preprocess_dir_ep)
+        else:
+            print(f"Skipping EP preprocessing: {history_dir_ep} not found")
+
+    if do_preprocess_subjects_ep:
+        if history_dir_ep.exists():
+            pipelines.run_preprocess_subjects_ce(history_dir_ep, preprocess_dir_ep / 'subjects')
+        else:
+            print(f"Skipping EP subject preprocessing: {history_dir_ep} not found")
 
     # -------------------------------------------------------------------------
     # Preprocessing (Prior-Only Model)

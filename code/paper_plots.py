@@ -117,6 +117,94 @@ def _compute_ces_for_lottery(r_arr, phi_arr, eta_arr, lottery):
     return ces
 
 
+def _compute_ces_for_lottery_ep(alpha_arr, r_arr, gamma_arr, lottery):
+    """Compute CEs for arrays of EP+TK parameters and a specific lottery (vectorized).
+
+    Uses numpy for batch computation. The EP inverse is computed via
+    Newton iteration (same approach as the JAX version in common_fns).
+    """
+    prizes = np.array(lottery['prizes'], dtype=np.float64)
+    probs = np.array(lottery['probs'], dtype=np.float64)
+
+    sorted_idx = np.argsort(prizes)
+    sp = prizes[sorted_idx]
+    sq = probs[sorted_idx]
+
+    lo, hi = float(sp[0]), float(sp[-1])
+
+    cum = np.cumsum(sq)
+
+    alpha_arr = np.asarray(alpha_arr, dtype=np.float64)
+    r_arr = np.asarray(r_arr, dtype=np.float64)
+    gamma_arr = np.asarray(gamma_arr, dtype=np.float64)
+    n = len(r_arr)
+
+    # TK weights: w(p) = p^gamma / (p^gamma + (1-p)^gamma)^(1/gamma)
+    gamma_safe = np.maximum(gamma_arr, 0.28)
+    cum_clipped = np.clip(cum[:-1], 1e-10, 1 - 1e-10)  # (n_outcomes-1,)
+    p_g = cum_clipped[None, :] ** gamma_safe[:, None]    # (n, n_outcomes-1)
+    q_g = (1 - cum_clipped[None, :]) ** gamma_safe[:, None]
+    w_inner = p_g / np.power(p_g + q_g, 1.0 / gamma_safe[:, None])
+    w = np.ones((n, len(cum)), dtype=np.float64)
+    w[:, :-1] = w_inner
+
+    # Decision weights
+    d = np.empty_like(w)
+    d[:, 0] = w[:, 0]
+    d[:, 1:] = w[:, 1:] - w[:, :-1]
+
+    # EP utility: u(x) = (exp(-alpha*xmin^s) - exp(-alpha*x^s))
+    #                   / (exp(-alpha*xmin^s) - exp(-alpha*xmax^s))
+    # where s = 1-r. At s=0: reduces to log form.
+    x_min, x_max = lo, hi
+    s_arr = 1.0 - r_arr
+    use_log = np.abs(s_arr) < 1e-10
+    s_safe = np.where(use_log, 0.5, s_arr)
+    alpha_safe = np.maximum(alpha_arr, 1e-10)
+
+    sp_s = sp[None, :] ** s_safe[:, None]              # (n, n_outcomes)
+    xmin_s = x_min ** s_safe                            # (n,)
+    xmax_s = x_max ** s_safe                            # (n,)
+
+    exp_x = np.exp(-alpha_safe[:, None] * sp_s)         # (n, n_outcomes)
+    exp_min = np.exp(-alpha_safe * xmin_s)              # (n,)
+    exp_max = np.exp(-alpha_safe * xmax_s)              # (n,)
+    ep_denom = exp_min - exp_max                        # (n,)
+    utilities = (exp_min[:, None] - exp_x) / ep_denom[:, None]
+
+    log_utilities = np.log(sp / x_min)[None, :] / np.log(x_max / x_min)
+    log_utilities = log_utilities * np.ones((n, 1))
+
+    # RDU value (normalized)
+    rdu = np.sum(d * np.where(use_log[:, None], log_utilities, utilities), axis=1)
+    rdu = np.clip(rdu, 0.0, 1.0)
+
+    # EP inverse via Newton iteration (numpy batch version)
+    # Initial guess: CRRA inverse
+    with np.errstate(invalid='ignore', over='ignore'):
+        ce_s_crra = rdu * (xmax_s - xmin_s) + xmin_s
+        x0_normal = np.power(np.maximum(ce_s_crra, 1e-30), 1.0 / s_safe)
+        x0_log = x_min * np.power(x_max / x_min, rdu)
+    x = np.where(use_log, x0_log, x0_normal)
+    x = np.clip(x, lo + 1e-8, hi - 1e-8)
+
+    # Newton steps
+    for _ in range(20):
+        x = np.clip(x, lo + 1e-8, hi - 1e-8)
+        x_s = np.power(x, s_safe)
+        exp_x_newton = np.exp(-alpha_safe * x_s)
+        fx = (exp_min - exp_x_newton) / ep_denom - rdu
+        dfx = alpha_safe * s_safe * np.power(x, s_safe - 1) * exp_x_newton / ep_denom
+        dfx = np.where(np.abs(dfx) < 1e-30, 1e-30, dfx)
+        x_new = x - fx / dfx
+        # Only update for non-log cases
+        x = np.where(use_log, x, np.clip(x_new, lo + 1e-8, hi - 1e-8))
+
+    ces = np.clip(x, lo, hi)
+    ces[~np.isfinite(ces)] = np.nan
+    return ces
+
+
 # =============================================================================
 # Hyper-posterior predictive draws
 # =============================================================================
@@ -1181,6 +1269,145 @@ def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
     medians_path = output.parent / 'prior_predictive_medians.npz'
     np.savez(medians_path, **{f'pp_median_{k}': v for k, v in medians.items()})
     print(f"  Saved: {medians_path}")
+
+
+# =============================================================================
+# EP+TK Subject Parameter Loading
+# =============================================================================
+
+def _load_subject_params_ep(preprocessed_dir):
+    """Load all EP+TK subject parameter draws, return dict of arrays.
+
+    EP model stores (alpha, r, gamma, lambda) instead of (r, phi, eta, lambda).
+    The param names in the NPZ files match the generated_quantities ordering.
+    """
+    preprocessed_dir = Path(preprocessed_dir)
+    meta = np.load(preprocessed_dir / 'metadata.npz')
+    n_subjects = int(meta['n_subjects'])
+
+    # EP generated_quantities stores: alpha, r, gamma, lambda
+    # But the preprocessing extracts them as the 4 param columns, named
+    # based on position. Let's check what keys are available.
+    d0 = np.load(preprocessed_dir / 'subject_000_params.npz')
+    param_keys = [k for k in d0.keys() if k not in ('iterations',)]
+
+    # The EP model has params in order: alpha_raw, r, gamma_raw, lambda_raw
+    # generated_quantities returns: alpha, r, gamma, lambda (natural scale)
+    # The preprocessing saves them as the same positional keys as CRRA:
+    # position 0 -> 'r' (but it's actually alpha for EP)
+    # position 1 -> 'phi' (but it's actually r for EP)
+    # position 2 -> 'eta' (but it's actually gamma for EP)
+    # position 3 -> 'lambda'
+    # We need to remap.
+    all_params = {'alpha': [], 'r': [], 'gamma': [], 'lambda': []}
+    ep_key_map = {'alpha': 'r', 'r': 'phi', 'gamma': 'eta', 'lambda': 'lambda'}
+
+    for sid in range(n_subjects):
+        d = np.load(preprocessed_dir / f'subject_{sid:03d}_params.npz')
+        burn = d[ep_key_map['alpha']].shape[0] // 2
+        for ep_name, file_key in ep_key_map.items():
+            all_params[ep_name].append(d[file_key][burn:].ravel())
+
+    return {k: np.array(v) for k, v in all_params.items()}, n_subjects
+
+
+# =============================================================================
+# Cross-Model CE Overlay
+# =============================================================================
+
+def generate_cross_model_ce_overlay(
+    crra_hyper_path,
+    ep_hyper_path,
+    uninf_hyper_path,
+    prior_params_path,
+    ep_subjects_dir,
+    output_dir,
+    data_output_dir=None,
+    seed=42,
+):
+    """Generate cross-model CE overlay comparing CRRA, EP+TK, and diffuse models.
+
+    For each reference lottery, plots the hyper-posterior predictive CE
+    distribution under three specifications:
+    1. CRRA+Prelec informative (Beta-Beta hierarchy)
+    2. EP+TK informative (Beta-Beta hierarchy, same prior)
+    3. Diffuse NIG (Gao 2022)
+
+    The key visual: both informative models share the same quantity-space
+    prior, so their hyper-posterior predictive CEs should be comparable
+    despite having different structural parameters.
+    """
+    plt = _setup_matplotlib()
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if data_output_dir is None:
+        data_output_dir = output_dir
+    else:
+        data_output_dir = Path(data_output_dir)
+
+    n_ce_draws = 50000
+
+    print("\nGenerating cross-model CE overlay...")
+
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
+
+    for k, lottery in enumerate(REFERENCE_LOTTERIES):
+        ax = axes[k]
+        qname = QUANTITY_NAMES[k]
+        ev = sum(p * x for p, x in zip(lottery['probs'], lottery['prizes']))
+        lo = min(lottery['prizes'])
+        hi = max(lottery['prizes'])
+
+        # CRRA informative: draw from Beta-Beta posterior
+        crra_ce = _draw_ce_from_beta_hierarchy(
+            crra_hyper_path, prior_params_path, k,
+            n_draws=n_ce_draws, seed=seed+10+k, use_posterior=True)
+
+        # EP informative: draw from Beta-Beta posterior (same hierarchy!)
+        ep_ce = _draw_ce_from_beta_hierarchy(
+            ep_hyper_path, prior_params_path, k,
+            n_draws=n_ce_draws, seed=seed+40+k, use_posterior=True)
+
+        # Diffuse NIG: draw from NIG hyper-posterior
+        uninf_ce = _draw_nig_predictive_ce(
+            uninf_hyper_path, lottery,
+            n_draws=n_ce_draws, seed=seed+30+k)
+
+        # Hyperprior predictive (shared prior)
+        prior_ce = _draw_ce_from_beta_hierarchy(
+            crra_hyper_path, prior_params_path, k,
+            n_draws=n_ce_draws, seed=seed+20+k, use_posterior=False)
+
+        bins = np.linspace(lo, hi, 80)
+        ax.hist(prior_ce, bins=bins, density=True, alpha=0.3, color='gray',
+                label='Hyperprior predictive')
+        ax.hist(crra_ce, bins=bins, density=True, alpha=0.5, color='C0',
+                histtype='step', linewidth=1.5,
+                label='CRRA+Prelec posterior')
+        ax.hist(ep_ce, bins=bins, density=True, alpha=0.5, color='C2',
+                histtype='step', linewidth=1.5, linestyle='--',
+                label='EP+TK posterior')
+        ax.hist(uninf_ce, bins=bins, density=True, alpha=0.5, color='C1',
+                histtype='step', linewidth=1.5, linestyle=':',
+                label='Diffuse posterior')
+        ax.axvline(ev, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
+        ax.set_xlabel(f'CE (\\$)')
+        ax.set_title(lottery['label'])
+
+        print(f"  {lottery['label']}: EV=${ev:.0f}")
+        print(f"    CRRA:   median={np.nanmedian(crra_ce):.1f}")
+        print(f"    EP+TK:  median={np.nanmedian(ep_ce):.1f}")
+        print(f"    Uninf:  median={np.nanmedian(uninf_ce):.1f}")
+        print(f"    Prior:  median={np.nanmedian(prior_ce):.1f}")
+
+    axes[0].set_ylabel('Density')
+    axes[0].legend(fontsize=8, loc='upper left')
+    fig.tight_layout()
+    outpath = output_dir / 'cross_model_ce_overlay.pdf'
+    fig.savefig(outpath, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Saved: {outpath}")
 
 
 if __name__ == '__main__':

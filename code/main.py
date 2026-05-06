@@ -268,6 +268,7 @@ do_gen_paper_data = False
 
 # --- Prior Selection & Analysis ---
 do_sensitivity          = False
+do_family_comparison    = False
 
 # --- MCMC Sampling ---
 do_sampling_ce             = False
@@ -353,6 +354,14 @@ if __name__ == '__main__':
             lottery=REFERENCE_LOTTERIES[0],  # L1 (for caption)
             seed=SEEDS['sampling'],
             config=SENSITIVITY_CONFIG,
+        )
+
+    if do_family_comparison:
+        from family_comparison import run_family_comparison
+        run_family_comparison(
+            output_dir=DATA_DIR / 'output',
+            plot_dir=PLOTS_DIR / 'paper',
+            n_workers=N_WORKERS,
         )
 
     # -------------------------------------------------------------------------

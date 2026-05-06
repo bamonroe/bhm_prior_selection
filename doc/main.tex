@@ -126,6 +126,17 @@ info_ce_above_40 = fmt(float(_ce_overlay.get('info_pct_above_40', 0)), 1)
 uninf_ce_below_15 = fmt(float(_ce_overlay.get('uninf_pct_below_15', 0)), 1)
 uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
 
+# Cross-model comparison
+xm_crra_1 = fmt(float(D.get('xmodel_crra_median_1', 0)), 1)
+xm_crra_2 = fmt(float(D.get('xmodel_crra_median_2', 0)), 1)
+xm_crra_3 = fmt(float(D.get('xmodel_crra_median_3', 0)), 1)
+xm_ep_1 = fmt(float(D.get('xmodel_ep_median_1', 0)), 1)
+xm_ep_2 = fmt(float(D.get('xmodel_ep_median_2', 0)), 1)
+xm_ep_3 = fmt(float(D.get('xmodel_ep_median_3', 0)), 1)
+xm_diff_1 = fmt(float(D.get('xmodel_diff_1', 0)), 1)
+xm_diff_2 = fmt(float(D.get('xmodel_diff_2', 0)), 1)
+xm_diff_3 = fmt(float(D.get('xmodel_diff_3', 0)), 1)
+
 \end{pycode}
 
 
@@ -1161,20 +1172,25 @@ structural mapping $\bg$ and its Jacobian.
 \end{figure}
 
 Figure \ref{fig:cross_model_ce} shows the result. For lotteries $L_1$ and
-$L_3$, the two informative models produce closely aligned CE posteriors, both
-concentrated below the expected value and both substantially tighter than the
-diffuse benchmark. This agreement is notable because the two models have no
-shared structural parameters, different utility functions, and different
-probability weighting specifications. The shared quantity-space prior is the
-mechanism that aligns them: both models are anchored to the same beliefs about
-where CEs should lie for a randomly selected individual, and the data are
-sufficiently informative for these lotteries that the posterior reflects the
-data rather than the model-specific Jacobian.
+$L_3$, the two informative models produce closely aligned CE posteriors, with
+median CEs of $\$\py{xm_crra_1}$ and $\$\py{xm_ep_1}$ for $L_1$ and
+$\$\py{xm_crra_3}$ and $\$\py{xm_ep_3}$ for $L_3$ under the CRRA + Prelec
+and EP + TK specifications respectively. Both are concentrated below the
+expected value and both are substantially tighter than the diffuse benchmark.
+This agreement is notable because the two models have no shared structural
+parameters, different utility functions, and different probability weighting
+specifications. The shared quantity-space prior is the mechanism that aligns
+them: both models are anchored to the same beliefs about where CEs should lie
+for a randomly selected individual, and the data are sufficiently informative
+for these lotteries that the posterior reflects the data rather than the
+model-specific Jacobian.
 
-For lottery $L_2$, the two informative models diverge. The CRRA + Prelec
-posterior places substantial mass above the expected value, while the EP + TK
-posterior remains concentrated below it. This divergence reflects a genuine
-difference in how the two PWFs handle the symmetric probability $p = 0.5$.
+For lottery $L_2$, the two informative models diverge, with median CEs of
+$\$\py{xm_crra_2}$ (CRRA + Prelec) and $\$\py{xm_ep_2}$ (EP + TK). The
+CRRA + Prelec posterior places substantial mass above the expected value of
+\$30, while the EP + TK posterior remains concentrated below it. This
+divergence reflects a genuine difference in how the two PWFs handle the
+symmetric probability $p = 0.5$.
 The 2-parameter Prelec function can independently adjust curvature and
 elevation, allowing $w(0.5) > 0.5$ even when probabilities near 0 and 1 are
 distorted. The 1-parameter TK function constrains the entire shape with a

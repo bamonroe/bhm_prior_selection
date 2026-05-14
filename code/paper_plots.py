@@ -1318,61 +1318,42 @@ def _load_subject_params_ep(preprocessed_dir):
 def generate_cross_model_ce_overlay(
     crra_hyper_path,
     ep_hyper_path,
-    uninf_hyper_path,
+    power_hyper_path,
     prior_params_path,
-    ep_subjects_dir,
     output_dir,
-    data_output_dir=None,
     seed=42,
 ):
-    """Generate cross-model CE overlay comparing CRRA, EP+TK, and diffuse models.
+    """Generate cross-model CE overlay comparing all three informative models.
 
     For each reference lottery, plots the hyper-posterior predictive CE
-    distribution under three specifications:
-    1. CRRA+Prelec informative (Beta-Beta hierarchy)
-    2. EP+TK informative (Beta-Beta hierarchy, same prior)
-    3. Diffuse NIG (Gao 2022)
-
-    The key visual: both informative models share the same quantity-space
-    prior, so their hyper-posterior predictive CEs should be comparable
-    despite having different structural parameters.
+    distribution under three specifications plus the shared hyperprior
+    predictive:
+    1. CRRA+Prelec (Model 1)
+    2. EP+TK (Model 2)
+    3. CRRA+Power (Model 3)
+    4. Hyperprior predictive (shared)
     """
     plt = _setup_matplotlib()
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if data_output_dir is None:
-        data_output_dir = output_dir
-    else:
-        data_output_dir = Path(data_output_dir)
-
     n_ce_draws = 50000
 
-    print("\nGenerating cross-model CE overlay...")
+    print("\nGenerating cross-model CE overlay (3 models)...")
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
 
+    models = [
+        ('CRRA+Prelec', crra_hyper_path, 'C0', '-', 10),
+        ('EP+TK', ep_hyper_path, 'C2', '--', 40),
+        ('CRRA+Power', power_hyper_path, 'C3', ':', 80),
+    ]
+
     for k, lottery in enumerate(REFERENCE_LOTTERIES):
         ax = axes[k]
-        qname = QUANTITY_NAMES[k]
         ev = sum(p * x for p, x in zip(lottery['probs'], lottery['prizes']))
         lo = min(lottery['prizes'])
         hi = max(lottery['prizes'])
-
-        # CRRA informative: draw from Beta-Beta posterior
-        crra_ce = _draw_ce_from_beta_hierarchy(
-            crra_hyper_path, prior_params_path, k,
-            n_draws=n_ce_draws, seed=seed+10+k, use_posterior=True)
-
-        # EP informative: draw from Beta-Beta posterior (same hierarchy!)
-        ep_ce = _draw_ce_from_beta_hierarchy(
-            ep_hyper_path, prior_params_path, k,
-            n_draws=n_ce_draws, seed=seed+40+k, use_posterior=True)
-
-        # Diffuse NIG: draw from NIG hyper-posterior
-        uninf_ce = _draw_nig_predictive_ce(
-            uninf_hyper_path, lottery,
-            n_draws=n_ce_draws, seed=seed+30+k)
 
         # Hyperprior predictive (shared prior)
         prior_ce = _draw_ce_from_beta_hierarchy(
@@ -1382,27 +1363,27 @@ def generate_cross_model_ce_overlay(
         bins = np.linspace(lo, hi, 80)
         ax.hist(prior_ce, bins=bins, density=True, alpha=0.3, color='gray',
                 label='Hyperprior predictive')
-        ax.hist(crra_ce, bins=bins, density=True, alpha=0.5, color='C0',
-                histtype='step', linewidth=1.5,
-                label='CRRA+Prelec posterior')
-        ax.hist(ep_ce, bins=bins, density=True, alpha=0.5, color='C2',
-                histtype='step', linewidth=1.5, linestyle='--',
-                label='EP+TK posterior')
-        ax.hist(uninf_ce, bins=bins, density=True, alpha=0.5, color='C1',
-                histtype='step', linewidth=1.5, linestyle=':',
-                label='Diffuse posterior')
+
+        msg = f"  {lottery['label']}: EV=${ev:.0f}, Prior={np.nanmedian(prior_ce):.1f}"
+
+        for name, hyper_path, color, ls, seed_offset in models:
+            if hyper_path is None or not Path(hyper_path).exists():
+                continue
+            model_ce = _draw_ce_from_beta_hierarchy(
+                hyper_path, prior_params_path, k,
+                n_draws=n_ce_draws, seed=seed+seed_offset+k, use_posterior=True)
+            ax.hist(model_ce, bins=bins, density=True, alpha=0.5, color=color,
+                    histtype='step', linewidth=1.5, linestyle=ls,
+                    label=f'{name} posterior')
+            msg += f", {name}={np.nanmedian(model_ce):.1f}"
+
         ax.axvline(ev, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
         ax.set_xlabel(f'CE (\\$)')
         ax.set_title(lottery['label'])
-
-        print(f"  {lottery['label']}: EV=${ev:.0f}")
-        print(f"    CRRA:   median={np.nanmedian(crra_ce):.1f}")
-        print(f"    EP+TK:  median={np.nanmedian(ep_ce):.1f}")
-        print(f"    Uninf:  median={np.nanmedian(uninf_ce):.1f}")
-        print(f"    Prior:  median={np.nanmedian(prior_ce):.1f}")
+        print(msg)
 
     axes[0].set_ylabel('Density')
-    axes[0].legend(fontsize=8, loc='upper left')
+    axes[0].legend(fontsize=7, loc='upper left')
     fig.tight_layout()
     outpath = output_dir / 'cross_model_ce_overlay.pdf'
     fig.savefig(outpath, dpi=300, bbox_inches='tight')

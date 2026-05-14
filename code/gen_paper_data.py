@@ -188,23 +188,22 @@ def gen_paper_data(output_path=None,
     else:
         print(f"\nSkipping family comparison (run do_family_comparison first)")
 
-    # EP+TK cross-model comparison (from preprocessed posteriors)
+    # Cross-model comparison (from preprocessed posteriors for all 3 models)
     ep_hyper_path = output_path.parent / 'rdu_ep_bhm_ce' / 'preprocessed' / 'hyperparams_preprocessed.npz'
-    if ep_hyper_path.exists() and reference_lotteries is not None:
+    power_hyper_path = output_path.parent / 'rdu_power_bhm_ce' / 'preprocessed' / 'hyperparams_preprocessed.npz'
+
+    model_hypers = {
+        'ep': ep_hyper_path,
+        'power': power_hyper_path,
+    }
+    available_models = {k: v for k, v in model_hypers.items() if v.exists()}
+
+    if available_models and reference_lotteries is not None:
         from paper_plots import _draw_ce_from_beta_hierarchy
 
-        print("\nEP+TK Cross-Model Comparison:")
-        ep_hd = np.load(ep_hyper_path)
-        ep_n_samples = ep_hd['ce1_logit_mu'].shape[0]
-        ep_n_chains = 2000
-        ep_burn = ep_n_samples // 2
-        save_dict['ep_n_samples_post_burnin'] = ep_n_samples - ep_burn
-        save_dict['ep_n_chains'] = ep_n_chains
-        print(f"  EP samples post burn-in: {ep_n_samples - ep_burn}")
-
+        print("\nCross-Model Comparison:")
         prior_params_file = str(output_path.parent / 'prior_params_ce.npz')
         crra_hyper_file = str(hyper_ce_path)
-        ep_hyper_file = str(ep_hyper_path)
 
         n_ce_draws = 50000
         for k, lot in enumerate(reference_lotteries):
@@ -214,20 +213,20 @@ def gen_paper_data(output_path=None,
             crra_ce = _draw_ce_from_beta_hierarchy(
                 crra_hyper_file, prior_params_file, k,
                 n_draws=n_ce_draws, seed=42+k, use_posterior=True)
-            ep_ce = _draw_ce_from_beta_hierarchy(
-                ep_hyper_file, prior_params_file, k,
-                n_draws=n_ce_draws, seed=42+40+k, use_posterior=True)
-
             save_dict[f'xmodel_crra_median_{suffix}'] = np.nanmedian(crra_ce)
-            save_dict[f'xmodel_ep_median_{suffix}'] = np.nanmedian(ep_ce)
-            save_dict[f'xmodel_diff_{suffix}'] = abs(
-                np.nanmedian(crra_ce) - np.nanmedian(ep_ce))
+            msg = f"  L{suffix}: CRRA=${np.nanmedian(crra_ce):.1f}"
 
-            print(f"  L{suffix}: CRRA median=${np.nanmedian(crra_ce):.1f}, "
-                  f"EP median=${np.nanmedian(ep_ce):.1f}, "
-                  f"diff=${abs(np.nanmedian(crra_ce)-np.nanmedian(ep_ce)):.1f}")
+            for model_name, hyper_path in available_models.items():
+                model_ce = _draw_ce_from_beta_hierarchy(
+                    str(hyper_path), prior_params_file, k,
+                    n_draws=n_ce_draws, seed=42+40*(1 if model_name == 'ep' else 2)+k,
+                    use_posterior=True)
+                save_dict[f'xmodel_{model_name}_median_{suffix}'] = np.nanmedian(model_ce)
+                msg += f", {model_name.upper()}=${np.nanmedian(model_ce):.1f}"
+
+            print(msg)
     else:
-        print("\nSkipping EP cross-model comparison (EP posteriors not found)")
+        print("\nSkipping cross-model comparison (model posteriors not found)")
 
     np.savez(output_path, **save_dict)
     print(f"\nSaved to: {output_path}")

@@ -1,36 +1,50 @@
 # TODO - Quantity-Space Prior Specification for BHMs
 
-## Project Status: JoE Paper — Single-Application (RDU with Real Data)
+## Project Status: JoE Paper — Two-Model Application (RDU with Real Data)
 
-Paper restructured for Journal of Econometrics:
+Paper restructured for Journal of Econometrics with two-model application:
 - 7 sections + 4 appendices
-- Single model: Beta-Beta CE-space hierarchy (`rdu_bhm_ce`)
+- Model 1: CRRA + Prelec (`rdu_bhm_ce`) — full pipeline working
+- Model 2: Expo-Power + TK92 (`rdu_ep_bhm_ce`) — code complete, MCMC in progress
 - Comparison model: NIG parameter-space with Gao (2022) diffuse prior (`rdu_bhm`)
-- Full pipeline: prior selection, sampling (both models), preprocessing, paper plots
-- R-hat converged (max 1.21, median 1.004)
+- Both models share identical quantity-space prior (same reference lotteries, same α/κ)
 - Reference lotteries: L1=($10,$50, p=0.75/0.25), L2=($20,$40, p=0.50/0.50), L3=($12,$44, p=0.75/0.25)
 
-**Current branch:** `master`
+**Current branch:** `feat/expo-power-model` (sub-branch: `ep-core-functions`)
 
 ---
 
 ## Remaining
 
+### EP Model (In Progress)
+- [x] Core functions: ep_ufn, ep_inverse, tk_pwf, forward map, Jacobian (common_fns.py)
+- [x] Posterior module: rdu_ep_bhm_ce.py (imports shared Beta-Beta infrastructure)
+- [x] Sampling infrastructure: sampling_ep.py, main.py config, pipelines.py
+- [x] Smoke test: 10 chains, compilation + basic evaluation verified
+- [x] Injectivity numerical verification: det(J) ≠ 0 on prior support
+- [ ] Full MCMC estimation (6 runs, ~4.5 hours) — IN PROGRESS
+- [ ] EP preprocessing (hyper + subject level)
+- [ ] Paper plots: EP CE overlays, EP subject comparisons
+- [ ] Cross-model comparison plots
+- [ ] gen_paper_data.py: add EP model quantities
+
 ### Paper Content
-- [ ] Address referee point 3: clarify in Section 3.2 that the Beta-Beta decomposition requires independence of μ and ψ (a parameterization choice, not a consequence of the general framework)
-- [ ] Address referee point 4: discuss NCP unavailability as a computational trade-off (centered parameterization is forced by non-invertible CE mapping)
-- [ ] Address referee point 5: sensitivity analysis over ρ/κ showing how the fraction of prior-dominated subjects changes
-- [ ] Address referee minor 1: trim Section 2 belief elicitation review (tangential)
-- [ ] Address referee minor 4: check for remaining "observable quantities" vs "predictive quantities" inconsistency
-- [ ] Address referee minor 5: compute prior predictive CEs implied by the Gao et al. diffuse prior
-- [ ] Address referee minor 6: expand MCMC details (R-hat distribution, acceptance rates)
-- [ ] Address referee minor 12: add posterior summary table for structural parameters
-- [ ] Address referee minor 13: add posterior predictive check on choice probabilities
-- [ ] Proofread appendix (Global Injectivity) for consistency with current terminology
+- [x] Restructure Section 4: two RDU specifications side by side
+- [x] Update abstract, introduction, discussion, conclusion for two models
+- [x] Update CE mapping subsection to be model-agnostic
+- [x] Update injectivity limitation to cover both models
+- [x] Trim Extensions subsection (EP is no longer hypothetical)
+- [ ] Add EP estimation results to Section 5
+- [ ] Add cross-model comparison subsection to Section 5
+- [ ] Update Appendix B with EP injectivity note
+- [ ] Update sensitivity analysis for EP model
+- [ ] Proofread full paper for consistency
 
 ### Code
 - [ ] Write automated tests for core functions
 - [ ] Ensure main.py default flags are set to safe defaults (all sampling False)
+- [ ] Merge ep-core-functions into feat/expo-power-model
+- [ ] Merge feat/expo-power-model into master
 
 ---
 

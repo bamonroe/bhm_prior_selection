@@ -567,3 +567,436 @@ def full_jacobian_logabsdet(r, phi_raw, eta_raw, lambda_raw,
     log_dP = jnp.log(jnp.abs(delta)) + jnp.log(P_val) + jnp.log(1 - P_val)
 
     return log_det_W + log_det_CE + log_dP
+
+
+# =============================================================================
+# Expo-Power Utility Function
+# =============================================================================
+
+def ep_ufn(x, alpha, r, x_min=10.0, x_max=50.0):
+    """
+    Normalized Expo-Power utility function (Saha 1993).
+
+    V(x) = (1 - exp(-alpha * x^(1-r))) / (alpha * (1-r))
+    u(x) = (V(x) - V(x_min)) / (V(x_max) - V(x_min))
+
+    Normalized to [0, 1] over [x_min, x_max]. Continuous at r = 1,
+    where it reduces to (1 - exp(-alpha * ln(x))) / (alpha) after
+    applying L'Hopital. At alpha -> 0 it reduces to CRRA.
+
+    Args:
+        x: Outcomes (scalar or array)
+        alpha: Expo-power curvature (positive scalar)
+        r: Risk aversion coefficient (scalar)
+        x_min: Minimum outcome (default 10.0)
+        x_max: Maximum outcome (default 50.0)
+
+    Returns:
+        Normalized utility values (same shape as x)
+    """
+    x = jnp.maximum(x, 1e-10)
+    alpha = jnp.maximum(alpha, 1e-10)
+    r_safe = jnp.clip(r, -10, 10)
+    s = 1 - r_safe
+
+    # Standard form: V(x) = (1 - exp(-alpha * x^s)) / (alpha * s)
+    # Normalized: u(x) = (V(x) - V(xmin)) / (V(xmax) - V(xmin))
+    # Since alpha*s cancels in the ratio:
+    #   u(x) = (exp(-alpha * xmin^s) - exp(-alpha * x^s))
+    #        / (exp(-alpha * xmin^s) - exp(-alpha * xmax^s))
+    x_s = jnp.power(x, s)
+    xmin_s = jnp.power(x_min, s)
+    xmax_s = jnp.power(x_max, s)
+
+    exp_x = jnp.exp(-alpha * x_s)
+    exp_min = jnp.exp(-alpha * xmin_s)
+    exp_max = jnp.exp(-alpha * xmax_s)
+    power_form = (exp_min - exp_x) / (exp_min - exp_max)
+
+    # Log form (limit as s -> 0, i.e. r -> 1):
+    # V(x) -> (1 - x^(-alpha)) / alpha  (via x^s -> 1 + s*ln(x))
+    # Actually: lim_{s->0} exp(-alpha * x^s) = exp(-alpha) * x^{-alpha*... }
+    # More carefully: x^s = exp(s ln x) so -alpha * x^s = -alpha * exp(s ln x)
+    # At s=0: -alpha * 1 = -alpha, so exp(-alpha * x^s) -> exp(-alpha) for all x.
+    # Need first-order expansion: x^s ≈ 1 + s ln(x), so
+    #   exp(-alpha * x^s) ≈ exp(-alpha) * exp(-alpha * s * ln(x))
+    #                      = exp(-alpha) * x^{-alpha*s}
+    # The s factors cancel in the normalized ratio:
+    #   u(x) = (x_min^{-alpha*s} - x^{-alpha*s})
+    #        / (x_min^{-alpha*s} - x_max^{-alpha*s})
+    # At s=0 this is 0/0, but taking the limit via L'Hopital on s:
+    #   u(x) -> (ln(x_min) * x_min^0 - ln(x) * x^0)
+    #         / (ln(x_min) * x_min^0 - ln(x_max) * x_max^0)
+    #         = (ln(x_min) - ln(x)) / (ln(x_min) - ln(x_max))
+    #         = ln(x/x_min) / ln(x_max/x_min)
+    # This is the same as CRRA at r=1.
+    log_form = jnp.log(x / x_min) / jnp.log(x_max / x_min)
+
+    use_log = jnp.abs(s) < 1e-10
+    return jnp.where(use_log, log_form, power_form)
+
+
+def _ep_raw_utility(x, alpha, s):
+    """Unnormalized EP utility: exp(-alpha * x_min^s) - exp(-alpha * x^s).
+
+    Returns the numerator of the normalized form. Used by ep_inverse.
+    """
+    return jnp.exp(-alpha * jnp.power(x, s))
+
+
+def ep_inverse(u_val, alpha, r, x_min=10.0, x_max=50.0):
+    """
+    Numerical inverse of normalized Expo-Power utility via Newton iteration.
+
+    Solves ep_ufn(CE; alpha, r) = u_val for CE using Newton's method
+    with a CRRA-based initial guess.
+
+    Args:
+        u_val: Normalized utility value in [0, 1] (scalar)
+        alpha: EP curvature parameter (positive scalar)
+        r: Risk aversion coefficient (scalar)
+        x_min: Minimum outcome (default 10.0)
+        x_max: Maximum outcome (default 50.0)
+
+    Returns:
+        Certainty equivalent in prize units (scalar)
+    """
+    alpha = jnp.maximum(alpha, 1e-10)
+    r_safe = jnp.clip(r, -10, 10)
+    s = 1 - r_safe
+
+    # Initial guess: CRRA inverse (good because EP nests CRRA as alpha -> 0)
+    x0 = crra_inverse(u_val, r, x_min, x_max)
+    x0 = jnp.clip(x0, x_min + 1e-8, x_max - 1e-8)
+
+    # Precompute constants for the normalized EP utility
+    xmin_s = jnp.power(x_min, s)
+    xmax_s = jnp.power(x_max, s)
+    exp_min = jnp.exp(-alpha * xmin_s)
+    exp_max = jnp.exp(-alpha * xmax_s)
+    denom = exp_min - exp_max
+
+    def newton_step(_, x):
+        x = jnp.clip(x, x_min + 1e-8, x_max - 1e-8)
+        x_s = jnp.power(x, s)
+        exp_x = jnp.exp(-alpha * x_s)
+
+        # f(x) = (exp_min - exp_x) / denom - u_val
+        fx = (exp_min - exp_x) / denom - u_val
+
+        # f'(x) = alpha * s * x^(s-1) * exp(-alpha * x^s) / denom
+        dfx = alpha * s * jnp.power(x, s - 1) * exp_x / denom
+
+        # Guard against zero derivative
+        dfx = jnp.where(jnp.abs(dfx) < 1e-30, 1e-30, dfx)
+
+        x_new = x - fx / dfx
+        return jnp.clip(x_new, x_min + 1e-8, x_max - 1e-8)
+
+    # Handle s=0 (r=1) case: use CRRA inverse directly
+    use_log = jnp.abs(s) < 1e-10
+    newton_result = jax.lax.fori_loop(0, 20, newton_step, x0)
+    log_result = x_min * jnp.power(x_max / x_min, u_val)
+
+    return jnp.where(use_log, log_result, newton_result)
+
+
+# =============================================================================
+# Tversky-Kahneman (1992) Probability Weighting Function
+# =============================================================================
+
+def tk_pwf(p, gamma):
+    """
+    Tversky-Kahneman (1992) probability weighting function.
+
+    w(p) = p^gamma / (p^gamma + (1-p)^gamma)^(1/gamma)
+
+    Produces inverse-S shape for gamma < 1: overweights small probabilities
+    and underweights large probabilities. At gamma = 1, w(p) = p.
+
+    Args:
+        p: Probabilities (scalar or array)
+        gamma: Curvature parameter (positive scalar, typically 0.3-1.0)
+
+    Returns:
+        Weighted probabilities (same shape as p)
+    """
+    gamma = jnp.maximum(gamma, 0.28)
+    p = jnp.clip(p, 1e-10, 1 - 1e-10)
+
+    p_g = jnp.power(p, gamma)
+    q_g = jnp.power(1 - p, gamma)
+    return p_g / jnp.power(p_g + q_g, 1.0 / gamma)
+
+
+# =============================================================================
+# RDU Value with TK Weights (3-outcome)
+# =============================================================================
+
+def rdu_value_3outcome_ep(utilities, gamma, idx_1, idx_2, idx_3, p1, p2, p3):
+    """
+    Compute RDU value for a 3-outcome lottery using TK decision weights.
+
+    Same structure as rdu_value_3outcome but uses tk_pwf instead of prelec_pwf.
+
+    Args:
+        utilities: Array of precomputed u(x) for unique outcomes
+        gamma: TK curvature parameter (natural scale, positive)
+        idx_1, idx_2, idx_3: Indices into utilities for worst/middle/best
+        p1, p2, p3: Probabilities of worst/middle/best outcomes
+
+    Returns:
+        RDU value (scalar)
+    """
+    u1 = utilities[idx_1]
+    u2 = utilities[idx_2]
+    u3 = utilities[idx_3]
+
+    C3 = p3
+    C2 = p2 + p3
+
+    w_C3 = tk_pwf(C3, gamma)
+    w_C2 = tk_pwf(C2, gamma)
+
+    pi3 = w_C3
+    pi2 = w_C2 - w_C3
+    pi1 = 1.0 - w_C2
+
+    return pi1 * u1 + pi2 * u2 + pi3 * u3
+
+
+# =============================================================================
+# EP+TK Likelihood
+# =============================================================================
+
+def risk_likelihood_ep(utilities, gamma, datai, dataf, sid, lam):
+    """
+    Log likelihood for a subject's lottery choices using EP utility + TK PWF.
+
+    Same structure as risk_likelihood but uses tk_pwf for decision weights.
+
+    Args:
+        utilities: Precomputed u(x) for all unique outcomes (using ep_ufn)
+        gamma: TK curvature parameter (natural scale, positive)
+        datai: Tuple of integer arrays (choices, indices)
+        dataf: Tuple of float arrays (outcomes, probabilities)
+        sid: Subject index
+        lam: Fechner noise parameter (> 0)
+
+    Returns:
+        Log likelihood (scalar)
+    """
+    choices = datai[0]
+    idx_L_1, idx_L_2, idx_L_3 = datai[1], datai[2], datai[3]
+    idx_R_1, idx_R_2, idx_R_3 = datai[4], datai[5], datai[6]
+
+    prob_L_1, prob_L_2, prob_L_3 = dataf[1], dataf[2], dataf[3]
+    prob_R_1, prob_R_2, prob_R_3 = dataf[4], dataf[5], dataf[6]
+
+    subj_choices = choices[sid]
+    subj_idx_L_1, subj_idx_L_2, subj_idx_L_3 = idx_L_1[sid], idx_L_2[sid], idx_L_3[sid]
+    subj_idx_R_1, subj_idx_R_2, subj_idx_R_3 = idx_R_1[sid], idx_R_2[sid], idx_R_3[sid]
+    subj_pL1, subj_pL2, subj_pL3 = prob_L_1[sid], prob_L_2[sid], prob_L_3[sid]
+    subj_pR1, subj_pR2, subj_pR3 = prob_R_1[sid], prob_R_2[sid], prob_R_3[sid]
+
+    def choice_log_lik(choice, iL1, iL2, iL3, iR1, iR2, iR3,
+                       pL1, pL2, pL3, pR1, pR2, pR3):
+        v_L = rdu_value_3outcome_ep(utilities, gamma, iL1, iL2, iL3, pL1, pL2, pL3)
+        v_R = rdu_value_3outcome_ep(utilities, gamma, iR1, iR2, iR3, pR1, pR2, pR3)
+
+        u_L1, u_L2, u_L3 = utilities[iL1], utilities[iL2], utilities[iL3]
+        u_R1, u_R2, u_R3 = utilities[iR1], utilities[iR2], utilities[iR3]
+        u_max = jnp.maximum(
+            jnp.maximum(u_L1, jnp.maximum(u_L2, u_L3)),
+            jnp.maximum(u_R1, jnp.maximum(u_R2, u_R3)),
+        )
+        u_min = jnp.minimum(
+            jnp.minimum(u_L1, jnp.minimum(u_L2, u_L3)),
+            jnp.minimum(u_R1, jnp.minimum(u_R2, u_R3)),
+        )
+        u_range = jnp.maximum(u_max - u_min, 1e-10)
+
+        delta = (v_L - v_R) / (lam * u_range)
+        p_choose_L = jax.nn.sigmoid(delta)
+        p_choose_L = jnp.clip(p_choose_L, 1e-10, 1 - 1e-10)
+
+        return choice * jnp.log(p_choose_L) + (1 - choice) * jnp.log(1 - p_choose_L)
+
+    log_liks = jax.vmap(choice_log_lik)(
+        subj_choices,
+        subj_idx_L_1, subj_idx_L_2, subj_idx_L_3,
+        subj_idx_R_1, subj_idx_R_2, subj_idx_R_3,
+        subj_pL1, subj_pL2, subj_pL3,
+        subj_pR1, subj_pR2, subj_pR3,
+    )
+
+    return jnp.sum(log_liks)
+
+
+# =============================================================================
+# EP+TK CE Computation for Reference Lotteries
+# =============================================================================
+
+def rdu_ce_3outcome_ep(alpha, r, gamma, prizes, probs):
+    """
+    Compute certainty equivalent for a 3-outcome lottery under EP+TK.
+
+    Uses Expo-Power utility with TK PWF. Prizes must be sorted ascending.
+
+    Args:
+        alpha: EP curvature parameter (natural scale, positive)
+        r: Risk aversion coefficient (scalar)
+        gamma: TK curvature parameter (natural scale, positive)
+        prizes: Array of 3 prizes [x1, x2, x3] sorted ascending
+        probs: Array of 3 probabilities [p1, p2, p3] summing to 1
+
+    Returns:
+        CE in prize units (scalar)
+    """
+    x1, x2, x3 = prizes[0], prizes[1], prizes[2]
+    p1, p2, p3 = probs[0], probs[1], probs[2]
+
+    u1 = ep_ufn(x1, alpha, r)
+    u2 = ep_ufn(x2, alpha, r)
+    u3 = ep_ufn(x3, alpha, r)
+
+    C3 = p3
+    C2 = p2 + p3
+
+    w_C3 = tk_pwf(C3, gamma)
+    w_C2 = tk_pwf(C2, gamma)
+
+    pi3 = w_C3
+    pi2 = w_C2 - w_C3
+    pi1 = 1.0 - w_C2
+
+    rdu_val = pi1 * u1 + pi2 * u2 + pi3 * u3
+    return ep_inverse(rdu_val, alpha, r)
+
+
+def ce_mapping_3lotteries_ep(alpha_raw, r, gamma_raw, ref_lotteries):
+    """
+    Compute (CE1, CE2, CE3) for three reference lotteries under EP+TK.
+
+    Forward map g(theta) from parameter space to CE space.
+
+    Args:
+        alpha_raw: log(alpha), EP curvature on log scale (scalar)
+        r: Risk aversion coefficient (scalar)
+        gamma_raw: log(gamma), TK curvature on log scale (scalar)
+        ref_lotteries: Flat array of shape (18,) encoding 3 lotteries
+
+    Returns:
+        Array of shape (3,) with [CE1, CE2, CE3]
+    """
+    alpha = jnp.exp(alpha_raw)
+    gamma = jnp.exp(gamma_raw)
+
+    ce1 = rdu_ce_3outcome_ep(alpha, r, gamma, ref_lotteries[0:3], ref_lotteries[3:6])
+    ce2 = rdu_ce_3outcome_ep(alpha, r, gamma, ref_lotteries[6:9], ref_lotteries[9:12])
+    ce3 = rdu_ce_3outcome_ep(alpha, r, gamma, ref_lotteries[12:15], ref_lotteries[15:18])
+
+    return jnp.array([ce1, ce2, ce3])
+
+
+# =============================================================================
+# EP+TK Choice Probability for Reference Pair
+# =============================================================================
+
+def choice_probability_ref_ep(alpha_raw, r, gamma_raw, lambda_raw, ref_pair):
+    """
+    Compute P(choose A | theta) for a reference lottery pair under EP+TK.
+
+    Uses Contextual Utility (Wilcox 2011) with EP utility and TK PWF.
+
+    Args:
+        alpha_raw: log(alpha) (scalar)
+        r: Risk aversion coefficient (scalar)
+        gamma_raw: log(gamma) (scalar)
+        lambda_raw: log(lambda) (scalar)
+        ref_pair: Flat array of shape (12,) encoding 2 lotteries
+
+    Returns:
+        P(choose A) in (0, 1) (scalar)
+    """
+    alpha = jnp.exp(alpha_raw)
+    gamma = jnp.exp(gamma_raw)
+    lam = jnp.exp(lambda_raw)
+
+    u_A = ep_ufn(ref_pair[0:3], alpha, r)
+    u_B = ep_ufn(ref_pair[6:9], alpha, r)
+
+    p_A = ref_pair[3:6]
+    p_B = ref_pair[9:12]
+
+    def rdu_val(u, p):
+        C3 = p[2]
+        C2 = p[1] + p[2]
+        w_C3 = tk_pwf(C3, gamma)
+        w_C2 = tk_pwf(C2, gamma)
+        pi3 = w_C3
+        pi2 = w_C2 - w_C3
+        pi1 = 1.0 - w_C2
+        return pi1 * u[0] + pi2 * u[1] + pi3 * u[2]
+
+    rdu_A = rdu_val(u_A, p_A)
+    rdu_B = rdu_val(u_B, p_B)
+
+    all_u = jnp.concatenate([u_A, u_B])
+    u_range = jnp.maximum(jnp.max(all_u) - jnp.min(all_u), 1e-10)
+
+    delta = (rdu_A - rdu_B) / (lam * u_range)
+    return jax.nn.sigmoid(delta)
+
+
+# =============================================================================
+# EP+TK Full 4D Forward Map and Jacobian
+# =============================================================================
+
+def full_forward_map_ep(alpha_raw, r, gamma_raw, lambda_raw,
+                        ref_lotteries, ref_pair):
+    """
+    Full 4D forward map for EP+TK model.
+
+    Maps (alpha_raw, r, gamma_raw, lambda_raw) -> (CE1, CE2, CE3, P_choice).
+
+    Args:
+        alpha_raw: log(alpha) (scalar)
+        r: Risk aversion coefficient (scalar)
+        gamma_raw: log(gamma) (scalar)
+        lambda_raw: log(lambda) (scalar)
+        ref_lotteries: Flat (18,) array for 3 reference lotteries
+        ref_pair: Flat (12,) array for the reference pair
+
+    Returns:
+        Array of shape (4,) with [CE1, CE2, CE3, P_choice]
+    """
+    ces = ce_mapping_3lotteries_ep(alpha_raw, r, gamma_raw, ref_lotteries)
+    p_choice = choice_probability_ref_ep(alpha_raw, r, gamma_raw, lambda_raw,
+                                         ref_pair)
+    return jnp.concatenate([ces, jnp.array([p_choice])])
+
+
+def full_jacobian_logabsdet_ep(alpha_raw, r, gamma_raw, lambda_raw,
+                               ref_lotteries, ref_pair):
+    """
+    Compute log|det J| of the EP+TK forward map via JAX autodiff.
+
+    Uses jax.jacfwd + jnp.linalg.slogdet. No analytic decomposition.
+
+    Args:
+        alpha_raw, r, gamma_raw, lambda_raw: EP+TK parameters (scalars)
+        ref_lotteries: Flat (18,) array
+        ref_pair: Flat (12,) array
+
+    Returns:
+        log|det J| (scalar). Returns -inf if det is zero.
+    """
+    def f(theta):
+        return full_forward_map_ep(theta[0], theta[1], theta[2], theta[3],
+                                   ref_lotteries, ref_pair)
+
+    theta = jnp.array([alpha_raw, r, gamma_raw, lambda_raw])
+    J = jax.jacfwd(f)(theta)  # (4, 4)
+    sign, logabsdet = jnp.linalg.slogdet(J)
+    return jnp.where(sign != 0, logabsdet, -jnp.inf)

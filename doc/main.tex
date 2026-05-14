@@ -126,6 +126,17 @@ info_ce_above_40 = fmt(float(_ce_overlay.get('info_pct_above_40', 0)), 1)
 uninf_ce_below_15 = fmt(float(_ce_overlay.get('uninf_pct_below_15', 0)), 1)
 uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
 
+# Cross-model comparison
+xm_crra_1 = fmt(float(D.get('xmodel_crra_median_1', 0)), 1)
+xm_crra_2 = fmt(float(D.get('xmodel_crra_median_2', 0)), 1)
+xm_crra_3 = fmt(float(D.get('xmodel_crra_median_3', 0)), 1)
+xm_ep_1 = fmt(float(D.get('xmodel_ep_median_1', 0)), 1)
+xm_ep_2 = fmt(float(D.get('xmodel_ep_median_2', 0)), 1)
+xm_ep_3 = fmt(float(D.get('xmodel_ep_median_3', 0)), 1)
+xm_diff_1 = fmt(float(D.get('xmodel_diff_1', 0)), 1)
+xm_diff_2 = fmt(float(D.get('xmodel_diff_2', 0)), 1)
+xm_diff_3 = fmt(float(D.get('xmodel_diff_3', 0)), 1)
+
 \end{pycode}
 
 
@@ -144,12 +155,14 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
   certainty equivalents or choice probabilities, and a Jacobian correction maps
   those beliefs exactly into parameter space. A variance decomposition then
   clarifies how the prior distributes uncertainty between population-level
-  variation and within-population heterogeneity. The result is a hyperprior
-  specification that is easier to interpret, communicate, and scrutinize in
-  substantive terms. The approach is illustrated in a rank-dependent utility
-  model estimated on real lottery choice data, where it makes prior
-  implications transparent and yields conclusions that remain stable across a
-  wide range of hierarchical specifications.
+  variation and within-population heterogeneity. Because the prior is specified
+  over observables rather than parameters, the same specification can be shared
+  across structurally different models. The approach is illustrated with two
+  rank-dependent utility models estimated on real lottery choice data: one using
+  CRRA utility with a Prelec probability weighting function, and one using
+  Expo-Power utility with a Tversky-Kahneman weighting function. Both models
+  share a single quantity-space prior, making prior implications transparent
+  and cross-model comparisons coherent.
 
   \end{justify}
 \end{abstract}
@@ -195,8 +208,9 @@ parameters.\footnote{
   These ranges assume all models share a noise parameter and use utility and
   probability weighting functions. Two common utility functions are the CRRA
   and Expo-Power \parencite{Saha1993}, with 1 and 2 parameters respectively.
-  Two popular probability weighting functions are the power function
-  \parencite{Quiggin1982} and the two-parameter \textcite{Prelec1998} function.
+  Two popular probability weighting functions are the 1-parameter
+  \textcite{TverskyKahneman1992} function and the 2-parameter
+  \textcite{Prelec1998} function.
   CPT models utility and probability weighting separately over gains and
   losses, plus a loss aversion parameter, leading to 5--10 parameters depending
   on functional form choices.
@@ -226,20 +240,28 @@ The contribution is therefore not to eliminate prior choices, but to move them
 into objects that are easier to interpret and defend. This extends the broader
 workflow of informed prior specification, in which priors are reasoned through
 their implications for predictive quantities, to hierarchical models of
-exchangeable populations. I demonstrate the approach with RDU estimation using
-experimental lottery-choice data from \textcite{Harrison2016}, comparing an
-informative quantity-space hyperprior to the diffuse benchmark used by
+exchangeable populations. A further advantage is that the same quantity-space
+prior can be shared across structurally different models that make predictions
+about the same observables, enforcing consistency in beliefs about individual
+behavior independently of the latent model used to represent it. I demonstrate
+the approach with two RDU models estimated on experimental lottery-choice data
+from \textcite{Harrison2016}: one using CRRA utility with the
+\textcite{Prelec1998} probability weighting function, and one using
+Expo-Power utility \parencite{Saha1993} with the \textcite{TverskyKahneman1992}
+probability weighting function. Both models share a single quantity-space prior
+over certainty equivalents and choice probabilities. I compare these
+informative quantity-space hyperpriors to the diffuse benchmark used by
 \textcite{Gao2022}.
 
 The paper proceeds as follows. Section \ref{sec:literature} reviews the
 literature on prior specification with emphasis on informed priors. Section
 \ref{sec:gq_space} develops the general framework: first the quantity-space
 mapping and then the variance-decomposition approach to hyperprior
-construction. Section \ref{sec:application_rdu} applies the method to RDU
-estimation with experimental lottery-choice data. Section \ref{sec:estimation}
-presents the estimation results. Section \ref{sec:discussion} discusses
-practical guidance, limitations, and extensions, and Section
-\ref{sec:conclusion} concludes.
+construction. Section \ref{sec:application_rdu} applies the method to two
+RDU models estimated on experimental lottery-choice data. Section
+\ref{sec:estimation} presents the estimation results.
+Section \ref{sec:discussion} discusses practical guidance, limitations, and
+extensions, and Section \ref{sec:conclusion} concludes.
 
 
 %==============================================================================
@@ -301,7 +323,7 @@ priors at each split. Their approach makes variance allocation interpretable for
 additive Gaussian models, and is implemented in the \texttt{makemyprior} R
 package. The present paper shares that goal of making variance allocation an
 explicit researcher input and extends it in a different direction. Here the
-decomposition is expressed through two scalar parameters ($\rho$ and $\kappa$)
+decomposition is expressed through two scalar parameters ($\alpha$ and $\kappa$)
 combined with closed-form moment-matching, which is convenient for hierarchies
 where the conditional variance may itself depend on the mean hyperparameter.
 In addition, the quantity-space mapping with Jacobian correction moves the
@@ -468,39 +490,39 @@ uncertainty into expected within-population heterogeneity
 ($\Ehpv{\hypev{}}$) and uncertainty about the population mean
 ($\Varhpm{\hypem{}}$). I parameterize this partition with the ratio
 \begin{align}
-  \label{eq:rho_def}
-  \rho \, v^* &= \Varhpm{\hypem{}} \\
-  \label{eq:one_minus_rho}
-  (1 - \rho) \, v^* &= \Ehpv{\hypev{}}
+  \label{eq:alpha_def}
+  \alpha \, v^* &= \Varhpm{\hypem{}} \\
+  \label{eq:one_minus_alpha}
+  (1 - \alpha) \, v^* &= \Ehpv{\hypev{}}
 \end{align}
-where $\rho \in (0, 1)$ is the variance partition ratio, chosen by the
+where $\alpha \in (0, 1)$ is the variance partition ratio, chosen by the
 researcher.\footnote{
-  The ratio $\rho$ is numerically equivalent to the variance partition
+  The ratio $\alpha$ is numerically equivalent to the variance partition
   coefficient \parencite{Goldstein2002} and the intraclass correlation
   coefficient, which are widely used as posterior diagnostics in multilevel
   modelling. \textcite{Fuglstad2020} also use variance proportions as prior
   inputs, but they partition variance across model components, with the
   proportions treated as random variables. In the proposed framework, this
   ratio is an input specified by the researcher, and is not estimated.
-} Because $\rho$ is a ratio of variances, it is unit-free. The same value of
-$\rho$ therefore expresses the same structural belief about the balance between
+} Because $\alpha$ is a ratio of variances, it is unit-free. The same value of
+$\alpha$ therefore expresses the same structural belief about the balance between
 population-mean uncertainty and individual heterogeneity regardless of the
-units of the quantity being modeled. Low $\rho$ reflects a belief in
-substantial heterogeneity; high $\rho$ reflects a belief that most uncertainty
+units of the quantity being modeled. Low $\alpha$ reflects a belief in
+substantial heterogeneity; high $\alpha$ reflects a belief that most uncertainty
 comes from the location of the population mean.
 
-Equations (\ref{eq:iterated_exp}) and (\ref{eq:rho_def}) together provide two
+Equations (\ref{eq:iterated_exp}) and (\ref{eq:alpha_def}) together provide two
 moment conditions that uniquely determine $\hpriormm{}$ and $\hpriormv{}$:
 \begin{align}
 \label{eq:hyperm_solved}
 \Ehpm{\hypem{}} &= m^* \\
-\Varhpm{\hypem{}} &= \rho \, v^*
+\Varhpm{\hypem{}} &= \alpha \, v^*
 \end{align}
 \noindent These are known quantities, and the hyperprior family is assumed
 bijective in its first two moments, so this system has a unique solution
 $\hpriormm{}$ and $\hpriormv{}$.
 
-With $\rho$, $\dpm$, and $\dpv$ specified, the remaining hierarchical choice
+With $\alpha$, $\dpm$, and $\dpv$ specified, the remaining hierarchical choice
 concerns how uncertain the researcher is about the heterogeneity level. To
 parameterize this in a unit-free way, I introduce the coefficient of variation
 of heterogeneity:
@@ -508,21 +530,21 @@ of heterogeneity:
   \label{eq:kappa_def}
   \begin{split}
     \kappa &\coloneqq \frac{\SDhpv{\hypev{}}}{\Ehpv{\hypev{}}} \\[.75em]
-    {} &\coloneqq \frac{\SDhpv{\hypev{}}}{(1 - \rho) \, v^*}
+    {} &\coloneqq \frac{\SDhpv{\hypev{}}}{(1 - \alpha) \, v^*}
   \end{split}
 \end{align}
 which measures relative uncertainty about the variance hyperparameter. As
 $\kappa \to 0$, the researcher is expressing near-certainty that population
-heterogeneity is close to its target level $(1-\rho)v^*$. Larger values of
+heterogeneity is close to its target level $(1-\alpha)v^*$. Larger values of
 $\kappa$ represent greater uncertainty. At $\kappa = 1$ the standard deviation
 of the variance equals its mean, and $\kappa > 1$ indicates very diffuse
-beliefs about heterogeneity. Equations (\ref{eq:one_minus_rho}) and
+beliefs about heterogeneity. Equations (\ref{eq:one_minus_alpha}) and
 (\ref{eq:kappa_def}) then provide two moment conditions that uniquely
 determine $\hpriorvm{}$ and $\hpriorvv{}$:
 \begin{align}
 \label{eq:hyperv_solved}
-\Ehpv{\hypev{}} &= (1 - \rho) \, v^* \\
-\Varhpv{\hypev{}} &= \kappa^2 (1 - \rho)^2 (v^*)^2
+\Ehpv{\hypev{}} &= (1 - \alpha) \, v^* \\
+\Varhpv{\hypev{}} &= \kappa^2 (1 - \alpha)^2 (v^*)^2
 \end{align}
 \noindent As in (\ref{eq:hyperm_solved}), the right-hand side of
 (\ref{eq:hyperv_solved}) is composed of researcher-specified constants, and
@@ -531,7 +553,7 @@ parameters to its first two moments, so (\ref{eq:hyperv_solved}) has a unique
 solution $\hpriorvm{}$ and $\hpriorvv{}$.
 Thus, all four hyperprior parameters $(\hpriormm{}, \hpriormv{}, \hpriorvm{},
 \hpriorvv{})$ are now determined. The researcher's beliefs about heterogeneity
-are fully characterized by $\rho$, which controls the level of heterogeneity
+are fully characterized by $\alpha$, which controls the level of heterogeneity
 relative to population-mean uncertainty, and $\kappa$, which controls
 confidence in that level.
 
@@ -539,13 +561,13 @@ The resulting hierarchical predictive matches the direct prior exactly in its
 first two moments by construction. Higher moments, such as skewness, kurtosis,
 and tail probabilities, will generally differ because the compound
 distribution produced by the hierarchy is not in the same family as the direct
-prior. The size of this discrepancy depends in part on $\rho$ and $\kappa$. As
+prior. The size of this discrepancy depends in part on $\alpha$ and $\kappa$. As
 both approach zero, the hyperprior concentrates and the compound distribution
 collapses toward the individual-level distribution with mean $\dpm$ and
 variance $\dpv$. If the direct prior uses the same family as the
 individual-level distribution, it is recovered exactly in this limit. That is
 not required by the construction, but it is convenient and is the approach used
-in the application below. For nonzero $\rho$ and $\kappa$, the discrepancy is
+in the application below. For nonzero $\alpha$ and $\kappa$, the discrepancy is
 typically small, but it should be checked by comparing the hierarchical
 predictive to the direct prior. Appendix~\ref{app:hyperprior_families} provides
 this comparison for three standard families.
@@ -555,7 +577,7 @@ this comparison for three standard families.
 
 The moment conditions (\ref{eq:hyperm_solved})--(\ref{eq:hyperv_solved}) can be
 solved in closed form for standard families, but the translation from
-$(\rho, \kappa)$ to actual hyperprior parameters is family-specific. In the
+$(\alpha, \kappa)$ to actual hyperprior parameters is family-specific. In the
 Normal-Inverse-Gamma hierarchy, the conditional variance is a single parameter
 $\sigma^2$ with its own independent hyperprior, so $\kappa$ maps directly to
 the Inverse-Gamma shape: $\alpha_0 = 2 + 1/\kappa^2$. In the Beta-Beta
@@ -566,9 +588,9 @@ full derivations, graphical calibrations, and approximation analysis for three
 families: Normal-Inverse-Gamma (support on $\mathbb{R}$), Beta-Beta (support on
 $[0,1]$), and Gamma-Inverse-Gamma (support on $(0,\infty)$).
 
-The feasibility region in $(\rho, \kappa)$ space is also family-dependent.
+The feasibility region in $(\alpha, \kappa)$ space is also family-dependent.
 Families where the conditional variance is a single parameter (NIG,
-Gamma-Inverse-Gamma) admit all $\kappa > 0$ with no joint constraint on $\rho$.
+Gamma-Inverse-Gamma) admit all $\kappa > 0$ with no joint constraint on $\alpha$.
 Families where the conditional variance depends on the mean hyperparameter
 (Beta-Beta) impose both a lower bound on $\kappa$ (from the irreducible
 conditional variance variation contributed by the mean hyperparameter) and an
@@ -580,7 +602,7 @@ form from the researcher's direct prior and can be checked before estimation.
 
 When $p > 1$, the decomposition applies separately to each of the $p$
 predictive quantities. Each quantity $k$ requires a direct prior mean $\dpm_k$
-and variance $\dpv_k$, a variance partition ratio $\rho_k$, and a heterogeneity
+and variance $\dpv_k$, a variance partition ratio $\alpha_k$, and a heterogeneity
 confidence $\kappa_k$, yielding $4p$ researcher inputs in total. The value of
 the framework is therefore not parsimony in the number of choices, but a
 change in what those choices mean.
@@ -589,7 +611,7 @@ First, the method guarantees that the hyperprior predictive matches the direct
 prior in its first two moments by construction, making the calibration more
 direct \parencite{Gabry2019, Bland2025}.
 Second, once a direct prior has been specified, the remaining hierarchical
-choices become interpretable. The parameter $\rho$ governs how much
+choices become interpretable. The parameter $\alpha$ governs how much
 uncertainty is attributed to heterogeneity across individuals rather than to
 uncertainty about the population mean, while $\kappa$ governs how tightly that
 heterogeneity level is held. The benefit is therefore operational rather than
@@ -600,7 +622,7 @@ The practical workflow is therefore two-step. First, specify a quantity-space
 prior for a randomly selected individual using predictive quantities that admit
 an injective map from parameter space. Second, specify beliefs about how the
 resulting uncertainty should be allocated across the hierarchy. I now
-demonstrate this workflow for an RDU model estimated on experimental
+demonstrate this workflow for two RDU models estimated on experimental
 lottery-choice data, where the predictive quantities are certainty equivalents
 and a choice probability.
 
@@ -609,34 +631,35 @@ and a choice probability.
 \label{sec:application_rdu}
 %==============================================================================
 
-Following \textcite{Gao2022}, I define a BHM with RDU risk preferences using the
-CRRA utility function and the 2-parameter \textcite{Prelec1998} probability
-weighting function (PWF):
-\begin{align}
-  \label{eq:rdu}
-  U  &= \sum_i d_i u(x_i)\\
-  \label{eq:crra}
-  u(x) &= \frac{x^{1-r}}{1 - r}
-\end{align}
-\noindent where $d_i$ is the decision weight associated with outcome $x_i$. For
-a lottery with $n$ outcomes ranked from worst to best, let $p_i$ denote the
-probability of outcome $x_i$. The 2-parameter \textcite{Prelec1998} PWF
-transforms probabilities
-into decision weights as follows:
-\begin{align}
-  S_i &= \sum_{j=i}^{n} p_j \\
-  \label{eq:prelec}
-  w_i &= \exp\left(-\eta \left(-\ln S_i\right)^\phi\right)\\
-  \label{eq:decision_weight}
-  d_i &= w_i - w_{i + 1}
-\end{align}
-where $S_i$ is the decumulative probability of outcome $x_i$ or better,
-$w_{n+1} = 0$, and $\phi, \eta > 0$. When $\phi = \eta = 1$, the PWF is linear,
-resulting in $d_i = p_i$, the special case of
-EUT\@.
+A central advantage of the quantity-space approach is that it allows the
+researcher to specify beliefs about observables once and then translate those
+beliefs into parameter-space priors for any structural model that maps to the
+same quantities. This section demonstrates that property by applying the
+framework to two RDU models with different functional forms but the same
+number of free parameters. Both models share a common RDU structure, a common
+likelihood, and a common set of reference lotteries for the CE mapping. What
+differs is only the utility function and the probability weighting function,
+which change the Jacobian of the forward map.
 
-The probability that lottery \textit{A} is chosen over \textit{B} follows the
-logistic choice function:
+\subsection{RDU Framework}
+\label{sec:rdu_framework}
+
+Under RDU, the value of a lottery with $n$ outcomes $x_1 \leq \cdots \leq x_n$
+and associated probabilities $p_1, \ldots, p_n$ is
+\begin{equation}
+  \label{eq:rdu}
+  U = \sum_{i=1}^{n} d_i \, u(x_i)
+\end{equation}
+where $u(\cdot)$ is a utility function and $d_i$ are decision weights derived
+from a probability weighting function (PWF) $w$. The decision weights are
+constructed from the decumulative probabilities $S_i = \sum_{j=i}^n p_j$ as
+\begin{align}
+  \label{eq:decision_weight}
+  d_i &= w(S_i) - w(S_{i+1})
+\end{align}
+where $w(S_{n+1}) = 0$. The probability that lottery $A$ is chosen over $B$
+follows the logistic choice function with Contextual Utility normalization
+\parencite{Wilcox2011}:
 \begin{align}
 \label{eq:likelihood}
 \begin{split}
@@ -644,36 +667,82 @@ logistic choice function:
   \Delta &= \frac{U(A) - U(B)}{\lambda \left(u(\bar{x}) - u(\underbar{x})\right)}
 \end{split}
 \end{align}
-\noindent where $\Delta$ is a non-linear latent index of utility differences,
-$\lambda > 0$ is a \enquote{Fechnerian} noise scaling parameter, and
-$u(\bar{x}) - u(\underbar{x})$ is the difference between the greatest and least
-outcome with positive probability across \textit{A} and \textit{B}. Dividing by
-the difference of maximum and minimum utilities normalizes the difference in
-utilities to be between $[-1, 1]$ and applies the Contextual Utility model of
-\textcite{Wilcox2011}.
+where $\lambda > 0$ is a Fechnerian noise scaling parameter and
+$u(\bar{x}) - u(\underbar{x})$ is the utility range across all outcomes with
+positive probability in both lotteries. This choice model is common to both
+specifications below.
 
-This 4-parameter model is a workhorse of structural estimation of risk
-preferences, applied to joint estimation of risk and time preferences
+\subsection{Two RDU Specifications}
+\label{sec:two_models}
+
+I consider two combinations of utility function and PWF, each yielding a
+4-parameter model. The first follows \textcite{Gao2022} and is widely used
+in the experimental economics literature. The second combines a more flexible
+utility function with a parsimonious inverse-S weighting function.
+
+\subsubsection*{Model 1: CRRA + Prelec}
+
+The first specification uses the CRRA utility function and the 2-parameter
+\textcite{Prelec1998} PWF:
+\begin{align}
+  \label{eq:crra}
+  u(x) &= \frac{x^{1-r}}{1 - r} \\
+  \label{eq:prelec}
+  w(p) &= \exp\!\left(-\eta \left(-\ln p\right)^\phi\right)
+\end{align}
+where $r$ governs risk aversion (with $r = 0$ corresponding to risk
+neutrality), $\phi > 0$ controls the curvature of the PWF, and $\eta > 0$
+controls its elevation. When $\phi = \eta = 1$ the PWF is linear, reducing to
+EUT\@. The model has 4 parameters: $(r, \phi, \eta, \lambda)$.
+
+This specification is a workhorse of structural estimation of risk preferences,
+applied to joint estimation of risk and time preferences
 \parencite{Andersen2008}, uncovering heterogeneity in probability distortion
 \parencite{BruhinFehrDudaEpper2010}, field experiments in developing countries
 \parencite{Tanaka2010}, characterizing risk attitudes in broad populations
 \parencite{vonGaudecker2011}, and hierarchical Bayesian welfare analysis
 \parencite{Gao2022}, among many others.
 
+\subsubsection*{Model 2: Expo-Power + Tversky-Kahneman}
+
+The second specification uses the Expo-Power utility function
+\parencite{Saha1993} and the 1-parameter \textcite{TverskyKahneman1992}
+inverse-S PWF:
+\begin{align}
+  \label{eq:ep}
+  u(x) &= \frac{1 - \exp\!\left(-\alpha\, x^{1-r}\right)}
+               {\alpha\,(1 - r)} \\
+  \label{eq:tk}
+  w(p) &= \frac{p^\gamma}
+               {\left(p^\gamma + (1-p)^\gamma\right)^{1/\gamma}}
+\end{align}
+where $\alpha > 0$ and $r$ jointly govern the shape of the utility function,
+and $\gamma \in (0, 1)$ controls the degree of inverse-S distortion in the
+PWF\@. The Expo-Power nests CRRA as $\alpha \to 0$ and CARA as $r \to 0$,
+allowing for both decreasing and increasing absolute risk aversion depending on
+the sign of $r$. The TK function produces the empirically well-documented
+inverse-S shape, overweighting small probabilities and underweighting large
+ones, with $\gamma = 1$ reducing to the identity. The model has 4 parameters:
+$(\alpha, r, \gamma, \lambda)$.
+
+The two specifications are complementary. CRRA + Prelec separates curvature
+(1 parameter) from probability distortion (2 parameters), while Expo-Power +
+TK separates utility curvature (2 parameters) from probability distortion
+(1 parameter). Both map 4 structural parameters to the same 4 predictive
+quantities through the RDU-CE mapping described below.
+
 
 
 \subsection{Quantity-Space Mapping for RDU}
 \label{sec:ce_space}
 
-Each individual has a vector of 4 parameters,
-$\bth = (r, \phi, \eta, \lambda)$. Following \textcite{Gao2022}, one could
-place independent Normal-Inverse-Gamma hyperpriors directly on these
-parameters, but this would require setting 16 hyperprior parameters, each with
-consequences for the prior predictive distribution of quantities of interest.
-Following the method in Section \ref{sec:gq_space}, I instead begin by
-specifying 4 direct priors on predictive quantities about which a researcher
-would have strong beliefs: 3 certainty equivalents (CEs) and one choice
-probability.
+Under either specification, each individual has 4 structural parameters
+$\bth$, and a traditional parameter-space approach would require setting 16
+hyperprior parameters. Following the method in Section \ref{sec:gq_space}, I
+instead specify 4 direct priors on predictive quantities about which a
+researcher has well-calibrated beliefs: 3 certainty equivalents (CEs) and one
+choice probability. The key observation is that these quantities are the same
+regardless of which utility function or PWF generates them.
 
 The CE is the certain amount of money that provides the same utility as a
 lottery, translating structural parameters into dollar-denominated quantities
@@ -682,7 +751,8 @@ about which researchers have direct intuition
 welfare analysis \parencite{Harrison2016, Gao2022, Monroe2023} and prior
 calibration \parencite{Bland2025}.
 
-The preference parameters $(r, \phi, \eta)$ determine the CE of any lottery:
+For any RDU specification, the preference parameters $\bth$ determine the CE
+of a lottery through
 \begin{equation}
   \label{eq:ce_definition}
   u(\CE; \bth) = \sum_j d_j(\bth) \,
@@ -690,15 +760,13 @@ The preference parameters $(r, \phi, \eta)$ determine the CE of any lottery:
 \end{equation}
 where $u(\cdot; \bth)$ is the utility function and $d_j(\bth)$ are decision
 weights. Choosing three reference lotteries $L_1, L_2, L_3$ with suitably
-diverse characteristics defines the mapping:
-\begin{equation}
-  \bg(r, \phi, \eta) = \left(\CE_1, \CE_2, \CE_3\right)
-\end{equation}
-The noise parameter $\lambda$ does not affect CEs but governs choice precision.
-Conditioning on the preference parameters and evaluating $P(A)$ from
-(\ref{eq:likelihood}) for a reference lottery pair $(A, B)$ pins down $\lambda$.
-This extends the mapping to
-$\bg(r, \phi, \eta, \lambda) = (\CE_1, \CE_2, \CE_3, P)$.\footnote{
+diverse characteristics defines a mapping from preference parameters to CEs.
+For Model 1 this is $\bg_1(r, \phi, \eta) = (\CE_1, \CE_2, \CE_3)$; for
+Model 2 it is $\bg_2(\alpha, r, \gamma) = (\CE_1, \CE_2, \CE_3)$. In each
+case the noise parameter $\lambda$ does not affect CEs but governs choice
+precision. Conditioning on the preference parameters and evaluating $P(A)$ from
+(\ref{eq:likelihood}) for a reference lottery pair $(A, B)$ pins down $\lambda$,
+extending the mapping to 4 quantities.\footnote{
   The change-of-variables formula $p(\bth) = p_Y(\bg(\bth))\,|\!\det
   J_{\bg}(\bth)|$ requires that the mapping $\bg$ be injective on the
   support of the prior. A nonvanishing Jacobian determinant ($\det J_{\bg}
@@ -706,9 +774,18 @@ $\bg(r, \phi, \eta, \lambda) = (\CE_1, \CE_2, \CE_3, P)$.\footnote{
   necessary but not sufficient. Proving injectivity for the mapping is
   nontrivial and must be assessed on a case-by-case basis.
   Appendix \ref{app:global_injectivity} provides a proof for the
-  CRRA-Prelec model and guidance on what classes of reference lotteries
-  satisfy the required conditions.
+  CRRA-Prelec model. For the Expo-Power + TK model, numerical verification
+  on a dense grid over the prior support confirms that the Jacobian
+  determinant does not vanish.
 }
+
+The crucial point is that the CEs and choice probability are
+\textit{model-independent observables}: they describe behavior rather than
+parameters. The direct prior over $(\CE_1, \CE_2, \CE_3, P)$ is therefore the
+same for both models. What differs is only the Jacobian $J_\bg$, which depends
+on the functional forms of $u$ and $w$. The quantity-space prior specification
+is done once, and the change-of-variables formula translates it into a
+different parameter-space prior for each model.
 
 All four predictive quantities are bounded: CEs by lottery outcomes and the
 choice probability by $[0,1]$. Each CE can be rescaled to $(0,1)$ by the
@@ -741,12 +818,12 @@ parameterizing in terms of mean and variance directly.
 The hierarchical model has 4 hyperprior parameters per quantity. The variance
 decomposition of Section \ref{sec:variance_decomposition} replaces these with
 4 interpretable inputs per quantity: a direct prior mean $\dpm_k$ and variance
-$\dpv_k$, a variance partition ratio $\rho_k$, and a heterogeneity confidence
+$\dpv_k$, a variance partition ratio $\alpha_k$, and a heterogeneity confidence
 $\kappa_k$. For the Beta-Beta hierarchy, this translation is not as simple as
 in the NIG case because the conditional variance depends on both $\mu_k$ and
 $\psi_k$, so the mapping requires cross-moment calculations. The complete
 derivation, including the feasibility region and $\kappa$ bounds, is given in
-Appendix~\ref{app:beta_beta}. Because $\rho_k$ and $\kappa_k$ are unit-free
+Appendix~\ref{app:beta_beta}. Because $\alpha_k$ and $\kappa_k$ are unit-free
 ratios, it is reasonable in this application to share them across quantities.
 Appendix~\ref{app:rk_sensitivity} shows that this CE-space specification
 induces a sensible prior in parameter space, centered near mild risk aversion
@@ -867,13 +944,13 @@ Table \ref{tab:prior_beliefs} specifies the resulting direct prior for each
 quantity. The variance decomposition of Section
 \ref{sec:variance_decomposition} splits each direct prior variance into
 population-mean uncertainty and within-population heterogeneity, governed by
-$\rho_k$ and $\kappa_k$. Because $\rho_k$ is a variance ratio and $\kappa_k$ is
+$\alpha_k$ and $\kappa_k$. Because $\alpha_k$ is a variance ratio and $\kappa_k$ is
 a coefficient of variation, both are unit-free and can reasonably be shared
-across quantities with different natural units. I set $\rho_k =
-\py{fmt(D['ce_ps_rho'], 1)}$ for all quantities, meaning that
-\py{fmt(D['rho_pct'], 0)}\% of the direct prior variance is attributed to
+across quantities with different natural units. I set $\alpha_k =
+\py{fmt(D['ce_ps_alpha'], 1)}$ for all quantities, meaning that
+\py{fmt(D['alpha_pct'], 0)}\% of the direct prior variance is attributed to
 uncertainty about the population mean and the remaining
-\py{fmt(D['one_minus_rho_pct'], 0)}\% to heterogeneity across individuals. I
+\py{fmt(D['one_minus_alpha_pct'], 0)}\% to heterogeneity across individuals. I
 set $\kappa_k = \py{fmt(D['ce_ps_kappa'], 2)}$, so the coefficient of variation
 of the within-population variance is \py{fmt(D['kappa_pct'], 0)}\%. This
 reflects moderately high confidence in the heterogeneity specification, meaning
@@ -886,16 +963,27 @@ still permitting the data to move it.\footnote{
 
 The quantity-space hierarchy defines a prior on $(\CE_1, \CE_2, \CE_3,
 P)$. The change-of-variables formula transforms this to the parameter-space
-prior $p(r, \phi, \eta, \lambda)$ used in sampling:
+prior used in sampling. For Model 1 (CRRA + Prelec):
 \begin{equation}
   \label{eq:jacobian_prior_rdu}
   p(r, \phi, \eta, \lambda)
-    = p_Y\!\bigl(\bg(r, \phi, \eta, \lambda)\bigr)\;
-      \bigl|\!\det J_{\bg}(r, \phi, \eta, \lambda)\bigr|
+    = p_Y\!\bigl(\bg_1(r, \phi, \eta, \lambda)\bigr)\;
+      \bigl|\!\det J_{\bg_1}(r, \phi, \eta, \lambda)\bigr|
 \end{equation}
+For Model 2 (Expo-Power + TK):
+\begin{equation}
+  \label{eq:jacobian_prior_ep}
+  p(\alpha, r, \gamma, \lambda)
+    = p_Y\!\bigl(\bg_2(\alpha, r, \gamma, \lambda)\bigr)\;
+      \bigl|\!\det J_{\bg_2}(\alpha, r, \gamma, \lambda)\bigr|
+\end{equation}
+The quantity-space density $p_Y$ is identical in both equations. Only the
+forward map $\bg$ and its Jacobian differ. The two models therefore share the
+same prior beliefs about certainty equivalents and choice probabilities, while
+inducing different priors over their respective structural parameters.
 
 To further illustrate the consequences of hyperprior choice, I also estimate
-the model using the diffuse parameter-space hyperprior from
+both models using the diffuse parameter-space hyperprior from
 \textcite[279--281]{Gao2022}. This specification places priors directly on the
 structural parameters rather than using the quantity-space priors developed in
 Section \ref{sec:gq_space}, and uses the common Inverse-Gamma($\varepsilon$,
@@ -1066,12 +1154,66 @@ posterior around its mode and reducing right-tail mass relative to the diffuse
 model. This variance reduction is smaller for $L_2$ because its narrower CE
 range (\$20--\$40) leaves less room for the two models to disagree.
 
-\subsection{Sensitivity to $\rho$ and $\kappa$}
+\subsection{Cross-Model Comparison}
 
-The preceding results use a single $(\rho, \kappa)$ specification. To assess
+The preceding results used the CRRA + Prelec specification (Model 1). I now
+compare the hyper-posterior predictive CEs across all three prior
+specifications: the CRRA + Prelec informative model, the Expo-Power + TK
+informative model (Model 2), and the diffuse benchmark. Recall that Models 1
+and 2 share the same quantity-space prior over $(\CE_1, \CE_2, \CE_3, P)$ and
+the same $(\alpha, \kappa)$ variance decomposition. What differs is only the
+structural mapping $\bg$ and its Jacobian.
+
+\begin{figure}[hp]
+  \centering
+  \mycaption{Cross-model hyper-posterior predictive CE distributions}
+  \label{fig:cross_model_ce}
+  \includegraphics[width=\textwidth]{../plots/paper/cross_model_ce_overlay.pdf}
+\end{figure}
+
+Figure \ref{fig:cross_model_ce} shows the result. For lotteries $L_1$ and
+$L_3$, the two informative models produce closely aligned CE posteriors, with
+median CEs of $\$\py{xm_crra_1}$ and $\$\py{xm_ep_1}$ for $L_1$ and
+$\$\py{xm_crra_3}$ and $\$\py{xm_ep_3}$ for $L_3$ under the CRRA + Prelec
+and EP + TK specifications respectively. Both are concentrated below the
+expected value and both are substantially tighter than the diffuse benchmark.
+This agreement is notable because the two models have no shared structural
+parameters, different utility functions, and different probability weighting
+specifications. The shared quantity-space prior is the mechanism that aligns
+them: both models are anchored to the same beliefs about where CEs should lie
+for a randomly selected individual, and the data are sufficiently informative
+for these lotteries that the posterior reflects the data rather than the
+model-specific Jacobian.
+
+For lottery $L_2$, the two informative models diverge, with median CEs of
+$\$\py{xm_crra_2}$ (CRRA + Prelec) and $\$\py{xm_ep_2}$ (EP + TK). The
+CRRA + Prelec posterior places substantial mass above the expected value of
+\$30, while the EP + TK posterior remains concentrated below it. This
+divergence reflects a genuine difference in how the two PWFs handle the
+symmetric probability $p = 0.5$.
+The 2-parameter Prelec function can independently adjust curvature and
+elevation, allowing $w(0.5) > 0.5$ even when probabilities near 0 and 1 are
+distorted. The 1-parameter TK function constrains the entire shape with a
+single parameter, producing less inflation at $p = 0.5$ for the same degree of
+inverse-S distortion at the tails. This lottery-specific disagreement is
+informative rather than problematic: it identifies precisely where the choice of
+PWF matters for predictive inference, and it does so in the interpretable
+units of certainty equivalents rather than in the model's native
+parameterization.
+
+In all three panels, both informative models are clearly distinct from the
+diffuse benchmark, which assigns substantial mass to extreme CE values that
+neither informative specification considers plausible. The quantity-space prior
+therefore provides meaningful regularization regardless of the structural
+model, while the remaining differences between the two informative models
+isolate the effect of functional form choice on predictive conclusions.
+
+\subsection{Sensitivity to $\alpha$ and $\kappa$}
+
+The preceding results use a single $(\alpha, \kappa)$ specification. To assess
 how sensitive the subject classification is to these choices, I re-estimate the
 model at three additional configurations spanning a wide range of the
-$(\rho, \kappa)$ space, holding all other aspects of the specification fixed and
+$(\alpha, \kappa)$ space, holding all other aspects of the specification fixed and
 using the same subject classification rule based on average absolute median CE
 differences. Table~\ref{tab:rk_sensitivity} reports the subject classification
 for each.
@@ -1110,12 +1252,12 @@ print(r"""
   \centering
   \begin{tabular}{cc|cccc}
     \toprule
-    $\rho$ & $\kappa$ & Well-identified & Moderate & Prior-dominated & \% dominated \\
+    $\alpha$ & $\kappa$ & Well-identified & Moderate & Prior-dominated & \% dominated \\
     \midrule
 """ + _rk_table_rows + r"""
     \bottomrule
   \end{tabular}
-  \caption{Subject classification across $(\rho, \kappa)$ configurations.
+  \caption{Subject classification across $(\alpha, \kappa)$ configurations.
     Each row uses the same direct prior, data, and comparison model;
     only the hierarchical variance allocation changes.}
   \label{tab:rk_sensitivity}
@@ -1125,16 +1267,16 @@ print(r"""
 
 The prior-dominated share ranges from \py{_pct_min}\% to \py{_pct_max}\%
 across the four configurations, confirming that the finding is structurally
-stable rather than an artifact of a particular $(\rho, \kappa)$ choice. The
+stable rather than an artifact of a particular $(\alpha, \kappa)$ choice. The
 direction of movement is consistent with the theory. Holding $\kappa$ fixed,
-higher $\rho$ (tighter population prior, less heterogeneity) increases the
+higher $\alpha$ (tighter population prior, less heterogeneity) increases the
 prior-dominated share from \py{_pct_lo_lo}\% to \py{_pct_hi_lo}\% at low
 $\kappa$ and from \py{_pct_lo_hi}\% to \py{_pct_hi_hi}\% at high $\kappa$,
 because the narrower population distribution assigns lower density to extreme
-parameter values. Holding $\rho$ fixed, higher $\kappa$ (less confidence in
+parameter values. Holding $\alpha$ fixed, higher $\kappa$ (less confidence in
 the heterogeneity level) reduces the prior-dominated share from
-\py{_pct_lo_lo}\% to \py{_pct_lo_hi}\% at low $\rho$ and from
-\py{_pct_hi_lo}\% to \py{_pct_hi_hi}\% at high $\rho$, because the looser
+\py{_pct_lo_lo}\% to \py{_pct_lo_hi}\% at low $\alpha$ and from
+\py{_pct_hi_lo}\% to \py{_pct_hi_hi}\% at high $\alpha$, because the looser
 variance hyperprior gives the data more room to pull weakly-identified subjects
 away from the prior mode.
 The moderate group is notably stable at \py{_mod_min}--\py{_mod_max} subjects
@@ -1157,11 +1299,15 @@ selected individual, and then states how much of the resulting uncertainty
 should be attributed to population heterogeneity rather than uncertainty about
 the population mean. This separation is useful because researchers often have
 substantive intuition in experimental units even when they have little
-intuition about hyperprior parameters themselves. The framework therefore
-extends the Bayesian workflow of \textcite{Gabry2019} to the hierarchical
-setting by making the two distinct roles of a hyperprior explicit: anchoring
-the unconditional distribution of observables and allocating uncertainty across
-levels of the hierarchy.
+intuition about hyperprior parameters themselves. A further benefit, illustrated
+by the cross-model application, is that the same quantity-space specification
+can serve as the prior for multiple structural models. The CRRA + Prelec and
+Expo-Power + TK specifications share no structural parameters, yet they share a
+single set of beliefs about certainty equivalents and choice probabilities.
+The framework therefore extends the Bayesian workflow of \textcite{Gabry2019}
+to the hierarchical setting by making the two distinct roles of a hyperprior
+explicit: anchoring the unconditional distribution of observables and allocating
+uncertainty across levels of the hierarchy.
 
 In practice, the method fits naturally into a prior-predictive workflow. The
 researcher chooses a specification space, either parameter space itself or a
@@ -1169,16 +1315,16 @@ quantity space such as certainty equivalents, choice probabilities, or
 indifference amounts. For each dimension, the researcher provides a mean and
 variance reflecting beliefs about a single random individual, informed by
 published empirical estimates, pilot data, or expert judgment. The researcher
-then chooses $\rho$ and $\kappa$ to express beliefs about the degree of
+then chooses $\alpha$ and $\kappa$ to express beliefs about the degree of
 population heterogeneity and confidence in that specification. Values of
-$\rho = 0.2$ and $\kappa = 0.25$, as used in the application, correspond to
+$\alpha = 0.2$ and $\kappa = 0.25$, as used in the application, correspond to
 substantial heterogeneity with moderate confidence. The implied prior
 predictive distribution should then be examined, not merely to confirm that the
 first two moments match the direct prior, which they do by construction, but
 also to verify that the allocation between population-mean uncertainty and
 individual heterogeneity is substantively reasonable. The sensitivity analysis
 in Appendix \ref{app:rk_sensitivity} indicates that the broad posterior
-patterns are stable across a range of $(\rho, \kappa)$ values, even though the
+patterns are stable across a range of $(\alpha, \kappa)$ values, even though the
 magnitude of prior influence moves in the expected direction. Estimation then
 proceeds with standard MCMC sampling,
 adding the Jacobian correction term to the log-posterior when quantity-space
@@ -1218,14 +1364,14 @@ required by the current method.
 Second, the current framework is built around independent marginal direct
 priors over the $p$ predictive quantities. In the application, $\CE_1$,
 $\CE_2$, $\CE_3$, and $P$ are treated as independent in the elicited prior even
-though they are deterministic functions of the same underlying parameters $(r,
-\phi, \eta, \lambda)$ and are therefore necessarily dependent. This use of
-independent marginals is deliberate: in many applications, a researcher may be
-able to articulate marginal beliefs about several observables more easily than
-their full joint dependence. Those independent marginal beliefs do not imply an
-independent parameter prior. The Jacobian correction transports them through
-the shared structural map, so the induced prior on $(r, \phi, \eta, \lambda)$
-is generally dependent and can exhibit nonzero covariance across parameters.
+though they are deterministic functions of the same underlying parameters and
+are therefore necessarily dependent. This use of independent marginals is
+deliberate: in many applications, a researcher may be able to articulate
+marginal beliefs about several observables more easily than their full joint
+dependence. Those independent marginal beliefs do not imply an independent
+parameter prior. The Jacobian correction transports them through the shared
+structural map, so the induced prior on the parameter vector is generally
+dependent and can exhibit nonzero covariance across parameters.
 What the elicitation step does not do is directly encode the researcher's joint
 beliefs about the quantity vector itself. In particular, if two reference
 quantities are very similar, independent marginal priors may impose unintended
@@ -1239,52 +1385,30 @@ Finally, quantity-space specification requires an injective mapping from
 parameters to predictive quantities. This is not a cosmetic condition; it
 constrains the design of reference quantities and implies that not all
 experimental designs are equally suitable for prior specification. Proving
-injectivity can also be technically demanding. In the present use case, the
-proof must account for the inverse of the utility function, and the burden
-would only increase for utility specifications with more parameters or more
-complicated structures. Other quantities, such as choice probabilities, avoid
-some of these complications and can support flexible reference designs, at
-least for EUT\@. Appendix \ref{app:global_injectivity} gives the proof for the
-CRRA-Prelec model in the CE space, and Appendix \ref{app:eut_choice_probs}
-shows that broad classes of lottery pairs yield injective maps when the
-predictive quantities are choice probabilities under EUT\@. That appendix is
-included not only as a contrast case for the present application, but also as a
-general reference result for future work that uses choice probabilities as
-predictive quantities under EUT\@.
+injectivity can also be technically demanding. For the CRRA-Prelec model, a
+full analytic proof is given in Appendix \ref{app:global_injectivity}, making
+use of the sequential decomposition of the CE mapping into probability
+weighting, utility, and noise identification blocks. For the Expo-Power + TK
+model, the same sequential structure applies, but the utility identification
+step involves a 2-parameter system rather than a scalar monotonicity argument.
+I verify injectivity numerically by evaluating the Jacobian determinant on a
+dense grid over the prior support, confirming that it does not vanish. A full
+analytic proof for the Expo-Power specification is left for future work. Other
+quantities, such as choice probabilities, avoid some of these complications
+and can support flexible reference designs, at least for EUT\@.
+Appendix \ref{app:eut_choice_probs} shows that broad classes of lottery pairs
+yield injective maps when the predictive quantities are choice probabilities
+under EUT\@.
 
 
 \subsection{Extensions}
 
-While the current application was largely concerned with how changes in the
-prior specification for a single model might change posterior inferences about
-that model, the proposed method also provides a coherent way to maintain
-consistency in prior beliefs when the researcher considers different models
-that nonetheless make predictions about the same quantities.
-
-For example, the present application makes use of the CRRA utility function and
-2-parameter Prelec PWF, for a total of 3 preference parameters, which are mapped to
-3 CEs. An alternative model would be the Expo-Power utility function
-\parencite{Saha1993} and the Power PWF \parencite{Quiggin1982}, which
-collectively \textit{also} have 3 parameters. If one were concerned with a
-traditional horse race between the two models, the lack of any shared
-parameters means that traditionally a researcher would need to specify
-hyperpriors over the two models separately. The proposed method instead allows
-the researcher to specify a single set of priors over observed quantities,
-provided those quantities admit valid injective maps for each model on the
-relevant support. That common quantity-space specification can then be
-translated into model-specific priors in parameter space. This helps not only
-to alleviate the conceptual burden of multiple hyperprior specifications, but
-also to enforce consistency in beliefs about the behavior of individual
-subjects independently of the latent model used to represent that behavior.
-
-Additionally, the current application limited the number of quantities to equal
-the number of free parameters in the model, but it is entirely reasonable to
-use more quantities than free parameters, as discussed in Section
-\ref{sec:gq_space}. This may be unnecessary when the researcher is primarily
-concerned with the estimation of a single model, but when comparing different
-models that produce the same quantities, say an RDU model against an EUT model
-with fewer parameters, the same prior over quantities can be specified for both
-models.\footnote{
+The present application used the same number of predictive quantities as free
+parameters in each model, but it is entirely reasonable to use more quantities
+than free parameters, as discussed in Section \ref{sec:gq_space}. When
+comparing models with different parameter dimensions, say an RDU model against
+an EUT model with fewer parameters, the same prior over quantities can be
+specified for both.\footnote{
   When $k > p$, the forward map sends the parameter space into a
   $p$-dimensional image inside the larger quantity space. In that case, the
   Gram determinant from Section \ref{sec:gq_space} provides the appropriate
@@ -1313,22 +1437,26 @@ is allocated across levels of the hierarchy, separating beliefs about
 population heterogeneity from beliefs about the location of the population
 mean.
 
-The application to RDU estimation illustrates the methodological value of this
-approach. In quantity space, the substantive implications of a hyperprior are
-directly visible, and diagnostics based on posterior predictive distributions
-and CDF differences make the prior's influence transparent across subjects,
-lotteries, and quantiles. The results also show that informative hyperpriors
-matter most where the data are weak, while leaving well-identified subjects
-largely unchanged.
+The application to RDU estimation with two structurally different models
+illustrates the methodological value of this approach. The CRRA + Prelec and
+Expo-Power + Tversky-Kahneman specifications share no structural parameters,
+yet they share a single quantity-space prior over certainty equivalents and
+choice probabilities. In quantity space, the substantive implications of a
+hyperprior are directly visible, and diagnostics based on posterior predictive
+distributions and CDF differences make the prior's influence transparent across
+subjects, lotteries, and quantiles. The results show that informative
+hyperpriors matter most where the data are weak, while leaving well-identified
+subjects largely unchanged.
 
 The framework changes the object of prior specification. Instead of asking
 researchers to work directly with opaque hyperprior parameters, it asks them to
 reason about observables and about the structure of heterogeneity in the
-population. That shift makes hierarchical prior specification easier to
-interpret, easier to diagnose, and easier to keep coherent across competing
-structural models that speak to the same behavioral quantities. This is the
-main advantage of the framework, and the reason quantity-space hyperprior
-specification may be useful well beyond the present application.
+population. The cross-model application demonstrates that this shift not only
+makes hierarchical prior specification easier to interpret and diagnose, but
+also makes it coherent across competing structural models that speak to the
+same behavioral quantities. This is the main advantage of the framework, and
+the reason quantity-space hyperprior specification may be useful well beyond the
+present application.
 
 
 \subsection*{Code and Data Availability}

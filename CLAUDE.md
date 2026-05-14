@@ -4,26 +4,31 @@ Instructions for Claude Code sessions in this workspace.
 
 ## Project Status
 
-**Current State:** Paper restructured for Journal of Econometrics. Single model: Beta-Beta CE-space hierarchy.
+**Current State:** Paper restructured for Journal of Econometrics. Two models: CRRA+Prelec and Expo-Power+TK92, both using Beta-Beta CE-space hierarchy.
 
 The paper has been restructured from an Economics Letter into a full JoE paper:
-- Title: "Quantity-Space Prior Specification for Bayesian Hierarchical Models"
-- 6 sections + 4 appendices
+- Title: "Quantity-Space Hyperprior Specification for Bayesian Hierarchical Models"
+- 7 sections + 4 appendices
 - Two contributions: (i) quantity-space priors with Jacobian correction; (ii) variance decomposition with κ parameterization
-- Single application: RDU with real data (working)
+- Third contribution (implicit): cross-model prior consistency via shared quantity-space prior
+- Two applications: CRRA+Prelec and Expo-Power+TK92, both with real data
 - Bibliography expanded from ~11 to ~30+ references
 - Technical notes integrated into main paper body and appendices
 
-**Active model: `rdu_bhm_ce`** (Beta-Beta, CE-space): Full pipeline implemented —
+**Model 1: `rdu_bhm_ce`** (CRRA + Prelec, Beta-Beta, CE-space): Full pipeline —
 prior selection, sampling, preprocessing, and diagnostic plotting. Uses
 logit-parameterized hyperparams internally; diagnostic plots display on
 natural scale (dollars for CEs, [0,1] for ψ).
 
-The previous NIG parameter-space model (`rdu_bhm`) has been removed from all
-pipelines. Its posterior file (`posteriors/rdu_bhm.py`) remains on disk for
-reference but is not imported or used.
+**Model 2: `rdu_ep_bhm_ce`** (Expo-Power + TK92, Beta-Beta, CE-space): Core
+implementation complete. Same Beta-Beta hierarchy, same quantity-space prior,
+same reference lotteries. Uses JAX autodiff for Jacobian (no analytic form).
+Parameters: (alpha_raw, r, gamma_raw, lambda_raw) on log/natural scale.
 
-**Current branch:** `master`
+The diffuse NIG parameter-space model (`rdu_bhm`) is retained as a comparison
+benchmark (Gao 2022 specification).
+
+**Current branch:** `feat/expo-power-model`
 
 See `TODO.md` for detailed task tracking.
 
@@ -41,7 +46,7 @@ Target: Journal of Econometrics, full-length paper (~30-35 pages with appendices
 
 2. **Distribution-free variance decomposition** — Reduce 4p hyperprior choices
    to 2 interpretable parameters:
-   - **ρ (rho):** Variance partition ratio — fraction of variance from
+   - **α (alpha):** Variance partition ratio — fraction of variance from
      uncertainty about population mean vs. population heterogeneity
    - **κ (kappa):** Coefficient of variation of heterogeneity — replaces α₀
      with a distribution-free measure: κ = SD[σ²]/E[σ²]
@@ -82,12 +87,24 @@ A copy is in the `lit/` directory.
   - Chain state stores logit-scale; generated quantities return sigmoid-transformed values
   - Hyperprior array layout: [a_mu, b_mu, a_psi, b_psi, lo, hi] per quantity
 
-- **`code/posteriors/common_fns.py`** - Shared utility functions
-  - CRRA utility with normalization, Prelec probability weighting, risk likelihood
+- **`code/posteriors/rdu_ep_bhm_ce.py`** - Expo-Power + TK92 BHM log posterior
+  - 4 params per subject: α (EP curvature), r, γ (TK curvature), λ (noise)
+  - Same 8 hyperparameters, same Beta-Beta hierarchy as CRRA model
+  - Imports shared hyperprior infrastructure from `rdu_bhm_ce.py`
+  - Uses JAX autodiff for Jacobian (no analytic decomposition)
 
-- **`code/sampling_ce.py`** - CE-space model sampling setup
+- **`code/posteriors/common_fns.py`** - Shared utility functions
+  - CRRA: `crra_ufn`, `crra_inverse`, `prelec_pwf`, analytic Jacobian
+  - EP+TK: `ep_ufn`, `ep_inverse` (Newton), `tk_pwf`, autodiff Jacobian
+  - Shared: `risk_likelihood`, `risk_likelihood_ep`, forward maps, CE computation
+
+- **`code/sampling_ce.py`** - CRRA CE-space model sampling setup
   - Configures bamcmc for `rdu_bhm_ce` model
   - Passes reference lottery data and hyperprior params to posterior
+
+- **`code/sampling_ep.py`** - EP+TK CE-space model sampling setup
+  - Same structure as `sampling_ce.py` but imports EP posterior
+  - Reuses `pack_ref_lotteries`, `pack_ref_pair` from `sampling_ce.py`
 
 - **`code/sensitivity.py`** - Sensitivity analysis over (ρ, κ) grid
   - Beta-Beta hierarchy sampling for between/within population SD
@@ -100,7 +117,7 @@ A copy is in the `lit/` directory.
 - **`code/gen_paper_data.py`** - Generate `paper_data.npz` for pythontex
   - Data summaries (n_subjects, n_choices, prize/probability ranges)
   - CE-space config: direct prior bounds, reference lotteries, reference pair, prior selection
-  - NPZ keys: `ce_mu_1`, `ce_lo_1`, `ref_lot_1_prize_1`, `ref_pair_A_prob_2`, `ce_ps_rho`, etc.
+  - NPZ keys: `ce_mu_1`, `ce_lo_1`, `ref_lot_1_prize_1`, `ref_pair_A_prob_2`, `ce_ps_alpha`, etc.
 
 - **`code/plotting.py`** - Diagnostic plotting for CE-space model
   - CE hyperparameter plots apply sigmoid transform to display natural scale
@@ -108,7 +125,7 @@ A copy is in the `lit/` directory.
 
 ### Model Parameters
 
-The RDU-BHM model uses 4 parameters per subject:
+**Model 1 (CRRA + Prelec)** — 4 parameters per subject:
 - **r**: CRRA risk aversion coefficient
 - **φ (phi)**: Prelec curvature (log scale internally)
 - **η (eta)**: Prelec elevation (log scale internally)
@@ -118,6 +135,18 @@ Prelec probability weighting: `w(p) = exp(-η(-ln p)^φ)`
 - When φ = η = 1: linear PWF (Expected Utility)
 - φ < 1: inverse-S shape (overweight small p, underweight large p)
 
+**Model 2 (Expo-Power + TK92)** — 4 parameters per subject:
+- **α (alpha)**: EP curvature (log scale internally, α > 0)
+- **r**: Risk aversion coefficient (natural scale, unbounded)
+- **γ (gamma)**: TK curvature (log scale internally, γ > 0.28)
+- **λ (lambda)**: Fechner noise (log scale internally)
+
+Expo-Power utility: `U(x) = (1 - exp(-α x^(1-r))) / (α(1-r))`
+- Nests CRRA as α → 0, CARA as r → 0
+
+TK probability weighting: `w(p) = p^γ / (p^γ + (1-p)^γ)^(1/γ)`
+- γ = 1: linear; γ < 1: inverse-S shape
+
 ### Variance Decomposition (Beta-Beta)
 
 For each quantity k on [lo, hi], normalized to z ∈ [0,1]:
@@ -126,7 +155,7 @@ For each quantity k on [lo, hi], normalized to z ∈ [0,1]:
 - z_ik | μ_k, ψ_k ~ Beta(μ(1-ψ)/ψ, (1-μ)(1-ψ)/ψ)
 
 Researcher choices:
-- **ρ (rho):** Fraction of variance from uncertainty about population mean (default: 0.2)
+- **α (alpha):** Fraction of variance from uncertainty about population mean (default: 0.2)
 - **κ (kappa):** Coefficient of variation of heterogeneity (default: 0.25)
   - Distribution-free: defined without reference to any specific family
   - Interpretable as "confidence in heterogeneity specification"
@@ -410,7 +439,7 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 - **A**: Hyperprior Derivation by Distributional Family — `appendix_hyperprior_families.tex`
 - **B**: Injectivity Analysis for the Change-of-Variables Prior — `appendix_global_injectivity.tex`
 - **C**: Identification from Choice Probabilities under EUT — `appendix_eut_choice_probs.tex`
-- **D**: Sensitivity to `(\rho, \kappa)` — `appendix_rk_sensitivity.tex`
+- **D**: Sensitivity to `(\alpha, \kappa)` — `appendix_rk_sensitivity.tex`
 
 ### Compiling
 
@@ -448,5 +477,5 @@ reference lottery probabilities, CE bounds, and prior selection choices (ρ, κ)
 - Beta-Beta hierarchy: (mu, sigma2, lo, hi) per quantity on bounded domain
 - 3 reference lotteries (`REFERENCE_LOTTERIES`) define CE quantities
 - 1 reference pair (`REFERENCE_PAIR`) identifies noise parameter λ
-- Uses `rho` and `kappa` for variance decomposition (`PRIOR_SELECTION_CE`)
+- Uses `alpha` and `kappa` for variance decomposition (`PRIOR_SELECTION_CE`)
 - Hyperparams are logit-scale internally; diagnostic plots show natural scale

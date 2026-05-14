@@ -133,6 +133,9 @@ xm_crra_3 = fmt(float(D.get('xmodel_crra_median_3', 0)), 1)
 xm_ep_1 = fmt(float(D.get('xmodel_ep_median_1', 0)), 1)
 xm_ep_2 = fmt(float(D.get('xmodel_ep_median_2', 0)), 1)
 xm_ep_3 = fmt(float(D.get('xmodel_ep_median_3', 0)), 1)
+xm_power_1 = fmt(float(D.get('xmodel_power_median_1', 0)), 1)
+xm_power_2 = fmt(float(D.get('xmodel_power_median_2', 0)), 1)
+xm_power_3 = fmt(float(D.get('xmodel_power_median_3', 0)), 1)
 xm_diff_1 = fmt(float(D.get('xmodel_diff_1', 0)), 1)
 xm_diff_2 = fmt(float(D.get('xmodel_diff_2', 0)), 1)
 xm_diff_3 = fmt(float(D.get('xmodel_diff_3', 0)), 1)
@@ -157,12 +160,11 @@ xm_diff_3 = fmt(float(D.get('xmodel_diff_3', 0)), 1)
   clarifies how the prior distributes uncertainty between population-level
   variation and within-population heterogeneity. Because the prior is specified
   over observables rather than parameters, the same specification can be shared
-  across structurally different models. The approach is illustrated with two
-  rank-dependent utility models estimated on real lottery choice data: one using
-  CRRA utility with a Prelec probability weighting function, and one using
-  Expo-Power utility with a Tversky-Kahneman weighting function. Both models
-  share a single quantity-space prior, making prior implications transparent
-  and cross-model comparisons coherent.
+  across structurally different models. The approach is illustrated with three
+  rank-dependent utility models estimated on real lottery choice data, combining
+  different utility functions and probability weighting functions. All three
+  models share a single quantity-space prior, making prior implications
+  transparent and cross-model comparisons coherent.
 
   \end{justify}
 \end{abstract}
@@ -244,20 +246,18 @@ exchangeable populations. A further advantage is that the same quantity-space
 prior can be shared across structurally different models that make predictions
 about the same observables, enforcing consistency in beliefs about individual
 behavior independently of the latent model used to represent it. I demonstrate
-the approach with two RDU models estimated on experimental lottery-choice data
-from \textcite{Harrison2016}: one using CRRA utility with the
-\textcite{Prelec1998} probability weighting function, and one using
-Expo-Power utility \parencite{Saha1993} with the \textcite{TverskyKahneman1992}
-probability weighting function. Both models share a single quantity-space prior
-over certainty equivalents and choice probabilities. I compare these
-informative quantity-space hyperpriors to the diffuse benchmark used by
-\textcite{Gao2022}.
+the approach with three RDU models estimated on experimental lottery-choice
+data from \textcite{Harrison2016}, combining CRRA and Expo-Power utility
+functions with Prelec, Tversky-Kahneman, and Power probability weighting
+functions. All three models share a single quantity-space prior over certainty
+equivalents and choice probabilities, despite having different structural
+parameterizations and, in one case, a different number of free parameters.
 
 The paper proceeds as follows. Section \ref{sec:literature} reviews the
 literature on prior specification with emphasis on informed priors. Section
 \ref{sec:gq_space} develops the general framework: first the quantity-space
 mapping and then the variance-decomposition approach to hyperprior
-construction. Section \ref{sec:application_rdu} applies the method to two
+construction. Section \ref{sec:application_rdu} applies the method to three
 RDU models estimated on experimental lottery-choice data. Section
 \ref{sec:estimation} presents the estimation results.
 Section \ref{sec:discussion} discusses practical guidance, limitations, and
@@ -635,11 +635,12 @@ A central advantage of the quantity-space approach is that it allows the
 researcher to specify beliefs about observables once and then translate those
 beliefs into parameter-space priors for any structural model that maps to the
 same quantities. This section demonstrates that property by applying the
-framework to two RDU models with different functional forms but the same
-number of free parameters. Both models share a common RDU structure, a common
-likelihood, and a common set of reference lotteries for the CE mapping. What
-differs is only the utility function and the probability weighting function,
-which change the Jacobian of the forward map.
+framework to three RDU models with different functional forms. All three
+share a common RDU structure, a common likelihood, and a common set of
+reference lotteries for the CE mapping. What differs is only the utility
+function and the probability weighting function, which change the Jacobian
+of the forward map. One of the three models has fewer structural parameters
+than predictive quantities, demonstrating the over-determined case.
 
 \subsection{RDU Framework}
 \label{sec:rdu_framework}
@@ -672,13 +673,15 @@ $u(\bar{x}) - u(\underbar{x})$ is the utility range across all outcomes with
 positive probability in both lotteries. This choice model is common to both
 specifications below.
 
-\subsection{Two RDU Specifications}
-\label{sec:two_models}
+\subsection{Three RDU Specifications}
+\label{sec:three_models}
 
-I consider two combinations of utility function and PWF, each yielding a
-4-parameter model. The first follows \textcite{Gao2022} and is widely used
-in the experimental economics literature. The second combines a more flexible
-utility function with a parsimonious inverse-S weighting function.
+I consider three combinations of utility function and PWF\@. The first follows
+\textcite{Gao2022} and is widely used in the experimental economics
+literature. The second combines a more flexible utility function with a
+parsimonious inverse-S weighting function. The third uses the simplest
+non-trivial PWF and has fewer structural parameters than predictive quantities,
+demonstrating the over-determined ($k > p$) case.
 
 \subsubsection*{Model 1: CRRA + Prelec}
 
@@ -725,11 +728,34 @@ inverse-S shape, overweighting small probabilities and underweighting large
 ones, with $\gamma = 1$ reducing to the identity. The model has 4 parameters:
 $(\alpha, r, \gamma, \lambda)$.
 
-The two specifications are complementary. CRRA + Prelec separates curvature
-(1 parameter) from probability distortion (2 parameters), while Expo-Power +
-TK separates utility curvature (2 parameters) from probability distortion
-(1 parameter). Both map 4 structural parameters to the same 4 predictive
-quantities through the RDU-CE mapping described below.
+\subsubsection*{Model 3: CRRA + Power}
+
+The third specification pairs the CRRA utility function with the 1-parameter
+Power PWF \parencite{Quiggin1982}:
+\begin{align}
+  \label{eq:power_pwf}
+  u(x) &= \frac{x^{1-r}}{1 - r} \\
+  w(p) &= p^\delta
+\end{align}
+where $\delta > 0$ controls the curvature of the PWF\@. When $\delta = 1$ the
+PWF is linear, reducing to EUT\@. Unlike the Prelec and TK functions, the
+Power PWF does not produce an inverse-S shape: for $\delta < 1$ it uniformly
+overweights all probabilities, and for $\delta > 1$ it uniformly underweights
+them. The model has 3 structural parameters: $(r, \delta, \lambda)$.
+
+This specification serves two purposes. First, it shares the CRRA utility with
+Model 1, so any CE difference between Models 1 and 3 is attributable entirely
+to the PWF\@. Second, with only 3 structural parameters mapped to 4 predictive
+quantities, it is the first over-determined case ($k = 4 > p = 3$). The
+change-of-variables formula uses the Gram determinant
+$\sqrt{\det(J_\bg^\top J_\bg)}$ in place of $|\det J_\bg|$, as described in
+Section \ref{sec:gq_space}. This demonstrates that the framework handles the
+$k > p$ case with no additional machinery beyond the Jacobian computation.
+
+The three specifications are complementary. Models 1 and 2 each have 4
+structural parameters ($k = p$), while Model 3 has 3 ($k > p$). All three map
+to the same 4 predictive quantities through the RDU-CE mapping described
+below.
 
 
 
@@ -762,21 +788,26 @@ where $u(\cdot; \bth)$ is the utility function and $d_j(\bth)$ are decision
 weights. Choosing three reference lotteries $L_1, L_2, L_3$ with suitably
 diverse characteristics defines a mapping from preference parameters to CEs.
 For Model 1 this is $\bg_1(r, \phi, \eta) = (\CE_1, \CE_2, \CE_3)$; for
-Model 2 it is $\bg_2(\alpha, r, \gamma) = (\CE_1, \CE_2, \CE_3)$. In each
-case the noise parameter $\lambda$ does not affect CEs but governs choice
-precision. Conditioning on the preference parameters and evaluating $P(A)$ from
-(\ref{eq:likelihood}) for a reference lottery pair $(A, B)$ pins down $\lambda$,
-extending the mapping to 4 quantities.\footnote{
-  The change-of-variables formula $p(\bth) = p_Y(\bg(\bth))\,|\!\det
-  J_{\bg}(\bth)|$ requires that the mapping $\bg$ be injective on the
-  support of the prior. A nonvanishing Jacobian determinant ($\det J_{\bg}
-  \neq 0$ everywhere) establishes only \textit{local} invertibility and is
-  necessary but not sufficient. Proving injectivity for the mapping is
-  nontrivial and must be assessed on a case-by-case basis.
+Model 2 it is $\bg_2(\alpha, r, \gamma) = (\CE_1, \CE_2, \CE_3)$; for
+Model 3 it is $\bg_3(r, \delta) = (\CE_1, \CE_2, \CE_3)$, where the mapping
+has 3 outputs from only 2 preference parameters. In each case the noise
+parameter $\lambda$ does not affect CEs but governs choice precision.
+Conditioning on the preference parameters and evaluating $P(A)$ from
+(\ref{eq:likelihood}) for a reference lottery pair $(A, B)$ pins down
+$\lambda$, extending the mapping to 4 quantities. For Models 1 and 2 ($k =
+p = 4$), the Jacobian $J_\bg$ is square and the induced prior uses $|\det
+J_\bg|$. For Model 3 ($k = 4 > p = 3$), $J_\bg$ is $4 \times 3$ and the
+induced prior uses the Gram determinant $\sqrt{\det(J_\bg^\top J_\bg)}$, as
+derived in Section \ref{sec:gq_space}.\footnote{
+  The change-of-variables formula requires that the mapping $\bg$ be
+  injective on the support of the prior. A nonvanishing Jacobian (or Gram)
+  determinant establishes only \textit{local} invertibility and is necessary
+  but not sufficient. Proving injectivity for the mapping is nontrivial and
+  must be assessed on a case-by-case basis.
   Appendix \ref{app:global_injectivity} provides a proof for the
-  CRRA-Prelec model. For the Expo-Power + TK model, numerical verification
-  on a dense grid over the prior support confirms that the Jacobian
-  determinant does not vanish.
+  CRRA-Prelec model. For the Expo-Power + TK and CRRA + Power models,
+  numerical verification on dense grids over the prior support confirms
+  that the Jacobian determinant does not vanish.
 }
 
 The crucial point is that the CEs and choice probability are
@@ -963,250 +994,82 @@ still permitting the data to move it.\footnote{
 
 The quantity-space hierarchy defines a prior on $(\CE_1, \CE_2, \CE_3,
 P)$. The change-of-variables formula transforms this to the parameter-space
-prior used in sampling. For Model 1 (CRRA + Prelec):
-\begin{equation}
+prior used in sampling. For Models 1 and 2 ($k = p = 4$):
+\begin{align}
   \label{eq:jacobian_prior_rdu}
   p(r, \phi, \eta, \lambda)
-    = p_Y\!\bigl(\bg_1(r, \phi, \eta, \lambda)\bigr)\;
-      \bigl|\!\det J_{\bg_1}(r, \phi, \eta, \lambda)\bigr|
-\end{equation}
-For Model 2 (Expo-Power + TK):
-\begin{equation}
+    &= p_Y\!\bigl(\bg_1(r, \phi, \eta, \lambda)\bigr)\;
+      \bigl|\!\det J_{\bg_1}(r, \phi, \eta, \lambda)\bigr| \\
   \label{eq:jacobian_prior_ep}
   p(\alpha, r, \gamma, \lambda)
-    = p_Y\!\bigl(\bg_2(\alpha, r, \gamma, \lambda)\bigr)\;
+    &= p_Y\!\bigl(\bg_2(\alpha, r, \gamma, \lambda)\bigr)\;
       \bigl|\!\det J_{\bg_2}(\alpha, r, \gamma, \lambda)\bigr|
+\end{align}
+For Model 3 ($k = 4 > p = 3$), the Jacobian is non-square and the induced
+prior uses the Gram determinant:
+\begin{equation}
+  \label{eq:jacobian_prior_power}
+  p(r, \delta, \lambda)
+    = p_Y\!\bigl(\bg_3(r, \delta, \lambda)\bigr)\;
+      \sqrt{\det\!\left(J_{\bg_3}^\top J_{\bg_3}\right)}
 \end{equation}
-The quantity-space density $p_Y$ is identical in both equations. Only the
-forward map $\bg$ and its Jacobian differ. The two models therefore share the
-same prior beliefs about certainty equivalents and choice probabilities, while
+The quantity-space density $p_Y$ is identical in all three equations. Only the
+forward map $\bg$ and its Jacobian differ. All three models share the same
+prior beliefs about certainty equivalents and choice probabilities, while
 inducing different priors over their respective structural parameters.
 
-To further illustrate the consequences of hyperprior choice, I also estimate
-both models using the diffuse parameter-space hyperprior from
-\textcite[279--281]{Gao2022}. This specification places priors directly on the
-structural parameters rather than using the quantity-space priors developed in
-Section \ref{sec:gq_space}, and uses the common Inverse-Gamma($\varepsilon$,
-$\varepsilon$) form for variance parameters. This comparison is not intended as
-a horse race between two prior structures. Rather, it contrasts the informed
-quantity-space prior developed here with a standard diffuse benchmark from the
-default-prior camp. The diffuse hyperprior defines each individual-level
-parameter as being normally distributed, with the mean and variance
-hyperparameters using the Normal-Inverse-Gamma distribution where:
-\begin{align}
-  \label{eq:ght_prior}
-  \mu^j &\sim N(0,\; 100) \\
-  \sigma^{2,j} &\sim \text{IG}(0.001,\; 0.001)
-\end{align}
-for each parameter $j \in \{r, \ln \phi, \ln \eta, \ln \lambda\}$.
-
-\subsection{Posterior Predictive Distribution of Certainty Equivalents}
+\subsection{Cross-Model Posterior Predictive Certainty Equivalents}
 
 \begin{figure}[hp]
   \centering
-  \mycaption{Hyper-posterior predictive CE distributions for each reference
-    lottery}
-  \label{fig:hyper_post_ce}
-  \includegraphics[width=\textwidth]{../plots/paper/predictive_ce_overlay.pdf}
-\end{figure}
-
-I begin the discussion of the results with the population-level predictive
-distributions, which show what the estimated model implies for a new,
-unobserved individual. Figure \ref{fig:hyper_post_ce} shows the hyper-posterior
-predictive distribution of certainty equivalents for each of the three
-reference lotteries.
-
-Each panel displays three distributions for the CE of a new, unobserved
-individual. The hyperprior predictive shows what the informative prior implies
-before seeing data. The informative posterior predictive shows the result after
-estimation with the CE-space hyperprior. The diffuse posterior predictive shows
-the result after estimation with the \textcite{Gao2022} hyperprior.\footnote{
-  For the informative model, predictive CEs are drawn directly from the
-  Beta-Beta hierarchy. For the diffuse model, individual parameters are drawn
-  from the NIG hyper-posterior and CEs computed via the forward map.
-}
-
-The three panels reveal a pattern that would be difficult to detect from
-structural parameter estimates alone. For lotteries $L_1$ and $L_3$, which
-place probability $0.75$ on the worse outcome, the informative posterior is
-concentrated below the expected value, indicating the estimated population is
-risk-averse. For lottery $L_2$, which splits probability equally between
-outcomes, the informative posterior shifts above the expected value, with a
-majority of the estimated population having $\CE_2 > \text{EV}_2$. Under EUT, a
-subject with $\CE > \text{EV}$ for any lottery is globally risk-seeking under
-CRRA utility, which would be inconsistent with risk-averse CEs for $L_1$ and
-$L_3$. The only way to reconcile these patterns is through probability
-weighting. The inverse-S shape typical of the Prelec function overweights $p =
-0.5$ (since $w(0.5) > 0.5$ when $\phi < 1$), inflating the decision weight on
-the better outcome of $L_2$ and pushing the CE above its expected value. This
-lottery-specific pattern of risk attitudes is a signature of RDU that the
-quantity-space framework makes immediately visible. In a parameter-space
-analysis, the same information is encoded in the joint distribution of $r$,
-$\phi$, and $\eta$, but its economic implications for any particular lottery
-require the researcher to compute the forward map post-estimation.
-
-
-\subsection{Individual-Level Posterior Comparisons}
-
-The population-level results show aggregate patterns. I now examine how the
-hyperprior affects individual subjects. Figures \ref{fig:post_ce_min} and
-\ref{fig:post_ce_max} examine the posterior predictive CE for individual
-subjects across all three reference lotteries, comparing the informative and
-diffuse models. Subject \py{subject_min_ce} (Figure \ref{fig:post_ce_min}) has
-the smallest change in median CE between models, and subject
-\py{subject_max_ce} (Figure \ref{fig:post_ce_max}) has the largest difference.
-Subject \py{subject_min_ce}'s choices are sufficiently informative to dominate
-either hyperprior, producing nearly identical posteriors regardless of prior
-specification, while Subject \py{subject_max_ce}'s choices are such that the
-prior has a massive influence on the posterior, resulting in inferences that
-are both quantitatively and qualitatively different.
-
-
-
-\begin{figure}[hp]
-  \centering
-  \mycaption{Posterior predictive CE: Least Affected (Subject \py{subject_min_ce})}
-  \label{fig:post_ce_min}
-  \includegraphics[width=.9\textwidth]{../plots/paper/subject_ce_least_affected.pdf}
-\end{figure}
-\begin{figure}[hp]
-  \centering
-  \mycaption{Posterior predictive CE: Most Affected (Subject \py{subject_max_ce})}
-  \label{fig:post_ce_max}
-  \includegraphics[width=.9\textwidth]{../plots/paper/subject_ce_most_affected.pdf}
-\end{figure}
-
-The two models place Subject \py{subject_max_ce} at opposite extremes. The
-informative model concentrates near the minimum CE, indicating extreme risk
-aversion, while the diffuse model concentrates near the maximum, indicating
-extreme risk seeking. This is not a convergence artifact. Both models converge
-well to their respective modes. Evaluating the full posterior of the
-informative model at the diffuse model's mode reveals that the population prior
-assigns it a density more than four orders of magnitude lower than the
-risk-averse mode, even though the data likelihood slightly favors the
-risk-seeking parameters. The population prior, specified through the CE-space
-hierarchy, is the deciding factor.
-
-Across all subjects, \py{n_dominated} subjects (\py{pct_dominated}\%) exhibit this pattern of opposing
-inferences. These are subjects whose choice data are consistent with both
-extreme risk aversion and extreme risk seeking, and 80 binary choices are
-insufficient to distinguish between these modes for the 4-parameter RDU
-model.\footnote{
-  \textcite{Monroe2020, Monroe2023} has previously noted problems of inference
-  using maximum likelihood estimation attributable to an insufficient number
-  of choices with this lottery battery.
-}
-The informative hyperprior resolves this ambiguity through the population
-distribution, where extreme risk seeking is assigned low prior density because
-few individuals in the population are expected to have CEs near the lottery
-boundaries. This illustrates how an informative prior can regularize weakly
-identified cases in a way that an uninformative prior may fail to do. The
-quantity-space framework makes the mechanism transparent in dollar
-terms.\footnote{
-  Appendix~\ref{app:rk_sensitivity} shows the corresponding structural
-  parameter posteriors, confirming that the two models recover fundamentally
-  different parameter regions for this subject while agreeing closely for the
-  well-identified subject.
-}
-
-\subsection{Distributional Comparison Across Subjects}
-
-While the preceding comparisons examined two extreme subjects, I compare the
-full posterior CDF for each subject under both models to summarize the prior's
-influence across all subjects simultaneously. Figure \ref{fig:cdf_diff}
-provides a distributional summary of how the hyperprior affects each subject's
-posterior CE. Each line plots the difference in empirical CDFs,
-$F_{\text{info}}(x) - F_{\text{diffuse}}(x)$, for a single subject. Positive
-values indicate that the informative model assigns more probability mass below
-$x$ (more risk-averse). A flat line at zero indicates identical posteriors.
-Subjects are grouped by the average absolute median CE difference across all
-three lotteries: well-identified (less than \$2 difference, green,
-\py{n_well} subjects), moderately affected (\$2--\$10, blue,
-\py{n_moderate}), and prior-dominated (more than \$10, red,
-\py{n_dominated}).
-
-\begin{figure}[hp]
-  \centering
-  \mycaption{CDF differences between informative and diffuse posteriors by
-    subject}
-  \label{fig:cdf_diff}
-  \includegraphics[width=0.85\textwidth]{../plots/paper/cdf_difference_by_subject.pdf}
-\end{figure}
-
-
-For the well-identified majority, the CDF differences are near zero across the
-entire CE range for all three lotteries, with some noticeable differences for
-CEs below the respective lottery's EV. This suggests that the informative
-prior moves some posterior density away from extreme risk aversion for these
-subjects. However, the effect is nearly absent above the EV, and the small
-change in median CE confirms that the data are sufficiently informative that
-the hyperprior is not a substantial influence on inference. The moderately affected and
-prior-dominated groups show positive CDF differences, confirming that the
-informative model systematically produces more risk-averse inferences. The
-magnitude increases with the CE range of the lottery: $L_1$ (\$10--\$50) shows
-the largest deviations, $L_2$ (\$20--\$40) the smallest.
-
-The $L_2$ panel shows distinctly smaller CDF differences than $L_1$ and $L_3$.
-The positive differences visible in all three panels are driven primarily by
-the informative model producing tighter posteriors for each subject: the
-population prior provides more shrinkage, concentrating each subject's
-posterior around its mode and reducing right-tail mass relative to the diffuse
-model. This variance reduction is smaller for $L_2$ because its narrower CE
-range (\$20--\$40) leaves less room for the two models to disagree.
-
-\subsection{Cross-Model Comparison}
-
-The preceding results used the CRRA + Prelec specification (Model 1). I now
-compare the hyper-posterior predictive CEs across all three prior
-specifications: the CRRA + Prelec informative model, the Expo-Power + TK
-informative model (Model 2), and the diffuse benchmark. Recall that Models 1
-and 2 share the same quantity-space prior over $(\CE_1, \CE_2, \CE_3, P)$ and
-the same $(\alpha, \kappa)$ variance decomposition. What differs is only the
-structural mapping $\bg$ and its Jacobian.
-
-\begin{figure}[hp]
-  \centering
-  \mycaption{Cross-model hyper-posterior predictive CE distributions}
+  \mycaption{Hyper-posterior predictive CE distributions across three models}
   \label{fig:cross_model_ce}
   \includegraphics[width=\textwidth]{../plots/paper/cross_model_ce_overlay.pdf}
 \end{figure}
 
-Figure \ref{fig:cross_model_ce} shows the result. For lotteries $L_1$ and
-$L_3$, the two informative models produce closely aligned CE posteriors, with
-median CEs of $\$\py{xm_crra_1}$ and $\$\py{xm_ep_1}$ for $L_1$ and
-$\$\py{xm_crra_3}$ and $\$\py{xm_ep_3}$ for $L_3$ under the CRRA + Prelec
-and EP + TK specifications respectively. Both are concentrated below the
-expected value and both are substantially tighter than the diffuse benchmark.
-This agreement is notable because the two models have no shared structural
-parameters, different utility functions, and different probability weighting
-specifications. The shared quantity-space prior is the mechanism that aligns
-them: both models are anchored to the same beliefs about where CEs should lie
-for a randomly selected individual, and the data are sufficiently informative
-for these lotteries that the posterior reflects the data rather than the
-model-specific Jacobian.
+I begin the discussion of results with the population-level predictive
+distributions, which show what each estimated model implies for a new,
+unobserved individual. Figure \ref{fig:cross_model_ce} shows the hyper-posterior
+predictive distribution of certainty equivalents for each of the three
+reference lotteries under all three models, together with the shared hyperprior
+predictive.\footnote{
+  For all three models, predictive CEs are drawn from the Beta-Beta hierarchy
+  using the model's estimated hyperparameter posterior. The hyperprior
+  predictive draws from the hyperprior directly, before seeing data.
+}
 
-For lottery $L_2$, the two informative models diverge, with median CEs of
-$\$\py{xm_crra_2}$ (CRRA + Prelec) and $\$\py{xm_ep_2}$ (EP + TK). The
-CRRA + Prelec posterior places substantial mass above the expected value of
-\$30, while the EP + TK posterior remains concentrated below it. This
-divergence reflects a genuine difference in how the two PWFs handle the
-symmetric probability $p = 0.5$.
-The 2-parameter Prelec function can independently adjust curvature and
-elevation, allowing $w(0.5) > 0.5$ even when probabilities near 0 and 1 are
-distorted. The 1-parameter TK function constrains the entire shape with a
-single parameter, producing less inflation at $p = 0.5$ for the same degree of
-inverse-S distortion at the tails. This lottery-specific disagreement is
-informative rather than problematic: it identifies precisely where the choice of
-PWF matters for predictive inference, and it does so in the interpretable
-units of certainty equivalents rather than in the model's native
+All three models share the same quantity-space prior, so differences in the
+posterior predictive CEs reflect the interaction between the structural model's
+Jacobian and the data likelihood. For lotteries $L_1$ and $L_3$, which place
+probability $0.75$ on the worse outcome, the three models produce closely
+aligned CE posteriors, with median CEs of $\$\py{xm_crra_1}$,
+$\$\py{xm_ep_1}$, and $\$\py{xm_power_1}$ for $L_1$ under Models 1, 2, and 3
+respectively. All three are concentrated below the expected value, indicating
+that the estimated population is risk-averse for these asymmetric lotteries.
+This agreement is notable because the three models have different utility
+functions, different probability weighting functions, and in one case a
+different number of structural parameters. The shared quantity-space prior
+anchors all three to the same beliefs about where CEs should lie for a randomly
+selected individual.
+
+For lottery $L_2$, which splits probability equally between outcomes, the three
+models diverge. The CRRA + Prelec posterior (Model 1) places substantial mass
+above the expected value of \$30, with a median CE of $\$\py{xm_crra_2}$. The
+Expo-Power + TK posterior (Model 2) remains below the expected value at
+$\$\py{xm_ep_2}$. The CRRA + Power posterior (Model 3) is at
+$\$\py{xm_power_2}$. This divergence is informative rather than problematic.
+Under EUT with CRRA utility, a subject with $\CE > \text{EV}$ for any lottery
+would be globally risk-seeking, which would be inconsistent with the
+risk-averse CEs for $L_1$ and $L_3$. The only way to reconcile risk-averse CEs
+for asymmetric lotteries with a CE above the expected value for the symmetric
+lottery is through probability weighting. The 2-parameter Prelec function can
+independently adjust curvature and elevation, allowing $w(0.5) > 0.5$ even when
+probabilities near 0 and 1 are distorted. The 1-parameter TK and Power
+functions constrain the entire shape with a single parameter, producing less
+inflation at $p = 0.5$. This lottery-specific disagreement identifies precisely
+where the choice of PWF matters for predictive inference, and it does so in the
+interpretable units of certainty equivalents rather than in the model's native
 parameterization.
-
-In all three panels, both informative models are clearly distinct from the
-diffuse benchmark, which assigns substantial mass to extreme CE values that
-neither informative specification considers plausible. The quantity-space prior
-therefore provides meaningful regularization regardless of the structural
-model, while the remaining differences between the two informative models
-isolate the effect of functional form choice on predictive conclusions.
 
 \subsection{Sensitivity to $\alpha$ and $\kappa$}
 
@@ -1301,9 +1164,10 @@ the population mean. This separation is useful because researchers often have
 substantive intuition in experimental units even when they have little
 intuition about hyperprior parameters themselves. A further benefit, illustrated
 by the cross-model application, is that the same quantity-space specification
-can serve as the prior for multiple structural models. The CRRA + Prelec and
-Expo-Power + TK specifications share no structural parameters, yet they share a
-single set of beliefs about certainty equivalents and choice probabilities.
+can serve as the prior for multiple structural models. The three specifications
+considered here differ in their utility functions, probability weighting
+functions, and even the number of free parameters, yet they share a single set
+of beliefs about certainty equivalents and choice probabilities.
 The framework therefore extends the Bayesian workflow of \textcite{Gabry2019}
 to the hierarchical setting by making the two distinct roles of a hyperprior
 explicit: anchoring the unconditional distribution of observables and allocating
@@ -1437,11 +1301,13 @@ is allocated across levels of the hierarchy, separating beliefs about
 population heterogeneity from beliefs about the location of the population
 mean.
 
-The application to RDU estimation with two structurally different models
-illustrates the methodological value of this approach. The CRRA + Prelec and
-Expo-Power + Tversky-Kahneman specifications share no structural parameters,
-yet they share a single quantity-space prior over certainty equivalents and
-choice probabilities. In quantity space, the substantive implications of a
+The application to RDU estimation with three structurally different models
+illustrates the methodological value of this approach. The CRRA + Prelec,
+Expo-Power + Tversky-Kahneman, and CRRA + Power specifications differ in
+their utility functions, probability weighting functions, and even the number
+of free parameters, yet they share a single quantity-space prior over certainty
+equivalents and choice probabilities. In quantity space, the substantive
+implications of a
 hyperprior are directly visible, and diagnostics based on posterior predictive
 distributions and CDF differences make the prior's influence transparent across
 subjects, lotteries, and quantiles. The results show that informative

@@ -161,6 +161,87 @@ def run_sampling_ep(sampling_opts, ref_lotteries, ref_pair,
     print("Done.\n")
 
 
+def run_sampling_power(sampling_opts, ref_lotteries, ref_pair,
+                       prior_params_path=None):
+    """Run MCMC sampling with CRRA+Power quantity-space Beta-Beta BHM.
+
+    First k > p model: 3 structural parameters mapped to 4 quantities.
+    Uses the same hyperprior array (same quantity-space prior).
+    """
+    print("\n" + "=" * 60)
+    print("Running: MCMC Sampling (CRRA+Power Quantity-Space Beta-Beta Prior)")
+    print("=" * 60)
+
+    from bamcmc.mcmc.compile import get_compiled_kernel_cache
+    cache = get_compiled_kernel_cache()
+    if cache:
+        print(f"Clearing {len(cache)} cached kernel(s)...")
+        cache.clear()
+
+    if prior_params_path is not None:
+        from posteriors.rdu_power_bhm_ce import load_hyperpriors_from_file
+        load_hyperpriors_from_file(prior_params_path)
+
+    if sampling_opts.get('clean', False):
+        from bamcmc import clean_model_files
+        output_dir = str(sampling_opts['output_dir'])
+        model_name = sampling_opts['model']
+        print(f"Cleaning existing files for {model_name}...")
+        result = clean_model_files(output_dir, model_name, mode='all')
+        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
+        print(f"  Deleted {len(result['deleted_histories'])} histories")
+
+    from sampling_power import run_sampling as _run_sampling_power
+    _run_sampling_model(sampling_opts, ref_lotteries, ref_pair, _run_sampling_power)
+    print("Done.\n")
+
+
+def run_sampling_power_prior(sampling_opts, ref_lotteries, ref_pair,
+                             prior_params_path=None):
+    """Run prior-only MCMC sampling with CRRA+Power model."""
+    print("\n" + "=" * 60)
+    print("Running: Prior-Only Sampling (CRRA+Power)")
+    print("=" * 60)
+
+    from bamcmc.mcmc.compile import get_compiled_kernel_cache
+    cache = get_compiled_kernel_cache()
+    if cache:
+        cache.clear()
+
+    if prior_params_path is not None:
+        from posteriors.rdu_power_bhm_ce_prior import load_hyperpriors_from_file
+        load_hyperpriors_from_file(prior_params_path)
+
+    if sampling_opts.get('clean', False):
+        from bamcmc import clean_model_files
+        output_dir = str(sampling_opts['output_dir'])
+        print(f"Cleaning existing files for rdu_power_bhm_ce_prior...")
+        result = clean_model_files(output_dir, 'rdu_power_bhm_ce_prior', mode='all')
+        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
+        print(f"  Deleted {len(result['deleted_histories'])} histories")
+
+    from sampling_power_prior import run_sampling_prior as _run
+    num_chains = sampling_opts['num_chains']
+    _run(
+        output_dir=sampling_opts['output_dir'],
+        ref_lotteries=ref_lotteries,
+        ref_pair=ref_pair,
+        reset_runs=sampling_opts.get('reset_runs', 1),
+        resume_runs=sampling_opts.get('resume_runs', 0),
+        num_collect=sampling_opts['num_collect'],
+        config={
+            'num_chains_a': num_chains,
+            'num_chains_b': num_chains,
+            'num_collect': sampling_opts['num_collect'],
+            'thin_iteration': sampling_opts['thin_iteration'],
+            'chunk_size': sampling_opts.get('chunk_size', 10),
+            'rng_seed': sampling_opts['seed'],
+            'use_double': sampling_opts.get('use_double', True),
+        },
+    )
+    print("Done.\n")
+
+
 def run_sampling_stan(sampling_opts, ref_lotteries, ref_pair,
                       prior_params_path=None):
     """Run MCMC sampling via Stan/NUTS with quantity-space Beta-Beta prior."""

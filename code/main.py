@@ -223,6 +223,24 @@ sampling_opts_ep = {
     'beta_min': 0.1,
 }
 
+# CRRA + Power model config (k=4 > p=3, same quantity-space Beta-Beta prior)
+sampling_opts_power = {
+    'model': 'rdu_power_bhm_ce',
+    'output_dir': DATA_DIR / 'output',
+    'plots_dir': PLOTS_DIR / 'rdu_power_bhm_ce',
+    'clean': True,
+    'reset_runs': 1,
+    'resume_runs': 5,
+    'num_chains': 1000,
+    'num_collect': 100,
+    'thin_iteration': 10,
+    'chunk_size': 10,
+    'seed': SEEDS['sampling'],
+    'use_double': True,
+    'n_temperatures': 0,
+    'beta_min': 0.1,
+}
+
 # Stan/NUTS config (quantity-space Beta-Beta prior)
 sampling_opts_stan = {
     'model': 'rdu_bhm_ce_stan',
@@ -273,9 +291,11 @@ do_family_comparison    = False
 # --- MCMC Sampling ---
 do_sampling_ce             = False
 do_sampling_ep             = False
+do_sampling_power          = False
 do_sampling_uninf          = False
 do_sampling_stan           = False
 do_sampling_prior          = False
+do_sampling_power_prior    = False
 
 # --- Preprocessing (extract from history files) ---
 do_generate_prior_ce       = False
@@ -283,9 +303,12 @@ do_preprocess_hyper_ce     = False
 do_preprocess_subjects_ce  = False
 do_preprocess_hyper_ep     = False
 do_preprocess_subjects_ep  = False
+do_preprocess_hyper_power  = False
+do_preprocess_subjects_power = False
 do_preprocess_hyper_uninf  = False
 do_preprocess_subjects_uninf = False
 do_preprocess_subjects_prior = False
+do_preprocess_subjects_power_prior = False
 
 # --- Diagnostic Plots ---
 do_hyper_plots_ce          = False
@@ -394,6 +417,26 @@ if __name__ == '__main__':
             prior_params_path=prior_params_ce_path,
         )
 
+    if do_sampling_power:
+        check_dependency('sampling_power', ['clean_data'])
+        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
+        pipelines.run_sampling_power(
+            sampling_opts_power,
+            ref_lotteries=REFERENCE_LOTTERIES,
+            ref_pair=REFERENCE_PAIR,
+            prior_params_path=prior_params_ce_path,
+        )
+
+    if do_sampling_power_prior:
+        check_dependency('sampling_power_prior', ['clean_data'])
+        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
+        pipelines.run_sampling_power_prior(
+            sampling_opts_power,
+            ref_lotteries=REFERENCE_LOTTERIES,
+            ref_pair=REFERENCE_PAIR,
+            prior_params_path=prior_params_ce_path,
+        )
+
     if do_sampling_stan:
         check_dependency('sampling_stan', ['clean_data'])
         prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
@@ -449,6 +492,36 @@ if __name__ == '__main__':
             pipelines.run_preprocess_subjects_ce(history_dir_ep, preprocess_dir_ep / 'subjects')
         else:
             print(f"Skipping EP subject preprocessing: {history_dir_ep} not found")
+
+    # -------------------------------------------------------------------------
+    # Preprocessing (CRRA+Power Model)
+    # -------------------------------------------------------------------------
+    history_dir_power = get_mcmc_dir('rdu_power_bhm_ce') / 'history' / 'full'
+    preprocess_dir_power = get_mcmc_dir('rdu_power_bhm_ce') / 'preprocessed'
+
+    if do_preprocess_hyper_power:
+        if history_dir_power.exists():
+            pipelines.run_preprocess_hyperparams_ce(history_dir_power, preprocess_dir_power)
+        else:
+            print(f"Skipping Power preprocessing: {history_dir_power} not found")
+
+    if do_preprocess_subjects_power:
+        if history_dir_power.exists():
+            pipelines.run_preprocess_subjects_ce(history_dir_power, preprocess_dir_power / 'subjects')
+        else:
+            print(f"Skipping Power subject preprocessing: {history_dir_power} not found")
+
+    # -------------------------------------------------------------------------
+    # Preprocessing (CRRA+Power Prior-Only)
+    # -------------------------------------------------------------------------
+    history_dir_power_prior = get_mcmc_dir('rdu_power_bhm_ce_prior') / 'history' / 'full'
+    preprocess_dir_power_prior = get_mcmc_dir('rdu_power_bhm_ce_prior') / 'preprocessed'
+
+    if do_preprocess_subjects_power_prior:
+        if history_dir_power_prior.exists():
+            pipelines.run_preprocess_subjects_ce(history_dir_power_prior, preprocess_dir_power_prior / 'subjects')
+        else:
+            print(f"Skipping Power prior subject preprocessing: {history_dir_power_prior} not found")
 
     # -------------------------------------------------------------------------
     # Preprocessing (Prior-Only Model)

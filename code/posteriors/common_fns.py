@@ -1000,3 +1000,289 @@ def full_jacobian_logabsdet_ep(alpha_raw, r, gamma_raw, lambda_raw,
     J = jax.jacfwd(f)(theta)  # (4, 4)
     sign, logabsdet = jnp.linalg.slogdet(J)
     return jnp.where(sign != 0, logabsdet, -jnp.inf)
+
+
+# =============================================================================
+# Power Probability Weighting Function
+# =============================================================================
+
+def power_pwf(p, delta):
+    """
+    Power probability weighting function (Quiggin 1982).
+
+    w(p) = p^delta
+
+    Uniformly concave (delta < 1) or convex (delta > 1). NOT inverse-S.
+    At delta = 1, w(p) = p (linear, reduces to EUT).
+
+    Args:
+        p: Probabilities (scalar or array)
+        delta: Curvature parameter (positive scalar)
+
+    Returns:
+        Weighted probabilities (same shape as p)
+    """
+    delta = jnp.maximum(delta, 0.01)
+    p = jnp.clip(p, 1e-10, 1 - 1e-10)
+    return jnp.power(p, delta)
+
+
+# =============================================================================
+# RDU Value with Power Weights (3-outcome)
+# =============================================================================
+
+def rdu_value_3outcome_power(utilities, delta, idx_1, idx_2, idx_3, p1, p2, p3):
+    """
+    Compute RDU value for a 3-outcome lottery using Power decision weights.
+
+    Args:
+        utilities: Array of precomputed u(x) for unique outcomes
+        delta: Power curvature parameter (natural scale, positive)
+        idx_1, idx_2, idx_3: Indices into utilities for worst/middle/best
+        p1, p2, p3: Probabilities of worst/middle/best outcomes
+
+    Returns:
+        RDU value (scalar)
+    """
+    u1 = utilities[idx_1]
+    u2 = utilities[idx_2]
+    u3 = utilities[idx_3]
+
+    C3 = p3
+    C2 = p2 + p3
+
+    w_C3 = power_pwf(C3, delta)
+    w_C2 = power_pwf(C2, delta)
+
+    pi3 = w_C3
+    pi2 = w_C2 - w_C3
+    pi1 = 1.0 - w_C2
+
+    return pi1 * u1 + pi2 * u2 + pi3 * u3
+
+
+# =============================================================================
+# CRRA+Power Likelihood
+# =============================================================================
+
+def risk_likelihood_power(utilities, delta, datai, dataf, sid, lam):
+    """
+    Log likelihood for a subject's lottery choices using CRRA + Power PWF.
+
+    Args:
+        utilities: Precomputed u(x) for all unique outcomes (using crra_ufn)
+        delta: Power curvature parameter (natural scale, positive)
+        datai, dataf: Data tuples (same format as risk_likelihood)
+        sid: Subject index
+        lam: Fechner noise parameter (> 0)
+
+    Returns:
+        Log likelihood (scalar)
+    """
+    choices = datai[0]
+    idx_L_1, idx_L_2, idx_L_3 = datai[1], datai[2], datai[3]
+    idx_R_1, idx_R_2, idx_R_3 = datai[4], datai[5], datai[6]
+
+    prob_L_1, prob_L_2, prob_L_3 = dataf[1], dataf[2], dataf[3]
+    prob_R_1, prob_R_2, prob_R_3 = dataf[4], dataf[5], dataf[6]
+
+    subj_choices = choices[sid]
+    subj_idx_L_1, subj_idx_L_2, subj_idx_L_3 = idx_L_1[sid], idx_L_2[sid], idx_L_3[sid]
+    subj_idx_R_1, subj_idx_R_2, subj_idx_R_3 = idx_R_1[sid], idx_R_2[sid], idx_R_3[sid]
+    subj_pL1, subj_pL2, subj_pL3 = prob_L_1[sid], prob_L_2[sid], prob_L_3[sid]
+    subj_pR1, subj_pR2, subj_pR3 = prob_R_1[sid], prob_R_2[sid], prob_R_3[sid]
+
+    def choice_log_lik(choice, iL1, iL2, iL3, iR1, iR2, iR3,
+                       pL1, pL2, pL3, pR1, pR2, pR3):
+        v_L = rdu_value_3outcome_power(utilities, delta, iL1, iL2, iL3, pL1, pL2, pL3)
+        v_R = rdu_value_3outcome_power(utilities, delta, iR1, iR2, iR3, pR1, pR2, pR3)
+
+        u_L1, u_L2, u_L3 = utilities[iL1], utilities[iL2], utilities[iL3]
+        u_R1, u_R2, u_R3 = utilities[iR1], utilities[iR2], utilities[iR3]
+        u_max = jnp.maximum(
+            jnp.maximum(u_L1, jnp.maximum(u_L2, u_L3)),
+            jnp.maximum(u_R1, jnp.maximum(u_R2, u_R3)),
+        )
+        u_min = jnp.minimum(
+            jnp.minimum(u_L1, jnp.minimum(u_L2, u_L3)),
+            jnp.minimum(u_R1, jnp.minimum(u_R2, u_R3)),
+        )
+        u_range = jnp.maximum(u_max - u_min, 1e-10)
+
+        delta_val = (v_L - v_R) / (lam * u_range)
+        p_choose_L = jax.nn.sigmoid(delta_val)
+        p_choose_L = jnp.clip(p_choose_L, 1e-10, 1 - 1e-10)
+
+        return choice * jnp.log(p_choose_L) + (1 - choice) * jnp.log(1 - p_choose_L)
+
+    log_liks = jax.vmap(choice_log_lik)(
+        subj_choices,
+        subj_idx_L_1, subj_idx_L_2, subj_idx_L_3,
+        subj_idx_R_1, subj_idx_R_2, subj_idx_R_3,
+        subj_pL1, subj_pL2, subj_pL3,
+        subj_pR1, subj_pR2, subj_pR3,
+    )
+
+    return jnp.sum(log_liks)
+
+
+# =============================================================================
+# CRRA+Power CE Computation
+# =============================================================================
+
+def rdu_ce_3outcome_power(r, delta, prizes, probs):
+    """
+    Compute certainty equivalent for a 3-outcome lottery under CRRA+Power.
+
+    Uses CRRA utility with Power PWF. Prizes must be sorted ascending.
+    CRRA has an analytic inverse, so no Newton iteration is needed.
+
+    Args:
+        r: CRRA coefficient (scalar)
+        delta: Power curvature parameter (natural scale, positive)
+        prizes: Array of 3 prizes [x1, x2, x3] sorted ascending
+        probs: Array of 3 probabilities [p1, p2, p3] summing to 1
+
+    Returns:
+        CE in prize units (scalar)
+    """
+    x1, x2, x3 = prizes[0], prizes[1], prizes[2]
+    p1, p2, p3 = probs[0], probs[1], probs[2]
+
+    u1 = crra_ufn(x1, r)
+    u2 = crra_ufn(x2, r)
+    u3 = crra_ufn(x3, r)
+
+    C3 = p3
+    C2 = p2 + p3
+
+    w_C3 = power_pwf(C3, delta)
+    w_C2 = power_pwf(C2, delta)
+
+    pi3 = w_C3
+    pi2 = w_C2 - w_C3
+    pi1 = 1.0 - w_C2
+
+    rdu_val = pi1 * u1 + pi2 * u2 + pi3 * u3
+    return crra_inverse(rdu_val, r)
+
+
+def ce_mapping_3lotteries_power(r, delta_raw, ref_lotteries):
+    """
+    Compute (CE1, CE2, CE3) for three reference lotteries under CRRA+Power.
+
+    Forward map g: (r, delta_raw) -> (CE1, CE2, CE3). This is a 2->3 map
+    (over-determined: more quantities than preference parameters).
+
+    Args:
+        r: CRRA coefficient (scalar)
+        delta_raw: log(delta), Power curvature on log scale (scalar)
+        ref_lotteries: Flat array of shape (18,) encoding 3 lotteries
+
+    Returns:
+        Array of shape (3,) with [CE1, CE2, CE3]
+    """
+    delta = jnp.exp(delta_raw)
+
+    ce1 = rdu_ce_3outcome_power(r, delta, ref_lotteries[0:3], ref_lotteries[3:6])
+    ce2 = rdu_ce_3outcome_power(r, delta, ref_lotteries[6:9], ref_lotteries[9:12])
+    ce3 = rdu_ce_3outcome_power(r, delta, ref_lotteries[12:15], ref_lotteries[15:18])
+
+    return jnp.array([ce1, ce2, ce3])
+
+
+# =============================================================================
+# CRRA+Power Choice Probability
+# =============================================================================
+
+def choice_probability_ref_power(r, delta_raw, lambda_raw, ref_pair):
+    """
+    Compute P(choose A | theta) for a reference lottery pair under CRRA+Power.
+
+    Args:
+        r: CRRA coefficient (scalar)
+        delta_raw: log(delta) (scalar)
+        lambda_raw: log(lambda) (scalar)
+        ref_pair: Flat array of shape (12,)
+
+    Returns:
+        P(choose A) in (0, 1) (scalar)
+    """
+    delta = jnp.exp(delta_raw)
+    lam = jnp.exp(lambda_raw)
+
+    u_A = crra_ufn(ref_pair[0:3], r)
+    u_B = crra_ufn(ref_pair[6:9], r)
+
+    p_A = ref_pair[3:6]
+    p_B = ref_pair[9:12]
+
+    def rdu_val(u, p):
+        C3 = p[2]
+        C2 = p[1] + p[2]
+        w_C3 = power_pwf(C3, delta)
+        w_C2 = power_pwf(C2, delta)
+        pi3 = w_C3
+        pi2 = w_C2 - w_C3
+        pi1 = 1.0 - w_C2
+        return pi1 * u[0] + pi2 * u[1] + pi3 * u[2]
+
+    rdu_A = rdu_val(u_A, p_A)
+    rdu_B = rdu_val(u_B, p_B)
+
+    all_u = jnp.concatenate([u_A, u_B])
+    u_range = jnp.maximum(jnp.max(all_u) - jnp.min(all_u), 1e-10)
+
+    delta_val = (rdu_A - rdu_B) / (lam * u_range)
+    return jax.nn.sigmoid(delta_val)
+
+
+# =============================================================================
+# CRRA+Power Full Forward Map and Gram Determinant (k=4 > p=3)
+# =============================================================================
+
+def full_forward_map_power(r, delta_raw, lambda_raw, ref_lotteries, ref_pair):
+    """
+    Full 3D-to-4D forward map for CRRA+Power model.
+
+    Maps (r, delta_raw, lambda_raw) -> (CE1, CE2, CE3, P_choice).
+    This is the first k > p case: 4 quantities from 3 parameters.
+
+    Args:
+        r, delta_raw, lambda_raw: CRRA+Power parameters (scalars)
+        ref_lotteries: Flat (18,) array for 3 reference lotteries
+        ref_pair: Flat (12,) array for the reference pair
+
+    Returns:
+        Array of shape (4,) with [CE1, CE2, CE3, P_choice]
+    """
+    ces = ce_mapping_3lotteries_power(r, delta_raw, ref_lotteries)
+    p_choice = choice_probability_ref_power(r, delta_raw, lambda_raw, ref_pair)
+    return jnp.concatenate([ces, jnp.array([p_choice])])
+
+
+def gram_logdet_power(r, delta_raw, lambda_raw, ref_lotteries, ref_pair):
+    """
+    Compute log(sqrt(det(J^T J))) for the CRRA+Power forward map.
+
+    The Jacobian J is 4x3 (non-square: 4 quantities, 3 parameters).
+    The induced prior uses the Gram determinant sqrt(det(J^T J)) as the
+    volume element, generalizing |det J| from the square case.
+
+    Args:
+        r, delta_raw, lambda_raw: CRRA+Power parameters (scalars)
+        ref_lotteries: Flat (18,) array
+        ref_pair: Flat (12,) array
+
+    Returns:
+        log(sqrt(det(J^T J))) (scalar). Returns -inf if rank-deficient.
+    """
+    def f(theta):
+        return full_forward_map_power(theta[0], theta[1], theta[2],
+                                      ref_lotteries, ref_pair)
+
+    theta = jnp.array([r, delta_raw, lambda_raw])
+    J = jax.jacfwd(f)(theta)  # (4, 3)
+    gram = J.T @ J             # (3, 3)
+    sign, logdet = jnp.linalg.slogdet(gram)
+    return jnp.where(sign > 0, 0.5 * logdet, -jnp.inf)

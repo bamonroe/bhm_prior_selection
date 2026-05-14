@@ -187,23 +187,6 @@ sampling_opts_ce = {
     'beta_min': 0.1,
 }
 
-# Uninformative NIG model config (Gao 2022 diffuse prior)
-sampling_opts_uninf = {
-    'model': 'rdu_bhm',
-    'output_dir': DATA_DIR / 'output',
-    'plots_dir': PLOTS_DIR / 'rdu_bhm_uninf',
-    'clean': True,
-    'reset_runs': 1,
-    'resume_runs': 5,
-    'num_chains': 1000,
-    'num_collect': 100,
-    'thin_iteration': 10,
-    'chunk_size': 10,
-    'seed': SEEDS['sampling'],
-    'use_double': True,
-    'n_temperatures': 0,
-    'beta_0_min': 0.1,
-}
 
 # Expo-Power + TK92 model config (same quantity-space Beta-Beta prior)
 sampling_opts_ep = {
@@ -268,14 +251,6 @@ sampling_opts_prior = {
     'use_double': True,
 }
 
-# Gao (2022) diffuse hyperprior: N(0, 100) means, IG(0.001, 0.001) variances
-UNINF_HYPERPRIOR_SPECS = {
-    'r':          {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
-    'phi_raw':    {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
-    'eta_raw':    {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
-    'lambda_raw': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
-}
-
 # =============================================================================
 # Control Flags
 # =============================================================================
@@ -292,7 +267,6 @@ do_family_comparison    = False
 do_sampling_ce             = False
 do_sampling_ep             = False
 do_sampling_power          = False
-do_sampling_uninf          = False
 do_sampling_stan           = False
 do_sampling_prior          = False
 do_sampling_power_prior    = False
@@ -305,8 +279,6 @@ do_preprocess_hyper_ep     = False
 do_preprocess_subjects_ep  = False
 do_preprocess_hyper_power  = False
 do_preprocess_subjects_power = False
-do_preprocess_hyper_uninf  = False
-do_preprocess_subjects_uninf = False
 do_preprocess_subjects_prior = False
 do_preprocess_subjects_power_prior = False
 
@@ -317,7 +289,6 @@ do_subject_plots_ce        = False
 # --- Paper Plots ---
 do_paper_predictive_overlay      = False
 do_paper_prior_predictive_params = False
-do_paper_subject_ce_all          = False
 
 # --- Appendix Analyses ---
 do_rk_sensitivity          = False
@@ -563,77 +534,26 @@ if __name__ == '__main__':
             print(f"Skipping CE subject plots: preprocessed data not found")
 
     # -------------------------------------------------------------------------
-    # Uninformative NIG Model (Gao 2022 diffuse prior)
-    # -------------------------------------------------------------------------
-    uninf_output_dir = DATA_DIR / 'output' / 'rdu_bhm_uninf'
-    history_dir_uninf = uninf_output_dir / 'rdu_bhm' / 'history' / 'full'
-    preprocess_dir_uninf = uninf_output_dir / 'preprocessed'
-
-    if do_sampling_uninf:
-        # Set diffuse hyperpriors before sampling
-        from posteriors.rdu_bhm import HYPERPRIOR_SPECS, PARAM_NAMES
-        for pname in PARAM_NAMES:
-            HYPERPRIOR_SPECS[pname] = UNINF_HYPERPRIOR_SPECS[pname]
-        from sampling import run_sampling as run_sampling_nig
-        run_sampling_nig(
-            output_dir=uninf_output_dir,
-            reset_runs=sampling_opts_uninf.get('reset_runs', 1),
-            resume_runs=sampling_opts_uninf.get('resume_runs', 5),
-            num_collect=sampling_opts_uninf.get('num_collect', 100),
-            config={
-                'num_chains_a': sampling_opts_uninf['num_chains'] // 2,
-                'num_chains_b': sampling_opts_uninf['num_chains'] // 2,
-                'num_collect': sampling_opts_uninf['num_collect'],
-                'thin_iteration': sampling_opts_uninf['thin_iteration'],
-                'chunk_size': sampling_opts_uninf['chunk_size'],
-                'rng_seed': sampling_opts_uninf['seed'],
-                'use_double': sampling_opts_uninf.get('use_double', True),
-                'n_temperatures': sampling_opts_uninf.get('n_temperatures', 1),
-                'beta_min': sampling_opts_uninf.get('beta_0_min', 0.1),
-            },
-        )
-
-    if do_preprocess_hyper_uninf:
-        if history_dir_uninf.exists():
-            pipelines.run_preprocess_hyperparams(history_dir_uninf, preprocess_dir_uninf)
-        else:
-            print(f"Skipping uninf preprocessing: {history_dir_uninf} not found")
-
-    if do_preprocess_subjects_uninf:
-        if history_dir_uninf.exists():
-            pipelines.run_preprocess_subjects(history_dir_uninf, preprocess_dir_uninf / 'subjects')
-        else:
-            print(f"Skipping uninf subject preprocessing: {history_dir_uninf} not found")
-
-    # -------------------------------------------------------------------------
     # Paper Plots
     # -------------------------------------------------------------------------
-    hyper_preprocessed_info = preprocess_dir_ce / 'hyperparams_preprocessed.npz'
-    hyper_preprocessed_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
     paper_plots_dir = PLOTS_DIR / 'paper'
 
     if do_paper_predictive_overlay:
-        info_subjects = preprocess_dir_ce / 'subjects'
-        uninf_subjects = preprocess_dir_uninf / 'subjects'
-        if info_subjects.exists() and uninf_subjects.exists():
-            from paper_plots import generate_paper_plots
-            generate_paper_plots(
-                info_subjects_dir=str(info_subjects),
-                uninf_subjects_dir=str(uninf_subjects),
-                info_hyper_path=str(hyper_preprocessed_info),
-                uninf_hyper_path=str(hyper_preprocessed_uninf),
+        from paper_plots import generate_cross_model_ce_overlay
+        crra_hyper = preprocess_dir_ce / 'hyperparams_preprocessed.npz'
+        ep_hyper = preprocess_dir_ep / 'hyperparams_preprocessed.npz'
+        power_hyper = preprocess_dir_power / 'hyperparams_preprocessed.npz'
+        if crra_hyper.exists():
+            generate_cross_model_ce_overlay(
+                crra_hyper_path=str(crra_hyper),
+                ep_hyper_path=str(ep_hyper) if ep_hyper.exists() else None,
+                power_hyper_path=str(power_hyper) if power_hyper.exists() else None,
                 prior_params_path=str(DATA_DIR / 'output' / 'prior_params_ce.npz'),
                 output_dir=str(paper_plots_dir),
-                data_output_dir=str(DATA_DIR / 'output'),
                 seed=SEEDS['sampling'],
             )
         else:
-            missing = []
-            if not info_subjects.exists():
-                missing.append('informative subjects')
-            if not uninf_subjects.exists():
-                missing.append('uninformative subjects')
-            print(f"Skipping paper plots: missing {', '.join(missing)}")
+            print(f"Skipping cross-model overlay: CRRA hyper not found")
 
     if do_paper_prior_predictive_params:
         prior_subjects = preprocess_dir_prior / 'subjects'
@@ -644,32 +564,6 @@ if __name__ == '__main__':
             )
         else:
             print(f"Skipping prior predictive params plot: {prior_subjects} not found")
-
-    if do_paper_subject_ce_all:
-        print("\n" + "=" * 60)
-        print("Running: Per-Subject CE Comparison Plots (All Subjects)")
-        print("=" * 60)
-        info_subjects = preprocess_dir_ce / 'subjects'
-        uninf_subjects = preprocess_dir_uninf / 'subjects'
-        if info_subjects.exists() and uninf_subjects.exists():
-            from paper_plots import generate_subject_ce_plots
-            generate_subject_ce_plots(
-                info_subjects_dir=str(info_subjects),
-                uninf_subjects_dir=str(uninf_subjects),
-                output_dir=str(PLOTS_DIR / 'paper' / 'subject_ce'),
-                lotteries=REFERENCE_LOTTERIES,
-                n_sub=5000,
-                n_workers=N_WORKERS,
-                seed=SEEDS['sampling'],
-            )
-        else:
-            missing = []
-            if not info_subjects.exists():
-                missing.append('informative subjects')
-            if not uninf_subjects.exists():
-                missing.append('uninformative subjects')
-            print(f"Skipping subject CE plots: missing {', '.join(missing)}")
-        print("Done.\n")
 
     # -------------------------------------------------------------------------
     # Appendix Analyses

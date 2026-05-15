@@ -1403,11 +1403,17 @@ def generate_cross_model_ce_overlay(
 
     fig, axes = plt.subplots(3, 1, figsize=(6, 8))
 
-    models = [
-        ('CRRA+Prelec', crra_hyper_path, '#1f77b4', '-', 10),
-        ('EP+TK', ep_hyper_path, '#2ca02c', '-', 40),
-        ('CRRA+Power', power_hyper_path, '#d62728', '-', 80),
-    ]
+    from model_registry import MODEL_REGISTRY
+    hyper_paths = {
+        'crra': crra_hyper_path,
+        'ep': ep_hyper_path,
+        'power': power_hyper_path,
+    }
+    models = []
+    for i, (key, cfg) in enumerate(MODEL_REGISTRY.items()):
+        hp = hyper_paths.get(key)
+        if hp is not None and Path(hp).exists():
+            models.append((cfg['name'], hp, cfg['color'], cfg['linestyle'], 10 + i * 30))
 
     for k, lottery in enumerate(REFERENCE_LOTTERIES):
         ax = axes[k]
@@ -1482,47 +1488,47 @@ def generate_subject_detail_figures(
     output_dir.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
 
-    models_cfg = [
-        ('CRRA+Prelec', ['r', 'phi', 'eta'], _compute_ces_for_lottery,
-         crra_subjects_dir, '#1f77b4', '-'),
-        ('EP+TK', ['alpha', 'r', 'gamma'], _compute_ces_for_lottery_ep,
-         ep_subjects_dir, '#2ca02c', '-'),
-        ('CRRA+Power', ['r', 'delta'], _compute_ces_for_lottery_power,
-         power_subjects_dir, '#d62728', '-'),
-    ]
+    from model_registry import MODEL_REGISTRY, compute_ces_for_lottery, load_subject_params
+
+    subject_dirs = {
+        'crra': crra_subjects_dir,
+        'ep': ep_subjects_dir,
+        'power': power_subjects_dir,
+    }
 
     # Load all subject params
     print("\nLoading subject parameters for cross-model comparison...")
-    all_params = {}
+    all_models = {}
     n_subjects = None
-    for mname, keys, ce_fn, pdir, color, ls in models_cfg:
+    for key, cfg in MODEL_REGISTRY.items():
+        pdir = subject_dirs.get(key)
         if pdir is None or not Path(pdir).exists():
             continue
-        meta = np.load(Path(pdir) / 'metadata.npz')
-        ns = int(meta['n_subjects'])
+        all_params_result, ns = load_subject_params(key, pdir)
         if n_subjects is None:
             n_subjects = ns
+        # Convert to per-subject list of dicts
         params_list = []
         for sid in range(ns):
-            d = np.load(Path(pdir) / f'subject_{sid:03d}_params.npz')
-            burn = d[keys[0]].shape[0] // 2
-            params_list.append({k: d[k][burn:].ravel() for k in keys})
-        all_params[mname] = {'params': params_list, 'keys': keys,
-                             'ce_fn': ce_fn, 'color': color, 'ls': ls}
+            params_list.append({k: all_params_result[k][sid] for k in cfg['param_names']})
+        all_models[key] = {
+            'params': params_list, 'cfg': cfg,
+        }
 
     # Compute cross-model divergence per subject
     print("Computing cross-model CE divergence per subject...")
+    model_keys = list(all_models.keys())
     divergence = np.zeros(n_subjects)
     for sid in range(n_subjects):
         diffs_per_lottery = []
         for lot in REFERENCE_LOTTERIES:
             medians = []
-            for mname, minfo in all_params.items():
-                p = minfo['params'][sid]
+            for mkey in model_keys:
+                p = all_models[mkey]['params'][sid]
                 n_avail = len(list(p.values())[0])
                 idx = rng.choice(n_avail, min(n_sub, n_avail), replace=False)
-                args = [p[k][idx] for k in minfo['keys']]
-                ces = minfo['ce_fn'](*args, lot)
+                sub_p = {k: v[idx] for k, v in p.items()}
+                ces = compute_ces_for_lottery(mkey, sub_p, lot)
                 medians.append(np.nanmedian(ces))
             max_diff = max(abs(medians[i] - medians[j])
                            for i in range(len(medians))
@@ -1550,17 +1556,19 @@ def generate_subject_detail_figures(
             hi = max(lottery['prizes'])
             x_grid = np.linspace(lo, hi, 300)
 
-            for mname, minfo in all_params.items():
+            for mkey in model_keys:
+                minfo = all_models[mkey]
+                mcfg = minfo['cfg']
                 p = minfo['params'][sid]
                 n_avail = len(list(p.values())[0])
                 idx = rng.choice(n_avail, min(n_sub, n_avail), replace=False)
-                args = [p[k_][idx] for k_ in minfo['keys']]
-                ces = minfo['ce_fn'](*args, lottery)
+                sub_p = {k_: v[idx] for k_, v in p.items()}
+                ces = compute_ces_for_lottery(mkey, sub_p, lottery)
                 ce_clip = ces[(ces >= lo) & (ces <= hi) & np.isfinite(ces)]
                 if len(ce_clip) > 100:
                     kde = gaussian_kde(ce_clip)
-                    ax.plot(x_grid, kde(x_grid), color=minfo['color'],
-                            lw=1.5, ls=minfo['ls'], label=mname)
+                    ax.plot(x_grid, kde(x_grid), color=mcfg['color'],
+                            lw=1.5, ls=mcfg['linestyle'], label=mcfg['name'])
 
             ax.axvline(ev, color='black', ls=':', lw=0.8, alpha=0.5)
             p_str = '/'.join(f'{p:.2f}' for p in lottery['probs'])

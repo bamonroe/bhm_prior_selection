@@ -205,6 +205,69 @@ def _compute_ces_for_lottery_ep(alpha_arr, r_arr, gamma_arr, lottery):
     return ces
 
 
+def _compute_ces_for_lottery_power(r_arr, delta_arr, lottery):
+    """Compute CEs for arrays of CRRA+Power parameters and a specific lottery.
+
+    Uses CRRA utility (analytic inverse, no Newton) with Power PWF.
+    Same structure as _compute_ces_for_lottery but with Power decision weights
+    and only 2 preference parameters.
+    """
+    prizes = np.array(lottery['prizes'], dtype=np.float64)
+    probs = np.array(lottery['probs'], dtype=np.float64)
+
+    sorted_idx = np.argsort(prizes)
+    sp = prizes[sorted_idx]
+    sq = probs[sorted_idx]
+
+    lo, hi = float(sp[0]), float(sp[-1])
+
+    cum = np.cumsum(sq)
+
+    r_arr = np.asarray(r_arr, dtype=np.float64)
+    delta_arr = np.asarray(delta_arr, dtype=np.float64)
+    n = len(r_arr)
+
+    # Power weights: w(p) = p^delta
+    delta_safe = np.maximum(delta_arr, 0.01)
+    cum_clipped = np.clip(cum[:-1], 1e-10, 1 - 1e-10)
+    w_inner = cum_clipped[None, :] ** delta_safe[:, None]
+    w = np.ones((n, len(cum)), dtype=np.float64)
+    w[:, :-1] = w_inner
+
+    # Decision weights
+    d = np.empty_like(w)
+    d[:, 0] = w[:, 0]
+    d[:, 1:] = w[:, 1:] - w[:, :-1]
+
+    # Normalized CRRA utility (same as _compute_ces_for_lottery)
+    x_min, x_max = lo, hi
+    s_arr = 1.0 - r_arr
+    use_log = np.abs(s_arr) < 1e-10
+    s_safe = np.where(use_log, 0.5, s_arr)
+
+    sp_s = sp[None, :] ** s_safe[:, None]
+    xmin_s = x_min ** s_safe
+    xmax_s = x_max ** s_safe
+    denom = (xmax_s - xmin_s)[:, None]
+    utilities = (sp_s - xmin_s[:, None]) / denom
+
+    log_utilities = np.log(sp / x_min)[None, :] / np.log(x_max / x_min)
+    log_utilities = log_utilities * np.ones((n, 1))
+
+    rdu = np.sum(d * np.where(use_log[:, None], log_utilities, utilities), axis=1)
+
+    # CRRA inverse (analytic)
+    with np.errstate(invalid='ignore', over='ignore'):
+        ce_s = rdu * (xmax_s - xmin_s) + xmin_s
+        ce_normal = np.power(np.maximum(ce_s, 1e-30), 1.0 / s_safe)
+        ce_log = x_min * np.power(x_max / x_min, rdu)
+
+    ces = np.where(use_log, ce_log, ce_normal)
+    ces = np.clip(ces, lo, hi)
+    ces[~np.isfinite(ces)] = np.nan
+    return ces
+
+
 # =============================================================================
 # Hyper-posterior predictive draws
 # =============================================================================
@@ -1342,8 +1405,8 @@ def generate_cross_model_ce_overlay(
 
     models = [
         ('CRRA+Prelec', crra_hyper_path, '#1f77b4', '-', 10),
-        ('EP+TK', ep_hyper_path, '#2ca02c', '--', 40),
-        ('CRRA+Power', power_hyper_path, '#d62728', '-.', 80),
+        ('EP+TK', ep_hyper_path, '#2ca02c', '-', 40),
+        ('CRRA+Power', power_hyper_path, '#d62728', '-', 80),
     ]
 
     for k, lottery in enumerate(REFERENCE_LOTTERIES):

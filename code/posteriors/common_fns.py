@@ -594,16 +594,11 @@ def ep_ufn(x, alpha, r, x_min=10.0, x_max=50.0):
     Returns:
         Normalized utility values (same shape as x)
     """
-    x = jnp.maximum(x, 1e-10)
-    alpha = jnp.maximum(alpha, 1e-10)
-    r_safe = jnp.clip(r, -10, 10)
-    s = 1 - r_safe
+    s = 1 - r
 
-    # Standard form: V(x) = (1 - exp(-alpha * x^s)) / (alpha * s)
-    # Normalized: u(x) = (V(x) - V(xmin)) / (V(xmax) - V(xmin))
-    # Since alpha*s cancels in the ratio:
-    #   u(x) = (exp(-alpha * xmin^s) - exp(-alpha * x^s))
-    #        / (exp(-alpha * xmin^s) - exp(-alpha * xmax^s))
+    # u(x) = (exp(-alpha * xmin^s) - exp(-alpha * x^s))
+    #      / (exp(-alpha * xmin^s) - exp(-alpha * xmax^s))
+    # At s=0 (r=1): both numerator and denominator are 0; use log form.
     x_s = jnp.power(x, s)
     xmin_s = jnp.power(x_min, s)
     xmax_s = jnp.power(x_max, s)
@@ -613,23 +608,7 @@ def ep_ufn(x, alpha, r, x_min=10.0, x_max=50.0):
     exp_max = jnp.exp(-alpha * xmax_s)
     power_form = (exp_min - exp_x) / (exp_min - exp_max)
 
-    # Log form (limit as s -> 0, i.e. r -> 1):
-    # V(x) -> (1 - x^(-alpha)) / alpha  (via x^s -> 1 + s*ln(x))
-    # Actually: lim_{s->0} exp(-alpha * x^s) = exp(-alpha) * x^{-alpha*... }
-    # More carefully: x^s = exp(s ln x) so -alpha * x^s = -alpha * exp(s ln x)
-    # At s=0: -alpha * 1 = -alpha, so exp(-alpha * x^s) -> exp(-alpha) for all x.
-    # Need first-order expansion: x^s ≈ 1 + s ln(x), so
-    #   exp(-alpha * x^s) ≈ exp(-alpha) * exp(-alpha * s * ln(x))
-    #                      = exp(-alpha) * x^{-alpha*s}
-    # The s factors cancel in the normalized ratio:
-    #   u(x) = (x_min^{-alpha*s} - x^{-alpha*s})
-    #        / (x_min^{-alpha*s} - x_max^{-alpha*s})
-    # At s=0 this is 0/0, but taking the limit via L'Hopital on s:
-    #   u(x) -> (ln(x_min) * x_min^0 - ln(x) * x^0)
-    #         / (ln(x_min) * x_min^0 - ln(x_max) * x_max^0)
-    #         = (ln(x_min) - ln(x)) / (ln(x_min) - ln(x_max))
-    #         = ln(x/x_min) / ln(x_max/x_min)
-    # This is the same as CRRA at r=1.
+    # Log form at s=0: u(x) = ln(x/x_min) / ln(x_max/x_min)
     log_form = jnp.log(x / x_min) / jnp.log(x_max / x_min)
 
     use_log = jnp.abs(s) < 1e-10
@@ -661,15 +640,12 @@ def ep_inverse(u_val, alpha, r, x_min=10.0, x_max=50.0):
     Returns:
         Certainty equivalent in prize units (scalar)
     """
-    alpha = jnp.maximum(alpha, 1e-10)
-    r_safe = jnp.clip(r, -10, 10)
-    s = 1 - r_safe
+    s = 1 - r
 
-    # Initial guess: CRRA inverse (good because EP nests CRRA as alpha -> 0)
+    # Initial guess: CRRA inverse
     x0 = crra_inverse(u_val, r, x_min, x_max)
     x0 = jnp.clip(x0, x_min + 1e-8, x_max - 1e-8)
 
-    # Precompute constants for the normalized EP utility
     xmin_s = jnp.power(x_min, s)
     xmax_s = jnp.power(x_max, s)
     exp_min = jnp.exp(-alpha * xmin_s)
@@ -681,19 +657,12 @@ def ep_inverse(u_val, alpha, r, x_min=10.0, x_max=50.0):
         x_s = jnp.power(x, s)
         exp_x = jnp.exp(-alpha * x_s)
 
-        # f(x) = (exp_min - exp_x) / denom - u_val
         fx = (exp_min - exp_x) / denom - u_val
-
-        # f'(x) = alpha * s * x^(s-1) * exp(-alpha * x^s) / denom
         dfx = alpha * s * jnp.power(x, s - 1) * exp_x / denom
-
-        # Guard against zero derivative
-        dfx = jnp.where(jnp.abs(dfx) < 1e-30, 1e-30, dfx)
 
         x_new = x - fx / dfx
         return jnp.clip(x_new, x_min + 1e-8, x_max - 1e-8)
 
-    # Handle s=0 (r=1) case: use CRRA inverse directly
     use_log = jnp.abs(s) < 1e-10
     newton_result = jax.lax.fori_loop(0, 20, newton_step, x0)
     log_result = x_min * jnp.power(x_max / x_min, u_val)

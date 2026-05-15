@@ -177,64 +177,50 @@ def compute_model_diagnostics(model_name, preprocessed_dir, hyper_path,
 
 
 def extract_acceptance_rates(model_dir):
-    """Extract MH acceptance rates from checkpoint acceptance counts.
+    """Extract MH acceptance rates from the last checkpoint.
 
-    Reports both cumulative rates (across all runs) and last-run rates
-    (from the final run only, reflecting current mixing quality).
+    The checkpoint stores per-run acceptance counts (reset each run),
+    not cumulative. We compute rates from the last checkpoint's counts
+    divided by (iterations_per_run * n_chains).
 
-    Returns dict with mean, median, min, max acceptance rates.
+    Returns dict with mean, median, min, max acceptance rates across blocks.
     """
     model_dir = Path(model_dir)
     checkpoint_dir = model_dir / 'checkpoints'
     if not checkpoint_dir.exists():
         return {k: np.nan for k in ['accept_mean', 'accept_median',
-                'accept_min', 'accept_max', 'accept_last_run_mean']}
+                'accept_min', 'accept_max']}
 
     cp_files = sorted(checkpoint_dir.glob('checkpoint_*.npz'))
-    if len(cp_files) < 1:
+    if len(cp_files) < 2:
         return {k: np.nan for k in ['accept_mean', 'accept_median',
-                'accept_min', 'accept_max', 'accept_last_run_mean']}
+                'accept_min', 'accept_max']}
 
     cp_last = np.load(cp_files[-1], allow_pickle=True)
     if 'acceptance_counts' not in cp_last:
         return {k: np.nan for k in ['accept_mean', 'accept_median',
-                'accept_min', 'accept_max', 'accept_last_run_mean']}
+                'accept_min', 'accept_max']}
 
-    counts_last = cp_last['acceptance_counts']
-    iter_last = int(cp_last['iteration'])
+    counts = cp_last['acceptance_counts']
     n_chains = int(cp_last['num_chains_a']) + int(cp_last['num_chains_b'])
 
-    # Cumulative rates
-    total_proposals = iter_last * n_chains
-    cum_rates = counts_last / total_proposals if total_proposals > 0 else counts_last * 0
+    # Counts are per-run. Compute iterations per run from checkpoint spacing.
+    cp_prev = np.load(cp_files[-2], allow_pickle=True)
+    iters_per_run = int(cp_last['iteration']) - int(cp_prev['iteration'])
+    proposals_per_block = iters_per_run * n_chains
 
-    result = {
-        'accept_mean': float(np.mean(cum_rates)),
-        'accept_median': float(np.median(cum_rates)),
-        'accept_min': float(np.min(cum_rates)),
-        'accept_max': float(np.max(cum_rates)),
+    if proposals_per_block <= 0:
+        return {k: np.nan for k in ['accept_mean', 'accept_median',
+                'accept_min', 'accept_max']}
+
+    rates = counts / proposals_per_block
+
+    return {
+        'accept_mean': float(np.mean(rates)),
+        'accept_median': float(np.median(rates)),
+        'accept_min': float(np.min(rates)),
+        'accept_max': float(np.max(rates)),
     }
-
-    # Last-run rates (difference between last two checkpoints)
-    if len(cp_files) >= 2:
-        cp_prev = np.load(cp_files[-2], allow_pickle=True)
-        counts_prev = cp_prev['acceptance_counts']
-        iter_prev = int(cp_prev['iteration'])
-        delta_counts = counts_last - counts_prev
-        delta_iters = iter_last - iter_prev
-        delta_proposals = delta_iters * n_chains
-        if delta_proposals > 0:
-            last_rates = delta_counts / delta_proposals
-            result['accept_last_run_mean'] = float(np.mean(last_rates))
-            result['accept_last_run_median'] = float(np.median(last_rates))
-        else:
-            result['accept_last_run_mean'] = np.nan
-            result['accept_last_run_median'] = np.nan
-    else:
-        result['accept_last_run_mean'] = result['accept_mean']
-        result['accept_last_run_median'] = result['accept_median']
-
-    return result
 
 
 def run_all_diagnostics(output_path=None):
@@ -293,9 +279,8 @@ def run_all_diagnostics(output_path=None):
             accept = extract_acceptance_rates(model_dir)
             for ak, av in accept.items():
                 save_dict[f'{key}_{ak}'] = av
-            last_run = accept.get('accept_last_run_mean', np.nan)
-            print(f"    Acceptance: cumulative={accept['accept_mean']:.1%}, "
-                  f"last run={last_run:.1%}")
+            print(f"    Acceptance: mean={accept['accept_mean']:.1%}, "
+                  f"median={accept['accept_median']:.1%}")
 
     np.savez(output_path, **save_dict)
     print(f"\nSaved diagnostics to: {output_path}")

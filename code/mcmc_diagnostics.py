@@ -248,19 +248,7 @@ def run_all_diagnostics(output_path=None):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    base = Path(__file__).parent.parent / 'data' / 'output'
-
-    models = [
-        ('crra', 'CRRA+Prelec',
-         base / 'rdu_bhm_ce',
-         ['r', 'phi', 'eta', 'lambda']),
-        ('ep', 'EP+TK',
-         base / 'rdu_ep_bhm_ce',
-         ['alpha', 'r', 'gamma', 'lambda']),
-        ('power', 'CRRA+Power',
-         base / 'rdu_power_bhm_ce',
-         ['r', 'delta', 'lambda']),
-    ]
+    from model_registry import MODEL_REGISTRY, get_data_dir
 
     print("=" * 60)
     print("MCMC Diagnostics")
@@ -268,9 +256,12 @@ def run_all_diagnostics(output_path=None):
 
     save_dict = {}
 
-    for key, name, model_dir, param_names in models:
+    for key, cfg in MODEL_REGISTRY.items():
+        name = cfg['name']
+        model_dir = get_data_dir(key)
         preproc_dir = model_dir / 'preprocessed'
         hyper_path = preproc_dir / 'hyperparams_preprocessed.npz'
+        param_names = cfg['param_names']
 
         if not (preproc_dir / 'subjects').exists():
             print(f"\n  Skipping {name}: preprocessed subjects not found")

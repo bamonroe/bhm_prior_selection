@@ -2,8 +2,55 @@
 \label{app:mcmc_details}
 %==============================================================================
 
-% TODO: Add chain counts, convergence diagnostics (R-hat distributions),
-% acceptance rates, and computational cost for all three models.
-% Include discussion of any convergence issues (e.g., bimodal subjects).
+All three models are estimated using a Metropolis-within-Gibbs sampler. The
+parameter vector is partitioned into blocks, with each subject's structural
+parameters forming one block and each pair of hyperparameters (population mean
+and dispersion for each quantity) forming another. Each block is updated
+sequentially using a Metropolis-Hastings step with an adaptive multivariate
+normal proposal distribution. The proposal covariance is estimated from the
+empirical covariance of an A/B chain split: Group A chains use the running
+covariance of Group B to construct proposals, and vice versa. This coupled
+design improves mixing while maintaining detailed balance within each group.
 
-This appendix is under construction.
+For each model, 2000 chains are run in parallel on GPU (1000 per A/B group).
+Every 10th iteration is retained (thinning factor of 10), and the first half
+of the retained samples is discarded as burn-in. Table~\ref{tab:mcmc_summary}
+summarizes the sampling configuration and convergence diagnostics for each
+model.
+
+\begin{table}[h!]
+  \centering
+  \begin{tabular}{lccc}
+    \toprule
+    & Model 1 & Model 2 & Model 3 \\
+    & (CRRA + Prelec) & (EP + TK) & (CRRA + Power) \\
+    \midrule
+    Structural parameters per subject & 4 & 4 & 3 \\
+    Predictive quantities & 4 & 4 & 4 \\
+    Hyperparameters & 8 & 8 & 8 \\
+    Total parameters & 452 & 452 & 341 \\
+    Chains (A + B) & 2000 & 2000 & 2000 \\
+    Collection iterations & 6000 & 16000 & 10000 \\
+    Thinning & 10 & 10 & 10 \\
+    Retained samples per chain & 600 & 1600 & 1000 \\
+    Post burn-in samples per chain & 300 & 800 & 500 \\
+    Total posterior draws & 600{,}000 & 1{,}600{,}000 & 1{,}000{,}000 \\
+    Median $\hat{R}$ & [TBD] & [TBD] & [TBD] \\
+    Max $\hat{R}$ & [TBD] & [TBD] & [TBD] \\
+    Mean acceptance rate & [TBD] & [TBD] & [TBD] \\
+    Time per iteration (s) & $\approx 0.8$ & $\approx 2.7$ & $\approx 0.7$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{MCMC sampling configuration and convergence diagnostics.}
+  \label{tab:mcmc_summary}
+\end{table}
+
+The higher computational cost of Model 2 reflects the numerical inversion
+required for the Expo-Power certainty equivalent (Newton iteration with 20
+steps) and the use of automatic differentiation for the Jacobian determinant.
+Model 3, despite requiring the Gram determinant $\sqrt{\det(J^\top J)}$ for
+the non-square Jacobian, is the fastest per iteration because it has the fewest
+structural parameters and uses the analytic CRRA inverse.
+
+% TODO: Fill in R-hat and acceptance rate values from preprocessed diagnostics.
+% TODO: Discuss any subjects with elevated R-hat (bimodal posteriors).

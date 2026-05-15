@@ -1089,6 +1089,55 @@ certainty equivalents, without requiring the researcher to compute the forward
 map post-estimation or to compare structural parameters that have no common
 meaning across models.
 
+\subsection{Subject-Level Cross-Model Agreement}
+
+The population-level results show aggregate patterns. To examine whether these
+patterns hold at the individual level, I compute the cross-model divergence for
+each subject, defined as the average (across lotteries) of the maximum pairwise
+absolute difference in median posterior CEs across the three models.
+
+\begin{figure}[hp]
+  \centering
+  \mycaption{Subject-level CE posteriors: most agreed subject (Subject 85)}
+  \label{fig:subject_agreed}
+  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_agreed.pdf}
+\end{figure}
+
+\begin{figure}[hp]
+  \centering
+  \mycaption{Subject-level CE posteriors: most divergent subject (Subject 55)}
+  \label{fig:subject_divergent}
+  \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_divergent.pdf}
+\end{figure}
+
+Figure \ref{fig:subject_agreed} shows the subject with the smallest
+cross-model divergence. All three models produce overlapping CE posteriors
+across all three lotteries, with median CEs within approximately \$1 of each
+other. The posteriors differ in dispersion, with the CRRA + Prelec model
+producing wider posteriors that reflect the additional flexibility of the
+2-parameter PWF, but the substantive conclusions are model-invariant for this
+subject.
+
+Figure \ref{fig:subject_divergent} shows the subject with the largest
+cross-model divergence. The CRRA + Prelec model concentrates near the minimum
+CE on $L_1$ and $L_3$, indicating extreme risk aversion, while the EP + TK and
+CRRA + Power models concentrate near the maximum, indicating risk-seeking
+behavior. The Prelec posterior on $L_1$ is visibly bimodal, with a secondary
+mode near the risk-seeking region, but the population prior pulls the bulk of
+the mass toward the risk-averse mode. The 1-parameter PWFs in Models 2 and 3
+do not sustain the risk-averse parameterization and place their posterior mass
+entirely on the risk-seeking mode. This subject's 80 binary choices are
+consistent with both extreme risk aversion and risk seeking under the
+4-parameter models, and the structural form of the PWF is the deciding factor
+in resolving the ambiguity.
+
+These two cases illustrate a broader pattern. For well-identified subjects, the
+choice of structural model has little effect on predictive inferences in
+quantity space. For weakly identified subjects, the structural model matters
+precisely because different functional forms resolve the same data ambiguity in
+different directions. The quantity-space framework makes both the agreement and
+the disagreement visible in dollars.
+
 \subsection{Sensitivity to $\alpha$ and $\kappa$}
 
 The preceding results use a single $(\alpha, \kappa)$ specification. To assess

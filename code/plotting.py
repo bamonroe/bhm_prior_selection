@@ -83,12 +83,8 @@ CE_HYPER_TRANSFORMS = [
 ]
 
 # Subject parameter display info: (name, latex_label)
-SUBJECT_PARAM_INFO = [
-    ('r', r'$r$'),
-    ('phi', r'$\phi$'),
-    ('eta', r'$\eta$'),
-    ('lambda', r'$\lambda$'),
-]
+# Subject param info is now read dynamically from NPZ keys.
+# Model-specific labels come from model_registry.MODEL_REGISTRY.
 
 # Color schemes
 COLOR_DATA = 'steelblue'

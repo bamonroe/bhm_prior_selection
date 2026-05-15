@@ -868,8 +868,8 @@ researcher to specify beliefs about structural parameters directly.
 I estimate the model using lottery choice data from \textcite{Harrison2016},
 in which \py{D['n_subjects']} subjects each made
 \py{D['n_choices_per_subject']} binary choices between three-outcome lotteries
-with prize amounts of \$10, \$30, and \$50. The 4-parameter RDU model
-estimated from 80 choices per subject is a setting where the hyperprior has
+with prize amounts of \$10, \$30, and \$50. Each RDU model is
+estimated from 80 choices per subject, a setting where the hyperprior has
 real influence, making it a useful testbed for the proposed framework. I now
 describe the specific choices made, including the reference lottery design,
 direct prior beliefs, and variance decomposition parameters.
@@ -1074,12 +1074,14 @@ parameterization.
 \subsection{Sensitivity to $\alpha$ and $\kappa$}
 
 The preceding results use a single $(\alpha, \kappa)$ specification. To assess
-how sensitive the subject classification is to these choices, I re-estimate the
-model at three additional configurations spanning a wide range of the
-$(\alpha, \kappa)$ space, holding all other aspects of the specification fixed and
-using the same subject classification rule based on average absolute median CE
-differences. Table~\ref{tab:rk_sensitivity} reports the subject classification
-for each.
+how sensitive the results are to these choices, I re-estimate Model 1
+(CRRA + Prelec) at three additional configurations spanning a wide range of the
+$(\alpha, \kappa)$ space, comparing each to a diffuse parameter-space benchmark
+following \textcite{Gao2022}. Subjects are classified by the average absolute
+median CE difference between the informative and diffuse posteriors across the
+three reference lotteries: well-identified (less than \$2), moderately
+affected (\$2--\$10), and prior-dominated (more than \$10).
+Table~\ref{tab:rk_sensitivity} reports these classifications.
 
 \begin{pycode}
 # Load pre-computed group counts
@@ -1120,8 +1122,9 @@ print(r"""
 """ + _rk_table_rows + r"""
     \bottomrule
   \end{tabular}
-  \caption{Subject classification across $(\alpha, \kappa)$ configurations.
-    Each row uses the same direct prior, data, and comparison model;
+  \caption{Subject classification across $(\alpha, \kappa)$ configurations
+    for Model 1 (CRRA + Prelec) relative to a diffuse benchmark.
+    Each row uses the same direct prior and data;
     only the hierarchical variance allocation changes.}
   \label{tab:rk_sensitivity}
 \end{table}

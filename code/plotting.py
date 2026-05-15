@@ -134,7 +134,7 @@ def crra_utility(x, r, x_min=X_MIN, x_max=X_MAX):
 # =============================================================================
 
 def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False,
-                        nparams=None, n_hyper=None):
+                        nparams=None, n_hyper=None, param_names=None):
     """
     Load full history and save per-subject parameter files.
 
@@ -198,11 +198,12 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False,
     # Auto-detect n_subjects
     if n_subjects is None:
         # History contains:
-        # - Raw state: n_hyper hyperparams + n_subjects * nparams subject epsilon params
-        # - Generated quantities: n_subjects * 4 (r, phi, eta, lambda) + 8 (population params)
-        # Total = n_hyper + n_subjects * nparams + n_subjects * 4 + 8
-        #       = n_hyper + 8 + n_subjects * (nparams + 4)
-        n_subjects = (n_params - n_hyper - 8) // (nparams + 4)
+        # - Raw state: n_subjects * nparams + n_hyper
+        # - Generated quantities: n_subjects * nparams + 2 * N_QUANTITIES
+        # Total = 2 * (n_subjects * nparams) + n_hyper + 2 * N_QUANTITIES
+        # With n_hyper = 2 * N_QUANTITIES:
+        # Total = 2 * n_subjects * nparams + 2 * n_hyper
+        n_subjects = (n_params - 2 * n_hyper) // (2 * nparams)
         print(f"  Auto-detected {n_subjects} subjects")
 
     # Calculate batch boundaries from metadata
@@ -217,18 +218,22 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False,
     # Raw params: n_hyper hyperparams + n_subjects * nparams subject params
     first_gq = n_hyper + n_subjects * nparams
 
-    print(f"  Extracting {n_subjects} subjects...")
+    # Default param names for backward compatibility
+    if param_names is None:
+        if nparams == 3:
+            param_names = ['r', 'phi', 'eta']  # positional names
+        else:
+            param_names = ['r', 'phi', 'eta', 'lambda']
+
+    print(f"  Extracting {n_subjects} subjects ({nparams} params: {param_names})...")
     for sid in range(n_subjects):
         if (sid + 1) % 100 == 0 or sid == 0:
             print(f"    Subject {sid}...", flush=True)
 
-        # Generated quantities layout: r[0:n], phi[n:2n], eta[2n:3n], lambda[3n:4n], then pop params
-        subject_data = {
-            'r': history[:, :, first_gq + sid],
-            'phi': history[:, :, first_gq + n_subjects + sid],
-            'eta': history[:, :, first_gq + 2 * n_subjects + sid],
-            'lambda': history[:, :, first_gq + 3 * n_subjects + sid],
-        }
+        # Generated quantities layout: param0[0:n], param1[n:2n], ..., then pop params
+        subject_data = {}
+        for p_idx, pname in enumerate(param_names):
+            subject_data[pname] = history[:, :, first_gq + p_idx * n_subjects + sid]
 
         out_path = output_dir / f'subject_{sid:03d}_params.npz'
         np.savez_compressed(out_path, **subject_data)

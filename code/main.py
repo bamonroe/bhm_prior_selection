@@ -478,7 +478,11 @@ if __name__ == '__main__':
 
     if do_preprocess_subjects_power:
         if history_dir_power.exists():
-            pipelines.run_preprocess_subjects_ce(history_dir_power, preprocess_dir_power / 'subjects')
+            from posteriors.rdu_power_bhm_ce import NPARAMS as NP_POWER, N_HYPER as NH_POWER
+            pipelines.run_preprocess_subjects_ce(
+                history_dir_power, preprocess_dir_power / 'subjects',
+                nparams=NP_POWER, n_hyper=NH_POWER,
+                param_names=['r', 'delta', 'lambda'])
         else:
             print(f"Skipping Power subject preprocessing: {history_dir_power} not found")
 
@@ -490,7 +494,11 @@ if __name__ == '__main__':
 
     if do_preprocess_subjects_power_prior:
         if history_dir_power_prior.exists():
-            pipelines.run_preprocess_subjects_ce(history_dir_power_prior, preprocess_dir_power_prior / 'subjects')
+            from posteriors.rdu_power_bhm_ce import NPARAMS as NP_POWER, N_HYPER as NH_POWER
+            pipelines.run_preprocess_subjects_ce(
+                history_dir_power_prior, preprocess_dir_power_prior / 'subjects',
+                nparams=NP_POWER, n_hyper=NH_POWER,
+                param_names=['r', 'delta', 'lambda'])
         else:
             print(f"Skipping Power prior subject preprocessing: {history_dir_power_prior} not found")
 

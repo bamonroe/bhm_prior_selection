@@ -345,13 +345,17 @@ def run_preprocess_hyperparams_ce(history_dir, output_dir, force=False):
     return result
 
 
-def run_preprocess_subjects_ce(history_dir, output_dir, force=False):
+def run_preprocess_subjects_ce(history_dir, output_dir, force=False,
+                               nparams=None, n_hyper=None, param_names=None):
     """Preprocess CE-model subject data from history files.
 
     Args:
         history_dir: Directory containing history_*.npz files
         output_dir: Directory to save per-subject parameter files
         force: If True, overwrite existing preprocessed data
+        nparams: Number of params per subject (default: 4 for CRRA model)
+        n_hyper: Number of hyperparameters (default: 8)
+        param_names: List of parameter names for GQ extraction
 
     Returns:
         tuple: (output_dir, iterations, batch_boundaries)
@@ -360,9 +364,13 @@ def run_preprocess_subjects_ce(history_dir, output_dir, force=False):
     print("Running: Preprocess CE Subjects")
     print("=" * 60)
     from plotting import preprocess_subjects
-    from posteriors.rdu_bhm_ce import NPARAMS as NP, N_HYPER as NH
+    if nparams is None or n_hyper is None:
+        from posteriors.rdu_bhm_ce import NPARAMS as NP, N_HYPER as NH
+        nparams = nparams or NP
+        n_hyper = n_hyper or NH
     result = preprocess_subjects(history_dir, output_dir, force=force,
-                                  nparams=NP, n_hyper=NH)
+                                  nparams=nparams, n_hyper=n_hyper,
+                                  param_names=param_names)
     print("Done.\n")
     return result
 

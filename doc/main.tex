@@ -892,16 +892,19 @@ chosen so that the map from parameters to predictive quantities is injective.\fo
   The conditions for injectivity are derived in detail in Appendix
   \ref{app:global_injectivity}.
 }
-For the specific Prelec--CRRA design used here, the conditions reduce to two
-binary lotteries with distinct probabilities on the higher outcome, a third
-binary lottery with shared probability $p_3 = p_1$ whose outcome ratio differs
-from that of $L_1$, and a non-degenerate choice-probability pair.
-I additionally require that no pair of lotteries with overlapping outcomes
-exhibits first-order stochastic dominance. This avoids obvious ordering
-contradictions when specifying independent marginal distributions over the CE
-quantities. Table \ref{tab:lottery_design} presents a set of lotteries
-satisfying these conditions, with the pair $(L_1, L_3)$ chosen for the choice
-probability mapping.
+The same set of reference lotteries serves all three models; injectivity
+conditions must be verified for each specification separately.
+Appendix \ref{app:global_injectivity} provides an analytic proof for Model 1
+(CRRA + Prelec); for Models 2 and 3, numerical verification on dense grids
+over the prior support confirms that the Jacobian determinant does not vanish.
+The design uses two binary lotteries with distinct probabilities on the higher
+outcome and a third binary lottery with shared probability $p_3 = p_1$ whose
+outcome ratio differs from that of $L_1$. No pair of lotteries with
+overlapping outcomes exhibits first-order stochastic dominance, which avoids
+obvious ordering contradictions when specifying independent marginal
+distributions over the CE quantities. Table \ref{tab:lottery_design} presents
+a set of lotteries satisfying these conditions, with the pair $(L_1, L_3)$
+chosen for the choice probability mapping.
 
 \begin{table}[h!]
   \centering
@@ -1046,30 +1049,40 @@ aligned CE posteriors, with median CEs of $\$\py{xm_crra_1}$,
 $\$\py{xm_ep_1}$, and $\$\py{xm_power_1}$ for $L_1$ under Models 1, 2, and 3
 respectively. All three are concentrated below the expected value, indicating
 that the estimated population is risk-averse for these asymmetric lotteries.
-This agreement is notable because the three models have different utility
-functions, different probability weighting functions, and in one case a
-different number of structural parameters. The shared quantity-space prior
-anchors all three to the same beliefs about where CEs should lie for a randomly
-selected individual.
+This agreement is notable given that the three models differ in their utility
+functions, probability weighting functions, and in one case the number of
+structural parameters. Model 3, which has only 3 free parameters mapped to
+4 predictive quantities through the Gram determinant, produces posterior CEs
+that are essentially indistinguishable from the 4-parameter models.
 
-For lottery $L_2$, which splits probability equally between outcomes, the three
-models diverge. The CRRA + Prelec posterior (Model 1) places substantial mass
+For lottery $L_2$, which splits probability equally between outcomes, a more
+nuanced pattern emerges. The CRRA + Prelec posterior (Model 1) places mass
 above the expected value of \$30, with a median CE of $\$\py{xm_crra_2}$. The
-Expo-Power + TK posterior (Model 2) remains below the expected value at
-$\$\py{xm_ep_2}$. The CRRA + Power posterior (Model 3) is at
-$\$\py{xm_power_2}$. This divergence is informative rather than problematic.
-Under EUT with CRRA utility, a subject with $\CE > \text{EV}$ for any lottery
-would be globally risk-seeking, which would be inconsistent with the
-risk-averse CEs for $L_1$ and $L_3$. The only way to reconcile risk-averse CEs
-for asymmetric lotteries with a CE above the expected value for the symmetric
-lottery is through probability weighting. The 2-parameter Prelec function can
-independently adjust curvature and elevation, allowing $w(0.5) > 0.5$ even when
-probabilities near 0 and 1 are distorted. The 1-parameter TK and Power
-functions constrain the entire shape with a single parameter, producing less
-inflation at $p = 0.5$. This lottery-specific disagreement identifies precisely
-where the choice of PWF matters for predictive inference, and it does so in the
-interpretable units of certainty equivalents rather than in the model's native
-parameterization.
+CRRA + Power posterior (Model 3) is close at $\$\py{xm_power_2}$. The
+Expo-Power + TK posterior (Model 2) diverges, remaining below the expected
+value at $\$\py{xm_ep_2}$. This pattern reflects differences in how each PWF
+handles the symmetric probability $p = 0.5$. Both the 2-parameter Prelec
+function and the 1-parameter Power function can produce $w(0.5) > 0.5$, which
+inflates the decision weight on the better outcome and pushes the CE upward.
+The close agreement between Prelec and Power on $L_2$ is notable because it
+suggests the additional flexibility of the 2-parameter Prelec function may not
+be needed for these data. The TK function, by contrast, constrains the
+probability weighting through an inverse-S shape where the degree of
+overweighting at $p = 0.5$ is tied to the degree of distortion at the tails.
+The estimated TK curvature produces $w(0.5) < 0.5$, pulling the CE below the
+expected value.
+
+The pattern of agreement and disagreement across lotteries is itself
+informative. All three models agree on the sign and approximate magnitude of
+risk aversion for asymmetric lotteries, suggesting that the data are
+sufficiently informative for these lottery designs that the structural
+specification matters relatively little. For the symmetric lottery, where the
+probability weighting mechanism is most consequential, the models separate in
+a way that identifies which aspects of the PWF drive predictive differences.
+These comparisons are available directly in the interpretable units of
+certainty equivalents, without requiring the researcher to compute the forward
+map post-estimation or to compare structural parameters that have no common
+meaning across models.
 
 \subsection{Sensitivity to $\alpha$ and $\kappa$}
 

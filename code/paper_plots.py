@@ -1327,13 +1327,10 @@ def generate_cross_model_ce_overlay(
 
     For each reference lottery, plots the hyper-posterior predictive CE
     distribution under three specifications plus the shared hyperprior
-    predictive:
-    1. CRRA+Prelec (Model 1)
-    2. EP+TK (Model 2)
-    3. CRRA+Power (Model 3)
-    4. Hyperprior predictive (shared)
+    predictive. Uses KDE smoothing consistent with other paper figures.
     """
     plt = _setup_matplotlib()
+    from scipy.stats import gaussian_kde
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1341,12 +1338,12 @@ def generate_cross_model_ce_overlay(
 
     print("\nGenerating cross-model CE overlay (3 models)...")
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
+    fig, axes = plt.subplots(3, 1, figsize=(6, 8))
 
     models = [
-        ('CRRA+Prelec', crra_hyper_path, 'C0', '-', 10),
-        ('EP+TK', ep_hyper_path, 'C2', '--', 40),
-        ('CRRA+Power', power_hyper_path, 'C3', ':', 80),
+        ('CRRA+Prelec', crra_hyper_path, '#1f77b4', '-', 10),
+        ('EP+TK', ep_hyper_path, '#2ca02c', '--', 40),
+        ('CRRA+Power', power_hyper_path, '#d62728', '-.', 80),
     ]
 
     for k, lottery in enumerate(REFERENCE_LOTTERIES):
@@ -1354,15 +1351,18 @@ def generate_cross_model_ce_overlay(
         ev = sum(p * x for p, x in zip(lottery['probs'], lottery['prizes']))
         lo = min(lottery['prizes'])
         hi = max(lottery['prizes'])
+        x_grid = np.linspace(lo, hi, 300)
 
         # Hyperprior predictive (shared prior)
         prior_ce = _draw_ce_from_beta_hierarchy(
             crra_hyper_path, prior_params_path, k,
             n_draws=n_ce_draws, seed=seed+20+k, use_posterior=False)
 
-        bins = np.linspace(lo, hi, 80)
-        ax.hist(prior_ce, bins=bins, density=True, alpha=0.3, color='gray',
-                label='Hyperprior predictive')
+        ce_clip = prior_ce[(prior_ce >= lo) & (prior_ce <= hi) & np.isfinite(prior_ce)]
+        if len(ce_clip) > 100:
+            kde = gaussian_kde(ce_clip)
+            ax.plot(x_grid, kde(x_grid), color='#888888', lw=1.5, ls='--',
+                    label='Hyperprior predictive')
 
         msg = f"  {lottery['label']}: EV=${ev:.0f}, Prior={np.nanmedian(prior_ce):.1f}"
 
@@ -1372,21 +1372,30 @@ def generate_cross_model_ce_overlay(
             model_ce = _draw_ce_from_beta_hierarchy(
                 hyper_path, prior_params_path, k,
                 n_draws=n_ce_draws, seed=seed+seed_offset+k, use_posterior=True)
-            ax.hist(model_ce, bins=bins, density=True, alpha=0.5, color=color,
-                    histtype='step', linewidth=1.5, linestyle=ls,
-                    label=f'{name} posterior')
+            ce_clip = model_ce[(model_ce >= lo) & (model_ce <= hi) & np.isfinite(model_ce)]
+            if len(ce_clip) > 100:
+                kde = gaussian_kde(ce_clip)
+                ax.plot(x_grid, kde(x_grid), color=color, lw=1.5, ls=ls,
+                        label=f'{name} posterior')
             msg += f", {name}={np.nanmedian(model_ce):.1f}"
 
-        ax.axvline(ev, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
-        ax.set_xlabel(f'CE (\\$)')
-        ax.set_title(lottery['label'])
+        ax.axvline(ev, color='black', ls=':', lw=0.8, alpha=0.5)
+        p_str = '/'.join(f'{p:.2f}' for p in lottery['probs'])
+        ax.set_title(
+            f'{lottery["label"]}: '
+            f'\\${lo}/\\${hi}, $p = ({p_str})$, '
+            f'EV = \\${ev:.0f}',
+            fontsize=9,
+        )
+        ax.set_ylabel('Density', fontsize=9)
+        ax.tick_params(labelsize=8)
+        ax.legend(fontsize=7)
         print(msg)
 
-    axes[0].set_ylabel('Density')
-    axes[0].legend(fontsize=7, loc='upper left')
+    axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
     fig.tight_layout()
     outpath = output_dir / 'cross_model_ce_overlay.pdf'
-    fig.savefig(outpath, dpi=300, bbox_inches='tight')
+    fig.savefig(outpath, bbox_inches='tight', backend='pdf')
     plt.close(fig)
     print(f"  Saved: {outpath}")
 

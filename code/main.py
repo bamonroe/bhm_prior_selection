@@ -263,30 +263,17 @@ do_gen_paper_data = False
 do_sensitivity          = False
 do_family_comparison    = False
 
-# --- MCMC Sampling ---
-do_sampling_ce             = False
-do_sampling_ep             = False
-do_sampling_power          = False
+# --- Per-Model Flags (keyed by model registry key) ---
+do_sampling       = {'crra': False, 'ep': False, 'power': False}
+do_sampling_prior = {'crra': False, 'power': False}
+do_preprocessing  = {'crra': False, 'ep': False, 'power': False}
+do_diagnostic_plots = {'crra': False, 'ep': False, 'power': False}
+
+# --- Stan (separate, not in registry) ---
 do_sampling_stan           = False
-do_sampling_prior          = False
-do_sampling_power_prior    = False
 
-# --- Preprocessing (extract from history files) ---
+# --- Prior selection ---
 do_generate_prior_ce       = False
-do_preprocess_hyper_ce     = False
-do_preprocess_subjects_ce  = False
-do_preprocess_hyper_ep     = False
-do_preprocess_subjects_ep  = False
-do_preprocess_hyper_power  = False
-do_preprocess_subjects_power = False
-do_preprocess_subjects_prior = False
-do_preprocess_subjects_power_prior = False
-
-# --- Diagnostic Plots ---
-do_hyper_plots_ce          = False
-do_subject_plots_ce        = False
-do_subject_plots_ep        = False
-do_subject_plots_power     = False
 
 # --- Paper Plots ---
 do_paper_predictive_overlay      = False
@@ -373,211 +360,69 @@ if __name__ == '__main__':
             prior_selection_ce=PRIOR_SELECTION_CE,
         )
 
-    if do_sampling_ce:
-        check_dependency('sampling_ce', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
-        pipelines.run_sampling_ce(
-            sampling_opts_ce,
-            ref_lotteries=REFERENCE_LOTTERIES,
-            ref_pair=REFERENCE_PAIR,
-            prior_params_path=prior_params_ce_path,
-        )
+    # =========================================================================
+    # Per-Model Pipeline (sampling, preprocessing, diagnostic plots)
+    # =========================================================================
+    from model_registry import MODEL_REGISTRY, get_data_dir, get_history_dir, get_preproc_dir
+    from model_registry import get_plots_dir as get_model_plots_dir
 
-    if do_sampling_ep:
-        check_dependency('sampling_ep', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
-        pipelines.run_sampling_ep(
-            sampling_opts_ep,
-            ref_lotteries=REFERENCE_LOTTERIES,
-            ref_pair=REFERENCE_PAIR,
-            prior_params_path=prior_params_ce_path,
-        )
+    sampling_opts_map = {
+        'crra': sampling_opts_ce,
+        'ep': sampling_opts_ep,
+        'power': sampling_opts_power,
+    }
+    prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
 
-    if do_sampling_power:
-        check_dependency('sampling_power', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
-        pipelines.run_sampling_power(
-            sampling_opts_power,
-            ref_lotteries=REFERENCE_LOTTERIES,
-            ref_pair=REFERENCE_PAIR,
-            prior_params_path=prior_params_ce_path,
-        )
+    for model_key, cfg in MODEL_REGISTRY.items():
+        # --- Sampling ---
+        if do_sampling.get(model_key, False):
+            check_dependency(f'sampling_{model_key}', ['clean_data'])
+            pipelines.run_sampling_model(
+                model_key, sampling_opts_map[model_key],
+                ref_lotteries=REFERENCE_LOTTERIES,
+                ref_pair=REFERENCE_PAIR,
+                prior_params_path=prior_params_ce_path,
+            )
 
-    if do_sampling_power_prior:
-        check_dependency('sampling_power_prior', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
-        pipelines.run_sampling_power_prior(
-            sampling_opts_power,
-            ref_lotteries=REFERENCE_LOTTERIES,
-            ref_pair=REFERENCE_PAIR,
-            prior_params_path=prior_params_ce_path,
-        )
+        # --- Prior-only sampling ---
+        if do_sampling_prior.get(model_key, False) and cfg.get('has_prior_only', False):
+            check_dependency(f'sampling_{model_key}_prior', ['clean_data'])
+            pipelines.run_sampling_prior(
+                model_key, sampling_opts_map[model_key],
+                ref_lotteries=REFERENCE_LOTTERIES,
+                ref_pair=REFERENCE_PAIR,
+                prior_params_path=prior_params_ce_path,
+            )
 
+        # --- Preprocessing ---
+        if do_preprocessing.get(model_key, False):
+            pipelines.run_preprocess_model(model_key)
+
+        # --- Diagnostic plots ---
+        if do_diagnostic_plots.get(model_key, False):
+            subjects_dir = get_preproc_dir(model_key) / 'subjects'
+            model_plots_dir = get_model_plots_dir(model_key)
+            history_dir = get_history_dir(model_key)
+            if subjects_dir.exists() and (subjects_dir / 'metadata.npz').exists():
+                # Only pass prizes for CRRA model (utility/CE pages are CRRA-specific)
+                prizes = _load_reference_prizes() if cfg['utility_type'] == 'crra' and cfg['pwf_type'] == 'prelec' else None
+                pipelines.run_subject_plots(history_dir, model_plots_dir,
+                                            n_workers=N_WORKERS,
+                                            preprocessed_dir=subjects_dir,
+                                            prizes=prizes,
+                                            config=DIAGNOSTIC_PLOT_CONFIG)
+            else:
+                print(f"Skipping {cfg['name']} subject plots: preprocessed data not found")
+
+    # --- Stan (not in registry) ---
     if do_sampling_stan:
         check_dependency('sampling_stan', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
         pipelines.run_sampling_stan(
             sampling_opts_stan,
             ref_lotteries=REFERENCE_LOTTERIES,
             ref_pair=REFERENCE_PAIR,
             prior_params_path=prior_params_ce_path,
         )
-
-    if do_sampling_prior:
-        check_dependency('sampling_prior', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
-        pipelines.run_sampling_prior(
-            sampling_opts_prior,
-            ref_lotteries=REFERENCE_LOTTERIES,
-            ref_pair=REFERENCE_PAIR,
-            prior_params_path=prior_params_ce_path,
-        )
-
-    # -------------------------------------------------------------------------
-    # Preprocessing (CE-Space Prior)
-    # -------------------------------------------------------------------------
-    history_dir_ce = get_mcmc_dir('rdu_bhm_ce') / 'history' / 'full'
-    preprocess_dir_ce = get_mcmc_dir('rdu_bhm_ce') / 'preprocessed'
-
-    if do_preprocess_hyper_ce:
-        if history_dir_ce.exists():
-            pipelines.run_preprocess_hyperparams_ce(history_dir_ce, preprocess_dir_ce)
-        else:
-            print(f"Skipping CE preprocessing: {history_dir_ce} not found")
-
-    if do_preprocess_subjects_ce:
-        if history_dir_ce.exists():
-            pipelines.run_preprocess_subjects_ce(history_dir_ce, preprocess_dir_ce / 'subjects')
-        else:
-            print(f"Skipping CE subject preprocessing: {history_dir_ce} not found")
-
-    # -------------------------------------------------------------------------
-    # Preprocessing (EP+TK Model)
-    # -------------------------------------------------------------------------
-    history_dir_ep = get_mcmc_dir('rdu_ep_bhm_ce') / 'history' / 'full'
-    preprocess_dir_ep = get_mcmc_dir('rdu_ep_bhm_ce') / 'preprocessed'
-
-    if do_preprocess_hyper_ep:
-        if history_dir_ep.exists():
-            pipelines.run_preprocess_hyperparams_ce(history_dir_ep, preprocess_dir_ep)
-        else:
-            print(f"Skipping EP preprocessing: {history_dir_ep} not found")
-
-    if do_preprocess_subjects_ep:
-        if history_dir_ep.exists():
-            pipelines.run_preprocess_subjects_ce(history_dir_ep, preprocess_dir_ep / 'subjects')
-        else:
-            print(f"Skipping EP subject preprocessing: {history_dir_ep} not found")
-
-    # -------------------------------------------------------------------------
-    # Preprocessing (CRRA+Power Model)
-    # -------------------------------------------------------------------------
-    history_dir_power = get_mcmc_dir('rdu_power_bhm_ce') / 'history' / 'full'
-    preprocess_dir_power = get_mcmc_dir('rdu_power_bhm_ce') / 'preprocessed'
-
-    if do_preprocess_hyper_power:
-        if history_dir_power.exists():
-            from posteriors.rdu_power_bhm_ce import NPARAMS as NP_POWER, N_HYPER as NH_POWER
-            pipelines.run_preprocess_hyperparams_ce(
-                history_dir_power, preprocess_dir_power,
-                nparams=NP_POWER, n_hyper=NH_POWER)
-        else:
-            print(f"Skipping Power preprocessing: {history_dir_power} not found")
-
-    if do_preprocess_subjects_power:
-        if history_dir_power.exists():
-            from posteriors.rdu_power_bhm_ce import NPARAMS as NP_POWER, N_HYPER as NH_POWER
-            pipelines.run_preprocess_subjects_ce(
-                history_dir_power, preprocess_dir_power / 'subjects',
-                nparams=NP_POWER, n_hyper=NH_POWER,
-                param_names=['r', 'delta', 'lambda'])
-        else:
-            print(f"Skipping Power subject preprocessing: {history_dir_power} not found")
-
-    # -------------------------------------------------------------------------
-    # Preprocessing (CRRA+Power Prior-Only)
-    # -------------------------------------------------------------------------
-    history_dir_power_prior = get_mcmc_dir('rdu_power_bhm_ce_prior') / 'history' / 'full'
-    preprocess_dir_power_prior = get_mcmc_dir('rdu_power_bhm_ce_prior') / 'preprocessed'
-
-    if do_preprocess_subjects_power_prior:
-        if history_dir_power_prior.exists():
-            from posteriors.rdu_power_bhm_ce import NPARAMS as NP_POWER, N_HYPER as NH_POWER
-            pipelines.run_preprocess_subjects_ce(
-                history_dir_power_prior, preprocess_dir_power_prior / 'subjects',
-                nparams=NP_POWER, n_hyper=NH_POWER,
-                param_names=['r', 'delta', 'lambda'])
-        else:
-            print(f"Skipping Power prior subject preprocessing: {history_dir_power_prior} not found")
-
-    # -------------------------------------------------------------------------
-    # Preprocessing (Prior-Only Model)
-    # -------------------------------------------------------------------------
-    history_dir_prior = get_mcmc_dir('rdu_bhm_ce_prior') / 'history' / 'full'
-    preprocess_dir_prior = get_mcmc_dir('rdu_bhm_ce_prior') / 'preprocessed'
-
-    if do_preprocess_subjects_prior:
-        if history_dir_prior.exists():
-            pipelines.run_preprocess_subjects_prior(
-                history_dir_prior, preprocess_dir_prior / 'subjects')
-        else:
-            print(f"Skipping prior subject preprocessing: {history_dir_prior} not found")
-
-    # -------------------------------------------------------------------------
-    # Plotting (CE-Space Prior)
-    # -------------------------------------------------------------------------
-    plots_dir_ce = get_plots_dir('rdu_bhm_ce')
-
-    if do_hyper_plots_ce:
-        hyper_preprocessed_ce = preprocess_dir_ce / 'hyperparams_preprocessed.npz'
-        if hyper_preprocessed_ce.exists():
-            pipelines.run_hyperparameter_plots_ce(hyper_preprocessed_ce, plots_dir_ce,
-                                                   ce_direct_prior=DIRECT_PRIOR_CE,
-                                                   config=DIAGNOSTIC_PLOT_CONFIG)
-        else:
-            print(f"Skipping CE hyper plots: {hyper_preprocessed_ce} not found")
-
-    if do_subject_plots_ce:
-        subjects_preprocessed_ce = preprocess_dir_ce / 'subjects'
-        if subjects_preprocessed_ce.exists() and (subjects_preprocessed_ce / 'metadata.npz').exists():
-            ref_prizes_ce = _load_reference_prizes()
-            pipelines.run_subject_plots(history_dir_ce, plots_dir_ce,
-                                        n_workers=N_WORKERS,
-                                        preprocessed_dir=subjects_preprocessed_ce,
-                                        prizes=ref_prizes_ce,
-                                        config=DIAGNOSTIC_PLOT_CONFIG)
-        else:
-            print(f"Skipping CE subject plots: preprocessed data not found")
-
-    # -------------------------------------------------------------------------
-    # Diagnostic Plots (EP+TK Model)
-    # -------------------------------------------------------------------------
-    plots_dir_ep = get_plots_dir('rdu_ep_bhm_ce')
-
-    if do_subject_plots_ep:
-        subjects_preprocessed_ep = preprocess_dir_ep / 'subjects'
-        if subjects_preprocessed_ep.exists() and (subjects_preprocessed_ep / 'metadata.npz').exists():
-            pipelines.run_subject_plots(history_dir_ep, plots_dir_ep,
-                                        n_workers=N_WORKERS,
-                                        preprocessed_dir=subjects_preprocessed_ep,
-                                        config=DIAGNOSTIC_PLOT_CONFIG)
-        else:
-            print(f"Skipping EP subject plots: preprocessed data not found")
-
-    # -------------------------------------------------------------------------
-    # Diagnostic Plots (CRRA+Power Model)
-    # -------------------------------------------------------------------------
-    plots_dir_power = get_plots_dir('rdu_power_bhm_ce')
-
-    if do_subject_plots_power:
-        subjects_preprocessed_power = preprocess_dir_power / 'subjects'
-        if subjects_preprocessed_power.exists() and (subjects_preprocessed_power / 'metadata.npz').exists():
-            pipelines.run_subject_plots(history_dir_power, plots_dir_power,
-                                        n_workers=N_WORKERS,
-                                        preprocessed_dir=subjects_preprocessed_power,
-                                        config=DIAGNOSTIC_PLOT_CONFIG)
-        else:
-            print(f"Skipping Power subject plots: preprocessed data not found")
 
     # -------------------------------------------------------------------------
     # MCMC Diagnostics
@@ -592,33 +437,32 @@ if __name__ == '__main__':
     paper_plots_dir = PLOTS_DIR / 'paper'
 
     if do_paper_predictive_overlay:
-        from paper_plots import generate_cross_model_ce_overlay
-        crra_hyper = preprocess_dir_ce / 'hyperparams_preprocessed.npz'
-        ep_hyper = preprocess_dir_ep / 'hyperparams_preprocessed.npz'
-        power_hyper = preprocess_dir_power / 'hyperparams_preprocessed.npz'
-        if crra_hyper.exists():
+        from paper_plots import generate_cross_model_ce_overlay, generate_subject_detail_figures
+
+        # Build hyper paths from registry
+        hyper_paths = {}
+        subj_dirs = {}
+        for mk in MODEL_REGISTRY:
+            hp = get_preproc_dir(mk) / 'hyperparams_preprocessed.npz'
+            hyper_paths[mk] = str(hp) if hp.exists() else None
+            sd = get_preproc_dir(mk) / 'subjects'
+            subj_dirs[mk] = str(sd) if sd.exists() else None
+
+        if hyper_paths.get('crra'):
             generate_cross_model_ce_overlay(
-                crra_hyper_path=str(crra_hyper),
-                ep_hyper_path=str(ep_hyper) if ep_hyper.exists() else None,
-                power_hyper_path=str(power_hyper) if power_hyper.exists() else None,
+                crra_hyper_path=hyper_paths['crra'],
+                ep_hyper_path=hyper_paths.get('ep'),
+                power_hyper_path=hyper_paths.get('power'),
                 prior_params_path=str(DATA_DIR / 'output' / 'prior_params_ce.npz'),
                 output_dir=str(paper_plots_dir),
                 seed=SEEDS['sampling'],
             )
-        else:
-            print(f"Skipping cross-model overlay: CRRA hyper not found")
 
-    if do_paper_predictive_overlay:
-        # Subject-level detail figures (most agreed / most divergent)
-        crra_subj = preprocess_dir_ce / 'subjects'
-        ep_subj = preprocess_dir_ep / 'subjects'
-        power_subj = preprocess_dir_power / 'subjects'
-        if crra_subj.exists() and ep_subj.exists() and power_subj.exists():
-            from paper_plots import generate_subject_detail_figures
+        if all(subj_dirs.get(mk) for mk in MODEL_REGISTRY):
             generate_subject_detail_figures(
-                crra_subjects_dir=str(crra_subj),
-                ep_subjects_dir=str(ep_subj),
-                power_subjects_dir=str(power_subj),
+                crra_subjects_dir=subj_dirs['crra'],
+                ep_subjects_dir=subj_dirs['ep'],
+                power_subjects_dir=subj_dirs['power'],
                 output_dir=str(paper_plots_dir),
                 seed=SEEDS['sampling'],
             )

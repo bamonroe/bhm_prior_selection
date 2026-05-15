@@ -59,33 +59,39 @@ def run_prior_selection_ce(data_dir, ce_direct_prior, prior_selection_ce):
     print("Done.\n")
 
 
-def run_sampling_ce(sampling_opts, ref_lotteries, ref_pair,
-                    prior_params_path=None):
-    """Run MCMC sampling with quantity-space Beta-Beta BHM.
+def run_sampling_model(model_key, sampling_opts, ref_lotteries, ref_pair,
+                       prior_params_path=None):
+    """Run MCMC sampling for any registered model.
+
+    Uses the model registry to resolve the posterior and sampling modules
+    dynamically. Handles hyperprior loading, kernel cache clearing, and
+    file cleanup.
 
     Args:
+        model_key: Key into MODEL_REGISTRY ('crra', 'ep', 'power')
         sampling_opts: Sampling configuration dict
         ref_lotteries: List of 3 reference lottery dicts
-        ref_pair: Dict with 'lottery_A' and 'lottery_B' for choice probability
-        prior_params_path: Path to prior_params_ce.npz to load hyperpriors from
+        ref_pair: Dict with 'lottery_A' and 'lottery_B'
+        prior_params_path: Path to prior_params_ce.npz
     """
+    import importlib
+    from model_registry import MODEL_REGISTRY
+
+    cfg = MODEL_REGISTRY[model_key]
     print("\n" + "=" * 60)
-    print("Running: MCMC Sampling (Quantity-Space Beta-Beta Prior)")
+    print(f"Running: MCMC Sampling ({cfg['name']})")
     print("=" * 60)
 
-    # Clear kernel cache
     from bamcmc.mcmc.compile import get_compiled_kernel_cache
     cache = get_compiled_kernel_cache()
     if cache:
         print(f"Clearing {len(cache)} cached kernel(s)...")
         cache.clear()
 
-    # Load hyperpriors from file if specified
     if prior_params_path is not None:
-        from posteriors.rdu_bhm_ce import load_hyperpriors_from_file
-        load_hyperpriors_from_file(prior_params_path)
+        mod = importlib.import_module(cfg['posterior_module'])
+        mod.load_hyperpriors_from_file(prior_params_path)
 
-    # Clean existing files if requested
     if sampling_opts.get('clean', False):
         from bamcmc import clean_model_files
         output_dir = str(sampling_opts['output_dir'])
@@ -95,12 +101,52 @@ def run_sampling_ce(sampling_opts, ref_lotteries, ref_pair,
         print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
         print(f"  Deleted {len(result['deleted_histories'])} histories")
 
-    from sampling_ce import run_sampling as _run_sampling
-    _run_sampling_model(sampling_opts, ref_lotteries, ref_pair, _run_sampling)
+    samp_mod = importlib.import_module(cfg['sampling_module'])
+    _run_sampling_dispatch(sampling_opts, ref_lotteries, ref_pair,
+                           samp_mod.run_sampling)
     print("Done.\n")
 
 
-def _run_sampling_model(sampling_opts, ref_lotteries, ref_pair, run_fn):
+def run_sampling_prior(model_key, sampling_opts, ref_lotteries, ref_pair,
+                       prior_params_path=None):
+    """Run prior-only MCMC sampling for any registered model with a prior-only variant."""
+    import importlib
+    from model_registry import MODEL_REGISTRY
+
+    cfg = MODEL_REGISTRY[model_key]
+    if not cfg.get('has_prior_only', False):
+        print(f"Skipping prior-only sampling: {cfg['name']} has no prior-only variant")
+        return
+
+    print("\n" + "=" * 60)
+    print(f"Running: Prior-Only Sampling ({cfg['name']})")
+    print("=" * 60)
+
+    from bamcmc.mcmc.compile import get_compiled_kernel_cache
+    cache = get_compiled_kernel_cache()
+    if cache:
+        cache.clear()
+
+    if prior_params_path is not None:
+        mod = importlib.import_module(cfg['prior_posterior_module'])
+        mod.load_hyperpriors_from_file(prior_params_path)
+
+    if sampling_opts.get('clean', False):
+        from bamcmc import clean_model_files
+        output_dir = str(sampling_opts['output_dir'])
+        model_name = cfg['prior_model_id']
+        print(f"Cleaning existing files for {model_name}...")
+        result = clean_model_files(output_dir, model_name, mode='all')
+        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
+        print(f"  Deleted {len(result['deleted_histories'])} histories")
+
+    samp_mod = importlib.import_module(cfg['prior_sampling_module'])
+    run_fn = getattr(samp_mod, 'run_sampling_prior', samp_mod.run_sampling)
+    _run_sampling_dispatch(sampling_opts, ref_lotteries, ref_pair, run_fn)
+    print("Done.\n")
+
+
+def _run_sampling_dispatch(sampling_opts, ref_lotteries, ref_pair, run_fn):
     """Shared sampling dispatch for any quantity-space model."""
     num_chains = sampling_opts['num_chains']
     run_fn(
@@ -123,123 +169,6 @@ def _run_sampling_model(sampling_opts, ref_lotteries, ref_pair, run_fn):
             'use_deo': sampling_opts.get('use_deo', True),
         },
     )
-
-
-def run_sampling_ep(sampling_opts, ref_lotteries, ref_pair,
-                    prior_params_path=None):
-    """Run MCMC sampling with EP+TK quantity-space Beta-Beta BHM.
-
-    Same interface as run_sampling_ce but uses the Expo-Power + TK92 posterior.
-    Uses the same hyperprior array (same quantity-space prior).
-    """
-    print("\n" + "=" * 60)
-    print("Running: MCMC Sampling (EP+TK Quantity-Space Beta-Beta Prior)")
-    print("=" * 60)
-
-    from bamcmc.mcmc.compile import get_compiled_kernel_cache
-    cache = get_compiled_kernel_cache()
-    if cache:
-        print(f"Clearing {len(cache)} cached kernel(s)...")
-        cache.clear()
-
-    # Load hyperpriors — uses same file as CRRA model (same quantity-space prior)
-    if prior_params_path is not None:
-        from posteriors.rdu_ep_bhm_ce import load_hyperpriors_from_file
-        load_hyperpriors_from_file(prior_params_path)
-
-    if sampling_opts.get('clean', False):
-        from bamcmc import clean_model_files
-        output_dir = str(sampling_opts['output_dir'])
-        model_name = sampling_opts['model']
-        print(f"Cleaning existing files for {model_name}...")
-        result = clean_model_files(output_dir, model_name, mode='all')
-        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
-        print(f"  Deleted {len(result['deleted_histories'])} histories")
-
-    from sampling_ep import run_sampling as _run_sampling_ep
-    _run_sampling_model(sampling_opts, ref_lotteries, ref_pair, _run_sampling_ep)
-    print("Done.\n")
-
-
-def run_sampling_power(sampling_opts, ref_lotteries, ref_pair,
-                       prior_params_path=None):
-    """Run MCMC sampling with CRRA+Power quantity-space Beta-Beta BHM.
-
-    First k > p model: 3 structural parameters mapped to 4 quantities.
-    Uses the same hyperprior array (same quantity-space prior).
-    """
-    print("\n" + "=" * 60)
-    print("Running: MCMC Sampling (CRRA+Power Quantity-Space Beta-Beta Prior)")
-    print("=" * 60)
-
-    from bamcmc.mcmc.compile import get_compiled_kernel_cache
-    cache = get_compiled_kernel_cache()
-    if cache:
-        print(f"Clearing {len(cache)} cached kernel(s)...")
-        cache.clear()
-
-    if prior_params_path is not None:
-        from posteriors.rdu_power_bhm_ce import load_hyperpriors_from_file
-        load_hyperpriors_from_file(prior_params_path)
-
-    if sampling_opts.get('clean', False):
-        from bamcmc import clean_model_files
-        output_dir = str(sampling_opts['output_dir'])
-        model_name = sampling_opts['model']
-        print(f"Cleaning existing files for {model_name}...")
-        result = clean_model_files(output_dir, model_name, mode='all')
-        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
-        print(f"  Deleted {len(result['deleted_histories'])} histories")
-
-    from sampling_power import run_sampling as _run_sampling_power
-    _run_sampling_model(sampling_opts, ref_lotteries, ref_pair, _run_sampling_power)
-    print("Done.\n")
-
-
-def run_sampling_power_prior(sampling_opts, ref_lotteries, ref_pair,
-                             prior_params_path=None):
-    """Run prior-only MCMC sampling with CRRA+Power model."""
-    print("\n" + "=" * 60)
-    print("Running: Prior-Only Sampling (CRRA+Power)")
-    print("=" * 60)
-
-    from bamcmc.mcmc.compile import get_compiled_kernel_cache
-    cache = get_compiled_kernel_cache()
-    if cache:
-        cache.clear()
-
-    if prior_params_path is not None:
-        from posteriors.rdu_power_bhm_ce_prior import load_hyperpriors_from_file
-        load_hyperpriors_from_file(prior_params_path)
-
-    if sampling_opts.get('clean', False):
-        from bamcmc import clean_model_files
-        output_dir = str(sampling_opts['output_dir'])
-        print(f"Cleaning existing files for rdu_power_bhm_ce_prior...")
-        result = clean_model_files(output_dir, 'rdu_power_bhm_ce_prior', mode='all')
-        print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
-        print(f"  Deleted {len(result['deleted_histories'])} histories")
-
-    from sampling_power_prior import run_sampling_prior as _run
-    num_chains = sampling_opts['num_chains']
-    _run(
-        output_dir=sampling_opts['output_dir'],
-        ref_lotteries=ref_lotteries,
-        ref_pair=ref_pair,
-        reset_runs=sampling_opts.get('reset_runs', 1),
-        resume_runs=sampling_opts.get('resume_runs', 0),
-        num_collect=sampling_opts['num_collect'],
-        config={
-            'num_chains_a': num_chains,
-            'num_chains_b': num_chains,
-            'num_collect': sampling_opts['num_collect'],
-            'thin_iteration': sampling_opts['thin_iteration'],
-            'chunk_size': sampling_opts.get('chunk_size', 10),
-            'rng_seed': sampling_opts['seed'],
-            'use_double': sampling_opts.get('use_double', True),
-        },
-    )
-    print("Done.\n")
 
 
 def run_sampling_stan(sampling_opts, ref_lotteries, ref_pair,
@@ -325,20 +254,44 @@ def run_sensitivity(ce_direct_prior, output_dir, lottery=None,
     print("Done.\n")
 
 
-def run_preprocess_hyperparams_ce(history_dir, output_dir, force=False,
-                                  nparams=None, n_hyper=None):
-    """Preprocess CE-model hyperparameter data from history files.
+def run_preprocess_model(model_key, force=False):
+    """Preprocess both hyperparameters and subjects for a registered model.
 
     Args:
-        history_dir: Directory containing history_*.npz files
-        output_dir: Directory to save preprocessed hyperparameter file
+        model_key: Key into MODEL_REGISTRY
         force: If True, overwrite existing preprocessed data
-        nparams: Number of params per subject (default: 4 for CRRA)
-        n_hyper: Number of hyperparameters (default: 8)
-
-    Returns:
-        Path to the preprocessed hyperparameter file
     """
+    from model_registry import MODEL_REGISTRY, get_data_dir
+    from plotting import preprocess_hyperparams_ce, preprocess_subjects
+
+    cfg = MODEL_REGISTRY[model_key]
+    data_dir = get_data_dir(model_key)
+    history_dir = data_dir / 'history' / 'full'
+    preproc_dir = data_dir / 'preprocessed'
+
+    if not history_dir.exists():
+        print(f"Skipping {cfg['name']}: {history_dir} not found")
+        return
+
+    print("\n" + "=" * 60)
+    print(f"Running: Preprocess {cfg['name']}")
+    print("=" * 60)
+
+    # Hyperparameters
+    preprocess_hyperparams_ce(history_dir, preproc_dir, force=force,
+                              nparams=cfg['nparams'], n_hyper=cfg['n_hyper'])
+
+    # Subject-level parameters
+    preprocess_subjects(history_dir, preproc_dir / 'subjects', force=force,
+                        nparams=cfg['nparams'], n_hyper=cfg['n_hyper'],
+                        param_names=cfg['param_names'])
+    print("Done.\n")
+
+
+# Keep old names for backward compatibility during transition
+def run_preprocess_hyperparams_ce(history_dir, output_dir, force=False,
+                                  nparams=None, n_hyper=None):
+    """Preprocess hyperparameter data. Prefer run_preprocess_model() for new code."""
     print("\n" + "=" * 60)
     print("Running: Preprocess CE Hyperparameters")
     print("=" * 60)
@@ -351,19 +304,7 @@ def run_preprocess_hyperparams_ce(history_dir, output_dir, force=False,
 
 def run_preprocess_subjects_ce(history_dir, output_dir, force=False,
                                nparams=None, n_hyper=None, param_names=None):
-    """Preprocess CE-model subject data from history files.
-
-    Args:
-        history_dir: Directory containing history_*.npz files
-        output_dir: Directory to save per-subject parameter files
-        force: If True, overwrite existing preprocessed data
-        nparams: Number of params per subject (default: 4 for CRRA model)
-        n_hyper: Number of hyperparameters (default: 8)
-        param_names: List of parameter names for GQ extraction
-
-    Returns:
-        tuple: (output_dir, iterations, batch_boundaries)
-    """
+    """Preprocess subject data. Prefer run_preprocess_model() for new code."""
     print("\n" + "=" * 60)
     print("Running: Preprocess CE Subjects")
     print("=" * 60)

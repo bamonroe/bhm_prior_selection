@@ -868,9 +868,14 @@ researcher to specify beliefs about structural parameters directly.
 I estimate the model using lottery choice data from \textcite{Harrison2016},
 in which \py{D['n_subjects']} subjects each made
 \py{D['n_choices_per_subject']} binary choices between three-outcome lotteries
-with prize amounts of \$10, \$30, and \$50. Each RDU model is
-estimated from 80 choices per subject, a setting where the hyperprior has
-real influence, making it a useful testbed for the proposed framework. I now
+with prize amounts of \$10, \$30, and \$50. All three RDU models are
+estimated on the same data, each from 80 choices per subject, a setting
+where the hyperprior has real influence, making it a useful testbed for the
+proposed framework.\footnote{
+  MCMC estimation details, including chain counts, convergence
+  diagnostics, and acceptance rates for each model, are reported in
+  Appendix~\ref{app:mcmc_details}.
+} I now
 describe the specific choices made, including the reference lottery design,
 direct prior beliefs, and variance decomposition parameters.
 
@@ -1360,5 +1365,6 @@ available at \url{https://github.com/bmonroe3/bhm-prior-selection}.
 \input{appendix_global_injectivity}
 \input{appendix_eut_choice_probs}
 \input{appendix_rk_sensitivity}
+\input{appendix_mcmc_details}
 
 \end{document}

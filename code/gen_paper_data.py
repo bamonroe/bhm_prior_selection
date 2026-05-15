@@ -188,6 +188,23 @@ def gen_paper_data(output_path=None,
     else:
         print(f"\nSkipping family comparison (run do_family_comparison first)")
 
+    # Load pre-computed MCMC diagnostics (from mcmc_diagnostics.py)
+    diag_path = output_path.parent / 'mcmc_diagnostics.npz'
+    if diag_path.exists():
+        diag = dict(np.load(diag_path, allow_pickle=True))
+        # Only load scalar values (skip arrays for paper_data.npz size)
+        for key, val in diag.items():
+            if val.ndim == 0 or (isinstance(val, np.ndarray) and val.size == 1):
+                save_dict[key] = val
+        print(f"\nLoaded MCMC diagnostics from: {diag_path}")
+        for model in ['crra', 'ep', 'power']:
+            med = diag.get(f'{model}_rhat_median', np.nan)
+            mx = diag.get(f'{model}_rhat_max', np.nan)
+            acc = diag.get(f'{model}_accept_mean', np.nan)
+            print(f"  {model}: R-hat median={float(med):.4f}, max={float(mx):.4f}, accept={float(acc):.1%}")
+    else:
+        print(f"\nSkipping MCMC diagnostics (run do_mcmc_diagnostics first)")
+
     # Cross-model comparison (from preprocessed posteriors for all 3 models)
     ep_hyper_path = output_path.parent / 'rdu_ep_bhm_ce' / 'preprocessed' / 'hyperparams_preprocessed.npz'
     power_hyper_path = output_path.parent / 'rdu_power_bhm_ce' / 'preprocessed' / 'hyperparams_preprocessed.npz'

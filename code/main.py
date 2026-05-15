@@ -290,6 +290,9 @@ do_subject_plots_ce        = False
 do_paper_predictive_overlay      = False
 do_paper_prior_predictive_params = False
 
+# --- Diagnostics ---
+do_mcmc_diagnostics        = False
+
 # --- Appendix Analyses ---
 do_rk_sensitivity          = False
 do_injectivity_analysis    = False
@@ -543,6 +546,13 @@ if __name__ == '__main__':
                                         config=DIAGNOSTIC_PLOT_CONFIG)
         else:
             print(f"Skipping CE subject plots: preprocessed data not found")
+
+    # -------------------------------------------------------------------------
+    # MCMC Diagnostics
+    # -------------------------------------------------------------------------
+    if do_mcmc_diagnostics:
+        from mcmc_diagnostics import run_all_diagnostics
+        run_all_diagnostics(DATA_DIR / 'output' / 'mcmc_diagnostics.npz')
 
     # -------------------------------------------------------------------------
     # Paper Plots

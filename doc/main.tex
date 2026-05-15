@@ -140,6 +140,15 @@ xm_diff_1 = fmt(float(D.get('xmodel_diff_1', 0)), 1)
 xm_diff_2 = fmt(float(D.get('xmodel_diff_2', 0)), 1)
 xm_diff_3 = fmt(float(D.get('xmodel_diff_3', 0)), 1)
 
+# MCMC diagnostics
+diag_rhat_med = {}
+diag_rhat_max = {}
+diag_accept = {}
+for _m in ['crra', 'ep', 'power']:
+    diag_rhat_med[_m] = fmt(float(D.get(f'{_m}_rhat_median', 0)), 3)
+    diag_rhat_max[_m] = fmt(float(D.get(f'{_m}_rhat_max', 0)), 2)
+    diag_accept[_m] = fmt(100 * float(D.get(f'{_m}_accept_mean', 0)), 1)
+
 \end{pycode}
 
 

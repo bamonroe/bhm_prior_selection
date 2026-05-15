@@ -35,9 +35,9 @@ model.
     Retained samples per chain & 600 & 1600 & 1000 \\
     Post burn-in samples per chain & 300 & 800 & 500 \\
     Total posterior draws & 600{,}000 & 1{,}600{,}000 & 1{,}000{,}000 \\
-    Median $\hat{R}$ & [TBD] & [TBD] & [TBD] \\
-    Max $\hat{R}$ & [TBD] & [TBD] & [TBD] \\
-    Mean acceptance rate & [TBD] & [TBD] & [TBD] \\
+    Median $\hat{R}$ & \py{diag_rhat_med['crra']} & \py{diag_rhat_med['ep']} & \py{diag_rhat_med['power']} \\
+    Max $\hat{R}$ & \py{diag_rhat_max['crra']} & \py{diag_rhat_max['ep']} & \py{diag_rhat_max['power']} \\
+    Mean acceptance rate & \py{diag_accept['crra']}\% & \py{diag_accept['ep']}\% & \py{diag_accept['power']}\% \\
     Time per iteration (s) & $\approx 0.8$ & $\approx 2.7$ & $\approx 0.7$ \\
     \bottomrule
   \end{tabular}
@@ -52,5 +52,9 @@ Model 3, despite requiring the Gram determinant $\sqrt{\det(J^\top J)}$ for
 the non-square Jacobian, is the fastest per iteration because it has the fewest
 structural parameters and uses the analytic CRRA inverse.
 
-% TODO: Fill in R-hat and acceptance rate values from preprocessed diagnostics.
-% TODO: Discuss any subjects with elevated R-hat (bimodal posteriors).
+The split $\hat{R}$ statistic is computed for every subject-parameter
+combination and every hyperparameter, using the second half of the retained
+samples split again into two segments. Elevated $\hat{R}$ values are
+concentrated in the noise parameter $\lambda$ for subjects whose choice data
+are consistent with multiple modes in the posterior. These subjects exhibit
+bimodal CE posteriors, as discussed in Section \ref{sec:estimation}.

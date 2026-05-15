@@ -325,13 +325,16 @@ def run_sensitivity(ce_direct_prior, output_dir, lottery=None,
     print("Done.\n")
 
 
-def run_preprocess_hyperparams_ce(history_dir, output_dir, force=False):
+def run_preprocess_hyperparams_ce(history_dir, output_dir, force=False,
+                                  nparams=None, n_hyper=None):
     """Preprocess CE-model hyperparameter data from history files.
 
     Args:
         history_dir: Directory containing history_*.npz files
         output_dir: Directory to save preprocessed hyperparameter file
         force: If True, overwrite existing preprocessed data
+        nparams: Number of params per subject (default: 4 for CRRA)
+        n_hyper: Number of hyperparameters (default: 8)
 
     Returns:
         Path to the preprocessed hyperparameter file
@@ -340,7 +343,8 @@ def run_preprocess_hyperparams_ce(history_dir, output_dir, force=False):
     print("Running: Preprocess CE Hyperparameters")
     print("=" * 60)
     from plotting import preprocess_hyperparams_ce
-    result = preprocess_hyperparams_ce(history_dir, output_dir, force=force)
+    result = preprocess_hyperparams_ce(history_dir, output_dir, force=force,
+                                       nparams=nparams, n_hyper=n_hyper)
     print("Done.\n")
     return result
 

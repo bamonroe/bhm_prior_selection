@@ -248,21 +248,25 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False,
     return output_dir, iterations, batch_boundaries
 
 
-def preprocess_hyperparams_ce(history_dir, output_dir, force=False):
+def preprocess_hyperparams_ce(history_dir, output_dir, force=False,
+                              nparams=None, n_hyper=None):
     """
     Load full history and save CE-model hyperparameter data to a single file.
-
-    Uses CE-model constants (NPARAMS_CE, N_HYPER_CE) and HYPERPARAM_INFO_CE
-    for state names.
 
     Args:
         history_dir: Directory with history files
         output_dir: Directory to save preprocessed hyperparameter file
         force: If True, overwrite existing data
+        nparams: Number of params per subject (default: NPARAMS_CE=4)
+        n_hyper: Number of hyperparameters (default: N_HYPER_CE=8)
 
     Returns:
         Path to the preprocessed hyperparameter file
     """
+    if nparams is None:
+        nparams = NPARAMS_CE
+    if n_hyper is None:
+        n_hyper = N_HYPER_CE
     history_dir = Path(history_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -291,10 +295,10 @@ def preprocess_hyperparams_ce(history_dir, output_dir, force=False):
 
     # Calculate hyperparameter indices
     n_raw_params = n_total_params // 2
-    n_subjects = (n_raw_params - N_HYPER_CE) // NPARAMS_CE
-    hyper_start = n_subjects * NPARAMS_CE
+    n_subjects = (n_raw_params - n_hyper) // nparams
+    hyper_start = n_subjects * nparams
 
-    print(f"  Extracting {N_HYPER_CE} CE hyperparameters (subjects={n_subjects})...")
+    print(f"  Extracting {n_hyper} CE hyperparameters (nparams={nparams}, subjects={n_subjects})...")
 
     # Extract hyperparameter samples using CE-specific state names
     hyper_data = {}

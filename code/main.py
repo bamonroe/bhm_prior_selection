@@ -472,7 +472,10 @@ if __name__ == '__main__':
 
     if do_preprocess_hyper_power:
         if history_dir_power.exists():
-            pipelines.run_preprocess_hyperparams_ce(history_dir_power, preprocess_dir_power)
+            from posteriors.rdu_power_bhm_ce import NPARAMS as NP_POWER, N_HYPER as NH_POWER
+            pipelines.run_preprocess_hyperparams_ce(
+                history_dir_power, preprocess_dir_power,
+                nparams=NP_POWER, n_hyper=NH_POWER)
         else:
             print(f"Skipping Power preprocessing: {history_dir_power} not found")
 

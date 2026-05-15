@@ -285,6 +285,8 @@ do_preprocess_subjects_power_prior = False
 # --- Diagnostic Plots ---
 do_hyper_plots_ce          = False
 do_subject_plots_ce        = False
+do_subject_plots_ep        = False
+do_subject_plots_power     = False
 
 # --- Paper Plots ---
 do_paper_predictive_overlay      = False
@@ -548,6 +550,36 @@ if __name__ == '__main__':
             print(f"Skipping CE subject plots: preprocessed data not found")
 
     # -------------------------------------------------------------------------
+    # Diagnostic Plots (EP+TK Model)
+    # -------------------------------------------------------------------------
+    plots_dir_ep = get_plots_dir('rdu_ep_bhm_ce')
+
+    if do_subject_plots_ep:
+        subjects_preprocessed_ep = preprocess_dir_ep / 'subjects'
+        if subjects_preprocessed_ep.exists() and (subjects_preprocessed_ep / 'metadata.npz').exists():
+            pipelines.run_subject_plots(history_dir_ep, plots_dir_ep,
+                                        n_workers=N_WORKERS,
+                                        preprocessed_dir=subjects_preprocessed_ep,
+                                        config=DIAGNOSTIC_PLOT_CONFIG)
+        else:
+            print(f"Skipping EP subject plots: preprocessed data not found")
+
+    # -------------------------------------------------------------------------
+    # Diagnostic Plots (CRRA+Power Model)
+    # -------------------------------------------------------------------------
+    plots_dir_power = get_plots_dir('rdu_power_bhm_ce')
+
+    if do_subject_plots_power:
+        subjects_preprocessed_power = preprocess_dir_power / 'subjects'
+        if subjects_preprocessed_power.exists() and (subjects_preprocessed_power / 'metadata.npz').exists():
+            pipelines.run_subject_plots(history_dir_power, plots_dir_power,
+                                        n_workers=N_WORKERS,
+                                        preprocessed_dir=subjects_preprocessed_power,
+                                        config=DIAGNOSTIC_PLOT_CONFIG)
+        else:
+            print(f"Skipping Power subject plots: preprocessed data not found")
+
+    # -------------------------------------------------------------------------
     # MCMC Diagnostics
     # -------------------------------------------------------------------------
     if do_mcmc_diagnostics:
@@ -575,6 +607,23 @@ if __name__ == '__main__':
             )
         else:
             print(f"Skipping cross-model overlay: CRRA hyper not found")
+
+    if do_paper_predictive_overlay:
+        # Subject-level detail figures (most agreed / most divergent)
+        crra_subj = preprocess_dir_ce / 'subjects'
+        ep_subj = preprocess_dir_ep / 'subjects'
+        power_subj = preprocess_dir_power / 'subjects'
+        if crra_subj.exists() and ep_subj.exists() and power_subj.exists():
+            from paper_plots import generate_subject_detail_figures
+            generate_subject_detail_figures(
+                crra_subjects_dir=str(crra_subj),
+                ep_subjects_dir=str(ep_subj),
+                power_subjects_dir=str(power_subj),
+                output_dir=str(paper_plots_dir),
+                seed=SEEDS['sampling'],
+            )
+        else:
+            print("Skipping subject detail figures: not all models preprocessed")
 
     if do_paper_prior_predictive_params:
         prior_subjects = preprocess_dir_prior / 'subjects'

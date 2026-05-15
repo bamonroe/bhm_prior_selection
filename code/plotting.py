@@ -348,36 +348,39 @@ def _plot_single_subject(args):
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
 
-    # Load subject data from file
+    # Load subject data from file — read whatever params are present
     params_path = params_dir / f'subject_{subject_id:03d}_params.npz'
     data = np.load(params_path)
-    params = {k: data[k] for k in ['r', 'phi', 'eta', 'lambda']}
+    param_keys = [k for k in data.keys() if k not in ('iterations',)]
+    params = {k: data[k] for k in param_keys}
 
     # Generate PDF
     pdf_path = output_dir / f'subject_{subject_id:03d}.pdf'
 
+    has_crra_params = all(k in params for k in ['r', 'phi', 'eta', 'lambda'])
+
     with PdfPages(pdf_path) as pdf:
-        # Page 1: Trace plots (all history files)
+        # Page 1: Trace plots (all history files) — works for any model
         _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
                              chain_subsample=config.get('chain_subsample', 50),
                              figsize=config.get('subject_trace_figsize', (12, 12)))
 
-        # Page 2: Density plots (last history file)
+        # Page 2: Density plots (last history file) — works for any model
         _plot_subject_densities(params, subject_id, pdf, batch_boundaries)
 
-        # Page 3: Utility spaghetti (last history file)
-        _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
-                              prizes=np.asarray(prizes) if prizes is not None else None,
-                              figsize=config.get('subject_utility_figsize', (10, 7)),
-                              n_spaghetti=config.get('n_spaghetti', None))
+        # Page 3-4: Utility spaghetti and CE distribution — CRRA+Prelec only
+        if has_crra_params:
+            _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
+                                  prizes=np.asarray(prizes) if prizes is not None else None,
+                                  figsize=config.get('subject_utility_figsize', (10, 7)),
+                                  n_spaghetti=config.get('n_spaghetti', None))
 
-        # Page 4: CE distribution (last history file)
-        if prizes is not None:
-            _plot_subject_ce(params, subject_id, pdf,
-                             np.asarray(prizes),
-                             batch_boundaries,
-                             figsize=config.get('subject_ce_figsize', (10, 7)),
-                             bins=config.get('ce_hist_bins', None))
+            if prizes is not None:
+                _plot_subject_ce(params, subject_id, pdf,
+                                 np.asarray(prizes),
+                                 batch_boundaries,
+                                 figsize=config.get('subject_ce_figsize', (10, 7)),
+                                 bins=config.get('ce_hist_bins', None))
 
     return subject_id
 
@@ -515,17 +518,22 @@ def _last_batch_start(batch_boundaries, n_samples):
 def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
                          chain_subsample=50, figsize=(12, 12)):
     """Plot trace plots for a subject."""
-    fig, axes = plt.subplots(4, 1, figsize=figsize)
+    param_info = [(k, f'${k}$') for k in params.keys()]
+    n_params = len(param_info)
+    fig, axes = plt.subplots(n_params, 1, figsize=(figsize[0], figsize[1] * n_params / 4))
+    if n_params == 1:
+        axes = [axes]
     fig.suptitle(f'Subject {subject_id} - Trace Plots', fontsize=14)
 
-    n_samples, n_chains = params['r'].shape
+    first_key = list(params.keys())[0]
+    n_samples, n_chains = params[first_key].shape
 
     # Subsample chains for visibility
     chain_subsample = min(chain_subsample, n_chains)
     chain_indices = np.linspace(0, n_chains - 1, chain_subsample, dtype=int)
     chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, chain_subsample)))
 
-    for i, (name, label) in enumerate(SUBJECT_PARAM_INFO):
+    for i, (name, label) in enumerate(param_info):
         ax = axes[i]
         param_samples = params[name]
 
@@ -556,13 +564,18 @@ def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
 
 def _plot_subject_densities(params, subject_id, pdf, batch_boundaries):
     """Plot density plots for a subject (using last history file)."""
-    fig, axes = plt.subplots(4, 1, figsize=(12, 12))
+    param_info = [(k, f'${k}$') for k in params.keys()]
+    n_params = len(param_info)
+    fig, axes = plt.subplots(n_params, 1, figsize=(12, 12 * n_params / 4))
+    if n_params == 1:
+        axes = [axes]
     fig.suptitle(f'Subject {subject_id} - Posterior Densities', fontsize=14)
 
-    n_samples = params['r'].shape[0]
+    first_key = list(params.keys())[0]
+    n_samples = params[first_key].shape[0]
     burn_idx = _last_batch_start(batch_boundaries, n_samples)
 
-    for i, (name, label) in enumerate(SUBJECT_PARAM_INFO):
+    for i, (name, label) in enumerate(param_info):
         ax = axes[i]
         flat_samples = params[name][burn_idx:, :].flatten()
 

@@ -1463,6 +1463,121 @@ def generate_cross_model_ce_overlay(
     print(f"  Saved: {outpath}")
 
 
+def generate_subject_detail_figures(
+    crra_subjects_dir,
+    ep_subjects_dir,
+    power_subjects_dir,
+    output_dir,
+    n_sub=5000,
+    seed=42,
+):
+    """Generate subject-level CE detail figures for most agreed and most divergent subjects.
+
+    For each selected subject, produces a 3-panel figure (one per lottery)
+    showing posterior CE distributions under all three models.
+    """
+    plt = _setup_matplotlib()
+    from scipy.stats import gaussian_kde
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    rng = np.random.default_rng(seed)
+
+    models_cfg = [
+        ('CRRA+Prelec', ['r', 'phi', 'eta'], _compute_ces_for_lottery,
+         crra_subjects_dir, '#1f77b4', '-'),
+        ('EP+TK', ['alpha', 'r', 'gamma'], _compute_ces_for_lottery_ep,
+         ep_subjects_dir, '#2ca02c', '-'),
+        ('CRRA+Power', ['r', 'delta'], _compute_ces_for_lottery_power,
+         power_subjects_dir, '#d62728', '-'),
+    ]
+
+    # Load all subject params
+    print("\nLoading subject parameters for cross-model comparison...")
+    all_params = {}
+    n_subjects = None
+    for mname, keys, ce_fn, pdir, color, ls in models_cfg:
+        if pdir is None or not Path(pdir).exists():
+            continue
+        meta = np.load(Path(pdir) / 'metadata.npz')
+        ns = int(meta['n_subjects'])
+        if n_subjects is None:
+            n_subjects = ns
+        params_list = []
+        for sid in range(ns):
+            d = np.load(Path(pdir) / f'subject_{sid:03d}_params.npz')
+            burn = d[keys[0]].shape[0] // 2
+            params_list.append({k: d[k][burn:].ravel() for k in keys})
+        all_params[mname] = {'params': params_list, 'keys': keys,
+                             'ce_fn': ce_fn, 'color': color, 'ls': ls}
+
+    # Compute cross-model divergence per subject
+    print("Computing cross-model CE divergence per subject...")
+    divergence = np.zeros(n_subjects)
+    for sid in range(n_subjects):
+        diffs_per_lottery = []
+        for lot in REFERENCE_LOTTERIES:
+            medians = []
+            for mname, minfo in all_params.items():
+                p = minfo['params'][sid]
+                n_avail = len(list(p.values())[0])
+                idx = rng.choice(n_avail, min(n_sub, n_avail), replace=False)
+                args = [p[k][idx] for k in minfo['keys']]
+                ces = minfo['ce_fn'](*args, lot)
+                medians.append(np.nanmedian(ces))
+            max_diff = max(abs(medians[i] - medians[j])
+                           for i in range(len(medians))
+                           for j in range(i+1, len(medians)))
+            diffs_per_lottery.append(max_diff)
+        divergence[sid] = np.mean(diffs_per_lottery)
+
+    most_agreed = int(np.argmin(divergence))
+    most_divergent = int(np.argmax(divergence))
+    print(f"  Most agreed: subject {most_agreed} "
+          f"(avg max diff = ${divergence[most_agreed]:.2f})")
+    print(f"  Most divergent: subject {most_divergent} "
+          f"(avg max diff = ${divergence[most_divergent]:.2f})")
+
+    # Generate figures
+    for sid, label, filename in [
+        (most_agreed, 'Most Agreed', 'subject_ce_most_agreed.pdf'),
+        (most_divergent, 'Most Divergent', 'subject_ce_most_divergent.pdf'),
+    ]:
+        fig, axes = plt.subplots(3, 1, figsize=(6, 8))
+        for k, lottery in enumerate(REFERENCE_LOTTERIES):
+            ax = axes[k]
+            ev = sum(p * x for p, x in zip(lottery['probs'], lottery['prizes']))
+            lo = min(lottery['prizes'])
+            hi = max(lottery['prizes'])
+            x_grid = np.linspace(lo, hi, 300)
+
+            for mname, minfo in all_params.items():
+                p = minfo['params'][sid]
+                n_avail = len(list(p.values())[0])
+                idx = rng.choice(n_avail, min(n_sub, n_avail), replace=False)
+                args = [p[k_][idx] for k_ in minfo['keys']]
+                ces = minfo['ce_fn'](*args, lottery)
+                ce_clip = ces[(ces >= lo) & (ces <= hi) & np.isfinite(ces)]
+                if len(ce_clip) > 100:
+                    kde = gaussian_kde(ce_clip)
+                    ax.plot(x_grid, kde(x_grid), color=minfo['color'],
+                            lw=1.5, ls=minfo['ls'], label=mname)
+
+            ax.axvline(ev, color='black', ls=':', lw=0.8, alpha=0.5)
+            p_str = '/'.join(f'{p:.2f}' for p in lottery['probs'])
+            ax.set_title(f'{lottery["label"]}: \\${lo}/\\${hi}, '
+                         f'$p = ({p_str})$, EV = \\${ev:.0f}', fontsize=9)
+            ax.set_ylabel('Density', fontsize=9)
+            ax.tick_params(labelsize=8)
+            ax.legend(fontsize=7)
+
+        axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
+        fig.tight_layout()
+        outpath = output_dir / filename
+        fig.savefig(outpath, bbox_inches='tight', backend='pdf')
+        plt.close(fig)
+        print(f"  Saved: {outpath} (Subject {sid}, {label})")
+
+
 if __name__ == '__main__':
     generate_paper_plots(
         info_subjects_dir='data/output/rdu_bhm_ce/preprocessed/subjects',

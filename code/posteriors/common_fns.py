@@ -843,14 +843,14 @@ def rdu_ce_3outcome_ep(alpha, r, gamma, prizes, probs):
     return ep_inverse(rdu_val, alpha, r)
 
 
-def ce_mapping_3lotteries_ep(alpha_raw, r, gamma_raw, ref_lotteries):
+def ce_mapping_3lotteries_ep(alpha, r, gamma_raw, ref_lotteries):
     """
     Compute (CE1, CE2, CE3) for three reference lotteries under EP+TK.
 
     Forward map g(theta) from parameter space to CE space.
 
     Args:
-        alpha_raw: log(alpha), EP curvature on log scale (scalar)
+        alpha: EP curvature parameter (scalar, unrestricted)
         r: Risk aversion coefficient (scalar)
         gamma_raw: log(gamma), TK curvature on log scale (scalar)
         ref_lotteries: Flat array of shape (18,) encoding 3 lotteries
@@ -858,7 +858,6 @@ def ce_mapping_3lotteries_ep(alpha_raw, r, gamma_raw, ref_lotteries):
     Returns:
         Array of shape (3,) with [CE1, CE2, CE3]
     """
-    alpha = jnp.exp(alpha_raw)
     gamma = jnp.exp(gamma_raw)
 
     ce1 = rdu_ce_3outcome_ep(alpha, r, gamma, ref_lotteries[0:3], ref_lotteries[3:6])
@@ -872,14 +871,14 @@ def ce_mapping_3lotteries_ep(alpha_raw, r, gamma_raw, ref_lotteries):
 # EP+TK Choice Probability for Reference Pair
 # =============================================================================
 
-def choice_probability_ref_ep(alpha_raw, r, gamma_raw, lambda_raw, ref_pair):
+def choice_probability_ref_ep(alpha, r, gamma_raw, lambda_raw, ref_pair):
     """
     Compute P(choose A | theta) for a reference lottery pair under EP+TK.
 
     Uses Contextual Utility (Wilcox 2011) with EP utility and TK PWF.
 
     Args:
-        alpha_raw: log(alpha) (scalar)
+        alpha: EP curvature parameter (scalar, unrestricted)
         r: Risk aversion coefficient (scalar)
         gamma_raw: log(gamma) (scalar)
         lambda_raw: log(lambda) (scalar)
@@ -888,7 +887,6 @@ def choice_probability_ref_ep(alpha_raw, r, gamma_raw, lambda_raw, ref_pair):
     Returns:
         P(choose A) in (0, 1) (scalar)
     """
-    alpha = jnp.exp(alpha_raw)
     gamma = jnp.exp(gamma_raw)
     lam = jnp.exp(lambda_raw)
 
@@ -922,15 +920,15 @@ def choice_probability_ref_ep(alpha_raw, r, gamma_raw, lambda_raw, ref_pair):
 # EP+TK Full 4D Forward Map and Jacobian
 # =============================================================================
 
-def full_forward_map_ep(alpha_raw, r, gamma_raw, lambda_raw,
+def full_forward_map_ep(alpha, r, gamma_raw, lambda_raw,
                         ref_lotteries, ref_pair):
     """
     Full 4D forward map for EP+TK model.
 
-    Maps (alpha_raw, r, gamma_raw, lambda_raw) -> (CE1, CE2, CE3, P_choice).
+    Maps (alpha, r, gamma_raw, lambda_raw) -> (CE1, CE2, CE3, P_choice).
 
     Args:
-        alpha_raw: log(alpha) (scalar)
+        alpha: EP curvature parameter (scalar, unrestricted)
         r: Risk aversion coefficient (scalar)
         gamma_raw: log(gamma) (scalar)
         lambda_raw: log(lambda) (scalar)
@@ -940,13 +938,13 @@ def full_forward_map_ep(alpha_raw, r, gamma_raw, lambda_raw,
     Returns:
         Array of shape (4,) with [CE1, CE2, CE3, P_choice]
     """
-    ces = ce_mapping_3lotteries_ep(alpha_raw, r, gamma_raw, ref_lotteries)
-    p_choice = choice_probability_ref_ep(alpha_raw, r, gamma_raw, lambda_raw,
+    ces = ce_mapping_3lotteries_ep(alpha, r, gamma_raw, ref_lotteries)
+    p_choice = choice_probability_ref_ep(alpha, r, gamma_raw, lambda_raw,
                                          ref_pair)
     return jnp.concatenate([ces, jnp.array([p_choice])])
 
 
-def full_jacobian_logabsdet_ep(alpha_raw, r, gamma_raw, lambda_raw,
+def full_jacobian_logabsdet_ep(alpha, r, gamma_raw, lambda_raw,
                                ref_lotteries, ref_pair):
     """
     Compute log|det J| of the EP+TK forward map via JAX autodiff.
@@ -954,7 +952,7 @@ def full_jacobian_logabsdet_ep(alpha_raw, r, gamma_raw, lambda_raw,
     Uses jax.jacfwd + jnp.linalg.slogdet. No analytic decomposition.
 
     Args:
-        alpha_raw, r, gamma_raw, lambda_raw: EP+TK parameters (scalars)
+        alpha, r, gamma_raw, lambda_raw: EP+TK parameters (scalars)
         ref_lotteries: Flat (18,) array
         ref_pair: Flat (12,) array
 
@@ -965,7 +963,7 @@ def full_jacobian_logabsdet_ep(alpha_raw, r, gamma_raw, lambda_raw,
         return full_forward_map_ep(theta[0], theta[1], theta[2], theta[3],
                                    ref_lotteries, ref_pair)
 
-    theta = jnp.array([alpha_raw, r, gamma_raw, lambda_raw])
+    theta = jnp.array([alpha, r, gamma_raw, lambda_raw])
     J = jax.jacfwd(f)(theta)  # (4, 4)
     sign, logabsdet = jnp.linalg.slogdet(J)
     return jnp.where(sign != 0, logabsdet, -jnp.inf)

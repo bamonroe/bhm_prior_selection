@@ -2,13 +2,13 @@
 RDU BHM with Expo-Power Utility + TK92 PWF, Quantity-Space Prior (Beta-Beta).
 
 This posterior implements an RDU model where the prior on individual-level
-parameters (alpha_raw, r, gamma_raw, lambda_raw) is specified in quantity space
+parameters (alpha, r, gamma_raw, lambda_raw) is specified in quantity space
 (3 CEs + 1 choice probability) using a Beta-Beta hierarchical model with
 Jacobian correction:
 
     p(theta) = p_Y(g(theta)) |det J_g(theta)|
 
-where g maps (alpha_raw, r, gamma_raw, lambda_raw) -> (CE1, CE2, CE3, P_choice).
+where g maps (alpha, r, gamma_raw, lambda_raw) -> (CE1, CE2, CE3, P_choice).
 
 Utility: Expo-Power (Saha 1993) with 2 parameters (alpha, r)
 PWF: Tversky-Kahneman (1992) inverse-S with 1 parameter (gamma)
@@ -71,7 +71,7 @@ MODEL_ID = "rdu_ep_bhm_ce"
 # Model Constants
 # =============================================================================
 
-NPARAMS = 4          # alpha_raw, r, gamma_raw, lambda_raw per subject
+NPARAMS = 4          # alpha, r, gamma_raw, lambda_raw per subject
 N_HYPER = 8          # (logit_mu, logit_psi) for 4 quantities
 
 
@@ -97,7 +97,7 @@ def batch_type(mcmc_config, data):
     """
     Beta-Beta BHM block specification for EP+TK model.
 
-    Subject blocks: (alpha_raw, r, gamma_raw, lambda_raw) per subject — MH.
+    Subject blocks: (alpha, r, gamma_raw, lambda_raw) per subject — MH.
     Hyper blocks (x4): (logit_mu_k, logit_psi_k) per quantity — MH.
     """
     n_subjects = data["static"][0]
@@ -134,13 +134,13 @@ def batch_type(mcmc_config, data):
 # =============================================================================
 
 def _get_subject_params(chain_state, sid):
-    """Extract EP+TK parameters for a subject (all centered)."""
+    """Extract EP+TK parameters for a subject."""
     subject_start = sid * NPARAMS
-    alpha_raw = chain_state[subject_start + 0]
+    alpha_val = chain_state[subject_start + 0]
     r_val = chain_state[subject_start + 1]
     gamma_raw = chain_state[subject_start + 2]
     lambda_raw = chain_state[subject_start + 3]
-    return alpha_raw, r_val, gamma_raw, lambda_raw
+    return alpha_val, r_val, gamma_raw, lambda_raw
 
 
 # =============================================================================
@@ -167,11 +167,11 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
         lp_hyper = _compute_all_hyperpriors(chain_state, idx, hyperprior_arr)
 
         def subject_ll_body(sid, acc):
-            alpha_raw, r_val, gamma_raw, lambda_raw = _get_subject_params(
+            alpha_val, r_val, gamma_raw, lambda_raw = _get_subject_params(
                 chain_state, sid)
 
             quantities = full_forward_map_ep(
-                alpha_raw, r_val, gamma_raw, lambda_raw,
+                alpha_val, r_val, gamma_raw, lambda_raw,
                 ref_lotteries, ref_pair)
 
             lp_pop = _subject_quantity_prior(
@@ -186,7 +186,7 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
     def compute_subject_posterior():
         """Log posterior for a single subject block."""
         sid = first_param // NPARAMS
-        alpha_raw, r_val, gamma_raw, lambda_raw = _get_subject_params(
+        alpha_val, r_val, gamma_raw, lambda_raw = _get_subject_params(
             chain_state, sid)
 
         dataf = data["float"]
@@ -196,7 +196,7 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
 
         # Forward map
         quantities = full_forward_map_ep(
-            alpha_raw, r_val, gamma_raw, lambda_raw,
+            alpha_val, r_val, gamma_raw, lambda_raw,
             ref_lotteries, ref_pair)
 
         # Beta-Beta population prior
@@ -205,18 +205,17 @@ def log_posterior(chain_state, param_indices, data, beta=1.0):
 
         # Jacobian correction (autodiff)
         log_det_j = full_jacobian_logabsdet_ep(
-            alpha_raw, r_val, gamma_raw, lambda_raw,
+            alpha_val, r_val, gamma_raw, lambda_raw,
             ref_lotteries, ref_pair)
 
         # Data likelihood
-        alpha = jnp.exp(alpha_raw)
         gamma = jnp.exp(gamma_raw)
         lam = jnp.exp(lambda_raw)
 
         datai_jax = tuple(jnp.asarray(arr) for arr in data["int"])
         dataf_jax = tuple(jnp.asarray(arr) for arr in dataf)
         unique_outcomes = dataf_jax[0]
-        unique_utils = ep_ufn(unique_outcomes, alpha, r_val)
+        unique_utils = ep_ufn(unique_outcomes, alpha_val, r_val)
         log_like = risk_likelihood_ep(
             unique_utils, gamma, datai_jax, dataf_jax, sid, lam)
 
@@ -245,12 +244,11 @@ def generated_quantities(chain_state, data):
     idx = _get_indices(n_subjects)
 
     def get_subject_theta(sid):
-        alpha_raw, r_val, gamma_raw, lambda_raw = _get_subject_params(
+        alpha_val, r_val, gamma_raw, lambda_raw = _get_subject_params(
             chain_state, sid)
-        alpha = jnp.exp(alpha_raw)
         gamma = jnp.exp(gamma_raw)
         lam = jnp.exp(lambda_raw)
-        return jnp.array([alpha, r_val, gamma, lam])
+        return jnp.array([alpha_val, r_val, gamma, lam])
 
     subject_params = jax.vmap(get_subject_theta)(jnp.arange(n_subjects))
     alpha_subjects = subject_params[:, 0]
@@ -289,7 +287,7 @@ def initial_vector(mcmc_config, data):
     """
     Generate initial parameter values for all chains.
 
-    Subject params: alpha_raw near log(0.1)=-2.3, r near 0.5,
+    Subject params: alpha near 0.1, r near 0.5,
                     gamma_raw near log(0.65)=-0.43, lambda_raw near -2.
     Hyper params: logit_mu near 0 (mu=0.5), logit_psi near -2 (psi~0.12).
     """
@@ -304,7 +302,7 @@ def initial_vector(mcmc_config, data):
 
     # Subject parameters
     INIT_STD = 0.3
-    init[:, 0:first_hyper:NPARAMS] = rng.normal(np.log(0.1), INIT_STD, (num_chains, n_subjects))   # alpha_raw
+    init[:, 0:first_hyper:NPARAMS] = rng.normal(0.1, INIT_STD, (num_chains, n_subjects))            # alpha (unrestricted)
     init[:, 1:first_hyper:NPARAMS] = rng.normal(0.5, INIT_STD, (num_chains, n_subjects))            # r
     init[:, 2:first_hyper:NPARAMS] = rng.normal(np.log(0.65), INIT_STD, (num_chains, n_subjects))   # gamma_raw
     init[:, 3:first_hyper:NPARAMS] = rng.normal(-2.0, 0.5, (num_chains, n_subjects))                # lambda_raw

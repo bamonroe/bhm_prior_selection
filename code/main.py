@@ -264,10 +264,10 @@ do_sensitivity          = False
 do_family_comparison    = False
 
 # --- Per-Model Flags (keyed by model registry key) ---
-do_sampling       = {'crra': False, 'ep': True, 'power': False}
+do_sampling       = {'crra': False, 'ep': False, 'power': False}
 do_sampling_prior = {'crra': False, 'power': False}
-do_preprocessing  = {'crra': False, 'ep': True, 'power': False}
-do_diagnostic_plots = {'crra': False, 'ep': True, 'power': False}
+do_preprocessing  = {'crra': False, 'ep': False, 'power': False}
+do_diagnostic_plots = {'crra': False, 'ep': False, 'power': False}
 
 # --- Stan (separate, not in registry) ---
 do_sampling_stan           = False
@@ -276,12 +276,12 @@ do_sampling_stan           = False
 do_generate_prior_ce       = False
 
 # --- Paper Plots ---
-do_paper_predictive_overlay      = True
+do_paper_predictive_overlay      = False
 do_paper_prior_predictive_params = False
 do_subject_ce_plots              = False
 
 # --- Diagnostics ---
-do_mcmc_diagnostics        = True
+do_mcmc_diagnostics        = False
 
 # --- Appendix Analyses ---
 do_rk_sensitivity          = False

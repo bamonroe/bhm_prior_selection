@@ -919,11 +919,21 @@ chosen so that the map from parameters to predictive quantities is injective.\fo
   The conditions for injectivity are derived in detail in Appendix
   \ref{app:global_injectivity}.
 }
-The same set of reference lotteries serves all three models; injectivity
+The same set of reference lotteries serves all three models, but injectivity
 conditions must be verified for each specification separately.
 Appendix \ref{app:global_injectivity} provides an analytic proof for Model 1
-(CRRA + Prelec); for Models 2 and 3, numerical verification on dense grids
-over the prior support confirms that the Jacobian determinant does not vanish.
+(CRRA + Prelec). For Model 3 (CRRA + Power), the argument extends directly:
+the Power PWF is strictly monotone in $\delta$, so a single decision weight
+identifies $\delta$, and the remaining CE identifies $r$ through the same
+CRRA monotonicity argument used for Model 1. For Model 2 (Expo-Power + TK),
+the utility identification step involves a 2-parameter system $(\alpha, r)$
+rather than a scalar, and a full analytic proof is not available. Numerical
+evaluation of the Jacobian determinant on a dense grid over the prior support
+confirms that the determinant does not vanish, though sign changes indicate
+that the mapping may not be globally injective in all parameter regions.
+The change-of-variables formula remains valid using the absolute value of
+the determinant, but the induced prior may assign density to multiple
+parameter-space preimages of the same predictive quantities.
 The design uses two binary lotteries with distinct probabilities on the higher
 outcome and a third binary lottery with shared probability $p_3 = p_1$ whose
 outcome ratio differs from that of $L_1$. No pair of lotteries with
@@ -1350,17 +1360,21 @@ experimental designs are equally suitable for prior specification. Proving
 injectivity can also be technically demanding. For the CRRA-Prelec model, a
 full analytic proof is given in Appendix \ref{app:global_injectivity}, making
 use of the sequential decomposition of the CE mapping into probability
-weighting, utility, and noise identification blocks. For the Expo-Power + TK
-model, the same sequential structure applies, but the utility identification
-step involves a 2-parameter system rather than a scalar monotonicity argument.
-I verify injectivity numerically by evaluating the Jacobian determinant on a
-dense grid over the prior support, confirming that it does not vanish. A full
-analytic proof for the Expo-Power specification is left for future work. Other
-quantities, such as choice probabilities, avoid some of these complications
-and can support flexible reference designs, at least for EUT\@.
-Appendix \ref{app:eut_choice_probs} shows that broad classes of lottery pairs
-yield injective maps when the predictive quantities are choice probabilities
-under EUT\@.
+weighting, utility, and noise identification blocks. For the CRRA + Power
+model, the same argument extends because the Power PWF is strictly monotone
+in its single parameter. For the Expo-Power + TK model, numerical
+verification shows that the Jacobian determinant does not vanish on the prior
+support, but sign changes indicate that global injectivity may not hold
+everywhere. When the mapping is not injective, the change-of-variables formula
+still defines a valid prior density using $|\det J|$, but the induced prior
+assigns density to multiple parameter vectors that map to the same predictive
+quantities. In practice, this manifests as multimodal parameter posteriors for
+subjects where the data do not resolve the ambiguity, while the CE posteriors
+remain well-behaved. Other quantities, such as choice probabilities, avoid
+some of these complications and can support flexible reference designs, at
+least for EUT\@. Appendix \ref{app:eut_choice_probs} shows that broad classes
+of lottery pairs yield injective maps when the predictive quantities are
+choice probabilities under EUT\@.
 
 
 \subsection{Extensions}

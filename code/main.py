@@ -264,10 +264,10 @@ do_sensitivity          = False
 do_family_comparison    = False
 
 # --- Per-Model Flags (keyed by model registry key) ---
-do_sampling       = {'crra': False, 'ep': False, 'power': False}
+do_sampling       = {'crra': False, 'ep': True, 'power': False}
 do_sampling_prior = {'crra': False, 'power': False}
-do_preprocessing  = {'crra': False, 'ep': False, 'power': False}
-do_diagnostic_plots = {'crra': False, 'ep': False, 'power': False}
+do_preprocessing  = {'crra': False, 'ep': True, 'power': False}
+do_diagnostic_plots = {'crra': False, 'ep': True, 'power': False}
 
 # --- Stan (separate, not in registry) ---
 do_sampling_stan           = False
@@ -276,11 +276,12 @@ do_sampling_stan           = False
 do_generate_prior_ce       = False
 
 # --- Paper Plots ---
-do_paper_predictive_overlay      = False
+do_paper_predictive_overlay      = True
 do_paper_prior_predictive_params = False
+do_subject_ce_plots              = False
 
 # --- Diagnostics ---
-do_mcmc_diagnostics        = False
+do_mcmc_diagnostics        = True
 
 # --- Appendix Analyses ---
 do_rk_sensitivity          = False
@@ -468,6 +469,26 @@ if __name__ == '__main__':
             )
         else:
             print("Skipping subject detail figures: not all models preprocessed")
+
+    if do_subject_ce_plots:
+        import numpy as np
+        from gen_subject_ce_plots import plot_one_subject, MODELS as CE_PLOT_MODELS
+        from concurrent.futures import ProcessPoolExecutor
+        for model_key, name, model_id, param_names, color in CE_PLOT_MODELS:
+            output_dir = PLOTS_DIR / model_id / 'subject_ces'
+            output_dir.mkdir(parents=True, exist_ok=True)
+            preproc = DATA_DIR / 'output' / model_id / 'preprocessed' / 'subjects'
+            if not (preproc / 'metadata.npz').exists():
+                print(f"Skipping {name} CE plots: preprocessed data not found")
+                continue
+            meta = np.load(preproc / 'metadata.npz')
+            n_subj = int(meta['n_subjects'])
+            print(f"\n{name}: generating {n_subj} subject CE plots...")
+            args_list = [(sid, model_key, name, model_id, param_names, color)
+                         for sid in range(n_subj)]
+            with ProcessPoolExecutor(max_workers=N_WORKERS) as pool:
+                done = list(pool.map(plot_one_subject, args_list))
+            print(f"  Saved {len(done)} PDFs to {output_dir}")
 
     if do_paper_prior_predictive_params:
         prior_subjects = preprocess_dir_prior / 'subjects'

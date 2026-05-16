@@ -479,22 +479,6 @@ def run_sampling(sampling_opts, prior_params_path=None):
     print("Done.\n")
 
 
-def run_gen_paper_quantities(history_dir, data_dir, config=None):
-    """Extract posterior summaries for paper."""
-    print("\n" + "=" * 60)
-    print("Running: Generate Paper Quantities")
-    print("=" * 60)
-    if config is None:
-        config = {}
-    from gen_paper_quantities import gen_paper_quantities
-    output_path = Path(data_dir) / 'output' / 'paper_quantities.npz'
-    gen_paper_quantities(
-        history_dir, output_path,
-        burnin_fraction=config.get('burnin_fraction', 0.5),
-        rhat_K=config.get('rhat_K', 20),
-    )
-    print("Done.\n")
-
 
 def run_preprocess_hyperparams(history_dir, output_dir, force=False):
     """Preprocess NIG hyperparameter data from history files.
@@ -581,17 +565,6 @@ def run_paper_plots(quantities_path, plots_dir,
                 hyper_comparison_config=hyper_comparison_config)
     print("Done.\n")
 
-
-def run_skew_normal_example(direct_prior, researcher_choices, output_dir,
-                             n_mc_samples=50000, seed=42):
-    """Run Skew-Normal hyperprior selection example for appendix."""
-    print("\n" + "=" * 60)
-    print("Running: Skew-Normal Hyperprior Example")
-    print("=" * 60)
-    from skew_normal_hyperprior import run_skew_normal_example as _run
-    _run(direct_prior, researcher_choices, output_dir,
-         n_mc_samples=n_mc_samples, seed=seed)
-    print("Done.\n")
 
 
 def run_prior_predictive_ce(direct_prior, prior_selection, data_dir,

@@ -254,13 +254,19 @@ their implications for predictive quantities, to hierarchical models of
 exchangeable populations. A further advantage is that the same quantity-space
 prior can be shared across structurally different models that make predictions
 about the same observables, enforcing consistency in beliefs about individual
-behavior independently of the latent model used to represent it. I demonstrate
-the approach with three RDU models estimated on experimental lottery-choice
-data from \textcite{Harrison2016}, combining CRRA and Expo-Power utility
-functions with Prelec, Tversky-Kahneman, and Power probability weighting
-functions. All three models share a single quantity-space prior over certainty
-equivalents and choice probabilities, despite having different structural
-parameterizations and, in one case, a different number of free parameters.
+behavior independently of the latent model used to represent it.
+
+I demonstrate the approach with three RDU models estimated on experimental
+lottery-choice data from \textcite{Harrison2016}, combining CRRA and
+Expo-Power utility functions with Prelec, Tversky-Kahneman, and Power
+probability weighting functions. The three models are chosen to exercise
+different aspects of the framework. They differ in their utility functions,
+their probability weighting functions, and in one case the number of free
+parameters. By sharing a single quantity-space prior across all three, the
+application reveals where the models agree on predictive quantities (indicating
+that the structural specification is immaterial for those predictions) and
+where they diverge (indicating that the choice of functional form has
+substantive consequences).
 
 The paper proceeds as follows. Section \ref{sec:literature} reviews the
 literature on prior specification with emphasis on informed priors. Section
@@ -640,16 +646,20 @@ and a choice probability.
 \label{sec:application_rdu}
 %==============================================================================
 
-A central advantage of the quantity-space approach is that it allows the
-researcher to specify beliefs about observables once and then translate those
-beliefs into parameter-space priors for any structural model that maps to the
-same quantities. This section demonstrates that property by applying the
-framework to three RDU models with different functional forms. All three
-share a common RDU structure, a common likelihood, and a common set of
-reference lotteries for the CE mapping. What differs is only the utility
-function and the probability weighting function, which change the Jacobian
-of the forward map. One of the three models has fewer structural parameters
-than predictive quantities, demonstrating the over-determined case.
+Researchers studying risk preferences face a practical problem: the choice
+between alternative utility functions and probability weighting functions is
+often made before estimation, and each candidate model requires its own
+hyperprior specification. When those specifications are made in parameter
+space, switching from one model to another means starting the hyperprior
+exercise from scratch, because the parameters have no common meaning across
+models. The quantity-space approach avoids this problem. The researcher
+specifies beliefs about observables once, and those beliefs translate into
+parameter-space priors for any structural model that maps to the same
+quantities. This section demonstrates that property by applying the framework
+to three RDU models with different functional forms. All three share a common
+RDU structure, a common likelihood, and a common set of reference lotteries
+for the CE mapping. What differs is only the utility function and the
+probability weighting function, which change the Jacobian of the forward map.
 
 \subsection{RDU Framework}
 \label{sec:rdu_framework}
@@ -685,12 +695,14 @@ three specifications below.
 \subsection{Three RDU Specifications}
 \label{sec:three_models}
 
-I consider three combinations of utility function and PWF\@. The first follows
-\textcite{Gao2022} and is widely used in the experimental economics
-literature. The second combines a more flexible utility function with a
-parsimonious inverse-S weighting function. The third uses the simplest
-non-trivial PWF and has fewer structural parameters than predictive quantities,
-demonstrating the over-determined ($k > p$) case.
+I consider three combinations of utility function and PWF that vary in
+flexibility and functional form. The first follows \textcite{Gao2022} and is
+the workhorse specification in the experimental economics literature. The
+second replaces both the utility function and the PWF, testing whether the
+framework can accommodate a completely different structural model. The third
+retains the utility function of the first but uses a simpler PWF with fewer
+parameters, creating an over-determined ($k > p$) case that exercises the
+Gram determinant machinery from Section \ref{sec:gq_space}.
 
 \subsubsection*{Model 1: CRRA + Prelec}
 
@@ -728,7 +740,7 @@ inverse-S PWF:
   w(p) &= \frac{p^\gamma}
                {\left(p^\gamma + (1-p)^\gamma\right)^{1/\gamma}}
 \end{align}
-where $\alpha > 0$ and $r$ jointly govern the shape of the utility function,
+where $\alpha$ and $r$ jointly govern the shape of the utility function,
 and $\gamma \in (0, 1)$ controls the degree of inverse-S distortion in the
 PWF\@. The Expo-Power nests CRRA as $\alpha \to 0$ and CARA as $r \to 0$,
 allowing for both decreasing and increasing absolute risk aversion depending on
@@ -771,9 +783,9 @@ below.
 \subsection{Quantity-Space Mapping for RDU}
 \label{sec:ce_space}
 
-Under either specification, each individual has 4 structural parameters
-$\bth$, and a traditional parameter-space approach would require setting 16
-hyperprior parameters. Following the method in Section \ref{sec:gq_space}, I
+Under each specification, each individual has 3 or 4 structural parameters
+$\bth$, and a traditional parameter-space approach would require setting
+12--16 hyperprior parameters. Following the method in Section \ref{sec:gq_space}, I
 instead specify 4 direct priors on predictive quantities about which a
 researcher has well-calibrated beliefs: 3 certainty equivalents (CEs) and one
 choice probability. The key observation is that these quantities are the same

@@ -631,7 +631,7 @@ The practical workflow is therefore two-step. First, specify a quantity-space
 prior for a randomly selected individual using predictive quantities that admit
 an injective map from parameter space. Second, specify beliefs about how the
 resulting uncertainty should be allocated across the hierarchy. I now
-demonstrate this workflow for two RDU models estimated on experimental
+demonstrate this workflow for three RDU models estimated on experimental
 lottery-choice data, where the predictive quantities are certainty equivalents
 and a choice probability.
 
@@ -822,9 +822,10 @@ derived in Section \ref{sec:gq_space}.\footnote{
 The crucial point is that the CEs and choice probability are
 \textit{model-independent observables}: they describe behavior rather than
 parameters. The direct prior over $(\CE_1, \CE_2, \CE_3, P)$ is therefore the
-same for both models. What differs is only the Jacobian $J_\bg$, which depends
-on the functional forms of $u$ and $w$. The quantity-space prior specification
-is done once, and the change-of-variables formula translates it into a
+same for all three models. What differs is only the Jacobian $J_\bg$, which
+depends on the functional forms of $u$ and $w$. The quantity-space prior
+specification is done once, and the change-of-variables formula translates it
+into a
 different parameter-space prior for each model.
 
 All four predictive quantities are bounded: CEs by lottery outcomes and the
@@ -1352,20 +1353,12 @@ under EUT\@.
 
 \subsection{Extensions}
 
-The present application used the same number of predictive quantities as free
-parameters in each model, but it is entirely reasonable to use more quantities
-than free parameters, as discussed in Section \ref{sec:gq_space}. When
-comparing models with different parameter dimensions, say an RDU model against
-an EUT model with fewer parameters, the same prior over quantities can be
-specified for both.\footnote{
-  When $k > p$, the forward map sends the parameter space into a
-  $p$-dimensional image inside the larger quantity space. In that case, the
-  Gram determinant from Section \ref{sec:gq_space} provides the appropriate
-  change-of-variables correction on this image, so the quantity prior is
-  understood as evaluated along the set of admissible quantity vectors rather
-  than as an unrestricted density on all of $\R^k$.
-}
-This creates the possibility of holding fixed prior beliefs about behavioral
+Model 3 (CRRA + Power) already demonstrates the over-determined case $k > p$,
+where 4 predictive quantities are mapped from 3 structural parameters using the
+Gram determinant. This extends naturally to comparisons between models with
+different parameter dimensions, such as an RDU model against an EUT model with
+fewer parameters. The same prior over quantities can be specified for both,
+creating the possibility of holding fixed prior beliefs about behavioral
 quantities even when the candidate models have different parameter dimensions.
 That, in turn, offers a natural way to make model comparison less sensitive to
 arbitrary differences in hyperprior specification and more tightly connected to

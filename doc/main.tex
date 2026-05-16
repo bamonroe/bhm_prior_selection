@@ -1100,7 +1100,11 @@ meaning across models.
 
 \subsection{Subject-Level Cross-Model Agreement}
 
-The population-level results show aggregate patterns. To examine whether these
+The population-level results show that the three models agree in aggregate for
+asymmetric lotteries and diverge for the symmetric lottery. The question is
+whether this pattern holds at the individual level, or whether some subjects
+show model-dependent inferences even for the asymmetric designs. To examine
+this, I compute the cross-model divergence for each subject, defined as the
 patterns hold at the individual level, I compute the cross-model divergence for
 each subject, defined as the average (across lotteries) of the maximum pairwise
 absolute difference in median posterior CEs across the three models.
@@ -1149,11 +1153,13 @@ the disagreement visible in dollars.
 
 \subsection{Sensitivity to $\alpha$ and $\kappa$}
 
-The preceding results use a single $(\alpha, \kappa)$ specification. To assess
-how sensitive the results are to these choices, I re-estimate Model 1
-(CRRA + Prelec) at three additional configurations spanning a wide range of the
-$(\alpha, \kappa)$ space, comparing each to a diffuse parameter-space benchmark
-following \textcite{Gao2022}. Subjects are classified by the average absolute
+The preceding cross-model analysis holds the variance decomposition parameters
+$(\alpha, \kappa)$ fixed. To assess how sensitive the results are to these
+choices, I re-estimate Model 1 (CRRA + Prelec) at three additional
+configurations spanning a wide range of the $(\alpha, \kappa)$ space. For this
+exercise I introduce a diffuse parameter-space benchmark following
+\textcite{Gao2022}, which provides a fixed reference point against which to
+measure the influence of the informative prior at each configuration. Subjects are classified by the average absolute
 median CE difference between the informative and diffuse posteriors across the
 three reference lotteries: well-identified (less than \$2), moderately
 affected (\$2--\$10), and prior-dominated (more than \$10).

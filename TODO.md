@@ -46,6 +46,20 @@ Paper restructured for Journal of Econometrics with two-model application:
 - [ ] Merge ep-core-functions into feat/expo-power-model
 - [ ] Merge feat/expo-power-model into master
 
+### Marginal Likelihoods (June 2026, feat/ml-repair)
+- [x] Corrected RB estimator (code/marginal_likelihood.py): valid per-subject IS,
+      refined mixture proposals, R=8 replicated caches, two psi routes (IS + bridge)
+- [x] Synthetic ground-truth validation (code/ml_validation.py): PASSED
+- [x] Real-data log MLs, all three models: crra -5254.7, ge -5271.3, power -5426.4
+      (log BF crra/ge 16.6, crra/power 171.7, ge/power 155.1) -> bayes_factors_rb2.npz
+- [x] Handoff for paper integration: technical_notes/bridge_sampling/rb2_results.md
+- [ ] Docs session: wire bayes_factors_rb2.npz keys into gen_paper_data.py and fill
+      the BF subsection placeholders (62280b8)
+- [ ] Move PT/TI history files (rdu_bhm_ce/history/full/history_007-010.npz) out of
+      history/full to prevent posterior contamination (they are n_temperatures=20 runs)
+- [ ] Decide fate of superseded bayes_factors{,_rb,_ti}.npz and the old
+      bayes_factors.py / thermodynamic_integration.py / ti_independent.py code paths
+
 ---
 
 ## Completed

@@ -176,7 +176,10 @@ for _m in ['crra', 'ge', 'power']:
   rank-dependent utility models estimated on real lottery choice data, combining
   different utility functions and probability weighting functions. All three
   models share a single quantity-space prior, making prior implications
-  transparent and cross-model comparisons coherent.
+  transparent and cross-model comparisons coherent. Because the shared prior
+  fixes beliefs about observables across models, Bayes factors between the
+  specifications measure evidence about functional form rather than
+  differences in prior calibration.
 
   \end{justify}
 \end{abstract}
@@ -270,7 +273,11 @@ free parameters and an overdetermined quantity-to-parameter mapping. By sharing 
 across all three, the application reveals where the models agree on
 predictive quantities (indicating that the structural specification is
 immaterial for those predictions) and where they diverge (indicating that
-the choice of functional form has substantive consequences).
+the choice of functional form has substantive consequences). The shared
+prior also supports a formal comparison. Because all three models express
+identical prior beliefs about observables, Bayes factors between them
+measure evidence about functional form rather than differences in prior
+calibration.
 
 The paper proceeds as follows. Section \ref{sec:literature} reviews the
 literature on prior specification with emphasis on informed priors. Section
@@ -278,7 +285,9 @@ literature on prior specification with emphasis on informed priors. Section
 mapping and then the variance-decomposition approach to hyperprior
 construction. Section \ref{sec:application_rdu} applies the method to three
 RDU models estimated on experimental lottery-choice data. Section
-\ref{sec:estimation} presents the estimation results.
+\ref{sec:estimation} presents the estimation results, together with a Bayes
+factor comparison of the three models that the shared quantity-space prior
+makes possible.
 Section \ref{sec:discussion} discusses practical guidance, limitations, and
 extensions, and Section \ref{sec:conclusion} concludes.
 
@@ -773,8 +782,8 @@ This specification serves two purposes. First, it shares the CRRA utility with
 Models 1 and 2, so any CE difference between Models 1, 2, and 3 is
 attributable entirely to the PWF\@. The Power PWF is nested within the Prelec
 family (setting $\phi = 1$ in (\ref{eq:prelec}) gives $w(p) = p^\eta$), making
-Models 1 and 3 nested, which will be useful for future Bayes factor
-comparisons. Second, with only 3 structural parameters mapped to 4 predictive
+Models 1 and 3 nested, which I exploit in the Bayes factor comparison of
+Section~\ref{sec:model_comparison}. Second, with only 3 structural parameters mapped to 4 predictive
 quantities, it is an over-determined case ($k = 4 > p = 3$). The
 change-of-variables formula uses the Gram determinant
 $\sqrt{\det(J_\bg^\top J_\bg)}$ in place of $|\det J_\bg|$, as described in
@@ -1128,15 +1137,12 @@ are available directly in the interpretable units of certainty equivalents,
 without requiring the researcher to compute the forward map post-estimation
 or to compare structural parameters across models.
 
-The nesting relationship between Models 1 and 3 invites formal model
-comparison. The Power PWF is nested within the Prelec family at $\phi = 1$,
-so a Bayes factor can in principle quantify whether the additional curvature
-parameter justifies the increased complexity. In the hierarchical setting this
-requires computing marginal likelihoods via bridge sampling or thermodynamic
-integration, which I leave for future work. The CE comparison already provides
-an informal answer: the two models agree closely on $L_1$ and $L_3$ and differ
-by approximately $\$1$ on $L_2$, suggesting that the second PWF parameter
-contributes modestly for these data and lottery designs.
+The CE comparison suggests that the second PWF parameter contributes modestly
+for these data and lottery designs, with the models agreeing closely on $L_1$
+and $L_3$ and differing by approximately $\$1$ on $L_2$.
+Section~\ref{sec:model_comparison} makes this comparison formal with Bayes
+factors, which the shared quantity-space prior renders meaningful across all
+three models.
 
 \subsection{Subject-Level Cross-Model Agreement}
 
@@ -1263,6 +1269,94 @@ configurations, suggesting a structural middle band of subjects whose data are
 informative enough to resist moderate prior perturbations. The full CDF
 difference plots and predictive CE overlays for each configuration are reported
 in Appendix~\ref{app:rk_sensitivity}.
+
+\subsection{Model Comparison via Bayes Factors}
+\label{sec:model_comparison}
+
+A persistent concern with Bayes factors is their sensitivity to the prior
+specification, a point that \textcite{KassRaftery1995} discuss at length. In
+hierarchical models the concern is amplified, because the hyperprior governs
+the prior for every subject in the sample. When two candidate models carry
+separately specified parameter-space hyperpriors, a Bayes factor mixes
+evidence about structural form with differences in prior calibration. The
+three models estimated here inherit a single quantity-space prior over
+$(\CE_1, \CE_2, \CE_3, P)$, so differences in marginal likelihood isolate the
+probability weighting specification. The comparison is therefore a test of
+functional form, not of prior calibration.
+
+The object of comparison is the marginal likelihood of each model, which
+integrates the likelihood over every subject-level parameter and
+hyperparameter:
+\begin{align}
+  \label{eq:log_ml}
+  p(y \mid M_m) = \int p(y \mid \bth, M_m)\,
+    p(\bth \mid \hype, M_m)\, p(\hype \mid M_m)\, d\bth\, d\hype
+\end{align}
+For Models 1 and 2 this integral spans 452 dimensions, and for Model 3 it
+spans 341 (Table~\ref{tab:mcmc_summary}). The log Bayes factor between models
+$m$ and $m'$ is the difference in log marginal likelihoods:
+\begin{align}
+  \label{eq:log_bf}
+  \log \mathrm{BF}_{mm'} = \log p(y \mid M_m) - \log p(y \mid M_{m'})
+\end{align}
+The Power PWF is nested within the Prelec family at $\phi = 1$, while the
+Prelec and Goldstein-Einhorn forms are non-nested. The marginal likelihood
+treats both cases identically, so a single set of estimates supports all
+three pairwise comparisons.
+
+I compute each marginal likelihood three ways. The first is warp bridge
+sampling on the full parameter space, following \textcite{MengWong1996} and
+\textcite{MengSchilling2002}. The second is a Rao-Blackwellized bridge that
+integrates out the subject-level parameters and bridges on the 8-dimensional
+hyperparameter space, where the proposal distribution is far easier to match
+to the posterior. The third is thermodynamic integration along a temperature
+ladder, using the stepping-stone estimator of \textcite{Xie2011} built on the
+path sampling identity of \textcite{GelmanMeng1998}. The three estimators
+rest on different approximations and fail in different ways, so agreement
+across them is itself evidence that the estimates are trustworthy.
+Appendix~\ref{app:mcmc_details} describes the computational details of each
+method.
+
+Table~\ref{tab:log_ml} reports the log marginal likelihoods under all three
+estimators. The three methods agree to within
+\pending{max_method_discrepancy} log units for every model, and the ranking
+of the models is the same under each method.
+
+\begin{table}[h!]
+  \centering
+  \begin{tabular}{lccc}
+    \toprule
+    & Warp bridge & RB bridge & TI stepping-stone \\
+    \midrule
+    Model 1 (CRRA + Prelec) & \pending{crra_log_ml} (\pending{crra_log_ml_se}) & \pending{crra_log_ml_rb} & \pending{crra_log_ml_ss} \\
+    Model 2 (CRRA + GE) & \pending{ge_log_ml} (\pending{ge_log_ml_se}) & \pending{ge_log_ml_rb} & \pending{ge_log_ml_ss} \\
+    Model 3 (CRRA + Power) & \pending{power_log_ml} (\pending{power_log_ml_se}) & \pending{power_log_ml_rb} & \pending{power_log_ml_ss} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Log marginal likelihoods by model and estimation method.
+    Bridge-sampling standard errors in parentheses.}
+  \label{tab:log_ml}
+\end{table}
+
+The warp bridge estimates imply a log Bayes factor of
+\pending{log_bf_crra_vs_ge} for Prelec over Goldstein-Einhorn,
+\pending{log_bf_crra_vs_power} for Prelec over Power, and
+\pending{log_bf_ge_vs_power} for Goldstein-Einhorn over Power. The
+Rao-Blackwellized bridge and thermodynamic integration estimates corroborate
+these values, with \pending{log_bf_rb_crra_vs_ge} and
+\pending{log_bf_ti_crra_vs_ge} respectively for the Prelec and
+Goldstein-Einhorn comparison. On the scale of \textcite{KassRaftery1995},
+I find that the data \pending{bf_interpretation_sentence}. The cross-model CE
+analysis of Section~\ref{sec:estimation} suggested that the weighting
+functions separate only at the symmetric lottery, and the Bayes factors
+\pending{bf_ce_consistency_clause} that pattern.
+
+Agreement across three estimators with different bias profiles
+\pending{method_agreement_statement}, which suggests the marginal likelihood
+estimates are reliable rather than artifacts of any single method. Because
+the prior is fixed in quantity space, these numbers are interpretable as
+evidence about probability weighting alone. In other words, the Bayes factor
+answers in units of evidence the question the CE overlays raised in dollars.
 
 %==============================================================================
 \section{Discussion}

@@ -41,12 +41,70 @@ import jax.numpy as jnp
 from pathlib import Path
 
 from bayes_factors_rb import (
-    _load_mcmc_states,
     _build_log_f_fn,
     _build_log_pop_prior_fn,
     _build_log_hyperprior,
     _logsumexp,
 )
+
+
+def load_posterior_states(model_key, data_dir, n_samples=None, seed=42):
+    """Load posterior states, robust to heterogeneous run sequences.
+
+    History files may come from successive run sequences with different
+    chain counts or, worse, different targets (prior_params_ce.npz was
+    regenerated on May 6, 2026, so rdu_bhm_ce files written before that
+    date sample the posterior under the OLD prior). We therefore use only
+    the LAST contiguous group of files with identical (iters, chains)
+    shape — the most recent configuration — and drop the first half of
+    its iterations as burn-in.
+    """
+    from model_registry import MODEL_REGISTRY
+    cfg = MODEL_REGISTRY[model_key]
+    model_id = cfg['model_id']
+    nparams = cfg['nparams']
+    n_hyper = cfg['n_hyper']
+
+    history_dir = Path(data_dir) / model_id / 'history' / 'full'
+    files = sorted(history_dir.glob('*.npz'))
+    if not files:
+        raise FileNotFoundError(f"No history files in {history_dir}")
+
+    shapes = []
+    for f in files:
+        with np.load(f, allow_pickle=True) as d:
+            shapes.append(d['history'].shape)
+
+    # Last contiguous group of files with identical shape
+    last_shape = shapes[-1]
+    start = len(files)
+    while start > 0 and shapes[start - 1] == last_shape:
+        start -= 1
+    group = files[start:]
+    if start > 0:
+        print(f"  NOTE: using last run sequence only "
+              f"({group[0].name}..{group[-1].name}, shape {last_shape}); "
+              f"skipping {start} earlier file(s) with different shape/target")
+
+    # State layout: [theta (n*p), psi (n_hyper)] + GQ [theta_nat (n*p),
+    # pop params (2*N_QUANTITIES)], so total = 2*n*p + n_hyper + 2*N_QUANTITIES
+    total_dim = last_shape[2]
+    n_subjects = (total_dim - n_hyper - 2 * N_QUANTITIES) // (2 * nparams)
+    n_raw = n_subjects * nparams + n_hyper
+
+    states = [np.load(f, allow_pickle=True)['history'][:, :, :n_raw]
+              for f in group]
+    combined = np.concatenate(states, axis=0)
+    burn = combined.shape[0] // 2
+    flat = combined[burn:].reshape(-1, n_raw)
+
+    if n_samples is not None and n_samples < len(flat):
+        rng = np.random.default_rng(seed)
+        flat = flat[rng.choice(len(flat), n_samples, replace=False)]
+
+    subject = flat[:, :n_subjects * nparams].reshape(-1, n_subjects, nparams)
+    hyper = flat[:, n_subjects * nparams:n_raw]
+    return hyper, subject, n_subjects
 
 N_QUANTITIES = 4
 HYPERPRIOR_STRIDE = 6
@@ -193,20 +251,110 @@ def _bounds_from_hyperprior(hyperprior_arr):
     return hp[:, 4], hp[:, 5]
 
 
+def fit_subject_proposal(draws, n_bins=8, df=7.0, scale=1.3,
+                         defensive_weight=0.1):
+    """Fit a PC1-stratified Student-t mixture to one subject's draws.
+
+    Subject conditional posteriors are thin curved ridges in theta space
+    (the population prior at posterior psi is a near-degenerate Beta), so
+    a single full-covariance Student-t covers them mostly with off-ridge
+    mass (observed ESS < 1%). Binning the draws into quantiles along the
+    first principal component and fitting a local Student-t per bin
+    piecewise-linearizes the ridge. A wide global component with weight
+    `defensive_weight` bounds the importance weights in the tails.
+    """
+    draws = np.asarray(draws, dtype=np.float64)
+    center = draws.mean(axis=0)
+    cov = np.cov(draws, rowvar=False)
+    evals, evecs = np.linalg.eigh(cov)
+    pc1 = evecs[:, -1]
+    proj = (draws - center) @ pc1
+
+    edges = np.quantile(proj, np.linspace(0, 1, n_bins + 1))
+    components = []
+    weights = []
+    for b in range(n_bins):
+        if b == n_bins - 1:
+            sel = (proj >= edges[b]) & (proj <= edges[b + 1])
+        else:
+            sel = (proj >= edges[b]) & (proj < edges[b + 1])
+        rows = draws[sel]
+        if len(rows) < 20:
+            continue
+        local_cov = np.cov(rows, rowvar=False) + 1e-10 * np.eye(draws.shape[1])
+        components.append(StudentTProposal.from_moments(
+            rows.mean(axis=0), scale ** 2 * local_cov, df=df))
+        weights.append(len(rows))
+
+    weights = np.asarray(weights, dtype=np.float64)
+    weights = (1 - defensive_weight) * weights / weights.sum()
+    components.append(StudentTProposal.from_moments(
+        center, 1.5 ** 2 * cov, df=5.0))
+    weights = np.append(weights, defensive_weight)
+    return MixtureProposal(components, weights)
+
+
+def fit_subject_proposals(subject_draws, rng, df=7.0, scale=1.3, n_bins=8,
+                          fit_max=20000):
+    """Fit per-subject stratified mixture proposals to posterior draws."""
+    fit_rows = subject_draws if len(subject_draws) <= fit_max \
+        else subject_draws[rng.choice(len(subject_draws), fit_max, replace=False)]
+    return [fit_subject_proposal(fit_rows[:, i, :], n_bins=n_bins,
+                                 df=df, scale=scale)
+            for i in range(subject_draws.shape[1])]
+
+
+def refine_subject_proposals(model_key, data, proposals, psi_bar, rng,
+                             K_probe=16384, n_resample=5000,
+                             df=7.0, scale=1.3, n_bins=8):
+    """One round of adaptive proposal refinement.
+
+    The integrand of p(y_i|psi) at posterior psi is the subject's
+    conditional posterior, which is much narrower than the marginal
+    posterior the initial proposals are fitted to (observed ESS ~ 1%).
+    Probe the integrand at the posterior-mean psi with the initial
+    proposals, importance-resample, and refit the mixture on the
+    resampled points. Returns (refined_proposals, probe_ess_per_subject).
+    """
+    caches = build_caches_from_proposals(model_key, data, proposals,
+                                         K_probe, rng)
+    hyperprior_arr = caches['hyperprior_arr']
+    a, b, const = _beta_pop_coeffs(jnp.asarray(psi_bar[None, :]),
+                                   hyperprior_arr)
+    a, b = np.asarray(a)[0], np.asarray(b)[0]
+    core = (np.einsum('knq,q->kn', caches['logz'], a - 1.0)
+            + np.einsum('knq,q->kn', caches['log1mz'], b - 1.0))
+    log_w = caches['log_fq'] + core          # (K_probe, n)
+
+    refined = []
+    probe_ess = np.empty(log_w.shape[1])
+    for i in range(log_w.shape[1]):
+        lw = log_w[:, i]
+        lw = np.where(np.isfinite(lw), lw, -np.inf)
+        w = np.exp(lw - np.max(lw))
+        probe_ess[i] = np.sum(w) ** 2 / np.sum(w * w)
+        idx = rng.choice(K_probe, n_resample, replace=True, p=w / w.sum())
+        refined.append(fit_subject_proposal(
+            caches['theta'][idx, i, :], n_bins=n_bins, df=df, scale=scale))
+    return refined, probe_ess
+
+
 def build_subject_caches(model_key, data, subject_draws, K, rng,
-                         df=5.0, scale=1.5, fit_max=50000):
-    """Fit per-subject Student-t proposals to posterior draws, then build
-    the importance-sampling caches via build_caches_from_proposals.
+                         df=7.0, scale=1.3, n_bins=8, fit_max=20000,
+                         proposals=None):
+    """Build importance-sampling caches from per-subject proposals.
+
+    If `proposals` is None, fits stratified mixtures to the posterior
+    draws (use refine_subject_proposals for better efficiency).
 
     Args:
         subject_draws: (N, n_subjects, p) posterior draws (for fitting only)
         K: fresh proposal draws per subject
     """
-    fit_rows = subject_draws if len(subject_draws) <= fit_max \
-        else subject_draws[rng.choice(len(subject_draws), fit_max, replace=False)]
-
-    proposals = [StudentTProposal(fit_rows[:, i, :], df=df, scale=scale)
-                 for i in range(subject_draws.shape[1])]
+    if proposals is None:
+        proposals = fit_subject_proposals(subject_draws, rng, df=df,
+                                          scale=scale, n_bins=n_bins,
+                                          fit_max=fit_max)
     return build_caches_from_proposals(model_key, data, proposals, K, rng)
 
 
@@ -322,12 +470,19 @@ def make_psi_sweep_fn(caches):
         log_p_y = jnp.sum(log_p_yi, axis=1)              # (B,)
         return log_p_y, log_p_yi, ess
 
+    sweep.cache_shape = (int(log_fq.shape[0]), int(log_fq.shape[1]))
     return sweep
 
 
 def sweep_psi(sweep_fn, psi, chunk=128, want_ess=False):
-    """Apply the sweep function over psi rows in chunks (numpy in/out)."""
+    """Apply the sweep function over psi rows in chunks (numpy in/out).
+
+    The chunk size is capped so the (chunk, K, n_subjects) float64
+    buffers stay within ~1 GB each on the GPU.
+    """
     psi = np.asarray(psi, dtype=np.float64)
+    K, n_subj = sweep_fn.cache_shape
+    chunk = max(8, min(chunk, int(1.2e8 / (K * n_subj))))
     n = len(psi)
     log_p_y = np.empty(n)
     ess_min = np.empty(n) if want_ess else None
@@ -508,8 +663,8 @@ def verify_pop_prior_vectorization(data, model_keys=('crra', 'ge', 'power'),
 # =============================================================================
 
 def estimate_model_log_ml(model_key, data, hyper, subj, rng,
-                          K=2048, R=8, n_psi_is=20000, n_psi_bridge=10000,
-                          theta_df=5.0, theta_scale=1.5,
+                          K=16384, R=8, n_psi_is=4000, n_psi_bridge=2500,
+                          theta_df=7.0, theta_scale=1.3,
                           psi_df=5.0, psi_scale=1.5, ess_floor=100.0,
                           verbose=True):
     """Replicated corrected-RB estimate of log p(y) for one model.
@@ -526,6 +681,19 @@ def estimate_model_log_ml(model_key, data, hyper, subj, rng,
     log_pi_vec = make_log_hyperprior_vec(data)
     psi_proposal = StudentTProposal(hyper, df=psi_df, scale=psi_scale)
 
+    # Fit proposals once, refine once at the posterior-mean psi, share
+    # the refined proposals across replicates (independence of caches
+    # comes from fresh theta draws within each replicate).
+    proposals = fit_subject_proposals(subj, rng, df=theta_df,
+                                      scale=theta_scale)
+    psi_bar = hyper.mean(axis=0)
+    proposals, probe_ess = refine_subject_proposals(
+        model_key, data, proposals, psi_bar, rng,
+        df=theta_df, scale=theta_scale)
+    if verbose:
+        print(f"  Proposal refinement probe ESS: min={probe_ess.min():.0f}, "
+              f"median={np.median(probe_ess):.0f}")
+
     rep_is = np.empty(R)
     rep_br = np.empty(R)
     ess_min = ess_med = nonfinite = None
@@ -533,7 +701,7 @@ def estimate_model_log_ml(model_key, data, hyper, subj, rng,
 
     for rep in range(R):
         caches = build_subject_caches(model_key, data, subj, K, rng,
-                                      df=theta_df, scale=theta_scale)
+                                      proposals=proposals)
         sweep_fn = make_psi_sweep_fn(caches)
 
         if rep == 0:
@@ -603,11 +771,11 @@ def estimate_model_log_ml(model_key, data, hyper, subj, rng,
 # =============================================================================
 
 def compute_marginal_likelihoods(model_keys, data_dir, output_path,
-                                 K=2048, R=8, n_psi_is=20000,
-                                 n_psi_bridge=10000,
+                                 K=16384, R=8, n_psi_is=4000,
+                                 n_psi_bridge=2500,
                                  n_load=100000, seed=42,
                                  psi_df=5.0, psi_scale=1.5,
-                                 theta_df=5.0, theta_scale=1.5,
+                                 theta_df=7.0, theta_scale=1.3,
                                  ess_floor=100.0):
     """Corrected RB marginal likelihoods with two psi-integration routes.
 
@@ -632,7 +800,7 @@ def compute_marginal_likelihoods(model_keys, data_dir, output_path,
         print(f"\n{'=' * 60}\nModel: {mk}\n{'=' * 60}")
         rng = np.random.default_rng(seed + hash(mk) % 1000)
 
-        hyper, subj, n_subjects = _load_mcmc_states(
+        hyper, subj, n_subjects = load_posterior_states(
             mk, str(data_dir), n_samples=n_load, seed=seed)
         print(f"  Loaded {len(hyper)} draws, {n_subjects} subjects, "
               f"{subj.shape[2]} params/subject")

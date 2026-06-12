@@ -178,11 +178,12 @@ def _build_log_pop_prior_fn(data):
 
     def log_pop_prior_power(theta_i, psi):
         from posteriors.common_fns import full_forward_map_power
+        from posteriors.rdu_power_bhm_ce import _get_indices as _get_indices_power
         r, delta_raw, lambda_raw = theta_i[0], theta_i[1], theta_i[2]
         quantities = full_forward_map_power(r, delta_raw, lambda_raw,
                                              ref_lotteries, ref_pair)
         chain_state = jnp.concatenate([theta_i, psi])
-        idx = _get_indices(1)
+        idx = _get_indices_power(1)
         return _subject_quantity_prior(quantities, chain_state, idx, hyperprior_arr)
 
     return {

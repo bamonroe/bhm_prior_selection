@@ -90,12 +90,22 @@ class StudentTProposal:
 
     def __init__(self, draws, df=5.0, scale=1.5, jitter=1e-9):
         draws = np.asarray(draws, dtype=np.float64)
+        cov = np.cov(draws, rowvar=False).reshape(draws.shape[1], draws.shape[1])
+        self._init_from_moments(draws.mean(axis=0),
+                                scale ** 2 * cov, df, jitter)
+
+    @classmethod
+    def from_moments(cls, mean, cov, df=5.0, jitter=1e-9):
+        obj = cls.__new__(cls)
+        obj._init_from_moments(np.asarray(mean, dtype=np.float64),
+                               np.asarray(cov, dtype=np.float64), df, jitter)
+        return obj
+
+    def _init_from_moments(self, mean, cov, df, jitter):
         self.df = float(df)
-        self.d = draws.shape[1]
-        self.mean = draws.mean(axis=0)
-        cov = np.cov(draws, rowvar=False).reshape(self.d, self.d)
-        cov = scale ** 2 * cov + jitter * np.eye(self.d)
-        self.L = np.linalg.cholesky(cov)
+        self.d = len(mean)
+        self.mean = mean
+        self.L = np.linalg.cholesky(cov + jitter * np.eye(self.d))
         half_logdet = np.sum(np.log(np.diag(self.L)))
         from scipy.special import gammaln
         self._log_norm = (gammaln((self.df + self.d) / 2)
@@ -115,6 +125,32 @@ class StudentTProposal:
         u = solve_triangular(self.L, diff.T, lower=True).T
         m = np.sum(u * u, axis=1)
         return self._log_norm - 0.5 * (self.df + self.d) * np.log1p(m / self.df)
+
+
+class MixtureProposal:
+    """Finite mixture of proposals with sample/log_density interface."""
+
+    def __init__(self, components, weights=None):
+        self.components = list(components)
+        k = len(self.components)
+        self.weights = (np.full(k, 1.0 / k) if weights is None
+                        else np.asarray(weights, dtype=np.float64))
+        self.weights = self.weights / self.weights.sum()
+        self.d = self.components[0].d
+
+    def sample(self, n, rng):
+        counts = rng.multinomial(n, self.weights)
+        draws = np.concatenate([c.sample(m, rng)
+                                for c, m in zip(self.components, counts)
+                                if m > 0])
+        rng.shuffle(draws)
+        return draws
+
+    def log_density(self, x):
+        parts = np.stack([np.log(w) + c.log_density(x)
+                          for c, w in zip(self.components, self.weights)])
+        mx = np.max(parts, axis=0)
+        return mx + np.log(np.sum(np.exp(parts - mx), axis=0))
 
 
 # =============================================================================
@@ -159,12 +195,24 @@ def _bounds_from_hyperprior(hyperprior_arr):
 
 def build_subject_caches(model_key, data, subject_draws, K, rng,
                          df=5.0, scale=1.5, fit_max=50000):
-    """Fit per-subject Student-t proposals, draw fresh theta, cache
-    log f, log q, and the quantity-space log z / log(1-z) tensors.
+    """Fit per-subject Student-t proposals to posterior draws, then build
+    the importance-sampling caches via build_caches_from_proposals.
 
     Args:
         subject_draws: (N, n_subjects, p) posterior draws (for fitting only)
         K: fresh proposal draws per subject
+    """
+    fit_rows = subject_draws if len(subject_draws) <= fit_max \
+        else subject_draws[rng.choice(len(subject_draws), fit_max, replace=False)]
+
+    proposals = [StudentTProposal(fit_rows[:, i, :], df=df, scale=scale)
+                 for i in range(subject_draws.shape[1])]
+    return build_caches_from_proposals(model_key, data, proposals, K, rng)
+
+
+def build_caches_from_proposals(model_key, data, proposals, K, rng):
+    """Draw fresh theta from explicit per-subject proposals and cache
+    log f, log q, and the quantity-space log z / log(1-z) tensors.
 
     Returns dict with:
         log_fq: (K, n) = log f - log q (non-finite log f set to -inf)
@@ -172,8 +220,8 @@ def build_subject_caches(model_key, data, subject_draws, K, rng,
         nonfinite_frac: fraction of non-finite log f over the cache
         theta: (K, n, p) the proposal draws (kept for reference checks)
     """
-    n_subjects = subject_draws.shape[1]
-    nparams = subject_draws.shape[2]
+    n_subjects = len(proposals)
+    nparams = proposals[0].d
     hyperprior_arr = np.asarray(data['float'][7])
     lo, hi = _bounds_from_hyperprior(hyperprior_arr)
 
@@ -182,16 +230,13 @@ def build_subject_caches(model_key, data, subject_draws, K, rng,
     log_f_vec = jax.jit(jax.vmap(log_f_fn, in_axes=(0, None)))
     qfn_vec = jax.jit(jax.vmap(qfn))
 
-    fit_rows = subject_draws if len(subject_draws) <= fit_max \
-        else subject_draws[rng.choice(len(subject_draws), fit_max, replace=False)]
-
     theta = np.empty((K, n_subjects, nparams))
     log_q = np.empty((K, n_subjects))
     log_f = np.empty((K, n_subjects))
     quantities = np.empty((K, n_subjects, N_QUANTITIES))
 
     for i in range(n_subjects):
-        prop = StudentTProposal(fit_rows[:, i, :], df=df, scale=scale)
+        prop = proposals[i]
         th = prop.sample(K, rng)
         theta[:, i, :] = th
         log_q[:, i] = prop.log_density(th)

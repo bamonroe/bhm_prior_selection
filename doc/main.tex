@@ -130,9 +130,9 @@ uninf_ce_above_40 = fmt(float(_ce_overlay.get('uninf_pct_above_40', 0)), 1)
 xm_crra_1 = fmt(float(D.get('xmodel_crra_median_1', 0)), 1)
 xm_crra_2 = fmt(float(D.get('xmodel_crra_median_2', 0)), 1)
 xm_crra_3 = fmt(float(D.get('xmodel_crra_median_3', 0)), 1)
-xm_ep_1 = fmt(float(D.get('xmodel_ep_median_1', 0)), 1)
-xm_ep_2 = fmt(float(D.get('xmodel_ep_median_2', 0)), 1)
-xm_ep_3 = fmt(float(D.get('xmodel_ep_median_3', 0)), 1)
+xm_ge_1 = fmt(float(D.get('xmodel_ge_median_1', 0)), 1)
+xm_ge_2 = fmt(float(D.get('xmodel_ge_median_2', 0)), 1)
+xm_ge_3 = fmt(float(D.get('xmodel_ge_median_3', 0)), 1)
 xm_power_1 = fmt(float(D.get('xmodel_power_median_1', 0)), 1)
 xm_power_2 = fmt(float(D.get('xmodel_power_median_2', 0)), 1)
 xm_power_3 = fmt(float(D.get('xmodel_power_median_3', 0)), 1)
@@ -144,7 +144,7 @@ xm_diff_3 = fmt(float(D.get('xmodel_diff_3', 0)), 1)
 diag_rhat_med = {}
 diag_rhat_max = {}
 diag_accept = {}
-for _m in ['crra', 'ep', 'power']:
+for _m in ['crra', 'ge', 'power']:
     diag_rhat_med[_m] = fmt(float(D.get(f'{_m}_rhat_median', 0)), 3)
     diag_rhat_max[_m] = fmt(float(D.get(f'{_m}_rhat_max', 0)), 2)
     diag_accept[_m] = fmt(100 * float(D.get(f'{_m}_accept_mean', 0)), 1)
@@ -219,9 +219,10 @@ parameters.\footnote{
   These ranges assume all models share a noise parameter and use utility and
   probability weighting functions. Two common utility functions are the CRRA
   and Expo-Power \parencite{Saha1993}, with 1 and 2 parameters respectively.
-  Two popular probability weighting functions are the 1-parameter
-  \textcite{TverskyKahneman1992} function and the 2-parameter
-  \textcite{Prelec1998} function.
+  Common probability weighting functions include the 2-parameter
+  \textcite{Prelec1998} function, the 2-parameter
+  \textcite{GoldsteinEinhorn1987} function, and the 1-parameter Power function
+  \parencite{Quiggin1982}.
   CPT models utility and probability weighting separately over gains and
   losses, plus a loss aversion parameter, leading to 5--10 parameters depending
   on functional form choices.
@@ -257,16 +258,16 @@ about the same observables, enforcing consistency in beliefs about individual
 behavior independently of the latent model used to represent it.
 
 I demonstrate the approach with three RDU models estimated on experimental
-lottery-choice data from \textcite{Harrison2016}, combining CRRA and
-Expo-Power utility functions with Prelec, Tversky-Kahneman, and Power
-probability weighting functions. The three models are chosen to exercise
-different aspects of the framework. They differ in their utility functions,
-their probability weighting functions, and in one case the number of free
-parameters. By sharing a single quantity-space prior across all three, the
-application reveals where the models agree on predictive quantities (indicating
-that the structural specification is immaterial for those predictions) and
-where they diverge (indicating that the choice of functional form has
-substantive consequences).
+lottery-choice data from \textcite{Harrison2016}, combining CRRA utility
+with Prelec, Goldstein-Einhorn, and Power probability weighting functions.
+The three models are chosen to exercise different aspects of the framework.
+All three share the same utility function but differ in their probability
+weighting, with the third using a simpler 1-parameter PWF that yields fewer
+free parameters and an overdetermined quantity-to-parameter mapping. By sharing a single quantity-space prior
+across all three, the application reveals where the models agree on
+predictive quantities (indicating that the structural specification is
+immaterial for those predictions) and where they diverge (indicating that
+the choice of functional form has substantive consequences).
 
 The paper proceeds as follows. Section \ref{sec:literature} reviews the
 literature on prior specification with emphasis on informed priors. Section
@@ -698,11 +699,12 @@ three specifications below.
 I consider three combinations of utility function and PWF that vary in
 flexibility and functional form. The first follows \textcite{Gao2022} and is
 the workhorse specification in the experimental economics literature. The
-second replaces both the utility function and the PWF, testing whether the
-framework can accommodate a completely different structural model. The third
-retains the utility function of the first but uses a simpler PWF with fewer
-parameters, creating an over-determined ($k > p$) case that exercises the
-Gram determinant machinery from Section \ref{sec:gq_space}.
+second retains the same CRRA utility but replaces the PWF with a different
+2-parameter form, isolating the effect of the probability weighting
+specification on posterior predictions. The third uses a simpler 1-parameter
+PWF with fewer free parameters, creating an over-determined ($k > p$) case
+that exercises the Gram determinant machinery from
+Section~\ref{sec:gq_space}.
 
 \subsubsection*{Model 1: CRRA + Prelec}
 
@@ -727,27 +729,26 @@ applied to joint estimation of risk and time preferences
 \parencite{vonGaudecker2011}, and hierarchical Bayesian welfare analysis
 \parencite{Gao2022}, among many others.
 
-\subsubsection*{Model 2: Expo-Power + Tversky-Kahneman}
+\subsubsection*{Model 2: CRRA + Goldstein-Einhorn}
 
-The second specification uses the Expo-Power utility function
-\parencite{Saha1993} and the 1-parameter \textcite{TverskyKahneman1992}
-inverse-S PWF:
+The second specification retains the CRRA utility function and pairs it with
+the 2-parameter \textcite{GoldsteinEinhorn1987} PWF:
 \begin{align}
-  \label{eq:ep}
-  u(x) &= \frac{1 - \exp\!\left(-\alpha\, x^{1-r}\right)}
-               {\alpha\,(1 - r)} \\
-  \label{eq:tk}
-  w(p) &= \frac{p^\gamma}
-               {\left(p^\gamma + (1-p)^\gamma\right)^{1/\gamma}}
+  \label{eq:crra_ge}
+  u(x) &= \frac{x^{1-r}}{1 - r} \\
+  \label{eq:ge}
+  w(p) &= \frac{\delta\, p^\gamma}
+               {\delta\, p^\gamma + (1-p)^\gamma}
 \end{align}
-where $\alpha$ and $r$ jointly govern the shape of the utility function,
-and $\gamma \in (0, 1)$ controls the degree of inverse-S distortion in the
-PWF\@. The Expo-Power nests CRRA as $\alpha \to 0$ and CARA as $r \to 0$,
-allowing for both decreasing and increasing absolute risk aversion depending on
-the sign of $r$. The TK function produces the empirically well-documented
-inverse-S shape, overweighting small probabilities and underweighting large
-ones, with $\gamma = 1$ reducing to the identity. The model has 4 parameters:
-$(\alpha, r, \gamma, \lambda)$.
+where $r$ governs risk aversion as in Model~1, $\gamma > 0$ controls the
+curvature (discriminability) of the PWF, and $\delta > 0$ controls its
+elevation (attractiveness). When $\gamma < 1$ and $\delta = 1$ the function
+produces the empirically well-documented inverse-S shape, overweighting small
+probabilities and underweighting large ones. When $\gamma = 1$ and $\delta = 1$
+the PWF reduces to the identity, recovering EUT\@. The Goldstein-Einhorn
+function has been widely applied in experimental economics
+\parencite{GonzalezWu1999,Stott2006,Lattimore1992}. The model has 4
+parameters: $(r, \gamma, \delta, \lambda)$.
 
 \subsubsection*{Model 3: CRRA + Power}
 
@@ -759,22 +760,28 @@ Power PWF \parencite{Quiggin1982}:
   w(p) &= p^\delta
 \end{align}
 where $\delta > 0$ controls the curvature of the PWF\@. When $\delta = 1$ the
-PWF is linear, reducing to EUT\@. Unlike the Prelec and TK functions, the
-Power PWF does not produce an inverse-S shape: for $\delta < 1$ it uniformly
-overweights all probabilities, and for $\delta > 1$ it uniformly underweights
-them. The model has 3 structural parameters: $(r, \delta, \lambda)$.
+PWF is linear, reducing to EUT\@. Unlike the Prelec and Goldstein-Einhorn
+functions, the Power PWF does not produce an inverse-S shape: for $\delta < 1$
+it uniformly overweights all probabilities, and for $\delta > 1$ it uniformly
+underweights them. The model has 3 structural parameters:
+$(r, \delta, \lambda)$.
 
 This specification serves two purposes. First, it shares the CRRA utility with
-Model 1, so any CE difference between Models 1 and 3 is attributable entirely
-to the PWF\@. Second, with only 3 structural parameters mapped to 4 predictive
-quantities, it is the first over-determined case ($k = 4 > p = 3$). The
+Models 1 and 2, so any CE difference between Models 1, 2, and 3 is
+attributable entirely to the PWF\@. The Power PWF is nested within the Prelec
+family (setting $\phi = 1$ in (\ref{eq:prelec}) gives $w(p) = p^\eta$), making
+Models 1 and 3 nested, which will be useful for future Bayes factor
+comparisons. Second, with only 3 structural parameters mapped to 4 predictive
+quantities, it is an over-determined case ($k = 4 > p = 3$). The
 change-of-variables formula uses the Gram determinant
 $\sqrt{\det(J_\bg^\top J_\bg)}$ in place of $|\det J_\bg|$, as described in
-Section \ref{sec:gq_space}. This demonstrates that the framework handles the
+Section~\ref{sec:gq_space}. This demonstrates that the framework handles the
 $k > p$ case with no additional machinery beyond the Jacobian computation.
 
-The three specifications are complementary. Models 1 and 2 each have 4
-structural parameters ($k = p$), while Model 3 has 3 ($k > p$). All three map
+The three specifications are complementary. All three share the CRRA utility
+function but differ in their PWFs, so CE differences are attributable entirely
+to the probability weighting specification. Models 1 and 2 each have 4
+structural parameters ($k = p$), while Model~3 has 3 ($k > p$). All three map
 to the same 4 predictive quantities through the RDU-CE mapping described
 below.
 
@@ -809,7 +816,7 @@ where $u(\cdot; \bth)$ is the utility function and $d_j(\bth)$ are decision
 weights. Choosing three reference lotteries $L_1, L_2, L_3$ with suitably
 diverse characteristics defines a mapping from preference parameters to CEs.
 For Model 1 this is $\bg_1(r, \phi, \eta) = (\CE_1, \CE_2, \CE_3)$; for
-Model 2 it is $\bg_2(\alpha, r, \gamma) = (\CE_1, \CE_2, \CE_3)$; for
+Model 2 it is $\bg_2(r, \gamma, \delta) = (\CE_1, \CE_2, \CE_3)$; for
 Model 3 it is $\bg_3(r, \delta) = (\CE_1, \CE_2, \CE_3)$, where the mapping
 has 3 outputs from only 2 preference parameters. In each case the noise
 parameter $\lambda$ does not affect CEs but governs choice precision.
@@ -819,16 +826,22 @@ $\lambda$, extending the mapping to 4 quantities. For Models 1 and 2 ($k =
 p = 4$), the Jacobian $J_\bg$ is square and the induced prior uses $|\det
 J_\bg|$. For Model 3 ($k = 4 > p = 3$), $J_\bg$ is $4 \times 3$ and the
 induced prior uses the Gram determinant $\sqrt{\det(J_\bg^\top J_\bg)}$, as
-derived in Section \ref{sec:gq_space}.\footnote{
+derived in Section~\ref{sec:gq_space}.\footnote{
   The change-of-variables formula requires that the mapping $\bg$ be
   injective on the support of the prior. A nonvanishing Jacobian (or Gram)
   determinant establishes only \textit{local} invertibility and is necessary
   but not sufficient. Proving injectivity for the mapping is nontrivial and
   must be assessed on a case-by-case basis.
-  Appendix \ref{app:global_injectivity} provides a proof for the
-  CRRA-Prelec model. For the Expo-Power + TK and CRRA + Power models,
-  numerical verification on dense grids over the prior support confirms
-  that the Jacobian determinant does not vanish.
+  Appendix~\ref{app:global_injectivity} provides an analytic proof for the
+  CRRA + Prelec model. The same proof structure extends to the
+  CRRA + Goldstein-Einhorn model, since both use CRRA utility and a
+  2-parameter PWF satisfying the same two-point injectivity conditions
+  (see Appendix~\ref{app:global_injectivity}, Section~B.1.1).
+  For the CRRA + Power model, the proof extends directly: the Power PWF is
+  strictly monotone in $\delta$, so a single decision weight identifies
+  $\delta$, and the remaining CE identifies $r$ through the same CRRA
+  monotonicity argument. Numerical verification via the Gram determinant
+  on dense grids confirms full column rank of the Jacobian.
 }
 
 The crucial point is that the CEs and choice probability are
@@ -921,15 +934,15 @@ chosen so that the map from parameters to predictive quantities is injective.\fo
 }
 The same set of reference lotteries serves all three models, but injectivity
 conditions must be verified for each specification separately.
-Appendix \ref{app:global_injectivity} provides an analytic proof for Model 1
-(CRRA + Prelec). For Model 3 (CRRA + Power), the proof extends directly:
-the Power PWF is strictly monotone in $\delta$, so a single decision weight
-identifies $\delta$, and the remaining CE identifies $r$ through the same
-CRRA monotonicity argument used for Model 1. For Model 2 (Expo-Power + TK),
-the utility identification step involves a 2-parameter system $(\alpha, r)$
-rather than a scalar monotonicity argument, and a full analytic proof is not
-available. Numerical verification is reported in
-Appendix \ref{app:global_injectivity}.
+Appendix~\ref{app:global_injectivity} provides an analytic proof for Model~1
+(CRRA + Prelec). The proof extends directly to Model~2
+(CRRA + Goldstein-Einhorn), since both use the same CRRA utility and a
+2-parameter PWF satisfying the same two-point injectivity condition. For
+Model~3 (CRRA + Power), the proof also extends: the Power PWF is strictly
+monotone in $\delta$, so a single decision weight identifies $\delta$, and the
+remaining CE identifies $r$ through the same CRRA monotonicity argument.
+Numerical verification via the Gram determinant $\det(J_\bg^\top J_\bg)$ on
+dense grids confirms full column rank of the Jacobian for Model~3.
 The design uses two binary lotteries with distinct probabilities on the higher
 outcome and a third binary lottery with shared probability $p_3 = p_1$ whose
 outcome ratio differs from that of $L_1$. No pair of lotteries with
@@ -1079,58 +1092,60 @@ posterior predictive CEs reflect the interaction between the structural model's
 Jacobian and the data likelihood. For lotteries $L_1$ and $L_3$, which place
 probability $0.75$ on the worse outcome, the three models produce closely
 aligned CE posteriors, with median CEs of $\$\py{xm_crra_1}$,
-$\$\py{xm_ep_1}$, and $\$\py{xm_power_1}$ for $L_1$ under Models 1, 2, and 3
-respectively. All three are concentrated below the expected value, indicating
+$\$\py{xm_ge_1}$, and $\$\py{xm_power_1}$ for $L_1$ under Models 1, 2, and
+3 respectively. All three are concentrated below the expected value, indicating
 that the estimated population is risk-averse for these asymmetric lotteries.
-This agreement is notable given that the three models differ in their utility
-functions, probability weighting functions, and in one case the number of
-structural parameters. Model 3, which has only 3 free parameters mapped to
-4 predictive quantities through the Gram determinant, produces posterior CEs
-that are essentially indistinguishable from the 4-parameter models.
+Model~3, which has only 3 free parameters mapped to 4 predictive quantities
+through the Gram determinant, produces posterior CEs within $\$0.25$ of the
+4-parameter models on these lotteries.
 
 For lottery $L_2$, which splits probability equally between outcomes, a more
-nuanced pattern emerges. The CRRA + Prelec posterior (Model 1) places mass
-above the expected value of \$30, with a median CE of $\$\py{xm_crra_2}$. The
-CRRA + Power posterior (Model 3) is close at $\$\py{xm_power_2}$. The
-Expo-Power + TK posterior (Model 2) diverges, remaining below the expected
-value at $\$\py{xm_ep_2}$. This pattern reflects differences in how each PWF
-handles the symmetric probability $p = 0.5$. Both the 2-parameter Prelec
-function and the 1-parameter Power function can produce $w(0.5) > 0.5$, which
-inflates the decision weight on the better outcome and pushes the CE upward.
-The close agreement between Prelec and Power on $L_2$ is notable because it
-suggests the additional flexibility of the 2-parameter Prelec function may not
-be needed for these data. The TK function, by contrast, constrains the
-probability weighting through an inverse-S shape where the degree of
-overweighting at $p = 0.5$ is tied to the degree of distortion at the tails.
-The estimated TK curvature produces $w(0.5) < 0.5$, pulling the CE below the
-expected value.
+nuanced pattern emerges. The Prelec and Goldstein-Einhorn posteriors
+(Models~1 and~2) are nearly identical, with median CEs of
+$\$\py{xm_crra_2}$ and $\$\py{xm_ge_2}$ respectively. The Power posterior
+(Model~3) is lower at $\$\py{xm_power_2}$. Since all three models share the
+CRRA utility function, these differences are attributable entirely to the
+probability weighting specification. The agreement between Prelec and
+Goldstein-Einhorn is notable because these are non-nested functional forms.
+Both can produce inverse-S shaped distortions, and the reference lotteries
+use moderate probabilities ($p = 0.25$ and $p = 0.50$) where the two
+functions can closely approximate each other by adjusting their curvature and
+elevation parameters. The two forms differ most in how they weight extreme
+probabilities near 0 or 1, so experimental designs with highly skewed
+lotteries would be needed to discriminate between them. The Power PWF, which
+distorts probabilities uniformly rather than producing an inverse-S shape,
+pulls the $L_2$ CE approximately $\$1$ lower, reflecting the structural
+restriction of the 1-parameter specification at $p = 0.5$.
 
-The pattern of agreement and disagreement across lotteries is itself
-informative. All three models agree on the sign and approximate magnitude of
-risk aversion for asymmetric lotteries, suggesting that the data are
-sufficiently informative for these lottery designs that the structural
-specification matters relatively little. For the symmetric lottery, where the
-probability weighting mechanism is most consequential, the models separate in
-a way that identifies which aspects of the PWF drive predictive differences.
-These comparisons are available directly in the interpretable units of
-certainty equivalents, without requiring the researcher to compute the forward
-map post-estimation or to compare structural parameters that have no common
-meaning across models.
+The overall pattern suggests that the CRRA utility function is doing most of
+the work for these lottery designs. The three PWF specifications separate
+only at the symmetric lottery, where probability weighting is most
+consequential, and even there the differences are modest. These comparisons
+are available directly in the interpretable units of certainty equivalents,
+without requiring the researcher to compute the forward map post-estimation
+or to compare structural parameters across models.
+
+The nesting relationship between Models 1 and 3 invites formal model
+comparison. The Power PWF is nested within the Prelec family at $\phi = 1$,
+so a Bayes factor can in principle quantify whether the additional curvature
+parameter justifies the increased complexity. In the hierarchical setting this
+requires computing marginal likelihoods via bridge sampling or thermodynamic
+integration, which I leave for future work. The CE comparison already provides
+an informal answer: the two models agree closely on $L_1$ and $L_3$ and differ
+by approximately $\$1$ on $L_2$, suggesting that the second PWF parameter
+contributes modestly for these data and lottery designs.
 
 \subsection{Subject-Level Cross-Model Agreement}
 
-The population-level results show that the three models agree in aggregate for
-asymmetric lotteries and diverge for the symmetric lottery. The question is
-whether this pattern holds at the individual level, or whether some subjects
-show model-dependent inferences even for the asymmetric designs. To examine
-this, I compute the cross-model divergence for each subject, defined as the
-patterns hold at the individual level, I compute the cross-model divergence for
-each subject, defined as the average (across lotteries) of the maximum pairwise
+Since all three models share the CRRA utility function, there is reason to
+expect closer agreement at the individual level than if the utility functions
+differed. To examine this, I compute the cross-model divergence for each
+subject, defined as the average (across lotteries) of the maximum pairwise
 absolute difference in median posterior CEs across the three models.
 
 \begin{figure}[hp]
   \centering
-  \mycaption{Subject-level CE posteriors: most agreed subject (Subject 85)}
+  \mycaption{Subject-level CE posteriors: most agreed subject (Subject 50)}
   \label{fig:subject_agreed}
   \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_agreed.pdf}
 \end{figure}
@@ -1142,33 +1157,26 @@ absolute difference in median posterior CEs across the three models.
   \includegraphics[width=\textwidth]{../plots/paper/subject_ce_most_divergent.pdf}
 \end{figure}
 
-Figure \ref{fig:subject_agreed} shows the subject with the smallest
-cross-model divergence. All three models produce overlapping CE posteriors
-across all three lotteries, with median CEs within approximately \$1 of each
-other. The posteriors differ in dispersion, with the CRRA + Prelec model
-producing wider posteriors that reflect the additional flexibility of the
-2-parameter PWF, but the substantive conclusions are model-invariant for this
-subject.
+Figure~\ref{fig:subject_agreed} shows the subject with the smallest
+cross-model divergence. All three models produce nearly identical CE
+posteriors across all three lotteries. For this subject, the choice of
+PWF specification has no substantive consequence for predictive inference.
 
-Figure \ref{fig:subject_divergent} shows the subject with the largest
-cross-model divergence. The CRRA + Prelec model concentrates near the minimum
-CE on $L_1$ and $L_3$, indicating extreme risk aversion, while the EP + TK and
-CRRA + Power models concentrate near the maximum, indicating risk-seeking
-behavior. The Prelec posterior on $L_1$ is visibly bimodal, with a secondary
-mode near the risk-seeking region, but the population prior pulls the bulk of
-the mass toward the risk-averse mode. The 1-parameter PWFs in Models 2 and 3
-do not sustain the risk-averse parameterization and place their posterior mass
-entirely on the risk-seeking mode. This subject's 80 binary choices are
-consistent with both extreme risk aversion and risk seeking under the
-4-parameter models, and the structural form of the PWF is the deciding factor
-in resolving the ambiguity.
+Figure~\ref{fig:subject_divergent} shows the subject with the largest
+cross-model divergence. This subject's 80 binary choices are consistent with
+multiple risk preference profiles, and the PWF specification determines which
+profile the posterior favors. Since the utility function is the same across all
+three models, the divergence arises entirely from how each PWF resolves the
+ambiguity in the decision weights. The quantity-space prior is identical across
+models, so these differences reflect the structural restrictions of the
+functional forms rather than differences in prior beliefs.
 
-These two cases illustrate a broader pattern. For well-identified subjects, the
-choice of structural model has little effect on predictive inferences in
-quantity space. For weakly identified subjects, the structural model matters
-precisely because different functional forms resolve the same data ambiguity in
-different directions. The quantity-space framework makes both the agreement and
-the disagreement visible in dollars.
+These two cases illustrate a broader pattern. For well-identified subjects,
+the PWF specification has little effect on predictive inferences in quantity
+space. For weakly identified subjects, the functional form of probability
+weighting matters precisely because different PWFs resolve the same data
+ambiguity in different directions. The quantity-space framework makes both the
+agreement and the disagreement visible in dollars.
 
 \subsection{Sensitivity to $\alpha$ and $\kappa$}
 
@@ -1366,16 +1374,31 @@ under EUT\@.
 
 \subsection{Extensions}
 
-Model 3 (CRRA + Power) already demonstrates the over-determined case $k > p$,
-where 4 predictive quantities are mapped from 3 structural parameters using the
-Gram determinant. This extends naturally to comparisons between models with
-different parameter dimensions, such as an RDU model against an EUT model with
-fewer parameters. The same prior over quantities can be specified for both,
-creating the possibility of holding fixed prior beliefs about behavioral
-quantities even when the candidate models have different parameter dimensions.
+Model 3 (CRRA + Power) already demonstrates the over-determined case
+$k > p$, where 4 predictive quantities are mapped from 3 structural parameters
+using the Gram determinant. This extends naturally to comparisons between
+models with different parameter dimensions. The same prior over quantities can
+be specified for both, creating the possibility of holding fixed prior beliefs
+about behavioral quantities even when the candidate models have different
+parameter dimensions.
 That, in turn, offers a natural way to make model comparison less sensitive to
 arbitrary differences in hyperprior specification and more tightly connected to
 the researcher's actual beliefs about observables.
+
+The quantity-space framework has a particular advantage for Bayes factor
+computation. A persistent concern with Bayes factors is their sensitivity to
+the prior specification \parencite{KassRaftery1995}, and this sensitivity is
+amplified in hierarchical models where the hyperprior governs the prior on
+every subject. When two models use different parameter-space hyperpriors, a
+Bayes factor comparison conflates the evidence about structural form with the
+evidence about prior calibration. By anchoring the prior in quantity space, the
+framework ensures that all candidate models express the same prior beliefs
+about observables. Any difference in marginal likelihood then reflects the
+structural specification alone, not an artifact of differently calibrated
+hyperpriors. The nesting structure in the present application (Power $\subset$
+Prelec at $\phi = 1$) provides a natural test case for this approach, and
+non-nested comparisons (Prelec vs.\ Goldstein-Einhorn) could be conducted via
+bridge sampling with the same shared prior serving as the common baseline.
 
 
 \section{Conclusion}
@@ -1394,14 +1417,12 @@ mean.
 
 The application to RDU estimation with three structurally different models
 illustrates the methodological value of this approach. The CRRA + Prelec,
-Expo-Power + Tversky-Kahneman, and CRRA + Power specifications differ in
-their utility functions, probability weighting functions, and even the number
-of free parameters, yet they share a single quantity-space prior over certainty
+CRRA + Goldstein-Einhorn, and CRRA + Power specifications differ in
+their probability weighting functions and the number of free parameters, yet they share a single quantity-space prior over certainty
 equivalents and choice probabilities. In quantity space, the substantive
-implications of a
-hyperprior are directly visible, and diagnostics based on posterior predictive
-distributions and CDF differences make the prior's influence transparent across
-subjects, lotteries, and quantiles. The results show that informative
+implications of a hyperprior are directly visible, and diagnostics based on
+posterior predictive distributions and CDF differences make the prior's
+influence transparent across subjects, lotteries, and quantiles. The results show that informative
 hyperpriors matter most where the data are weak, while leaving well-identified
 subjects largely unchanged.
 

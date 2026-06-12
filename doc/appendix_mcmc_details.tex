@@ -23,34 +23,33 @@ model.
   \begin{tabular}{lccc}
     \toprule
     & Model 1 & Model 2 & Model 3 \\
-    & (CRRA + Prelec) & (EP + TK) & (CRRA + Power) \\
+    & (CRRA + Prelec) & (CRRA + GE) & (CRRA + Power) \\
     \midrule
     Structural parameters per subject & 4 & 4 & 3 \\
     Predictive quantities & 4 & 4 & 4 \\
     Hyperparameters & 8 & 8 & 8 \\
     Total parameters & 452 & 452 & 341 \\
     Chains (A + B) & 2000 & 2000 & 2000 \\
-    Collection iterations & 6000 & 16000 & 10000 \\
+    Collection iterations & 6000 & 6000 & 10000 \\
     Thinning & 10 & 10 & 10 \\
-    Retained samples per chain & 600 & 1600 & 1000 \\
-    Post burn-in samples per chain & 300 & 800 & 500 \\
-    Total posterior draws & 600{,}000 & 1{,}600{,}000 & 1{,}000{,}000 \\
-    Median $\hat{R}$ & \py{diag_rhat_med['crra']} & \py{diag_rhat_med['ep']} & \py{diag_rhat_med['power']} \\
-    Max $\hat{R}$ & \py{diag_rhat_max['crra']} & \py{diag_rhat_max['ep']} & \py{diag_rhat_max['power']} \\
-    Mean acceptance rate & \py{diag_accept['crra']}\% & \py{diag_accept['ep']}\% & \py{diag_accept['power']}\% \\
-    Time per iteration (s) & $\approx 0.8$ & $\approx 2.7$ & $\approx 0.7$ \\
+    Retained samples per chain & 600 & 600 & 1000 \\
+    Post burn-in samples per chain & 300 & 300 & 500 \\
+    Total posterior draws & 600{,}000 & 600{,}000 & 1{,}000{,}000 \\
+    Median $\hat{R}$ & \py{diag_rhat_med['crra']} & \py{diag_rhat_med['ge']} & \py{diag_rhat_med['power']} \\
+    Max $\hat{R}$ & \py{diag_rhat_max['crra']} & \py{diag_rhat_max['ge']} & \py{diag_rhat_max['power']} \\
+    Mean acceptance rate & \py{diag_accept['crra']}\% & \py{diag_accept['ge']}\% & \py{diag_accept['power']}\% \\
+    Time per iteration (s) & TBD & TBD & TBD \\
     \bottomrule
   \end{tabular}
   \caption{MCMC sampling configuration and convergence diagnostics.}
   \label{tab:mcmc_summary}
 \end{table}
 
-The higher computational cost of Model 2 reflects the numerical inversion
-required for the Expo-Power certainty equivalent (Newton iteration with 20
-steps) and the use of automatic differentiation for the Jacobian determinant.
-Model 3, despite requiring the Gram determinant $\sqrt{\det(J^\top J)}$ for
-the non-square Jacobian, is the fastest per iteration because it has the fewest
-structural parameters and uses the analytic CRRA inverse.
+All three models share the CRRA utility function, so their per-iteration cost
+is similar, governed by the analytic Jacobian decomposition for Models 1 and 2
+and the Gram determinant $\sqrt{\det(J^\top J)}$ for Model~3. Model~3 is the
+fastest per iteration because it has the fewest structural parameters and uses
+the analytic CRRA inverse.
 
 The split $\hat{R}$ statistic is computed for every subject-parameter
 combination and every hyperparameter, using the second half of the retained

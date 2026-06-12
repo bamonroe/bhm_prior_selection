@@ -130,3 +130,49 @@ near beta=0, long per-rung equilibration, sequential warm starts) would
 cost GPU-days to add a third method family to a settled number. The
 existing TI/PT machinery and runs can be kept for the technical record
 or deleted.
+
+
+## ADDENDUM (June 12, evening): feasible-mass normalization
+
+A referee-style review identified that the induced prior is unnormalized:
+its theta-integral, the feasible mass C_m(psi), differs across models and
+reweights the hyperprior by C_m(psi)^N under the truncated-construction
+reading of the estimated model. The values above are therefore the
+marginal likelihoods of the UNNORMALIZED construction; the normalized
+values subtract log Z_m = log E_pi[C_m(psi)^N].
+
+Measured feasible mass at the posterior-mean psi: crra 0.72, ge 0.72,
+power 0.39 (surface integral; k > p). Normalizers, by annealed adaptive
+importance sampling (validated against a trust-region lower-bound scheme;
+replicates agree to 0.05-0.67):
+
+    log Z_crra  = -36.49 +/- 0.10
+    log Z_ge    = -37.04 +/- 0.34
+    log Z_power >= -100.79          (rigorous convexity/Jensen bound;
+                                     exact annealing stalls at t ~ 44-62
+                                     at an apparent first-order transition
+                                     toward the small-heterogeneity corner)
+
+FINAL normalized results (what the paper now reports):
+
+    log ML crra  = -5218.3 +/- 0.03      (IS route; bridge agrees)
+    log ML ge    = -5234.4 +/- 0.02
+    log ML power <= -5325.6
+
+    log BF crra vs ge    = 16.05 +/- 0.35
+    log BF crra vs power >= 107.4        (lower bound)
+    log BF ge   vs power >= 91.3         (lower bound)
+
+All decisive on the Kass-Raftery scale. New NPZ keys:
+{m}_log_Z, {m}_log_Z_se, {m}_log_Z_is_lower_bound,
+{m}_log_ml_is_corrected, {m}_log_ml_bridge_corrected,
+log_bf_rb2_{pair}_corrected(_se); paper_data keys ml_{m}_logZ(_se),
+ml_{m}_is_corr, ml_{m}_bridge_corr, bf_{pair}_corr(_se),
+ml_{m}_logC_bar. Machinery: measure_prior_mass,
+estimate_log_Z_tr (lower-bound cross-check), estimate_log_Z_anneal
+(production; t_stop gives the Jensen bound) in marginal_likelihood.py.
+
+The k > p normalization difficulty is disclosed in the paper
+(Section 5.4, Limitations, Appendix E.1) as an inherited methodological
+caveat of over-determined quantity-space priors: the feasibility tilt
+concentrates along a ridge toward extreme heterogeneity values.

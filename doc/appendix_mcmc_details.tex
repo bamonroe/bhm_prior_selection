@@ -134,3 +134,64 @@ proposals agree to within one hundredth of a log unit, and the estimator
 recovers their value, $\py{fmt(D['mlval_gt'], 2)}$, to within
 \py{fmt(D['mlval_abs_err_is'], 2)} log units on the importance sampling
 route and \py{fmt(D['mlval_abs_err_bridge'], 2)} on the bridge route.
+
+\subsection{Feasible-Mass Normalization}
+\label{app:feasible_mass}
+
+The values above integrate the prior as constructed, before the
+truncation normalization described in
+Section~\ref{sec:model_comparison}. The feasible mass $C_m(\hype)$ is a
+single 3- or 4-dimensional integral per model and hyperparameter value,
+the same object as a per-subject integrated likelihood with the
+likelihood replaced by one, and is estimated by the same adaptive
+importance sampling machinery. Proposals are initialized from the
+model's prior-only MCMC draws and refined against the integrand at a
+spread of hyperparameter values; effective sample sizes at the final
+stage are in the tens of thousands, and independent replicates agree to
+about one hundredth of a log unit at the posterior mean.
+
+The normalizer $Z_m = \E{C_m(\hype)^N \mid \hprior}$ is more delicate
+because the power $N = \py{D['n_subjects']}$ amplifies both the
+variation of $C_m$ across $\hype$ and any estimation error, and because
+the tilted distribution $\pi(\hype)\, C_m(\hype)^N$ concentrates along a
+curved ridge of hyperparameter values rather than at a point, which
+defeats mode-centered approximations. It is estimated by annealed
+adaptive importance sampling. The tilt exponent is raised from $0$ to
+$N$ in adaptive steps chosen to keep the incremental effective sample
+size above thirty percent. At each step fresh particles are drawn from
+a stratified Student-$t$ mixture fitted to the previous step's tilted
+cloud, the same ridge-following construction used for the per-subject
+proposals, and the feasible-mass estimator is rebuilt around the
+current cloud. The reported value is the direct importance sampling
+estimate at the full tilt from the final proposal, so intermediate
+steps guide the proposal without contributing telescoping error. Final
+effective sample sizes are around thirty percent of the particle
+budget, and independent replicates of the entire procedure agree to a
+small fraction of a log unit. Two further checks corroborate the
+estimates. For Models 1 and 2 the hard bound
+$\log Z_m \leq N \max_{\hype} \log C_m(\hype)$ implied by $C_m \leq 1$
+is respected, and a separate trust-region scheme whose hull truncation
+makes it a lower bound lands about two log units below the annealed
+value, consistent with the small mass it omits.
+
+For Model 3 the annealing reliably reaches a tilt of roughly $t = 60$
+and then encounters what appears to be a first-order transition: the
+tilted mass splits toward a small-heterogeneity corner of the
+hyperparameter space where the surface integral $C_3$ grows, and
+independent runs stall at the same tilt rather than crossing. Instead
+of an exact $Z_3$, the paper therefore reports a rigorous lower bound.
+The function $t \mapsto \log Z(t) = \log \E{C(\hype)^t \mid \hprior}$
+is convex, so for any $t^* < N$,
+\begin{equation}
+  \log Z(N) \;\geq\; \log Z(t^*)
+  + (N - t^*)\, \mathbb{E}_{t^*}\!\left[\log C\right],
+\end{equation}
+where $\mathbb{E}_{t^*}$ is taken under the tilted distribution at
+$t^*$. Both quantities on the right are computed at a healthy annealing
+stage well before the stall, with replicate agreement. The bound makes
+the Bayes factors against Model 3 lower bounds, which is the direction
+required by the conclusions. The numerical difficulty itself is
+informative: for $k > p$ the unnormalized induced construction tilts the
+effective hyperprior toward extreme heterogeneity values, a caveat for
+over-determined quantity-space priors that Section~\ref{sec:discussion}
+takes up.

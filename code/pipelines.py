@@ -227,37 +227,6 @@ def _run_sampling_dispatch(sampling_opts, ref_lotteries, ref_pair, run_fn):
     )
 
 
-def run_ti_sampling(model_key, sampling_opts, ref_lotteries, ref_pair,
-                    prior_params_path, ti_config):
-    """Run TI independent sampling for one model."""
-    from model_registry import MODEL_REGISTRY
-    cfg = MODEL_REGISTRY[model_key]
-
-    print("\n" + "=" * 60)
-    print(f"Running: TI Sampling ({cfg['name']}, "
-          f"{ti_config['n_temps']} temps, "
-          f"beta_min={ti_config['beta_min']})")
-    print("=" * 60)
-
-    from ti_independent import run_ti_sampling as _run
-    _run(model_key, sampling_opts, ref_lotteries, ref_pair,
-         prior_params_path, ti_config)
-    print("Done.\n")
-
-
-def run_ti_compute(model_keys, data_dir, ti_config, output_path,
-                   ref_lotteries, ref_pair):
-    """Compute Bayes factors from TI independent runs."""
-    print("\n" + "=" * 60)
-    print("Running: TI Bayes Factor Computation")
-    print("=" * 60)
-
-    from ti_independent import compute_ti_bayes_factors as _run
-    _run(model_keys, str(data_dir), ti_config, str(output_path),
-         ref_lotteries, ref_pair)
-    print("Done.\n")
-
-
 def run_sampling_stan(sampling_opts, ref_lotteries, ref_pair,
                       prior_params_path=None):
     """Run MCMC sampling via Stan/NUTS with quantity-space Beta-Beta prior."""

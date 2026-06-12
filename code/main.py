@@ -181,15 +181,6 @@ RK_SENSITIVITY_CONFIGS = [
     (0.8, 1.50),   # most variance from mean uncertainty, uncertain
 ]
 
-# Thermodynamic integration configuration
-TI_CONFIG = {
-    'n_temps': 8,          # Number of temperature levels (including endpoints)
-    'beta_min': 0.01,      # Coldest temperature (near-prior)
-    'reset_runs': 1,       # Fresh runs per temperature level
-    'resume_runs': 1,      # Resume runs per level
-    'num_collect': 100,    # Collections per run
-}
-
 sampling_opts_ce = {
     'model': 'rdu_bhm_ce',
     'output_dir': DATA_DIR / 'output',
@@ -339,15 +330,10 @@ do_subject_ce_plots              = False
 
 # --- Diagnostics ---
 do_mcmc_diagnostics        = False
-do_bayes_factors           = False
 
-# --- Corrected RB marginal likelihoods ---
+# --- Marginal likelihoods (corrected RB estimator) ---
 do_ml_validation           = False
 do_bayes_factors_rb2       = False
-
-# --- Thermodynamic Integration (independent runs) ---
-do_ti_sampling = {'crra': False, 'ge': False, 'power': False}
-do_ti_compute  = False
 
 # --- Appendix Analyses ---
 do_rk_sensitivity          = False
@@ -545,16 +531,6 @@ if __name__ == '__main__':
         from mcmc_diagnostics import run_all_diagnostics
         run_all_diagnostics(DATA_DIR / 'output' / 'mcmc_diagnostics.npz')
 
-    if do_bayes_factors:
-        from bayes_factors import compute_bayes_factors
-        compute_bayes_factors(
-            model_keys=['crra', 'ge', 'power'],
-            data_dir=DATA_DIR / 'output',
-            output_path=DATA_DIR / 'output' / 'bayes_factors.npz',
-            n_samples=10000,
-            seed=SEEDS['sampling'],
-        )
-
     if do_ml_validation:
         from ml_validation import run_ml_validation
         run_ml_validation(
@@ -569,30 +545,6 @@ if __name__ == '__main__':
             data_dir=DATA_DIR / 'output',
             output_path=DATA_DIR / 'output' / 'bayes_factors_rb2.npz',
             seed=SEEDS['sampling'],
-        )
-
-    # -------------------------------------------------------------------------
-    # Thermodynamic Integration (Independent Runs)
-    # -------------------------------------------------------------------------
-    for model_key in ['crra', 'ge', 'power']:
-        if do_ti_sampling.get(model_key, False):
-            check_dependency(f'ti_sampling_{model_key}', ['clean_data'])
-            pipelines.run_ti_sampling(
-                model_key, sampling_opts_map[model_key],
-                ref_lotteries=REFERENCE_LOTTERIES,
-                ref_pair=REFERENCE_PAIR,
-                prior_params_path=prior_params_ce_path,
-                ti_config=TI_CONFIG,
-            )
-
-    if do_ti_compute:
-        pipelines.run_ti_compute(
-            model_keys=['crra', 'ge', 'power'],
-            data_dir=DATA_DIR / 'output',
-            ti_config=TI_CONFIG,
-            output_path=DATA_DIR / 'output' / 'bayes_factors_ti.npz',
-            ref_lotteries=REFERENCE_LOTTERIES,
-            ref_pair=REFERENCE_PAIR,
         )
 
     # -------------------------------------------------------------------------

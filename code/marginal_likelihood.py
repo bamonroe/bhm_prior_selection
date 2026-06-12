@@ -40,12 +40,146 @@ import numpy as np
 import jax.numpy as jnp
 from pathlib import Path
 
-from bayes_factors_rb import (
-    _build_log_f_fn,
-    _build_log_pop_prior_fn,
-    _build_log_hyperprior,
-    _logsumexp,
-)
+# =============================================================================
+# Per-subject f_i(theta_i) = p(y_i|theta_i) |J(theta_i)| and the psi-dependent
+# population prior (originally in bayes_factors_rb.py, retired June 2026)
+# =============================================================================
+
+def _build_log_f_fn(model_key, data):
+    """Build function: log f_i(theta_i) = log p(y_i|theta_i) + log |J(theta_i)|.
+
+    This is the part of the subject contribution that does NOT depend on psi.
+    """
+    dataf = data["float"]
+    ref_lotteries = jnp.asarray(dataf[8])
+    ref_pair = jnp.asarray(dataf[9])
+    datai_jax = tuple(jnp.asarray(arr) for arr in data["int"])
+    dataf_jax = tuple(jnp.asarray(arr) for arr in dataf)
+    unique_outcomes = dataf_jax[0]
+
+    if model_key == 'crra':
+        from posteriors.common_fns import (
+            full_jacobian_logabsdet, crra_ufn, risk_likelihood,
+        )
+
+        @jax.jit
+        def log_f(theta_i, sid):
+            r = theta_i[0]
+            phi_raw, eta_raw, lambda_raw = theta_i[1], theta_i[2], theta_i[3]
+            log_det_j = full_jacobian_logabsdet(
+                r, phi_raw, eta_raw, lambda_raw, ref_lotteries, ref_pair)
+            phi = jnp.exp(phi_raw)
+            eta = jnp.exp(eta_raw)
+            lam = jnp.exp(lambda_raw)
+            utils = crra_ufn(unique_outcomes, r)
+            log_like = risk_likelihood(utils, phi, eta, datai_jax, dataf_jax, sid, lam)
+            return log_det_j + log_like
+
+    elif model_key == 'ge':
+        from posteriors.common_fns import (
+            full_jacobian_logabsdet_ge, crra_ufn, risk_likelihood_ge,
+        )
+
+        @jax.jit
+        def log_f(theta_i, sid):
+            r = theta_i[0]
+            gamma_raw, delta_raw, lambda_raw = theta_i[1], theta_i[2], theta_i[3]
+            log_det_j = full_jacobian_logabsdet_ge(
+                r, gamma_raw, delta_raw, lambda_raw, ref_lotteries, ref_pair)
+            gamma = jnp.exp(gamma_raw)
+            delta = jnp.exp(delta_raw)
+            lam = jnp.exp(lambda_raw)
+            utils = crra_ufn(unique_outcomes, r)
+            log_like = risk_likelihood_ge(utils, gamma, delta, datai_jax, dataf_jax, sid, lam)
+            return log_det_j + log_like
+
+    elif model_key == 'power':
+        from posteriors.common_fns import (
+            gram_logdet_power, crra_ufn, risk_likelihood_power,
+        )
+
+        @jax.jit
+        def log_f(theta_i, sid):
+            r = theta_i[0]
+            delta_raw, lambda_raw = theta_i[1], theta_i[2]
+            log_gram = gram_logdet_power(
+                r, delta_raw, lambda_raw, ref_lotteries, ref_pair)
+            delta = jnp.exp(delta_raw)
+            lam = jnp.exp(lambda_raw)
+            utils = crra_ufn(unique_outcomes, r)
+            log_like = risk_likelihood_power(utils, delta, datai_jax, dataf_jax, sid, lam)
+            return log_gram + log_like
+
+    else:
+        raise ValueError(f"Unknown model key: {model_key}")
+
+    return log_f
+
+
+def _build_log_pop_prior_fn(data):
+    """Build function: log p(theta_i | psi) via the Beta-Beta hierarchy.
+
+    Reference implementation (forward map + _subject_quantity_prior),
+    used by the vectorization unit test.
+    """
+    from posteriors.rdu_bhm_ce import _subject_quantity_prior, _get_indices
+
+    dataf = data["float"]
+    hyperprior_arr = jnp.asarray(dataf[7])
+    ref_lotteries = jnp.asarray(dataf[8])
+    ref_pair = jnp.asarray(dataf[9])
+
+    def log_pop_prior_crra(theta_i, psi):
+        from posteriors.common_fns import full_forward_map
+        r, phi_raw, eta_raw, lambda_raw = theta_i[0], theta_i[1], theta_i[2], theta_i[3]
+        quantities = full_forward_map(r, phi_raw, eta_raw, lambda_raw,
+                                      ref_lotteries, ref_pair)
+        chain_state = jnp.concatenate([theta_i, psi])
+        idx = _get_indices(1)
+        return _subject_quantity_prior(quantities, chain_state, idx, hyperprior_arr)
+
+    def log_pop_prior_ge(theta_i, psi):
+        from posteriors.common_fns import full_forward_map_ge
+        r, gamma_raw, delta_raw, lambda_raw = theta_i[0], theta_i[1], theta_i[2], theta_i[3]
+        quantities = full_forward_map_ge(r, gamma_raw, delta_raw, lambda_raw,
+                                         ref_lotteries, ref_pair)
+        chain_state = jnp.concatenate([theta_i, psi])
+        idx = _get_indices(1)
+        return _subject_quantity_prior(quantities, chain_state, idx, hyperprior_arr)
+
+    def log_pop_prior_power(theta_i, psi):
+        from posteriors.common_fns import full_forward_map_power
+        from posteriors.rdu_power_bhm_ce import _get_indices as _get_indices_power
+        r, delta_raw, lambda_raw = theta_i[0], theta_i[1], theta_i[2]
+        quantities = full_forward_map_power(r, delta_raw, lambda_raw,
+                                             ref_lotteries, ref_pair)
+        chain_state = jnp.concatenate([theta_i, psi])
+        idx = _get_indices_power(1)
+        return _subject_quantity_prior(quantities, chain_state, idx, hyperprior_arr)
+
+    return {
+        'crra': jax.jit(log_pop_prior_crra),
+        'ge': jax.jit(log_pop_prior_ge),
+        'power': jax.jit(log_pop_prior_power),
+    }
+
+
+def _build_log_hyperprior(data):
+    from posteriors.rdu_bhm_ce import _compute_all_hyperpriors, _get_indices
+    dataf = data["float"]
+    hyperprior_arr = jnp.asarray(dataf[7])
+
+    @jax.jit
+    def log_hyperprior(psi):
+        idx = _get_indices(0)
+        return _compute_all_hyperpriors(psi, idx, hyperprior_arr)
+
+    return log_hyperprior
+
+
+def _logsumexp(x):
+    mx = np.max(x)
+    return mx + np.log(np.sum(np.exp(x - mx)))
 
 
 def load_posterior_states(model_key, data_dir, n_samples=None, seed=42):

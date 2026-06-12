@@ -36,10 +36,46 @@ MODEL_REGISTRY = {
         'prior_posterior_module': 'posteriors.rdu_bhm_ce_prior',
         'prior_sampling_module': 'sampling_ce_prior',
     },
+    'ge': {
+        'model_id': 'rdu_ge_bhm_ce',
+        'name': 'CRRA+GE',
+        'color': '#2ca02c',
+        'linestyle': '-',
+        'posterior_module': 'posteriors.rdu_ge_bhm_ce',
+        'sampling_module': 'sampling_ge',
+        'nparams': 4,
+        'n_hyper': 8,
+        'param_names': ['r', 'gamma', 'delta', 'lambda'],
+        'param_labels': [r'$r$', r'$\gamma$', r'$\delta$', r'$\lambda$'],
+        'utility_type': 'crra',
+        'pwf_type': 'ge',
+        'has_prior_only': True,
+        'prior_model_id': 'rdu_ge_bhm_ce_prior',
+        'prior_posterior_module': 'posteriors.rdu_ge_bhm_ce_prior',
+        'prior_sampling_module': 'sampling_ge',
+    },
+    'ep_eut': {
+        'model_id': 'rdu_ep_eut_bhm_ce',
+        'name': 'EP+EUT',
+        'color': '#d62728',
+        'linestyle': '-',
+        'posterior_module': 'posteriors.rdu_ep_eut_bhm_ce',
+        'sampling_module': 'sampling_ep_eut',
+        'nparams': 3,
+        'n_hyper': 8,
+        'param_names': ['alpha', 'r', 'lambda'],
+        'param_labels': [r'$\alpha$', r'$r$', r'$\lambda$'],
+        'utility_type': 'ep',
+        'pwf_type': 'linear',
+        'has_prior_only': True,
+        'prior_model_id': 'rdu_ep_eut_bhm_ce_prior',
+        'prior_posterior_module': 'posteriors.rdu_ep_eut_bhm_ce_prior',
+        'prior_sampling_module': 'sampling_ep_eut',
+    },
     'ep': {
         'model_id': 'rdu_ep_bhm_ce',
         'name': 'EP+TK',
-        'color': '#2ca02c',
+        'color': '#ff7f0e',
         'linestyle': '-',
         'posterior_module': 'posteriors.rdu_ep_bhm_ce',
         'sampling_module': 'sampling_ep',
@@ -137,6 +173,15 @@ def _compute_pwf_weights(cum_probs, pwf_type, pwf_params):
     elif pwf_type == 'power':
         delta = np.maximum(pwf_params['delta'], 0.01)[:, None]
         w_inner = cum_clipped[None, :] ** delta
+    elif pwf_type == 'ge':
+        gamma = np.maximum(pwf_params['gamma'], 0.01)[:, None]
+        delta = np.maximum(pwf_params['delta'], 0.01)[:, None]
+        p_g = cum_clipped[None, :] ** gamma
+        q_g = (1 - cum_clipped[None, :]) ** gamma
+        w_inner = delta * p_g / (delta * p_g + q_g)
+    elif pwf_type == 'linear':
+        # EUT: w(p) = p, no distortion
+        w_inner = np.broadcast_to(cum_clipped[None, :], (n_draws, len(cum_clipped)))
     else:
         raise ValueError(f"Unknown PWF type: {pwf_type}")
 
@@ -248,6 +293,10 @@ def compute_ces_for_lottery(model_key, params_dict, lottery):
         pwf_params = {'gamma': params_dict['gamma']}
     elif pwf_type == 'power':
         pwf_params = {'delta': params_dict['delta']}
+    elif pwf_type == 'ge':
+        pwf_params = {'gamma': params_dict['gamma'], 'delta': params_dict['delta']}
+    elif pwf_type == 'linear':
+        pwf_params = {'_dummy': params_dict['r']}  # no PWF params, just need n_draws
     else:
         raise ValueError(f"Unknown PWF type: {pwf_type}")
     w = _compute_pwf_weights(cum[:-1], pwf_type, pwf_params)

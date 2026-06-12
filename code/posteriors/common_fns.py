@@ -1253,3 +1253,487 @@ def gram_logdet_power(r, delta_raw, lambda_raw, ref_lotteries, ref_pair):
     gram = J.T @ J             # (3, 3)
     sign, logdet = jnp.linalg.slogdet(gram)
     return jnp.where(sign > 0, 0.5 * logdet, -jnp.inf)
+
+
+# =============================================================================
+# Goldstein-Einhorn (1987) Probability Weighting Function
+# =============================================================================
+
+def ge_pwf(p, gamma, delta):
+    """
+    Goldstein-Einhorn (1987) / Lattimore-Baker-Witte (1992) PWF.
+
+    w(p) = delta * p^gamma / (delta * p^gamma + (1-p)^gamma)
+
+    Two parameters controlling:
+        gamma: curvature (discriminability). gamma < 1 gives inverse-S.
+        delta: elevation (attractiveness). delta > 1 is optimistic.
+
+    At delta=1 reduces to the Karmarkar/TK form p^g / (p^g + (1-p)^g).
+
+    Args:
+        p: Probabilities (scalar or array)
+        gamma: Curvature parameter (positive)
+        delta: Elevation parameter (positive)
+
+    Returns:
+        Weighted probabilities (same shape as p)
+    """
+    p = jnp.clip(p, 1e-10, 1 - 1e-10)
+    p_g = jnp.power(p, gamma)
+    q_g = jnp.power(1 - p, gamma)
+    return delta * p_g / (delta * p_g + q_g)
+
+
+# =============================================================================
+# RDU Value with GE Weights (3-outcome)
+# =============================================================================
+
+def rdu_value_3outcome_ge(utilities, gamma, delta, idx_1, idx_2, idx_3,
+                          p1, p2, p3):
+    """
+    Compute RDU value for a 3-outcome lottery using GE decision weights.
+
+    Same structure as rdu_value_3outcome but uses ge_pwf instead of prelec_pwf.
+
+    Args:
+        utilities: Array of precomputed u(x) for unique outcomes
+        gamma: GE curvature parameter (natural scale, positive)
+        delta: GE elevation parameter (natural scale, positive)
+        idx_1, idx_2, idx_3: Indices into utilities for worst/middle/best
+        p1, p2, p3: Probabilities of worst/middle/best outcomes
+
+    Returns:
+        RDU value (scalar)
+    """
+    u1 = utilities[idx_1]
+    u2 = utilities[idx_2]
+    u3 = utilities[idx_3]
+
+    C3 = p3
+    C2 = p2 + p3
+
+    w_C3 = ge_pwf(C3, gamma, delta)
+    w_C2 = ge_pwf(C2, gamma, delta)
+
+    pi3 = w_C3
+    pi2 = w_C2 - w_C3
+    pi1 = 1.0 - w_C2
+
+    return pi1 * u1 + pi2 * u2 + pi3 * u3
+
+
+# =============================================================================
+# Likelihood with GE PWF
+# =============================================================================
+
+def risk_likelihood_ge(utilities, gamma, delta, datai, dataf, sid, lam):
+    """
+    Compute log likelihood for a subject's lottery choices using CRRA + GE PWF.
+
+    Same structure as risk_likelihood but dispatches to rdu_value_3outcome_ge.
+
+    Args:
+        utilities: Precomputed u(x) for all unique outcomes
+        gamma: GE curvature (natural scale, positive)
+        delta: GE elevation (natural scale, positive)
+        datai, dataf: Data arrays (same format as risk_likelihood)
+        sid: Subject index
+        lam: Fechner noise parameter (> 0)
+
+    Returns:
+        Log likelihood (scalar)
+    """
+    choices = datai[0]
+    idx_L_1, idx_L_2, idx_L_3 = datai[1], datai[2], datai[3]
+    idx_R_1, idx_R_2, idx_R_3 = datai[4], datai[5], datai[6]
+    prob_L_1, prob_L_2, prob_L_3 = dataf[1], dataf[2], dataf[3]
+    prob_R_1, prob_R_2, prob_R_3 = dataf[4], dataf[5], dataf[6]
+
+    subj_choices = choices[sid]
+    subj_idx_L_1, subj_idx_L_2, subj_idx_L_3 = idx_L_1[sid], idx_L_2[sid], idx_L_3[sid]
+    subj_idx_R_1, subj_idx_R_2, subj_idx_R_3 = idx_R_1[sid], idx_R_2[sid], idx_R_3[sid]
+    subj_pL1, subj_pL2, subj_pL3 = prob_L_1[sid], prob_L_2[sid], prob_L_3[sid]
+    subj_pR1, subj_pR2, subj_pR3 = prob_R_1[sid], prob_R_2[sid], prob_R_3[sid]
+
+    def choice_log_lik(choice, iL1, iL2, iL3, iR1, iR2, iR3,
+                       pL1, pL2, pL3, pR1, pR2, pR3):
+        v_L = rdu_value_3outcome_ge(utilities, gamma, delta, iL1, iL2, iL3, pL1, pL2, pL3)
+        v_R = rdu_value_3outcome_ge(utilities, gamma, delta, iR1, iR2, iR3, pR1, pR2, pR3)
+
+        u_L1, u_L2, u_L3 = utilities[iL1], utilities[iL2], utilities[iL3]
+        u_R1, u_R2, u_R3 = utilities[iR1], utilities[iR2], utilities[iR3]
+        u_max = jnp.maximum(
+            jnp.maximum(u_L1, jnp.maximum(u_L2, u_L3)),
+            jnp.maximum(u_R1, jnp.maximum(u_R2, u_R3)))
+        u_min = jnp.minimum(
+            jnp.minimum(u_L1, jnp.minimum(u_L2, u_L3)),
+            jnp.minimum(u_R1, jnp.minimum(u_R2, u_R3)))
+        u_range = jnp.maximum(u_max - u_min, 1e-10)
+
+        delta_val = (v_L - v_R) / (lam * u_range)
+        p_choose_L = jax.nn.sigmoid(delta_val)
+        p_choose_L = jnp.clip(p_choose_L, 1e-10, 1 - 1e-10)
+        return choice * jnp.log(p_choose_L) + (1 - choice) * jnp.log(1 - p_choose_L)
+
+    log_liks = jax.vmap(choice_log_lik)(
+        subj_choices,
+        subj_idx_L_1, subj_idx_L_2, subj_idx_L_3,
+        subj_idx_R_1, subj_idx_R_2, subj_idx_R_3,
+        subj_pL1, subj_pL2, subj_pL3,
+        subj_pR1, subj_pR2, subj_pR3)
+
+    return jnp.sum(log_liks)
+
+
+# =============================================================================
+# GE Forward Map and Jacobian
+# =============================================================================
+
+def ce_mapping_3lotteries_ge(r, gamma_raw, delta_raw, ref_lotteries):
+    """
+    Map (r, gamma_raw, delta_raw) -> (CE1, CE2, CE3) for 3 binary reference lotteries.
+
+    Uses CRRA utility with GE probability weighting.
+
+    Args:
+        r: CRRA coefficient
+        gamma_raw: log(gamma) — GE curvature on log scale
+        delta_raw: log(delta) — GE elevation on log scale
+        ref_lotteries: Flat (18,) array, 6 values per lottery:
+            [xlo, xmid, xhi, plo, pmid, phi] per lottery
+
+    Returns:
+        Array of shape (3,) with [CE1, CE2, CE3]
+    """
+    gamma = jnp.exp(gamma_raw)
+    delta = jnp.exp(delta_raw)
+    s = 1 - r
+
+    def ce_for_lottery(lot_idx):
+        base = lot_idx * 6
+        xlo = ref_lotteries[base + 0]
+        xhi = ref_lotteries[base + 2]
+        p_hi = ref_lotteries[base + 5]
+
+        w = ge_pwf(p_hi, gamma, delta)
+
+        use_log = jnp.abs(s) < 1e-10
+        s_safe = jnp.where(use_log, 1.0, s)
+
+        inner = w * jnp.power(xhi, s_safe) + (1 - w) * jnp.power(xlo, s_safe)
+        ce_power = jnp.power(jnp.maximum(inner, 1e-30), 1.0 / s_safe)
+
+        M = w * jnp.log(xhi) + (1 - w) * jnp.log(xlo)
+        ce_log = jnp.exp(M)
+
+        return jnp.where(use_log, ce_log, ce_power)
+
+    ce1 = ce_for_lottery(0)
+    ce2 = ce_for_lottery(1)
+    ce3 = ce_for_lottery(2)
+    return jnp.array([ce1, ce2, ce3])
+
+
+def choice_probability_ref_ge(r, gamma_raw, delta_raw, lambda_raw, ref_pair):
+    """
+    Compute P(choose A) for the reference pair under CRRA + GE.
+
+    Same structure as choice_probability_ref but with GE PWF.
+
+    Args:
+        r, gamma_raw, delta_raw, lambda_raw: Parameters
+        ref_pair: Flat (12,) array [A_outcomes(3), A_probs(3), B_outcomes(3), B_probs(3)]
+
+    Returns:
+        P(choose A) in (0, 1)
+    """
+    gamma = jnp.exp(gamma_raw)
+    delta = jnp.exp(delta_raw)
+    lam = jnp.exp(lambda_raw)
+
+    u_A = crra_ufn(ref_pair[0:3], r)
+    u_B = crra_ufn(ref_pair[6:9], r)
+    all_u = jnp.concatenate([u_A, u_B])
+    u_range = jnp.maximum(jnp.max(all_u) - jnp.min(all_u), 1e-10)
+
+    p_A = ref_pair[3:6]
+    p_B = ref_pair[9:12]
+
+    def rdu_val(u, p):
+        C3 = p[2]
+        C2 = p[1] + p[2]
+        w_C3 = ge_pwf(C3, gamma, delta)
+        w_C2 = ge_pwf(C2, gamma, delta)
+        pi3 = w_C3
+        pi2 = w_C2 - w_C3
+        pi1 = 1.0 - w_C2
+        return pi1 * u[0] + pi2 * u[1] + pi3 * u[2]
+
+    V_A = rdu_val(u_A, p_A)
+    V_B = rdu_val(u_B, p_B)
+    diff = (V_A - V_B) / (lam * u_range)
+    return jax.nn.sigmoid(diff)
+
+
+def full_forward_map_ge(r, gamma_raw, delta_raw, lambda_raw,
+                        ref_lotteries, ref_pair):
+    """
+    Full 4D forward map: (r, gamma_raw, delta_raw, lambda_raw) -> (CE1, CE2, CE3, P_choice).
+
+    Args:
+        r, gamma_raw, delta_raw, lambda_raw: Model parameters (scalars)
+        ref_lotteries: Flat (18,) array
+        ref_pair: Flat (12,) array
+
+    Returns:
+        Array of shape (4,) with [CE1, CE2, CE3, P_choice]
+    """
+    ces = ce_mapping_3lotteries_ge(r, gamma_raw, delta_raw, ref_lotteries)
+    p_choice = choice_probability_ref_ge(r, gamma_raw, delta_raw, lambda_raw, ref_pair)
+    return jnp.concatenate([ces, jnp.array([p_choice])])
+
+
+def full_jacobian_logabsdet_ge(r, gamma_raw, delta_raw, lambda_raw,
+                               ref_lotteries, ref_pair):
+    """
+    Compute log|det J| of the full 4D forward map — analytic decomposition.
+
+    Decomposes as:
+      log|det J| = log|det J_W| + log|det J_CE| + log|dP/dlambda_raw|
+
+    Component 1 (GE W map): 2x2 determinant d(w1,w2)/d(gamma_raw, delta_raw).
+    Component 2 (CE map): 3x3 determinant in (r, w1, w2) space.
+    Component 3 (choice probability): dP/dlambda_raw.
+
+    Args:
+        r, gamma_raw, delta_raw, lambda_raw: Parameters
+        ref_lotteries: Flat (18,) array
+        ref_pair: Flat (12,) array
+
+    Returns:
+        log|det J| (scalar)
+    """
+    gamma = jnp.exp(gamma_raw)
+    delta = jnp.exp(delta_raw)
+    lam = jnp.exp(lambda_raw)
+    s = 1 - r
+
+    # --- Component 1: GE W map ---
+    # w(p) = delta * p^g / (delta * p^g + (1-p)^g)
+    # d(w)/d(gamma_raw) = dw/dgamma * gamma  (chain rule through exp)
+    # d(w)/d(delta_raw) = dw/ddelta * delta
+    #
+    # dw/dgamma = delta * p^g * (1-p)^g * [ln(p) * (1-p)^g + ln(1-p) * delta * p^g]
+    #            ... actually let's use: w = delta*A / (delta*A + B) where A=p^g, B=(1-p)^g
+    # dw/dgamma = delta * (A'*B - A*B') / (delta*A + B)^2 ... with A'=p^g*ln(p), B'=(1-p)^g*ln(1-p)
+    # dw/ddelta = A * B / (delta*A + B)^2  (= w*(1-w)/delta)
+
+    p1 = ref_lotteries[5]    # P(best) for L1
+    p2 = ref_lotteries[11]   # P(best) for L2
+
+    def ge_w_and_derivs(p):
+        """Compute w, dw/d(gamma_raw), dw/d(delta_raw) for GE PWF."""
+        A = jnp.power(p, gamma)
+        B = jnp.power(1 - p, gamma)
+        denom = delta * A + B
+        w = delta * A / denom
+
+        # dw/dgamma: derivative of w w.r.t. gamma
+        A_prime = A * jnp.log(p)         # d(p^g)/dg = p^g * ln(p)
+        B_prime = B * jnp.log(1 - p)     # d((1-p)^g)/dg = (1-p)^g * ln(1-p)
+        dw_dgamma = delta * (A_prime * B - A * B_prime) / (denom ** 2)
+
+        # dw/ddelta: derivative of w w.r.t. delta
+        dw_ddelta = A * B / (denom ** 2)
+
+        # Chain rule for raw params: d/d(gamma_raw) = dw/dgamma * gamma
+        #                             d/d(delta_raw) = dw/ddelta * delta
+        dw_dgamma_raw = dw_dgamma * gamma
+        dw_ddelta_raw = dw_ddelta * delta
+
+        return w, dw_dgamma_raw, dw_ddelta_raw
+
+    w1, dw1_dg, dw1_dd = ge_w_and_derivs(p1)
+    w2, dw2_dg, dw2_dd = ge_w_and_derivs(p2)
+
+    # det of 2x2 W map: |dw1/dg * dw2/dd - dw1/dd * dw2/dg|
+    det_W = dw1_dg * dw2_dd - dw1_dd * dw2_dg
+    log_det_W = jnp.log(jnp.abs(det_W))
+
+    # --- Component 2: CE map in (r, w1, w2) space ---
+    # Same as Prelec: uses _ce_and_derivs which only depends on (w, xlo, xhi, s)
+    w3 = w1  # L3 uses same probability as L1 (p_hi = 0.25)
+    xlo1, xhi1 = ref_lotteries[0], ref_lotteries[2]
+    xlo2, xhi2 = ref_lotteries[6], ref_lotteries[8]
+    xlo3, xhi3 = ref_lotteries[12], ref_lotteries[14]
+
+    _, dce1_dw1, dce1_dr = _ce_and_derivs(w1, xlo1, xhi1, s)
+    _, dce2_dw2, dce2_dr = _ce_and_derivs(w2, xlo2, xhi2, s)
+    _, dce3_dw1, dce3_dr = _ce_and_derivs(w3, xlo3, xhi3, s)
+
+    det_CE = dce2_dw2 * (dce1_dr * dce3_dw1 - dce3_dr * dce1_dw1)
+    log_det_CE = jnp.log(jnp.abs(det_CE))
+
+    # --- Component 3: dP/dlambda_raw ---
+    u_A = crra_ufn(ref_pair[0:3], r)
+    u_B = crra_ufn(ref_pair[6:9], r)
+    all_u = jnp.concatenate([u_A, u_B])
+    u_range = jnp.maximum(jnp.max(all_u) - jnp.min(all_u), 1e-10)
+
+    p_A = ref_pair[3:6]
+    p_B = ref_pair[9:12]
+
+    def rdu_val(u, p):
+        C3 = p[2]
+        C2 = p[1] + p[2]
+        w_C3 = ge_pwf(C3, gamma, delta)
+        w_C2 = ge_pwf(C2, gamma, delta)
+        pi3 = w_C3
+        pi2 = w_C2 - w_C3
+        pi1 = 1.0 - w_C2
+        return pi1 * u[0] + pi2 * u[1] + pi3 * u[2]
+
+    V_A = rdu_val(u_A, p_A)
+    V_B = rdu_val(u_B, p_B)
+    diff = (V_A - V_B) / (lam * u_range)
+    P_val = jax.nn.sigmoid(diff)
+    log_dP = jnp.log(jnp.abs(diff)) + jnp.log(P_val) + jnp.log(1 - P_val)
+
+    return log_det_W + log_det_CE + log_dP
+
+
+# =============================================================================
+# EP+EUT (Expo-Power utility, linear PWF) — k=4 > p=3, Gram determinant
+# =============================================================================
+
+def eu_value_3outcome_ep(utilities, idx_1, idx_2, idx_3, p1, p2, p3):
+    """Expected utility for a 3-outcome lottery (linear PWF = EUT).
+
+    EU = p1*U(x1) + p2*U(x2) + p3*U(x3)
+    """
+    return p1 * utilities[idx_1] + p2 * utilities[idx_2] + p3 * utilities[idx_3]
+
+
+def risk_likelihood_ep_eut(utilities, datai, dataf, sid, lam):
+    """Log likelihood for EP+EUT (linear PWF). Decision weights = probabilities."""
+    choices = datai[0]
+    idx_L_1, idx_L_2, idx_L_3 = datai[1], datai[2], datai[3]
+    idx_R_1, idx_R_2, idx_R_3 = datai[4], datai[5], datai[6]
+    prob_L_1, prob_L_2, prob_L_3 = dataf[1], dataf[2], dataf[3]
+    prob_R_1, prob_R_2, prob_R_3 = dataf[4], dataf[5], dataf[6]
+
+    subj_choices = choices[sid]
+    subj_idx_L_1, subj_idx_L_2, subj_idx_L_3 = idx_L_1[sid], idx_L_2[sid], idx_L_3[sid]
+    subj_idx_R_1, subj_idx_R_2, subj_idx_R_3 = idx_R_1[sid], idx_R_2[sid], idx_R_3[sid]
+    subj_pL1, subj_pL2, subj_pL3 = prob_L_1[sid], prob_L_2[sid], prob_L_3[sid]
+    subj_pR1, subj_pR2, subj_pR3 = prob_R_1[sid], prob_R_2[sid], prob_R_3[sid]
+
+    def choice_log_lik(choice, iL1, iL2, iL3, iR1, iR2, iR3,
+                       pL1, pL2, pL3, pR1, pR2, pR3):
+        v_L = eu_value_3outcome_ep(utilities, iL1, iL2, iL3, pL1, pL2, pL3)
+        v_R = eu_value_3outcome_ep(utilities, iR1, iR2, iR3, pR1, pR2, pR3)
+
+        u_L1, u_L2, u_L3 = utilities[iL1], utilities[iL2], utilities[iL3]
+        u_R1, u_R2, u_R3 = utilities[iR1], utilities[iR2], utilities[iR3]
+        u_max = jnp.maximum(
+            jnp.maximum(u_L1, jnp.maximum(u_L2, u_L3)),
+            jnp.maximum(u_R1, jnp.maximum(u_R2, u_R3)))
+        u_min = jnp.minimum(
+            jnp.minimum(u_L1, jnp.minimum(u_L2, u_L3)),
+            jnp.minimum(u_R1, jnp.minimum(u_R2, u_R3)))
+        u_range = jnp.maximum(u_max - u_min, 1e-10)
+
+        delta_val = (v_L - v_R) / (lam * u_range)
+        p_choose_L = jax.nn.sigmoid(delta_val)
+        p_choose_L = jnp.clip(p_choose_L, 1e-10, 1 - 1e-10)
+        return choice * jnp.log(p_choose_L) + (1 - choice) * jnp.log(1 - p_choose_L)
+
+    log_liks = jax.vmap(choice_log_lik)(
+        subj_choices,
+        subj_idx_L_1, subj_idx_L_2, subj_idx_L_3,
+        subj_idx_R_1, subj_idx_R_2, subj_idx_R_3,
+        subj_pL1, subj_pL2, subj_pL3,
+        subj_pR1, subj_pR2, subj_pR3)
+
+    return jnp.sum(log_liks)
+
+
+def full_forward_map_ep_eut(alpha, r, lambda_raw, ref_lotteries, ref_pair):
+    """Forward map (alpha, r, lambda_raw) -> (CE1, CE2, CE3, P_choice) for EP+EUT.
+
+    Under EUT (linear PWF), CE depends only on (alpha, r) through EP utility.
+    P_choice depends on (alpha, r, lambda).
+
+    Args:
+        alpha: EP curvature (unrestricted)
+        r: Risk aversion coefficient
+        lambda_raw: log(lambda)
+        ref_lotteries: Flat (18,) array
+        ref_pair: Flat (12,) array
+
+    Returns:
+        Array of shape (4,) with [CE1, CE2, CE3, P_choice]
+    """
+    lam = jnp.exp(lambda_raw)
+
+    def ce_for_lottery(lot_idx):
+        base = lot_idx * 6
+        xlo = ref_lotteries[base + 0]
+        xhi = ref_lotteries[base + 2]
+        p_lo = ref_lotteries[base + 3]
+        p_hi = ref_lotteries[base + 5]
+
+        # EU under linear PWF: EU = p_lo * u(xlo) + p_hi * u(xhi)
+        u_lo = ep_ufn(xlo, alpha, r)
+        u_hi = ep_ufn(xhi, alpha, r)
+        eu_val = p_lo * u_lo + p_hi * u_hi
+
+        # Invert to get CE
+        return ep_inverse(eu_val, alpha, r)
+
+    ce1 = ce_for_lottery(0)
+    ce2 = ce_for_lottery(1)
+    ce3 = ce_for_lottery(2)
+
+    # Choice probability for reference pair
+    u_A = ep_ufn(ref_pair[0:3], alpha, r)
+    u_B = ep_ufn(ref_pair[6:9], alpha, r)
+    all_u = jnp.concatenate([u_A, u_B])
+    u_range = jnp.maximum(jnp.max(all_u) - jnp.min(all_u), 1e-10)
+
+    p_A = ref_pair[3:6]
+    p_B = ref_pair[9:12]
+
+    # EU values under linear PWF
+    eu_A = jnp.dot(p_A, u_A)
+    eu_B = jnp.dot(p_B, u_B)
+
+    diff = (eu_A - eu_B) / (lam * u_range)
+    p_choice = jax.nn.sigmoid(diff)
+
+    return jnp.array([ce1, ce2, ce3, p_choice])
+
+
+def gram_logdet_ep_eut(alpha, r, lambda_raw, ref_lotteries, ref_pair):
+    """Gram determinant log(sqrt(det(J^T J))) for EP+EUT (k=4 > p=3).
+
+    Uses JAX autodiff to compute the 4x3 Jacobian, then the Gram matrix.
+
+    Args:
+        alpha, r, lambda_raw: EP+EUT parameters
+        ref_lotteries: Flat (18,) array
+        ref_pair: Flat (12,) array
+
+    Returns:
+        log(sqrt(det(J^T J))) (scalar). Returns -inf if rank-deficient.
+    """
+    def f(theta):
+        return full_forward_map_ep_eut(theta[0], theta[1], theta[2],
+                                       ref_lotteries, ref_pair)
+
+    theta = jnp.array([alpha, r, lambda_raw])
+    J = jax.jacfwd(f)(theta)  # (4, 3)
+    gram = J.T @ J             # (3, 3)
+    sign, logdet = jnp.linalg.slogdet(gram)
+    return jnp.where(sign > 0, 0.5 * logdet, -jnp.inf)

@@ -197,7 +197,7 @@ def gen_paper_data(output_path=None,
             if val.ndim == 0 or (isinstance(val, np.ndarray) and val.size == 1):
                 save_dict[key] = val
         print(f"\nLoaded MCMC diagnostics from: {diag_path}")
-        for model in ['crra', 'ep', 'power']:
+        for model in ['crra', 'ge', 'power']:
             med = diag.get(f'{model}_rhat_median', np.nan)
             mx = diag.get(f'{model}_rhat_max', np.nan)
             acc = diag.get(f'{model}_accept_mean', np.nan)
@@ -206,11 +206,11 @@ def gen_paper_data(output_path=None,
         print(f"\nSkipping MCMC diagnostics (run do_mcmc_diagnostics first)")
 
     # Cross-model comparison (from preprocessed posteriors for all 3 models)
-    ep_hyper_path = output_path.parent / 'rdu_ep_bhm_ce' / 'preprocessed' / 'hyperparams_preprocessed.npz'
+    ge_hyper_path = output_path.parent / 'rdu_ge_bhm_ce' / 'preprocessed' / 'hyperparams_preprocessed.npz'
     power_hyper_path = output_path.parent / 'rdu_power_bhm_ce' / 'preprocessed' / 'hyperparams_preprocessed.npz'
 
     model_hypers = {
-        'ep': ep_hyper_path,
+        'ge': ge_hyper_path,
         'power': power_hyper_path,
     }
     available_models = {k: v for k, v in model_hypers.items() if v.exists()}

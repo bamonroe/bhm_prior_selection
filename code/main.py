@@ -123,6 +123,17 @@ INJECTIVITY_CONFIG = {
     },
 }
 
+# CRRA+Power injectivity analysis configuration (Gram determinant, k=4 > p=3)
+INJECTIVITY_POWER_CONFIG = {
+    'domain': {
+        'r': (0.01, 0.98),
+        'delta': (0.1, 3.0),
+    },
+    'n_grid': 40,
+    'x_min': 10.0,
+    'x_max': 50.0,
+}
+
 # =============================================================================
 # Dataset Configuration
 # =============================================================================
@@ -170,6 +181,15 @@ RK_SENSITIVITY_CONFIGS = [
     (0.8, 1.50),   # most variance from mean uncertainty, uncertain
 ]
 
+# Thermodynamic integration configuration
+TI_CONFIG = {
+    'n_temps': 8,          # Number of temperature levels (including endpoints)
+    'beta_min': 0.01,      # Coldest temperature (near-prior)
+    'reset_runs': 1,       # Fresh runs per temperature level
+    'resume_runs': 1,      # Resume runs per level
+    'num_collect': 100,    # Collections per run
+}
+
 sampling_opts_ce = {
     'model': 'rdu_bhm_ce',
     'output_dir': DATA_DIR / 'output',
@@ -187,6 +207,42 @@ sampling_opts_ce = {
     'beta_min': 0.1,
 }
 
+
+# CRRA + Goldstein-Einhorn model config (same quantity-space Beta-Beta prior)
+sampling_opts_ge = {
+    'model': 'rdu_ge_bhm_ce',
+    'output_dir': DATA_DIR / 'output',
+    'plots_dir': PLOTS_DIR / 'rdu_ge_bhm_ce',
+    'clean': True,
+    'reset_runs': 1,
+    'resume_runs': 5,
+    'num_chains': 1000,
+    'num_collect': 100,
+    'thin_iteration': 10,
+    'chunk_size': 10,
+    'seed': SEEDS['sampling'],
+    'use_double': True,
+    'n_temperatures': 0,
+    'beta_min': 0.1,
+}
+
+# Expo-Power + EUT model config (k=4 > p=3, same quantity-space Beta-Beta prior)
+sampling_opts_ep_eut = {
+    'model': 'rdu_ep_eut_bhm_ce',
+    'output_dir': DATA_DIR / 'output',
+    'plots_dir': PLOTS_DIR / 'rdu_ep_eut_bhm_ce',
+    'clean': True,
+    'reset_runs': 1,
+    'resume_runs': 5,
+    'num_chains': 1000,
+    'num_collect': 100,
+    'thin_iteration': 10,
+    'chunk_size': 10,
+    'seed': SEEDS['sampling'],
+    'use_double': True,
+    'n_temperatures': 0,
+    'beta_min': 0.1,
+}
 
 # Expo-Power + TK92 model config (same quantity-space Beta-Beta prior)
 sampling_opts_ep = {
@@ -264,10 +320,11 @@ do_sensitivity          = False
 do_family_comparison    = False
 
 # --- Per-Model Flags (keyed by model registry key) ---
-do_sampling       = {'crra': False, 'ep': False, 'power': False}
-do_sampling_prior = {'crra': False, 'power': False}
-do_preprocessing  = {'crra': False, 'ep': False, 'power': False}
-do_diagnostic_plots = {'crra': False, 'ep': False, 'power': False}
+do_sampling       = {'crra': False, 'ge': False, 'ep_eut': False, 'ep': False, 'power': False}
+do_sampling_prior = {'crra': False, 'ge': False, 'ep_eut': False, 'power': False}
+do_prior_only_plots = {'crra': False, 'ge': False, 'ep_eut': False, 'power': False}
+do_preprocessing  = {'crra': False, 'ge': False, 'ep_eut': False, 'ep': False, 'power': False}
+do_diagnostic_plots = {'crra': False, 'ge': False, 'ep_eut': False, 'ep': False, 'power': False}
 
 # --- Stan (separate, not in registry) ---
 do_sampling_stan           = False
@@ -282,10 +339,20 @@ do_subject_ce_plots              = False
 
 # --- Diagnostics ---
 do_mcmc_diagnostics        = False
+do_bayes_factors           = False
+
+# --- Corrected RB marginal likelihoods ---
+do_ml_validation           = False
+do_bayes_factors_rb2       = False
+
+# --- Thermodynamic Integration (independent runs) ---
+do_ti_sampling = {'crra': False, 'ge': False, 'power': False}
+do_ti_compute  = False
 
 # --- Appendix Analyses ---
 do_rk_sensitivity          = False
 do_injectivity_analysis    = False
+do_injectivity_power       = False
 
 # --- Document Compilation ---
 do_compile_doc          = False
@@ -369,6 +436,8 @@ if __name__ == '__main__':
 
     sampling_opts_map = {
         'crra': sampling_opts_ce,
+        'ge': sampling_opts_ge,
+        'ep_eut': sampling_opts_ep_eut,
         'ep': sampling_opts_ep,
         'power': sampling_opts_power,
     }
@@ -398,6 +467,50 @@ if __name__ == '__main__':
         # --- Preprocessing ---
         if do_preprocessing.get(model_key, False):
             pipelines.run_preprocess_model(model_key)
+
+        # --- Prior-only preprocessing and plots ---
+        if do_prior_only_plots.get(model_key, False) and cfg.get('has_prior_only', False):
+            prior_model_id = cfg['prior_model_id']
+            prior_data_dir = DATA_DIR / 'output' / prior_model_id
+            prior_history_dir = prior_data_dir / 'history' / 'full'
+            prior_preproc_dir = prior_data_dir / 'preprocessed'
+            prior_plots_dir = PLOTS_DIR / prior_model_id
+
+            if prior_history_dir.exists():
+                from plotting import (preprocess_hyperparams_ce,
+                                      preprocess_subjects,
+                                      plot_hyperparams_ce_from_preprocessed,
+                                      parallel_plot_subjects)
+
+                print(f"\n  Preprocessing prior-only: {cfg['name']}")
+                preprocess_hyperparams_ce(
+                    prior_history_dir, prior_preproc_dir, force=True,
+                    nparams=cfg['nparams'], n_hyper=cfg['n_hyper'])
+                preprocess_subjects(
+                    prior_history_dir, prior_preproc_dir / 'subjects', force=True,
+                    nparams=cfg['nparams'], n_hyper=cfg['n_hyper'],
+                    param_names=cfg['param_names'])
+
+                print(f"  Plotting prior-only hyperparams: {cfg['name']}")
+                hyper_preproc = prior_preproc_dir / 'hyperparams_preprocessed.npz'
+                if hyper_preproc.exists():
+                    plot_hyperparams_ce_from_preprocessed(
+                        str(hyper_preproc),
+                        str(prior_plots_dir / 'hyperparams'))
+
+                print(f"  Plotting prior-only subjects: {cfg['name']}")
+                subjects_dir = prior_preproc_dir / 'subjects'
+                if subjects_dir.exists() and (subjects_dir / 'metadata.npz').exists():
+                    import numpy as _np
+                    meta = _np.load(subjects_dir / 'metadata.npz')
+                    pipelines.run_subject_plots(
+                        prior_history_dir,
+                        prior_plots_dir,
+                        n_workers=1,
+                        preprocessed_dir=subjects_dir,
+                        config=DIAGNOSTIC_PLOT_CONFIG)
+            else:
+                print(f"  Skipping prior-only plots for {cfg['name']}: no history files")
 
         # --- Diagnostic plots ---
         if do_diagnostic_plots.get(model_key, False):
@@ -432,6 +545,56 @@ if __name__ == '__main__':
         from mcmc_diagnostics import run_all_diagnostics
         run_all_diagnostics(DATA_DIR / 'output' / 'mcmc_diagnostics.npz')
 
+    if do_bayes_factors:
+        from bayes_factors import compute_bayes_factors
+        compute_bayes_factors(
+            model_keys=['crra', 'ge', 'power'],
+            data_dir=DATA_DIR / 'output',
+            output_path=DATA_DIR / 'output' / 'bayes_factors.npz',
+            n_samples=10000,
+            seed=SEEDS['sampling'],
+        )
+
+    if do_ml_validation:
+        from ml_validation import run_ml_validation
+        run_ml_validation(
+            data_dir=DATA_DIR / 'output',
+            output_path=DATA_DIR / 'output' / 'ml_validation.npz',
+        )
+
+    if do_bayes_factors_rb2:
+        from marginal_likelihood import compute_marginal_likelihoods
+        compute_marginal_likelihoods(
+            model_keys=['crra', 'ge', 'power'],
+            data_dir=DATA_DIR / 'output',
+            output_path=DATA_DIR / 'output' / 'bayes_factors_rb2.npz',
+            seed=SEEDS['sampling'],
+        )
+
+    # -------------------------------------------------------------------------
+    # Thermodynamic Integration (Independent Runs)
+    # -------------------------------------------------------------------------
+    for model_key in ['crra', 'ge', 'power']:
+        if do_ti_sampling.get(model_key, False):
+            check_dependency(f'ti_sampling_{model_key}', ['clean_data'])
+            pipelines.run_ti_sampling(
+                model_key, sampling_opts_map[model_key],
+                ref_lotteries=REFERENCE_LOTTERIES,
+                ref_pair=REFERENCE_PAIR,
+                prior_params_path=prior_params_ce_path,
+                ti_config=TI_CONFIG,
+            )
+
+    if do_ti_compute:
+        pipelines.run_ti_compute(
+            model_keys=['crra', 'ge', 'power'],
+            data_dir=DATA_DIR / 'output',
+            ti_config=TI_CONFIG,
+            output_path=DATA_DIR / 'output' / 'bayes_factors_ti.npz',
+            ref_lotteries=REFERENCE_LOTTERIES,
+            ref_pair=REFERENCE_PAIR,
+        )
+
     # -------------------------------------------------------------------------
     # Paper Plots
     # -------------------------------------------------------------------------
@@ -452,6 +615,7 @@ if __name__ == '__main__':
         if hyper_paths.get('crra'):
             generate_cross_model_ce_overlay(
                 crra_hyper_path=hyper_paths['crra'],
+                ge_hyper_path=hyper_paths.get('ge'),
                 ep_hyper_path=hyper_paths.get('ep'),
                 power_hyper_path=hyper_paths.get('power'),
                 prior_params_path=str(DATA_DIR / 'output' / 'prior_params_ce.npz'),
@@ -459,11 +623,12 @@ if __name__ == '__main__':
                 seed=SEEDS['sampling'],
             )
 
-        if all(subj_dirs.get(mk) for mk in MODEL_REGISTRY):
+        if subj_dirs.get('crra'):
             generate_subject_detail_figures(
                 crra_subjects_dir=subj_dirs['crra'],
-                ep_subjects_dir=subj_dirs['ep'],
-                power_subjects_dir=subj_dirs['power'],
+                ge_subjects_dir=subj_dirs.get('ge'),
+                ep_subjects_dir=subj_dirs.get('ep'),
+                power_subjects_dir=subj_dirs.get('power'),
                 output_dir=str(paper_plots_dir),
                 seed=SEEDS['sampling'],
             )
@@ -519,6 +684,13 @@ if __name__ == '__main__':
         pipelines.run_injectivity_analysis(
             output_dir=PLOTS_DIR / 'injectivity',
             config=INJECTIVITY_CONFIG,
+        )
+
+    if do_injectivity_power:
+        pipelines.run_injectivity_power(
+            output_dir=PLOTS_DIR / 'injectivity',
+            reference_lotteries=REFERENCE_LOTTERIES,
+            config=INJECTIVITY_POWER_CONFIG,
         )
 
     # -------------------------------------------------------------------------

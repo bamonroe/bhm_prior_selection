@@ -108,8 +108,13 @@ def run_sampling_model(model_key, sampling_opts, ref_lotteries, ref_pair,
 
 
 def run_sampling_prior(model_key, sampling_opts, ref_lotteries, ref_pair,
-                       prior_params_path=None):
-    """Run prior-only MCMC sampling for any registered model with a prior-only variant."""
+                       prior_params_path=None, n_subjects=1):
+    """Run prior-only MCMC sampling for any registered model with a prior-only variant.
+
+    Uses a single subject by default (n_subjects=1) since prior-only sampling
+    does not use the data likelihood, and one subject is sufficient to
+    characterize the induced prior while being much faster.
+    """
     import importlib
     from model_registry import MODEL_REGISTRY
 
@@ -119,7 +124,7 @@ def run_sampling_prior(model_key, sampling_opts, ref_lotteries, ref_pair,
         return
 
     print("\n" + "=" * 60)
-    print(f"Running: Prior-Only Sampling ({cfg['name']})")
+    print(f"Running: Prior-Only Sampling ({cfg['name']}, {n_subjects} subject(s))")
     print("=" * 60)
 
     from bamcmc.mcmc.compile import get_compiled_kernel_cache
@@ -140,9 +145,60 @@ def run_sampling_prior(model_key, sampling_opts, ref_lotteries, ref_pair,
         print(f"  Deleted {len(result['deleted_checkpoints'])} checkpoints")
         print(f"  Deleted {len(result['deleted_histories'])} histories")
 
-    samp_mod = importlib.import_module(cfg['prior_sampling_module'])
-    run_fn = getattr(samp_mod, 'run_sampling_prior', samp_mod.run_sampling)
-    _run_sampling_dispatch(sampling_opts, ref_lotteries, ref_pair, run_fn)
+    # Build data with reduced subject count for prior-only sampling
+    from clean_data import load_clean_data, make_bamcmc_data_indexed
+    from sampling_ce import pack_ref_lotteries, pack_ref_pair
+
+    clean_data = load_clean_data()
+    indexed_data = make_bamcmc_data_indexed(clean_data)
+
+    # Reduce to n_subjects
+    indexed_data['static'] = (n_subjects,) + indexed_data['static'][1:]
+    indexed_data['int'] = tuple(arr[:n_subjects] for arr in indexed_data['int'])
+    indexed_data['float'] = tuple(
+        arr[:n_subjects] if arr.ndim > 0 and arr.shape[0] > n_subjects else arr
+        for arr in indexed_data['float']
+    )
+
+    # Append hyperprior, ref lottery, ref pair
+    from posteriors.rdu_bhm_ce import get_hyperprior_array
+    hyperprior_arr = get_hyperprior_array()
+    indexed_data['float'] = indexed_data['float'] + (hyperprior_arr,)
+    ref_lot_arr = pack_ref_lotteries(ref_lotteries)
+    indexed_data['float'] = indexed_data['float'] + (ref_lot_arr,)
+    ref_pair_arr = pack_ref_pair(ref_pair)
+    indexed_data['float'] = indexed_data['float'] + (ref_pair_arr,)
+
+    from pathlib import Path
+    from bamcmc import rmcmc
+
+    output_dir = Path(sampling_opts['output_dir'])
+    num_chains = sampling_opts.get('num_chains', 200)
+
+    mcmc_config = {
+        'posterior_id': cfg['prior_model_id'],
+        'num_chains_a': num_chains,
+        'num_chains_b': num_chains,
+        'burn_iter': 0,
+        'num_collect': sampling_opts.get('num_collect', 200),
+        'thin_iteration': sampling_opts.get('thin_iteration', 10),
+        'chunk_size': sampling_opts.get('chunk_size', 10),
+        'rng_seed': sampling_opts.get('seed', 42),
+        'use_double': sampling_opts.get('use_double', True),
+        'n_temperatures': 1,
+        'beta_min': 0.1,
+        'per_temp_proposals': True,
+        'use_deo': True,
+        'run_schedule': [('reset', 1), ('resume', 4)],
+    }
+
+    print(f"  Subjects: {n_subjects}")
+    print(f"  Chains: {num_chains}+{num_chains}")
+    print(f"  Runs: 5 (1 reset + 4 resume)")
+
+    summary = rmcmc(mcmc_config, indexed_data, output_dir=str(output_dir),
+                    calculate_rhat=True, burn_in_fresh=True)
+    print(f"  Completed {summary['total_runs_completed']} runs")
     print("Done.\n")
 
 
@@ -169,6 +225,37 @@ def _run_sampling_dispatch(sampling_opts, ref_lotteries, ref_pair, run_fn):
             'use_deo': sampling_opts.get('use_deo', True),
         },
     )
+
+
+def run_ti_sampling(model_key, sampling_opts, ref_lotteries, ref_pair,
+                    prior_params_path, ti_config):
+    """Run TI independent sampling for one model."""
+    from model_registry import MODEL_REGISTRY
+    cfg = MODEL_REGISTRY[model_key]
+
+    print("\n" + "=" * 60)
+    print(f"Running: TI Sampling ({cfg['name']}, "
+          f"{ti_config['n_temps']} temps, "
+          f"beta_min={ti_config['beta_min']})")
+    print("=" * 60)
+
+    from ti_independent import run_ti_sampling as _run
+    _run(model_key, sampling_opts, ref_lotteries, ref_pair,
+         prior_params_path, ti_config)
+    print("Done.\n")
+
+
+def run_ti_compute(model_keys, data_dir, ti_config, output_path,
+                   ref_lotteries, ref_pair):
+    """Compute Bayes factors from TI independent runs."""
+    print("\n" + "=" * 60)
+    print("Running: TI Bayes Factor Computation")
+    print("=" * 60)
+
+    from ti_independent import compute_ti_bayes_factors as _run
+    _run(model_keys, str(data_dir), ti_config, str(output_path),
+         ref_lotteries, ref_pair)
+    print("Done.\n")
 
 
 def run_sampling_stan(sampling_opts, ref_lotteries, ref_pair,
@@ -396,12 +483,58 @@ def run_subject_plots(history_dir, plots_dir, n_workers=1, preprocessed_dir=None
 
 
 def run_injectivity_analysis(output_dir, config=None):
-    """Run CE mapping injectivity analysis for appendix."""
+    """Run CE mapping injectivity analysis for appendix (CRRA+Prelec)."""
     print("\n" + "=" * 60)
-    print("Running: CE Mapping Injectivity Analysis")
+    print("Running: CE Mapping Injectivity Analysis (CRRA+Prelec)")
     print("=" * 60)
     from injectivity_analysis import run_injectivity_analysis as _run
     _run(output_dir, config=config)
+    print("Done.\n")
+
+
+def run_injectivity_power(output_dir, reference_lotteries, config=None):
+    """Run CRRA+Power injectivity analysis (Gram determinant, k=4 > p=3)."""
+    print("\n" + "=" * 60)
+    print("Running: CRRA+Power Injectivity Analysis")
+    print("=" * 60)
+    from injectivity_power import run_injectivity_power as _run
+    config = config or {}
+    _run(
+        output_dir=output_dir,
+        reference_lotteries=reference_lotteries,
+        domain=config.get('domain'),
+        n_grid=config.get('n_grid', 40),
+        x_min=config.get('x_min', 10.0),
+        x_max=config.get('x_max', 50.0),
+    )
+    print("Done.\n")
+
+
+def run_injectivity_ep_eut(output_dir, reference_lotteries, config=None):
+    """Run EP+EUT injectivity analysis (Gram determinant, k=4 > p=3).
+
+    Parameters
+    ----------
+    output_dir : Path
+        Output directory for report and NPZ files.
+    reference_lotteries : list of dict
+        Current lottery design from main.py.
+    config : dict, optional
+        Keys: 'domain', 'n_grid', 'x_min', 'x_max'.
+    """
+    print("\n" + "=" * 60)
+    print("Running: EP+EUT Injectivity Analysis")
+    print("=" * 60)
+    from injectivity_ep_eut import run_injectivity_ep_eut as _run
+    config = config or {}
+    _run(
+        output_dir=output_dir,
+        reference_lotteries=reference_lotteries,
+        domain=config.get('domain'),
+        n_grid=config.get('n_grid', 40),
+        x_min=config.get('x_min', 10.0),
+        x_max=config.get('x_max', 50.0),
+    )
     print("Done.\n")
 
 

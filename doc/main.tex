@@ -565,7 +565,9 @@ $\kappa \to 0$, the researcher is expressing near-certainty that population
 heterogeneity is close to its target level $(1-\alpha)v^*$. Larger values of
 $\kappa$ represent greater uncertainty. At $\kappa = 1$ the standard deviation
 of the variance equals its mean, and $\kappa > 1$ indicates very diffuse
-beliefs about heterogeneity. Equations (\ref{eq:one_minus_alpha}) and
+beliefs about heterogeneity. In other words, $\alpha$ sets the heterogeneity
+target and $\kappa$ states how strongly that target is held. Equations
+(\ref{eq:one_minus_alpha}) and
 (\ref{eq:kappa_def}) then provide two moment conditions that uniquely
 determine $\hpriorvm{}$ and $\hpriorvv{}$:
 \begin{align}
@@ -730,13 +732,13 @@ neutrality), $\phi > 0$ controls the curvature of the PWF, and $\eta > 0$
 controls its elevation. When $\phi = \eta = 1$ the PWF is linear, reducing to
 EUT\@. The model has 4 parameters: $(r, \phi, \eta, \lambda)$.
 
-This specification is a workhorse of structural estimation of risk preferences,
-applied to joint estimation of risk and time preferences
-\parencite{Andersen2008}, uncovering heterogeneity in probability distortion
-\parencite{BruhinFehrDudaEpper2010}, field experiments in developing countries
-\parencite{Tanaka2010}, characterizing risk attitudes in broad populations
-\parencite{vonGaudecker2011}, and hierarchical Bayesian welfare analysis
-\parencite{Gao2022}, among many others.
+This specification is a workhorse of structural estimation of risk
+preferences. \textcite{Andersen2008} use it for joint estimation of risk and
+time preferences, \textcite{BruhinFehrDudaEpper2010} to uncover heterogeneity
+in probability distortion, and \textcite{Tanaka2010} in field experiments in
+developing countries. \textcite{vonGaudecker2011} characterize risk attitudes
+in a broad population with it, and \textcite{Gao2022} build it into a
+hierarchical Bayesian welfare analysis.
 
 \subsubsection*{Model 2: CRRA + Goldstein-Einhorn}
 
@@ -754,9 +756,15 @@ curvature (discriminability) of the PWF, and $\delta > 0$ controls its
 elevation (attractiveness). When $\gamma < 1$ and $\delta = 1$ the function
 produces the empirically well-documented inverse-S shape, overweighting small
 probabilities and underweighting large ones. When $\gamma = 1$ and $\delta = 1$
-the PWF reduces to the identity, recovering EUT\@. The Goldstein-Einhorn
-function has been widely applied in experimental economics
-\parencite{GonzalezWu1999,Stott2006,Lattimore1992}. The model has 4
+the PWF reduces to the identity, recovering EUT\@.
+\textcite{GonzalezWu1999} give the two parameters a psychological
+interpretation, with $\gamma$ measuring how sharply an individual
+discriminates among probabilities and $\delta$ how attractive the gamble is
+overall, and the function has a long record in experimental work
+\parencite{Lattimore1992,Stott2006}. Pairing it with the same CRRA utility
+as Model~1 isolates the weighting specification, since any difference
+between the two models' predictions comes from the functional form of $w$
+rather than from utility. The model has 4
 parameters: $(r, \gamma, \delta, \lambda)$.
 
 \subsubsection*{Model 3: CRRA + Power}
@@ -807,7 +815,10 @@ regardless of which utility function or PWF generates them.
 The CE is the certain amount of money that provides the same utility as a
 lottery, translating structural parameters into dollar-denominated quantities
 about which researchers have direct intuition
-\parencite{Abdellaoui2000}. CEs have been widely used for post-estimation
+\parencite{Abdellaoui2000}. A researcher who has no feel for plausible values
+of Prelec's elevation parameter $\eta$ can still say whether a typical
+experimental subject would trade a lottery paying \$50 with probability 0.25
+and \$10 otherwise for its expected value of \$20 with certainty. CEs have been widely used for post-estimation
 welfare analysis \parencite{Harrison2016, Gao2022, Monroe2023} and prior
 calibration \parencite{Bland2025}.
 

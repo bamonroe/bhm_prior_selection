@@ -1374,9 +1374,12 @@ substantive intuition in experimental units even when they have little
 intuition about hyperprior parameters themselves. A further benefit, illustrated
 by the cross-model application, is that the same quantity-space specification
 can serve as the prior for multiple structural models. The three specifications
-considered here differ in their utility functions, probability weighting
-functions, and even the number of free parameters, yet they share a single set
-of beliefs about certainty equivalents and choice probabilities.
+considered here differ in their probability weighting
+functions and even the number of free parameters, yet they share a single set
+of beliefs about certainty equivalents and choice probabilities. That sharing
+is also what made the Bayes factor comparison of
+Section~\ref{sec:model_comparison} interpretable, since the marginal
+likelihoods differ only through the structural specification.
 The framework therefore extends the Bayesian workflow of \textcite{Gabry2019}
 to the hierarchical setting by making the two distinct roles of a hyperprior
 explicit: anchoring the unconditional distribution of observables and allocating
@@ -1471,31 +1474,28 @@ under EUT\@.
 
 \subsection{Extensions}
 
-Model 3 (CRRA + Power) already demonstrates the over-determined case
-$k > p$, where 4 predictive quantities are mapped from 3 structural parameters
-using the Gram determinant. This extends naturally to comparisons between
-models with different parameter dimensions. The same prior over quantities can
-be specified for both, creating the possibility of holding fixed prior beliefs
-about behavioral quantities even when the candidate models have different
-parameter dimensions.
-That, in turn, offers a natural way to make model comparison less sensitive to
-arbitrary differences in hyperprior specification and more tightly connected to
-the researcher's actual beliefs about observables.
+The application already demonstrates that a single quantity-space prior can
+serve models with different parameter dimensions. Model 3 maps 3 structural
+parameters to 4 predictive quantities through the Gram determinant, and the
+Bayes factor comparison of Section~\ref{sec:model_comparison} ranks it
+against the two 4-parameter models on equal prior footing. The natural next
+step is to widen the comparison set. Models in the Cumulative Prospect
+Theory class, with separate utility and weighting functions over gains and
+losses, predict the same certainty equivalents and choice probabilities and
+could inherit the same quantity-space prior, despite having two to three
+times as many structural parameters.
 
-The quantity-space framework has a particular advantage for Bayes factor
-computation. A persistent concern with Bayes factors is their sensitivity to
-the prior specification \parencite{KassRaftery1995}, and this sensitivity is
-amplified in hierarchical models where the hyperprior governs the prior on
-every subject. When two models use different parameter-space hyperpriors, a
-Bayes factor comparison conflates the evidence about structural form with the
-evidence about prior calibration. By anchoring the prior in quantity space, the
-framework ensures that all candidate models express the same prior beliefs
-about observables. Any difference in marginal likelihood then reflects the
-structural specification alone, not an artifact of differently calibrated
-hyperpriors. The nesting structure in the present application (Power $\subset$
-Prelec at $\phi = 1$) provides a natural test case for this approach, and
-non-nested comparisons (Prelec vs.\ Goldstein-Einhorn) could be conducted via
-bridge sampling with the same shared prior serving as the common baseline.
+Beyond model selection, the shared prior opens the door to model combination.
+Bayesian model averaging and stacking both require marginal likelihoods or
+predictive scores computed under comparable priors, and the quantity-space
+specification supplies exactly that comparability. A related direction is to
+carry the same direct prior across datasets. The discounting experiment of
+\textcite{Andersen2008} elicits risk preferences over a different currency
+and stake range, and re-expressing the direct prior over that design's
+reference lotteries would test how portable quantity-space beliefs are across
+experimental contexts. Finally, extending the elicitation step to joint
+beliefs over the quantity vector, rather than independent marginals, would
+address the limitation discussed above and sharpen all of these comparisons.
 
 
 \section{Conclusion}
@@ -1521,7 +1521,10 @@ implications of a hyperprior are directly visible, and diagnostics based on
 posterior predictive distributions and CDF differences make the prior's
 influence transparent across subjects, lotteries, and quantiles. The results show that informative
 hyperpriors matter most where the data are weak, while leaving well-identified
-subjects largely unchanged.
+subjects largely unchanged. The shared prior also supports a Bayes factor
+comparison in which differences in marginal likelihood reflect structural
+form alone, turning a quantity that is notoriously prior-sensitive into a
+clean measure of evidence about probability weighting.
 
 The framework changes the object of prior specification. Instead of asking
 researchers to work directly with opaque hyperprior parameters, it asks them to

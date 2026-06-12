@@ -9,7 +9,7 @@ _bl_m = int(_bl.get('n_moderate', 0))
 _bl_d = int(_bl.get('n_dominated', 0))
 _bl_pct = int(round(100 * _bl_d / _n_subj))
 
-_s_rho = [float(x) for x in _sens.get('rho', [])]
+_s_alpha = [float(x) for x in _sens.get('alpha', [])]
 _s_kap = [float(x) for x in _sens.get('kappa', [])]
 _s_w = [int(x) for x in _sens.get('n_well', [])]
 _s_m = [int(x) for x in _sens.get('n_moderate', [])]
@@ -55,8 +55,8 @@ hierarchical allocation of prior variance.
 _labels = ['Baseline', r'High $\kappa$', r'High $\alpha$', 'Both high']
 _rows = []
 _rows.append(f"  {_labels[0]:20s} & 0.2 & 0.25 & {_bl_w} & {_bl_m} & {_bl_d} & {_bl_pct} \\\\")
-for _i in range(len(_s_rho)):
-    _rows.append(f"  {_labels[_i+1]:20s} & {_s_rho[_i]:.1f} & {_s_kap[_i]:.2f} & {_s_w[_i]} & {_s_m[_i]} & {_s_d[_i]} & {_s_pct[_i]} \\\\")
+for _i in range(len(_s_alpha)):
+    _rows.append(f"  {_labels[_i+1]:20s} & {_s_alpha[_i]:.1f} & {_s_kap[_i]:.2f} & {_s_w[_i]} & {_s_m[_i]} & {_s_d[_i]} & {_s_pct[_i]} \\\\")
 print(r"""\begin{center}
 \begin{tabular}{lcccccc}
   \toprule
@@ -89,8 +89,8 @@ large.
 \begin{figure}[htbp]
   \centering
   \mycaption{CDF differences: $\alpha = 0.2$, $\kappa = 1.50$}
-  \label{fig:cdf_diff_rho0p2_kappa1p50}
-  \includegraphics[width=0.85\textwidth]{../plots/paper/rho0p2_kappa1p50/cdf_difference_by_subject.pdf}
+  \label{fig:cdf_diff_alpha0p2_kappa1p50}
+  \includegraphics[width=0.85\textwidth]{../plots/paper/alpha0p2_kappa1p50/cdf_difference_by_subject.pdf}
 \end{figure}
 
 With $\kappa$ raised to 1.50 while $\alpha$ remains at 0.2, the hyperprior
@@ -103,8 +103,8 @@ regularization without changing where it shows up.
 \begin{figure}[htbp]
   \centering
   \mycaption{CDF differences: $\alpha = 0.8$, $\kappa = 0.25$}
-  \label{fig:cdf_diff_rho0p8_kappa0p25}
-  \includegraphics[width=0.85\textwidth]{../plots/paper/rho0p8_kappa0p25/cdf_difference_by_subject.pdf}
+  \label{fig:cdf_diff_alpha0p8_kappa0p25}
+  \includegraphics[width=0.85\textwidth]{../plots/paper/alpha0p8_kappa0p25/cdf_difference_by_subject.pdf}
 \end{figure}
 
 By contrast, raising $\alpha$ to 0.8 allocates the majority of direct prior
@@ -118,8 +118,8 @@ weakly identified.
 \begin{figure}[htbp]
   \centering
   \mycaption{CDF differences: $\alpha = 0.8$, $\kappa = 1.50$}
-  \label{fig:cdf_diff_rho0p8_kappa1p50}
-  \includegraphics[width=0.85\textwidth]{../plots/paper/rho0p8_kappa1p50/cdf_difference_by_subject.pdf}
+  \label{fig:cdf_diff_alpha0p8_kappa1p50}
+  \includegraphics[width=0.85\textwidth]{../plots/paper/alpha0p8_kappa1p50/cdf_difference_by_subject.pdf}
 \end{figure}
 
 When both $\alpha$ and $\kappa$ are high, the effects partially offset. The
@@ -140,22 +140,22 @@ ordering of lottery evaluations changes as $(\alpha,\kappa)$ moves.
 \begin{figure}[htbp]
   \centering
   \mycaption{Predictive CE overlay: $\alpha = 0.2$, $\kappa = 1.50$}
-  \label{fig:ce_overlay_rho0p2_kappa1p50}
-  \includegraphics[width=\textwidth]{../plots/paper/rho0p2_kappa1p50/predictive_ce_overlay.pdf}
+  \label{fig:ce_overlay_alpha0p2_kappa1p50}
+  \includegraphics[width=\textwidth]{../plots/paper/alpha0p2_kappa1p50/predictive_ce_overlay.pdf}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \mycaption{Predictive CE overlay: $\alpha = 0.8$, $\kappa = 0.25$}
-  \label{fig:ce_overlay_rho0p8_kappa0p25}
-  \includegraphics[width=\textwidth]{../plots/paper/rho0p8_kappa0p25/predictive_ce_overlay.pdf}
+  \label{fig:ce_overlay_alpha0p8_kappa0p25}
+  \includegraphics[width=\textwidth]{../plots/paper/alpha0p8_kappa0p25/predictive_ce_overlay.pdf}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \mycaption{Predictive CE overlay: $\alpha = 0.8$, $\kappa = 1.50$}
-  \label{fig:ce_overlay_rho0p8_kappa1p50}
-  \includegraphics[width=\textwidth]{../plots/paper/rho0p8_kappa1p50/predictive_ce_overlay.pdf}
+  \label{fig:ce_overlay_alpha0p8_kappa1p50}
+  \includegraphics[width=\textwidth]{../plots/paper/alpha0p8_kappa1p50/predictive_ce_overlay.pdf}
 \end{figure}
 
 Across all three alternatives, the overlay figures show that changing

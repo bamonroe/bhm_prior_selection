@@ -24,9 +24,6 @@
 \newcommand{\bomega}{\boldsymbol{\omega}} % PWF parameter sub-vector (Appendix B)
 \DeclareMathOperator{\diag}{diag}
 
-% Placeholder for pending model-comparison statistics (slug = NPZ key)
-\newcommand{\pending}[1]{\textcolor{red}{[PENDING: \detokenize{#1}]}}
-
 \hyphenpenalty=10000
 
 \title{Quantity-Space Hyperprior Specification for Bayesian Hierarchical Models:\\
@@ -139,10 +136,6 @@ xm_ge_3 = fmt(float(D.get('xmodel_ge_median_3', 0)), 1)
 xm_power_1 = fmt(float(D.get('xmodel_power_median_1', 0)), 1)
 xm_power_2 = fmt(float(D.get('xmodel_power_median_2', 0)), 1)
 xm_power_3 = fmt(float(D.get('xmodel_power_median_3', 0)), 1)
-xm_diff_1 = fmt(float(D.get('xmodel_diff_1', 0)), 1)
-xm_diff_2 = fmt(float(D.get('xmodel_diff_2', 0)), 1)
-xm_diff_3 = fmt(float(D.get('xmodel_diff_3', 0)), 1)
-
 # MCMC diagnostics
 diag_rhat_med = {}
 diag_rhat_max = {}

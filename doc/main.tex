@@ -669,10 +669,8 @@ models. The quantity-space approach avoids this problem. The researcher
 specifies beliefs about observables once, and those beliefs translate into
 parameter-space priors for any structural model that maps to the same
 quantities. This section demonstrates that property by applying the framework
-to three RDU models with different functional forms. All three share a common
-RDU structure, a common likelihood, and a common set of reference lotteries
-for the CE mapping. What differs is only the utility function and the
-probability weighting function, which change the Jacobian of the forward map.
+to three RDU models that differ only in the functional forms entering the
+Jacobian of the forward map.
 
 \subsection{RDU Framework}
 \label{sec:rdu_framework}
@@ -790,12 +788,9 @@ $\sqrt{\det(J_\bg^\top J_\bg)}$ in place of $|\det J_\bg|$, as described in
 Section~\ref{sec:gq_space}. This demonstrates that the framework handles the
 $k > p$ case with no additional machinery beyond the Jacobian computation.
 
-The three specifications are complementary. All three share the CRRA utility
-function but differ in their PWFs, so CE differences are attributable entirely
-to the probability weighting specification. Models 1 and 2 each have 4
-structural parameters ($k = p$), while Model~3 has 3 ($k > p$). All three map
-to the same 4 predictive quantities through the RDU-CE mapping described
-below.
+Together the three specifications cover both the square case, with Models 1
+and 2 at $k = p = 4$, and the over-determined case, with Model 3 at
+$k = 4 > p = 3$.
 
 
 
@@ -1099,7 +1094,8 @@ predictive.\footnote{
   predictive draws from the hyperprior directly, before seeing data.
 }
 
-All three models share the same quantity-space prior, so differences in the
+The estimation for each model starts from identical beliefs about these
+quantities, so differences in the
 posterior predictive CEs reflect the interaction between the structural model's
 Jacobian and the data likelihood. For lotteries $L_1$ and $L_3$, which place
 probability $0.75$ on the worse outcome, the three models produce closely

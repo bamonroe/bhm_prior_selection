@@ -30,6 +30,7 @@ from marginal_likelihood import (
     MixtureProposal,
     build_caches_from_proposals,
     build_subject_caches,
+    estimate_model_log_ml,
     make_psi_sweep_fn,
     make_log_hyperprior_vec,
     sweep_psi,
@@ -333,8 +334,8 @@ def load_synthetic_states(output_dir, n_subjects, nparams=4, n_hyper=8,
 # =============================================================================
 
 def run_ml_validation(data_dir, output_path, n_subjects=5, n_choices=20,
-                      skip_mcmc_if_exists=True, K=1024, n_psi_is=50000,
-                      n_psi_bridge=20000, seed=42):
+                      skip_mcmc_if_exists=True, K=2048, R=8, n_psi_is=20000,
+                      n_psi_bridge=10000, seed=42):
     data_dir = Path(data_dir)
     mcmc_dir = data_dir / 'ml_validation' / 'rdu_bhm_ce_synth'
 
@@ -370,35 +371,20 @@ def run_ml_validation(data_dir, output_path, n_subjects=5, n_choices=20,
     print(f"Loaded {len(hyper)} posterior draws")
 
     rng = np.random.default_rng(seed)
-    caches = build_subject_caches('crra', data, subject, K, rng)
-    print(f"Cache non-finite log f fraction: {caches['nonfinite_frac']:.5f}")
-    sweep_fn = make_psi_sweep_fn(caches)
-    log_pi_vec = make_log_hyperprior_vec(data)
 
-    idx50 = rng.choice(len(hyper), 50, replace=False)
-    _, ess50 = sweep_psi(sweep_fn, hyper[idx50], want_ess=True)
-    print(f"Per-subject ESS at posterior psi: min={ess50.min():.0f}, "
-          f"median={np.median(ess50):.0f} (K={K})")
-
-    psi_proposal = StudentTProposal(hyper, df=5.0, scale=1.5)
-
-    print("\nCorrected RB estimator:")
-    res_is = log_ml_is(sweep_fn, log_pi_vec, psi_proposal, n_psi_is, rng)
-    print(f"  IS route:     log ML = {res_is['log_ml']:.4f} "
-          f"+/- {res_is['se']:.4f} (psi ESS = {res_is['ess']:.0f})")
-
-    idx_b = rng.choice(len(hyper), n_psi_bridge, replace=False)
-    res_br = log_ml_bridge(sweep_fn, log_pi_vec, hyper[idx_b],
-                           psi_proposal, n_psi_bridge, rng)
-    print(f"  Bridge route: log ML = {res_br['log_ml']:.4f} "
-          f"+/- {res_br['se']:.4f} (split-half {res_br['se_split']:.4f})")
+    print("\nCorrected RB estimator (replicated):")
+    res = estimate_model_log_ml('crra', data, hyper, subject, rng,
+                                K=K, R=R, n_psi_is=n_psi_is,
+                                n_psi_bridge=n_psi_bridge)
 
     print("\nVerdict:")
     gt_ml = gt['wide']['log_ml']
     ok_all = gt_diff <= max(2 * gt_se, 0.05)
-    for label, res in (('IS', res_is), ('bridge', res_br)):
-        diff = abs(res['log_ml'] - gt_ml)
-        tol = max(0.1, 2 * np.sqrt(res['se'] ** 2 + gt['wide']['se'] ** 2))
+    for label, ml, se in (('IS', res['log_ml_is'], res['se_is']),
+                          ('bridge', res['log_ml_bridge'],
+                           res['se_bridge'])):
+        diff = abs(ml - gt_ml)
+        tol = max(0.1, 2 * np.sqrt(se ** 2 + gt['wide']['se'] ** 2))
         ok = diff <= tol
         ok_all = ok_all and ok
         print(f"  {label:6s} vs ground truth: |diff| = {diff:.4f} "
@@ -408,11 +394,12 @@ def run_ml_validation(data_dir, output_path, n_subjects=5, n_choices=20,
              gt_wide_log_ml=gt['wide']['log_ml'], gt_wide_se=gt['wide']['se'],
              gt_wider_log_ml=gt['wider']['log_ml'],
              gt_wider_se=gt['wider']['se'],
-             rb_is_log_ml=res_is['log_ml'], rb_is_se=res_is['se'],
-             rb_bridge_log_ml=res_br['log_ml'], rb_bridge_se=res_br['se'],
-             rb_bridge_se_split=res_br['se_split'],
-             ess_subject_min=float(ess50.min()),
-             n_subjects=n_subjects, n_choices=n_choices, K=K,
+             rb_is_log_ml=res['log_ml_is'], rb_is_se=res['se_is'],
+             rb_bridge_log_ml=res['log_ml_bridge'],
+             rb_bridge_se=res['se_bridge'],
+             rb_rep_is=res['rep_is'], rb_rep_bridge=res['rep_bridge'],
+             ess_subject_min=res['ess_min'],
+             n_subjects=n_subjects, n_choices=n_choices, K=K, R=R,
              passed=bool(ok_all))
     print(f"\n{'PASSED' if ok_all else 'FAILED'} — saved to {output_path}")
     return ok_all

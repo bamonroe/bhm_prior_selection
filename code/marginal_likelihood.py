@@ -504,11 +504,107 @@ def verify_pop_prior_vectorization(data, model_keys=('crra', 'ge', 'power'),
 
 
 # =============================================================================
+# Replicated estimate for one model
+# =============================================================================
+
+def estimate_model_log_ml(model_key, data, hyper, subj, rng,
+                          K=2048, R=8, n_psi_is=20000, n_psi_bridge=10000,
+                          theta_df=5.0, theta_scale=1.5,
+                          psi_df=5.0, psi_scale=1.5, ess_floor=100.0,
+                          verbose=True):
+    """Replicated corrected-RB estimate of log p(y) for one model.
+
+    A single theta cache produces route estimates whose log is biased
+    downward by roughly sum_i 1/(2 ESS_i) and whose cache-level noise is
+    invisible to the psi-level SE (every psi evaluation shares the same
+    inner draws). We therefore build R INDEPENDENT caches, run both psi
+    routes on each, and combine each route across replicates on the
+    natural scale: per-cache route estimates are (approximately) unbiased
+    for p(y) on that scale, so averaging shrinks the log bias by R and
+    the replicate spread gives an SE that includes inner-IS noise.
+    """
+    log_pi_vec = make_log_hyperprior_vec(data)
+    psi_proposal = StudentTProposal(hyper, df=psi_df, scale=psi_scale)
+
+    rep_is = np.empty(R)
+    rep_br = np.empty(R)
+    ess_min = ess_med = nonfinite = None
+    psi_ess = []
+
+    for rep in range(R):
+        caches = build_subject_caches(model_key, data, subj, K, rng,
+                                      df=theta_df, scale=theta_scale)
+        sweep_fn = make_psi_sweep_fn(caches)
+
+        if rep == 0:
+            nonfinite = caches['nonfinite_frac']
+            idx50 = rng.choice(len(hyper), 50, replace=False)
+            _, ess50 = sweep_psi(sweep_fn, hyper[idx50], want_ess=True)
+            ess_min = float(np.min(ess50))
+            ess_med = float(np.median(ess50))
+            if verbose:
+                print(f"  Non-finite log f fraction: {nonfinite:.4f}")
+                print(f"  Per-subject ESS at 50 posterior psi: "
+                      f"min={ess_min:.0f}, median={ess_med:.0f} (K={K})")
+                if ess_min < ess_floor:
+                    print(f"  WARNING: min ESS below floor {ess_floor}")
+
+        res_is = log_ml_is(sweep_fn, log_pi_vec, psi_proposal, n_psi_is, rng)
+        idx_b = rng.choice(len(hyper), n_psi_bridge, replace=False)
+        res_br = log_ml_bridge(sweep_fn, log_pi_vec, hyper[idx_b],
+                               psi_proposal, n_psi_bridge, rng)
+        rep_is[rep] = res_is['log_ml']
+        rep_br[rep] = res_br['log_ml']
+        psi_ess.append(res_is['ess'])
+        if verbose:
+            print(f"  replicate {rep}: IS {res_is['log_ml']:.3f}, "
+                  f"bridge {res_br['log_ml']:.3f} "
+                  f"(psi ESS {res_is['ess']:.0f}, "
+                  f"bridge converged={res_br['converged']})")
+
+    def combine(rep_vals):
+        log_ml = _logsumexp(rep_vals) - np.log(R)
+        bm = np.exp(rep_vals - log_ml)
+        se = float(np.std(bm, ddof=1) / np.sqrt(R))
+        return float(log_ml), se
+
+    is_ml, is_se = combine(rep_is)
+    br_ml, br_se = combine(rep_br)
+
+    res = {
+        'log_ml_is': is_ml, 'se_is': is_se,
+        'log_ml_bridge': br_ml, 'se_bridge': br_se,
+        'rep_is': rep_is, 'rep_bridge': rep_br,
+        'rep_spread_is': float(rep_is.max() - rep_is.min()),
+        'rep_spread_bridge': float(rep_br.max() - rep_br.min()),
+        'ess_min': ess_min, 'ess_med': ess_med,
+        'psi_ess_mean': float(np.mean(psi_ess)),
+        'nonfinite_frac': nonfinite,
+        'K': K, 'R': R,
+    }
+    agree = abs(is_ml - br_ml)
+    comb_se = float(np.sqrt(is_se ** 2 + br_se ** 2))
+    res['route_agreement'] = agree
+    res['route_tol'] = max(2 * comb_se, 0.1)
+    res['routes_agree'] = agree <= res['route_tol']
+    if verbose:
+        print(f"  IS route:     log ML = {is_ml:.3f} +/- {is_se:.3f} "
+              f"(replicate spread {res['rep_spread_is']:.3f})")
+        print(f"  Bridge route: log ML = {br_ml:.3f} +/- {br_se:.3f} "
+              f"(replicate spread {res['rep_spread_bridge']:.3f})")
+        print(f"  Route agreement: |IS - bridge| = {agree:.3f} "
+              f"(tol {res['route_tol']:.3f}) "
+              f"{'OK' if res['routes_agree'] else 'DISAGREE'}")
+    return res
+
+
+# =============================================================================
 # Driver
 # =============================================================================
 
 def compute_marginal_likelihoods(model_keys, data_dir, output_path,
-                                 K=1024, n_psi_is=50000, n_psi_bridge=20000,
+                                 K=2048, R=8, n_psi_is=20000,
+                                 n_psi_bridge=10000,
                                  n_load=100000, seed=42,
                                  psi_df=5.0, psi_scale=1.5,
                                  theta_df=5.0, theta_scale=1.5,
@@ -528,10 +624,9 @@ def compute_marginal_likelihoods(model_keys, data_dir, output_path,
     if not verify_pop_prior_vectorization(data, tuple(model_keys)):
         raise RuntimeError("Pop-prior vectorization check failed")
 
-    log_pi_vec = make_log_hyperprior_vec(data)
     results = {}
-    save = {'K': K, 'n_psi_is': n_psi_is, 'n_psi_bridge': n_psi_bridge,
-            'seed': seed}
+    save = {'K': K, 'R': R, 'n_psi_is': n_psi_is,
+            'n_psi_bridge': n_psi_bridge, 'seed': seed}
 
     for mk in model_keys:
         print(f"\n{'=' * 60}\nModel: {mk}\n{'=' * 60}")
@@ -542,84 +637,32 @@ def compute_marginal_likelihoods(model_keys, data_dir, output_path,
         print(f"  Loaded {len(hyper)} draws, {n_subjects} subjects, "
               f"{subj.shape[2]} params/subject")
 
-        print(f"  Building subject caches (K={K})...")
-        caches = build_subject_caches(mk, data, subj, K, rng,
-                                      df=theta_df, scale=theta_scale)
-        print(f"  Non-finite log f fraction: {caches['nonfinite_frac']:.4f}")
+        res = estimate_model_log_ml(
+            mk, data, hyper, subj, rng, K=K, R=R,
+            n_psi_is=n_psi_is, n_psi_bridge=n_psi_bridge,
+            theta_df=theta_df, theta_scale=theta_scale,
+            psi_df=psi_df, psi_scale=psi_scale, ess_floor=ess_floor)
+        results[mk] = res
 
-        sweep_fn = make_psi_sweep_fn(caches)
-
-        # Per-subject ESS at representative posterior psi draws
-        idx50 = rng.choice(len(hyper), 50, replace=False)
-        _, ess50 = sweep_psi(sweep_fn, hyper[idx50], want_ess=True)
-        ess_min = float(np.min(ess50))
-        ess_med = float(np.median(ess50))
-        print(f"  Per-subject ESS at 50 posterior psi: "
-              f"min={ess_min:.1f}, median={ess_med:.1f} (K={K})")
-        if ess_min < ess_floor:
-            print(f"  WARNING: min ESS {ess_min:.1f} below floor {ess_floor}")
-
-        psi_proposal = StudentTProposal(hyper, df=psi_df, scale=psi_scale)
-
-        # Route (a): importance sampling
-        print(f"  Route (a): IS with {n_psi_is} psi draws...")
-        res_is = log_ml_is(sweep_fn, log_pi_vec, psi_proposal, n_psi_is, rng)
-        print(f"    log ML = {res_is['log_ml']:.3f} +/- {res_is['se']:.3f} "
-              f"(psi ESS = {res_is['ess']:.0f})")
-
-        # Route (b): bridge sampling
-        print(f"  Route (b): bridge with {n_psi_bridge}+{n_psi_bridge} draws...")
-        idx_b = rng.choice(len(hyper), n_psi_bridge, replace=False)
-        res_br = log_ml_bridge(sweep_fn, log_pi_vec, hyper[idx_b],
-                               psi_proposal, n_psi_bridge, rng)
-        print(f"    log ML = {res_br['log_ml']:.3f} +/- {res_br['se']:.3f} "
-              f"(split-half {res_br['se_split']:.3f}, "
-              f"converged={res_br['converged']})")
-
-        # Inner-noise check: two independent half-K caches
-        print("  Inner-noise check (two K/2 half-caches)...")
-        half_ml = []
-        for h in range(2):
-            half = {k: (v[h::2] if isinstance(v, np.ndarray) and
-                        v.shape[:1] == (K,) else v)
-                    for k, v in caches.items()}
-            sweep_h = make_psi_sweep_fn(half)
-            r = log_ml_is(sweep_h, log_pi_vec, psi_proposal,
-                          n_psi_is // 2, rng)
-            half_ml.append(r['log_ml'])
-        inner_spread = float(abs(half_ml[0] - half_ml[1]))
-        print(f"    half-cache log MLs: {half_ml[0]:.3f}, {half_ml[1]:.3f} "
-              f"(spread {inner_spread:.3f})")
-
-        agree = abs(res_is['log_ml'] - res_br['log_ml'])
-        comb_se = np.sqrt(res_is['se'] ** 2 + res_br['se'] ** 2)
-        print(f"  Route agreement: |IS - bridge| = {agree:.3f} "
-              f"(2 x combined SE = {2 * comb_se:.3f}) "
-              f"{'OK' if agree <= max(2 * comb_se, 0.1) else 'DISAGREE'}")
-
-        results[mk] = {'is': res_is, 'bridge': res_br,
-                       'ess_min': ess_min, 'ess_med': ess_med,
-                       'inner_spread': inner_spread,
-                       'nonfinite_frac': caches['nonfinite_frac']}
-
-        save[f'{mk}_log_ml_is'] = res_is['log_ml']
-        save[f'{mk}_log_ml_is_se'] = res_is['se']
-        save[f'{mk}_psi_ess_is'] = res_is['ess']
-        save[f'{mk}_log_ml_bridge'] = res_br['log_ml']
-        save[f'{mk}_log_ml_bridge_se'] = res_br['se']
-        save[f'{mk}_log_ml_bridge_se_split'] = res_br['se_split']
-        save[f'{mk}_ess_subject_min'] = ess_min
-        save[f'{mk}_ess_subject_med'] = ess_med
-        save[f'{mk}_inner_spread'] = inner_spread
-        save[f'{mk}_nonfinite_frac'] = caches['nonfinite_frac']
+        save[f'{mk}_log_ml_is'] = res['log_ml_is']
+        save[f'{mk}_log_ml_is_se'] = res['se_is']
+        save[f'{mk}_log_ml_bridge'] = res['log_ml_bridge']
+        save[f'{mk}_log_ml_bridge_se'] = res['se_bridge']
+        save[f'{mk}_rep_is'] = res['rep_is']
+        save[f'{mk}_rep_bridge'] = res['rep_bridge']
+        save[f'{mk}_ess_subject_min'] = res['ess_min']
+        save[f'{mk}_ess_subject_med'] = res['ess_med']
+        save[f'{mk}_psi_ess_mean'] = res['psi_ess_mean']
+        save[f'{mk}_nonfinite_frac'] = res['nonfinite_frac']
+        save[f'{mk}_routes_agree'] = res['routes_agree']
 
     print(f"\n{'=' * 60}\nBAYES FACTORS (log scale, IS route)\n{'=' * 60}")
     keys = list(results.keys())
     for i, k1 in enumerate(keys):
         for k2 in keys[i + 1:]:
-            bf = results[k1]['is']['log_ml'] - results[k2]['is']['log_ml']
-            bf_se = np.sqrt(results[k1]['is']['se'] ** 2
-                            + results[k2]['is']['se'] ** 2)
+            bf = results[k1]['log_ml_is'] - results[k2]['log_ml_is']
+            bf_se = np.sqrt(results[k1]['se_is'] ** 2
+                            + results[k2]['se_is'] ** 2)
             print(f"  log BF({k1} vs {k2}) = {bf:.2f} +/- {bf_se:.2f}")
             save[f'log_bf_rb2_{k1}_vs_{k2}'] = bf
             save[f'log_bf_rb2_{k1}_vs_{k2}_se'] = bf_se

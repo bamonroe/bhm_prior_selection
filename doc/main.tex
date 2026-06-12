@@ -281,9 +281,8 @@ literature on prior specification with emphasis on informed priors. Section
 mapping and then the variance-decomposition approach to hyperprior
 construction. Section \ref{sec:application_rdu} applies the method to three
 RDU models estimated on experimental lottery-choice data. Section
-\ref{sec:estimation} presents the estimation results, together with a Bayes
-factor comparison of the three models that the shared quantity-space prior
-makes possible.
+\ref{sec:estimation} presents the estimation results, together with the
+model comparison that the shared quantity-space prior makes possible.
 Section \ref{sec:discussion} discusses practical guidance, limitations, and
 extensions, and Section \ref{sec:conclusion} concludes.
 
@@ -784,8 +783,8 @@ Models 1 and 2, so any CE difference between Models 1, 2, and 3 is
 attributable entirely to the PWF\@. The Power PWF is nested within the Prelec
 family (setting $\phi = 1$ in (\ref{eq:prelec}) gives $w(p) = p^\eta$, so the
 Power exponent $\delta$ plays the role of $\eta$), making
-Models 1 and 3 nested, which I exploit in the Bayes factor comparison of
-Section~\ref{sec:model_comparison}. Second, with only 3 structural parameters mapped to 4 predictive
+Models 1 and 3 nested, which supports the formal nested comparison
+summarized in Section~\ref{sec:model_comparison}. Second, with only 3 structural parameters mapped to 4 predictive
 quantities, it is an over-determined case ($k = 4 > p = 3$). The
 change-of-variables formula uses the Gram determinant
 $\sqrt{\det(J_\bg^\top J_\bg)}$ in place of $|\det J_\bg|$, as described in
@@ -1140,9 +1139,10 @@ or to compare structural parameters across models.
 The CE comparison suggests that the second PWF parameter contributes modestly
 for these data and lottery designs, with the models agreeing closely on $L_1$
 and $L_3$ and differing by approximately $\$1$ on $L_2$.
-Section~\ref{sec:model_comparison} makes this comparison formal with Bayes
-factors, which the shared quantity-space prior renders meaningful across all
-three models.
+Section~\ref{sec:model_comparison} makes this comparison formal with a Bayes
+factor for the two flexible models, which the shared quantity-space prior
+renders directly comparable, and summarizes the corresponding evidence on
+the Power form.
 
 \subsection{Subject-Level Cross-Model Agreement}
 
@@ -1301,11 +1301,13 @@ At the posterior mean of the hyperparameters the feasible mass is
 \py{fmt(np.exp(D['ml_ge_logC_bar']), 2)} for Model 2, while for Model 3
 the corresponding surface integral is
 \py{fmt(np.exp(D['ml_power_logC_bar']), 2)}. Appendix~\ref{app:ml_details}
-describes how $C_m$ and $Z_m$ are estimated. The marginal likelihoods
-reported below include the $\log Z_m$ normalization. For Models 1 and 2
-the normalizer is estimated directly, while for Model 3 it is bounded
-from below by a convexity argument, which makes the Bayes factors
-against Model 3 lower bounds.
+describes how $C_m$ and $Z_m$ are estimated. For Models 1 and 2 the
+normalizer is estimated directly and the two models can be compared on
+fully normalized terms. For the over-determined Model 3 the normalizer
+can only be bounded, for reasons developed in
+Appendix~\ref{app:feasible_mass}, so the formal comparison below is
+restricted to the two flexible models and the evidence on Model 3 is
+summarized afterward.
 
 The object of comparison is the marginal likelihood of each model, which
 integrates the likelihood over every subject-level parameter and
@@ -1364,41 +1366,40 @@ ranking of the models is the same under each.
       \py{fmt(D['ml_ge_is_corr'], 1)} (\py{fmt(D['ml_ge_is_se'], 2)}) &
       \py{fmt(D['ml_ge_bridge_corr'], 1)} (\py{fmt(D['ml_ge_bridge_se'], 2)}) &
       \py{fmt(D['ml_ge_logZ'], 1)} (\py{fmt(D['ml_ge_logZ_se'], 2)}) \\
-    Model 3 (CRRA + Power) &
-      $\leq$ \py{fmt(D['ml_power_is_corr'], 1)} (\py{fmt(D['ml_power_is_se'], 2)}) &
-      $\leq$ \py{fmt(D['ml_power_bridge_corr'], 1)} (\py{fmt(D['ml_power_bridge_se'], 2)}) &
-      $\geq$ \py{fmt(D['ml_power_logZ'], 1)} \\
     \bottomrule
   \end{tabular}
-  \caption{Log marginal likelihoods by model and integration route,
-    including the feasible-mass normalization $-\log Z_m$.
-    Replicate-based standard errors in parentheses; the $\log Z_m$
-    standard error is common to both routes. For Model 3 the normalizer
-    is bounded from below by a convexity argument
-    (Appendix~\ref{app:feasible_mass}), so its normalized entries are
-    upper bounds and the Bayes factors against it are lower bounds.}
+  \caption{Normalized log marginal likelihoods for the two flexible
+    models, by integration route, with the feasible-mass normalizer
+    $\log Z_m$. Replicate-based standard errors in parentheses; the
+    $\log Z_m$ standard error is common to both routes.}
   \label{tab:log_ml}
 \end{table}
 
 The importance sampling estimates imply a log Bayes factor of
 \py{fmt(D['bf_crra_ge_corr'], 1)}
 ($\pm$\py{fmt(D['bf_crra_ge_corr_se'], 1)}) for Prelec over
-Goldstein-Einhorn, at least \py{fmt(D['bf_crra_power_corr'], 1)} for
-Prelec over Power, and at least \py{fmt(D['bf_ge_power_corr'], 1)} for
-Goldstein-Einhorn over Power. On the scale of \textcite{KassRaftery1995}
-all three comparisons are decisive, since twice the log Bayes factor
-exceeds ten in every case, for the Power comparisons by an order of
-magnitude even at the bound. The data strongly favor the two-parameter
-weighting functions over the one-parameter Power form, and within the
-two-parameter pair they favor Prelec over Goldstein-Einhorn by a smaller
-though still decisive margin. For the nested comparison,
-the evidence against the $\phi = 1$ restriction that reduces Prelec to
-the Power form is overwhelming. The cross-model CE analysis of
-Section~\ref{sec:ce_overlay} suggested that the weighting functions
-separate mainly at the symmetric lottery, and the Bayes factors match
-that pattern. The forms that can move the symmetric-lottery CE
-independently of the asymmetric ones dominate the Power form, while the
-two flexible forms sit much closer together.
+Goldstein-Einhorn. On the scale of \textcite{KassRaftery1995} this is
+decisive evidence, and it answers the question the CE overlays could
+not. Section~\ref{sec:ce_overlay} found the two flexible forms
+empirically interchangeable at these lotteries, with nearly identical
+posterior predictive CEs, yet integrated over the full choice data the
+Prelec form is clearly favored. The comparison is exactly the situation
+the shared quantity-space prior is designed for, since the two
+non-nested specifications differ only in functional form and their
+feasible masses nearly coincide, so neither prior calibration nor
+normalization plays any role in the verdict.
+
+The evidence on Model 3 is summarized rather than tabulated, because
+the normalizer of the $k > p$ construction is available only as a
+bound. The Power PWF is nested in Prelec at $\phi = 1$, the cross-model
+CE analysis shows it departing from the flexible forms exactly where
+probability weighting is most consequential, and the bounded comparison in
+Appendix~\ref{app:feasible_mass} puts the log Bayes factor for Prelec
+over Power at no less than \py{fmt(D['bf_crra_power_corr'], 1)}, an
+order of magnitude beyond the decisive threshold even at the bound. The
+data leave no doubt that the one-parameter restriction is rejected; what
+the $k > p$ case lacks is a sharp point estimate of the margin, a
+limitation taken up in Section~\ref{sec:discussion}.
 
 Because the prior is fixed in quantity space, these numbers are
 interpretable as evidence about probability weighting alone. In other
@@ -1520,22 +1521,21 @@ Appendix \ref{app:eut_choice_probs} shows that broad classes of lottery pairs
 yield injective maps when the predictive quantities are choice probabilities
 under EUT\@.
 
-A related limitation concerns the Bayes factors of
+A related limitation concerns the model comparison of
 Section~\ref{sec:model_comparison}. The shared quantity-space prior removes
 cross-model differences in prior calibration from the comparison, but the
 resulting evidence is still conditional on the one shared specification.
 A different direct prior or a different $(\alpha, \kappa)$ allocation would
-change all three marginal likelihoods, and not necessarily by equal amounts.
-The nested Prelec and Power comparison is the most robust of the three,
-since the restriction $\phi = 1$ is being tested against margins two orders
-of magnitude larger than plausible prior perturbations, while the closer
-Prelec and Goldstein-Einhorn comparison should be read as evidence under
-the stated prior rather than as a prior-free verdict. The normalization
-of the truncated construction adds a related caveat for the
-over-determined case. The feasible-mass tilt for Model 3 concentrates at
-extreme heterogeneity values, its normalizer is bounded rather than point
-estimated, and a fully normalized comparison of $k > p$ specifications is
-a methodological problem the quantity-space framework inherits rather
+change the marginal likelihoods, and not necessarily by equal amounts, so
+the Prelec and Goldstein-Einhorn comparison should be read as evidence
+under the stated prior rather than as a prior-free verdict. The nested
+Power comparison is robust in the opposite sense, with the restriction
+$\phi = 1$ rejected by margins far larger than plausible prior
+perturbations, but it carries its own caveat. The feasible-mass tilt of
+the truncated $k > p$ construction concentrates at extreme heterogeneity
+values, its normalizer is bounded rather than point estimated, and a
+fully normalized comparison of over-determined specifications is a
+methodological problem the quantity-space framework inherits rather
 than solves.
 
 \subsection{Extensions}
@@ -1543,8 +1543,9 @@ than solves.
 The application already demonstrates that a single quantity-space prior can
 serve models with different parameter dimensions. Model 3 maps 3 structural
 parameters to 4 predictive quantities through the Gram determinant, and the
-Bayes factor comparison of Section~\ref{sec:model_comparison} ranks it
-against the two 4-parameter models on equal prior footing. The natural next
+comparison of Section~\ref{sec:model_comparison} ranks it against the two
+4-parameter models, with the caveat that its normalizer is bounded rather
+than point estimated. The natural next
 step is to widen the comparison set. Models in the Cumulative Prospect
 Theory class, with separate utility and weighting functions over gains and
 losses, predict the same certainty equivalents and choice probabilities and

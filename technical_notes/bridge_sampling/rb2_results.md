@@ -176,3 +176,14 @@ The k > p normalization difficulty is disclosed in the paper
 (Section 5.4, Limitations, Appendix E.1) as an inherited methodological
 caveat of over-determined quantity-space priors: the feasibility tilt
 concentrates along a ridge toward extreme heterogeneity values.
+
+
+## PRESENTATION (June 13, final): Power BF demoted to a bound in Appendix E
+
+To reduce referee attack surface, the main-text Bayes factor table now
+covers only the two k = p models (fully normalized, exact). Model 3's
+comparison is summarized in prose in Section 5.4 with the rigorous lower
+bound (log BF crra/power >= 107.4) reported in Appendix E.2 alongside
+log Z_3 >= -100.8. The Power model itself remains fully in the paper
+(estimation, CE comparisons, k > p demonstration). All NPZ keys are
+unchanged.

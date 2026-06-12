@@ -188,10 +188,15 @@ is convex, so for any $t^* < N$,
 \end{equation}
 where $\mathbb{E}_{t^*}$ is taken under the tilted distribution at
 $t^*$. Both quantities on the right are computed at a healthy annealing
-stage well before the stall, with replicate agreement. The bound makes
-the Bayes factors against Model 3 lower bounds, which is the direction
-required by the conclusions. The numerical difficulty itself is
-informative: for $k > p$ the unnormalized induced construction tilts the
-effective hyperprior toward extreme heterogeneity values, a caveat for
-over-determined quantity-space priors that Section~\ref{sec:discussion}
-takes up.
+stage well before the stall ($t^* = 40$, effective sample sizes around
+20{,}000, two replicates agreeing to two tenths of a log unit), giving
+$\log Z_3 \geq \py{fmt(D['ml_power_logZ'], 1)}$. The resulting
+normalized log marginal likelihood for Model 3 is at most
+\py{fmt(D['ml_power_is_corr'], 1)}, so the log Bayes factor is at least
+\py{fmt(D['bf_crra_power_corr'], 1)} for Model 1 over Model 3 and at
+least \py{fmt(D['bf_ge_power_corr'], 1)} for Model 2 over Model 3, the
+lower bounds quoted in Section~\ref{sec:model_comparison}. The
+numerical difficulty itself is informative: for $k > p$ the
+unnormalized induced construction tilts the effective hyperprior toward
+extreme heterogeneity values, a caveat for over-determined
+quantity-space priors that Section~\ref{sec:discussion} takes up.

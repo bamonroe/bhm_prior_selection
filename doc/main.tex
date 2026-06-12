@@ -1304,59 +1304,73 @@ Prelec and Goldstein-Einhorn forms are non-nested. The marginal likelihood
 treats both cases identically, so a single set of estimates supports all
 three pairwise comparisons.
 
-I compute each marginal likelihood three ways. The first is warp bridge
-sampling on the full parameter space, following \textcite{MengWong1996} and
-\textcite{MengSchilling2002}. The second is a Rao-Blackwellized bridge that
-integrates out the subject-level parameters and bridges on the 8-dimensional
-hyperparameter space, where the proposal distribution is far easier to match
-to the posterior. The third is thermodynamic integration along a temperature
-ladder, using the stepping-stone estimator of \textcite{Xie2011} built on the
-path sampling identity of \textcite{GelmanMeng1998}. The three estimators
-rest on different approximations and fail in different ways, so agreement
-across them is itself evidence that the estimates are trustworthy.
-Appendix~\ref{app:mcmc_details} describes the computational details of each
-method.
+I estimate each marginal likelihood with a Rao-Blackwellized estimator
+that exploits the hierarchical structure. Conditional on the
+hyperparameters the subjects are independent, so the integral in
+Equation~\eqref{eq:log_ml} factors into per-subject integrals over three
+or four parameters followed by a single 8-dimensional integral over the
+hyperparameters. The per-subject integrals are estimated by importance
+sampling with mixture proposals adapted to each subject's posterior. The
+hyperparameter integral is then computed twice, by two routes that share
+no integration logic. The first is importance sampling from a Student-$t$
+distribution fitted to the hyperparameter posterior, and the second is
+the iterative bridge sampling estimator of \textcite{MengWong1996}. The
+whole procedure runs on \py{D['ml_R']} independent sets of importance
+draws, and the replicate spread provides the standard errors. As a
+correctness check, the same estimator recovers a brute-force benchmark
+on a small synthetic dataset to within
+\py{fmt(D['mlval_abs_err_is'], 2)} log units.
+Appendix~\ref{app:mcmc_details} describes the procedure in detail.
 
-Table~\ref{tab:log_ml} reports the log marginal likelihoods under all three
-estimators. The three methods agree to within
-\pending{max_method_discrepancy} log units for every model, and the ranking
-of the models is the same under each method.
+Table~\ref{tab:log_ml} reports the log marginal likelihoods under both
+routes. The two routes agree to within
+\py{fmt(D['ml_route_gap_max'], 2)} log units for every model, and the
+ranking of the models is the same under each.
 
 \begin{table}[h!]
   \centering
-  \begin{tabular}{lccc}
+  \begin{tabular}{lcc}
     \toprule
-    & Warp bridge & RB bridge & TI stepping-stone \\
+    & Importance sampling & Bridge sampling \\
     \midrule
-    Model 1 (CRRA + Prelec) & \pending{crra_log_ml} (\pending{crra_log_ml_se}) & \pending{crra_log_ml_rb} & \pending{crra_log_ml_ss} \\
-    Model 2 (CRRA + GE) & \pending{ge_log_ml} (\pending{ge_log_ml_se}) & \pending{ge_log_ml_rb} & \pending{ge_log_ml_ss} \\
-    Model 3 (CRRA + Power) & \pending{power_log_ml} (\pending{power_log_ml_se}) & \pending{power_log_ml_rb} & \pending{power_log_ml_ss} \\
+    Model 1 (CRRA + Prelec) &
+      \py{fmt(D['ml_crra_is'], 1)} (\py{fmt(D['ml_crra_is_se'], 2)}) &
+      \py{fmt(D['ml_crra_bridge'], 1)} (\py{fmt(D['ml_crra_bridge_se'], 2)}) \\
+    Model 2 (CRRA + GE) &
+      \py{fmt(D['ml_ge_is'], 1)} (\py{fmt(D['ml_ge_is_se'], 2)}) &
+      \py{fmt(D['ml_ge_bridge'], 1)} (\py{fmt(D['ml_ge_bridge_se'], 2)}) \\
+    Model 3 (CRRA + Power) &
+      \py{fmt(D['ml_power_is'], 1)} (\py{fmt(D['ml_power_is_se'], 2)}) &
+      \py{fmt(D['ml_power_bridge'], 1)} (\py{fmt(D['ml_power_bridge_se'], 2)}) \\
     \bottomrule
   \end{tabular}
-  \caption{Log marginal likelihoods by model and estimation method.
-    Bridge-sampling standard errors in parentheses.}
+  \caption{Log marginal likelihoods by model and integration route.
+    Replicate-based standard errors in parentheses.}
   \label{tab:log_ml}
 \end{table}
 
-The warp bridge estimates imply a log Bayes factor of
-\pending{log_bf_crra_vs_ge} for Prelec over Goldstein-Einhorn,
-\pending{log_bf_crra_vs_power} for Prelec over Power, and
-\pending{log_bf_ge_vs_power} for Goldstein-Einhorn over Power. The
-Rao-Blackwellized bridge and thermodynamic integration estimates corroborate
-these values, with \pending{log_bf_rb_crra_vs_ge} and
-\pending{log_bf_ti_crra_vs_ge} respectively for the Prelec and
-Goldstein-Einhorn comparison. On the scale of \textcite{KassRaftery1995},
-I find that the data \pending{bf_interpretation_sentence}. The cross-model CE
-analysis of Section~\ref{sec:estimation} suggested that the weighting
-functions separate only at the symmetric lottery, and the Bayes factors
-\pending{bf_ce_consistency_clause} that pattern.
+The importance sampling estimates imply a log Bayes factor of
+\py{fmt(D['bf_crra_ge'], 1)} for Prelec over Goldstein-Einhorn,
+\py{fmt(D['bf_crra_power'], 1)} for Prelec over Power, and
+\py{fmt(D['bf_ge_power'], 1)} for Goldstein-Einhorn over Power. On the
+scale of \textcite{KassRaftery1995} all three comparisons are decisive,
+since twice the log Bayes factor exceeds ten in every case. The data
+strongly favor the two-parameter weighting functions over the
+one-parameter Power form, and within the two-parameter pair they favor
+Prelec over Goldstein-Einhorn by a margin an order of magnitude smaller
+but still far beyond conventional thresholds. For the nested comparison,
+the evidence against the $\phi = 1$ restriction that reduces Prelec to
+the Power form is overwhelming. The cross-model CE analysis of
+Section~\ref{sec:estimation} suggested that the weighting functions
+separate mainly at the symmetric lottery, and the Bayes factors match
+that pattern. The forms that can move the symmetric-lottery CE
+independently of the asymmetric ones dominate the Power form, while the
+two flexible forms sit much closer together.
 
-Agreement across three estimators with different bias profiles
-\pending{method_agreement_statement}, which suggests the marginal likelihood
-estimates are reliable rather than artifacts of any single method. Because
-the prior is fixed in quantity space, these numbers are interpretable as
-evidence about probability weighting alone. In other words, the Bayes factor
-answers in units of evidence the question the CE overlays raised in dollars.
+Because the prior is fixed in quantity space, these numbers are
+interpretable as evidence about probability weighting alone. In other
+words, the Bayes factor answers in units of evidence the question the CE
+overlays raised in dollars.
 
 %==============================================================================
 \section{Discussion}

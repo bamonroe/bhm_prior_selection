@@ -188,6 +188,64 @@ def gen_paper_data(output_path=None,
     else:
         print(f"\nSkipping family comparison (run do_family_comparison first)")
 
+    # Per-model average iteration time (from history file diagnostics)
+    from model_registry import MODEL_REGISTRY
+    for mk, cfg in MODEL_REGISTRY.items():
+        hist_dir = output_path.parent / cfg['model_id'] / 'history' / 'full'
+        times = []
+        for f in sorted(hist_dir.glob('*.npz')):
+            d = np.load(f, allow_pickle=True)
+            try:
+                times.append(float(d['diagnostics'].item()['avg_iter_time']))
+            except (KeyError, AttributeError):
+                pass
+        if times:
+            save_dict[f'{mk}_time_per_iter'] = float(np.mean(times))
+
+    # Load marginal likelihoods / Bayes factors (from marginal_likelihood.py)
+    ml_path = output_path.parent / 'bayes_factors_rb2.npz'
+    if ml_path.exists():
+        ml = dict(np.load(ml_path))
+        gaps = []
+        for m in ['crra', 'ge', 'power']:
+            save_dict[f'ml_{m}_is'] = float(ml[f'{m}_log_ml_is'])
+            save_dict[f'ml_{m}_is_se'] = float(ml[f'{m}_log_ml_is_se'])
+            save_dict[f'ml_{m}_bridge'] = float(ml[f'{m}_log_ml_bridge'])
+            save_dict[f'ml_{m}_bridge_se'] = float(ml[f'{m}_log_ml_bridge_se'])
+            save_dict[f'ml_{m}_ess_med'] = float(ml[f'{m}_ess_subject_med'])
+            gaps.append(abs(save_dict[f'ml_{m}_is']
+                            - save_dict[f'ml_{m}_bridge']))
+        save_dict['ml_route_gap_max'] = max(gaps)
+        for pair in ['crra_vs_ge', 'crra_vs_power', 'ge_vs_power']:
+            short = pair.replace('_vs', '')
+            save_dict[f'bf_{short}'] = float(ml[f'log_bf_rb2_{pair}'])
+            save_dict[f'bf_{short}_se'] = float(ml[f'log_bf_rb2_{pair}_se'])
+        save_dict['ml_K'] = int(ml['K'])
+        save_dict['ml_K_ge'] = int(ml.get('ge_K', ml['K']))
+        save_dict['ml_R'] = int(ml['R'])
+        print(f"\nLoaded marginal likelihoods from: {ml_path}")
+        print(f"  log BF crra/ge = {save_dict['bf_crra_ge']:.2f}, "
+              f"crra/power = {save_dict['bf_crra_power']:.2f}, "
+              f"ge/power = {save_dict['bf_ge_power']:.2f}")
+    else:
+        print(f"\nSkipping marginal likelihoods (run do_bayes_factors_rb2 first)")
+
+    # Marginal likelihood validation summary (from ml_validation.py)
+    val_path = output_path.parent / 'ml_validation.npz'
+    if val_path.exists():
+        val = dict(np.load(val_path))
+        save_dict['mlval_gt'] = float(val['gt_wide_log_ml'])
+        save_dict['mlval_gt_se'] = float(val['gt_wide_se'])
+        save_dict['mlval_abs_err_is'] = abs(float(val['rb_is_log_ml'])
+                                            - float(val['gt_wide_log_ml']))
+        save_dict['mlval_abs_err_bridge'] = abs(float(val['rb_bridge_log_ml'])
+                                                - float(val['gt_wide_log_ml']))
+        save_dict['mlval_n_subjects'] = int(val['n_subjects'])
+        save_dict['mlval_n_choices'] = int(val['n_choices'])
+        print(f"Loaded ML validation: |err| IS = "
+              f"{save_dict['mlval_abs_err_is']:.4f}, bridge = "
+              f"{save_dict['mlval_abs_err_bridge']:.4f}")
+
     # Load pre-computed MCMC diagnostics (from mcmc_diagnostics.py)
     diag_path = output_path.parent / 'mcmc_diagnostics.npz'
     if diag_path.exists():

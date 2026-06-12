@@ -38,7 +38,7 @@ model.
     Median $\hat{R}$ & \py{diag_rhat_med['crra']} & \py{diag_rhat_med['ge']} & \py{diag_rhat_med['power']} \\
     Max $\hat{R}$ & \py{diag_rhat_max['crra']} & \py{diag_rhat_max['ge']} & \py{diag_rhat_max['power']} \\
     Mean acceptance rate & \py{diag_accept['crra']}\% & \py{diag_accept['ge']}\% & \py{diag_accept['power']}\% \\
-    Time per iteration (s) & \pending{crra_time_per_iter} & \pending{ge_time_per_iter} & \pending{power_time_per_iter} \\
+    Time per iteration (s) & \py{fmt(D['crra_time_per_iter'], 2)} & \py{fmt(D['ge_time_per_iter'], 2)} & \py{fmt(D['power_time_per_iter'], 2)} \\
     \bottomrule
   \end{tabular}
   \caption{MCMC sampling configuration and convergence diagnostics.}
@@ -59,34 +59,60 @@ are consistent with multiple modes in the posterior. These subjects exhibit
 bimodal CE posteriors, as discussed in Section \ref{sec:estimation}.
 
 \subsection{Marginal Likelihood Computation}
+\label{app:ml_details}
 
-The marginal likelihoods reported in Section~\ref{sec:model_comparison} are
-computed with three estimators, each operating on the posterior draws
-described above.
+The marginal likelihoods reported in Section~\ref{sec:model_comparison}
+exploit the conditional independence of subjects given the
+hyperparameters. The marginal likelihood factors as
+\begin{align}
+  \label{eq:ml_rb}
+  p(y \mid M) = \int p(\hype \mid M)
+    \prod_{i=1}^{N} p(y_i \mid \hype, M)\, d\hype,
+\end{align}
+where each integrated likelihood $p(y_i \mid \hype, M)$ is an integral
+over the three or four structural parameters of subject $i$. Estimating
+the low-dimensional factors separately avoids the need for a proposal
+distribution that covers the full 452- or 341-dimensional parameter
+space, which is the binding practical constraint for direct bridge
+sampling in models of this size.
 
-The warp bridge sampling estimator follows \textcite{MengWong1996}, with the
-warp transformation of \textcite{MengSchilling2002} applied to the posterior
-draws so that the proposal distribution and the warped posterior overlap. The
-proposal is \pending{bridge_proposal_detail}, and the Meng-Wong fixed point
-iteration is run for \pending{bridge_n_iterations} iterations. Standard
-errors come from the standard asymptotic formula for the bridge estimator.
-Because the bridge operates on the full parameter space, the proposal must
-cover 452 dimensions for Models 1 and 2 and 341 for Model 3, which makes
-overlap with the posterior the binding practical constraint.
+Each per-subject integral is estimated by importance sampling with
+$K = \py{D['ml_K']}$ fresh draws ($\py{D['ml_K_ge']}$ for Model~2) from
+a proposal tailored to that subject. The proposal is a mixture of
+Student-$t$ components fitted to the subject's marginal posterior draws,
+stratified along the first principal component so the mixture follows
+the curvature of the posterior, and refined once by importance
+resampling against the integrand evaluated at a spread of posterior
+hyperparameter draws. The refinement matters because the conditional
+posterior of a subject given $\hype$ is substantially narrower than the
+subject's marginal posterior. The hyperparameter dependence of the
+Beta-Beta population density enters the importance weights only through
+the Beta coefficients, which multiply functions of the structural
+parameters that are cached once, so sweeping the per-subject estimates
+across thousands of hyperparameter draws costs two tensor contractions
+per draw.
 
-The Rao-Blackwellized bridge addresses that constraint by integrating out the
-subject-level parameters before bridging. For each hyperparameter draw, the
-per-subject integrated likelihood is estimated by
-\pending{rb_subject_integration_method}, reducing the bridge to the
-8-dimensional hyperparameter space, where a moment-matched proposal overlaps
-the marginal posterior easily.
+The remaining 8-dimensional integral over $\hype$ in
+Equation~\eqref{eq:ml_rb} is computed by two routes that share no
+integration logic. The first is importance sampling from a Student-$t$
+distribution fitted to the hyperparameter posterior. The second is the
+iterative bridge sampling estimator of \textcite{MengWong1996} between
+the posterior draws and the same proposal. Because the per-subject
+estimates enter the integrand multiplicatively, a single set of
+importance draws yields a log marginal likelihood biased downward by
+approximately $\sum_i 1/(2\,\mathrm{ESS}_i)$, with standard errors blind
+to the shared draws. The procedure therefore runs
+$\py{D['ml_R']}$ independent replicates with fresh draws, combines the
+replicate estimates on the natural scale, and takes standard errors from
+the replicate spread. The two routes agree to within
+\py{fmt(D['ml_route_gap_max'], 2)} log units across the three models.
 
-Thermodynamic integration runs independent MCMC at each rung of a
-temperature ladder of \pending{n_temperatures} temperatures with
-\pending{ti_schedule} spacing, raising the likelihood to the power
-$\beta_t$ while keeping the prior fixed. The headline estimate uses the
-stepping-stone estimator of \textcite{Xie2011}, with the trapezoidal
-estimate along the path sampling identity of \textcite{GelmanMeng1998}
-serving as an internal consistency check. The per-model compute cost of the
-full ladder is governed by the same per-iteration costs reported in
-Table~\ref{tab:mcmc_summary}.
+The estimator was validated end to end on a synthetic dataset of
+\py{D['mlval_n_subjects']} subjects making \py{D['mlval_n_choices']}
+choices each, generated from known parameters, where the marginal
+likelihood can be computed by brute force using draws taken exactly from
+the Beta-Beta hyperprior. Two brute-force runs with different inner
+proposals agree to within one hundredth of a log unit, and the estimator
+recovers their value, $\py{fmt(D['mlval_gt'], 2)}$, to within
+\py{fmt(D['mlval_abs_err_is'], 2)} log units on the importance sampling
+route and \py{fmt(D['mlval_abs_err_bridge'], 2)} on the bridge route.

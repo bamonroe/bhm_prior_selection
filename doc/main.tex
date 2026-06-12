@@ -163,8 +163,8 @@ for _m in ['crra', 'ge', 'power']:
   \begin{justify}
 
   Bayesian hierarchical models require hyperpriors that researchers rarely
-  have direct intuition about. This paper
-  develops a framework that recasts these choices in terms of interpretable
+  have direct intuition about. I
+  develop a framework that recasts these choices in terms of interpretable
   predictive quantities. Rather than placing priors directly on structural
   parameters, the researcher specifies beliefs about observables such as
   certainty equivalents or choice probabilities, and a Jacobian correction maps
@@ -236,7 +236,7 @@ parameters.\footnote{
 difficult to express domain knowledge directly in terms of these hyperprior
 parameters.
 
-This paper develops a two-part framework for hyperprior specification in
+I develop a two-part framework for hyperprior specification in
 structural models. The first part concerns \textit{quantity-space prior
 specification}. Researchers may have well-calibrated beliefs about predictive
 quantities, such as certainty equivalents (CEs) or choice probabilities, even
@@ -255,7 +255,7 @@ random individual and then to state how much of the resulting uncertainty should
 be attributed to heterogeneity in the population.
 
 The contribution is therefore not to eliminate prior choices, but to move them
-into objects that are easier to interpret and defend. This extends the broader
+into objects that are easier to interpret and defend. I extend the broader
 workflow of informed prior specification, in which priors are reasoned through
 their implications for predictive quantities, to hierarchical models of
 exchangeable populations. A further advantage is that the same quantity-space
@@ -330,18 +330,18 @@ remains the question of how to use them in Bayesian analysis.
 iteratively searches for prior parameters producing reasonable prior
 predictive distributions of quantities about which the researcher has
 well-calibrated beliefs. In the experimental economics literature specifically,
-\textcite{Bland2025} proposed calibrating priors for structural models by
+\textcite{Bland2025} proposes calibrating priors for structural models by
 examining their implications for certainty equivalents.
-\textcite{Manderson2026} proposed a general approach to translating predictive
+\textcite{Manderson2026} propose a general approach to translating predictive
 beliefs into prior distributions using Kullback-Leibler optimization, which can
 numerically match the prior predictive to some prior distribution.
 \textcite{Segert2019} develop Jacobian-based transformations between parameter
 and observable spaces for individual-level models. Their emphasis is on the
 conceptual interpretation of predictive distributions, but the same machinery is
-directly useful for informed priors. Relative to this literature, the present
-paper contributes two things: an exact Jacobian-based translation from
-quantity-space beliefs to parameter-space priors, and a hierarchical extension
-that organizes the remaining hyperprior choices through a variance
+directly useful for informed priors. Relative to this literature, I
+contribute an exact Jacobian-based translation from
+quantity-space beliefs to parameter-space priors, together with a hierarchical
+extension that organizes the remaining hyperprior choices through a variance
 decomposition.
 
 In the hierarchical setting specifically, \textcite{Fuglstad2020} develop a
@@ -349,8 +349,8 @@ framework for specifying joint priors on variance parameters by decomposing
 total variance along a tree structure, with Dirichlet or penalized complexity
 priors at each split. Their approach makes variance allocation interpretable for
 additive Gaussian models, and is implemented in the \texttt{makemyprior} R
-package. The present paper shares that goal of making variance allocation an
-explicit researcher input and extends it in a different direction. Here the
+package. I share that goal of making variance allocation an
+explicit researcher input and extend it in a different direction. Here the
 decomposition is expressed through two scalar parameters ($\alpha$ and $\kappa$)
 combined with closed-form moment-matching, which is convenient for hierarchies
 where the conditional variance may itself depend on the mean hyperparameter.
@@ -359,11 +359,10 @@ elicitation problem from the model's native parameters to predictive
 quantities, allowing the variance decomposition to be applied after beliefs
 about observables have been specified.
 
-These contributions establish the foundation on which the present paper builds.
+These contributions establish the foundation on which I build.
 What has been much less developed is how to extend predictive, quantity-based
 prior reasoning to hierarchical models, where the hyperprior specification
-problem is most acute. The present paper provides that extension in analytic
-form.
+problem is most acute. I provide that extension in analytic form.
 
 
 
@@ -1492,7 +1491,7 @@ address the limitation discussed above and sharpen all of these comparisons.
 \label{sec:conclusion}
 
 BHMs require hyperprior specifications that are difficult to construct from
-first principles. This paper develops a two-part framework that reorganizes
+first principles. I have developed a two-part framework that reorganizes
 this problem into objects that are easier to reason about. First,
 quantity-space prior specification allows researchers to state beliefs about
 predictive quantities such as certainty equivalents and choice probabilities,

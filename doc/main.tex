@@ -935,21 +935,13 @@ for k in [1, 2, 3]:
 
 The quantity-space framework of Section \ref{sec:ce_space} requires reference
 lotteries for the CE mapping and a reference pair for the choice probability,
-chosen so that the map from parameters to predictive quantities is injective.\footnote{
-  The conditions for injectivity are derived in detail in Appendix
-  \ref{app:global_injectivity}.
-}
-The same set of reference lotteries serves all three models, but injectivity
-conditions must be verified for each specification separately.
-Appendix~\ref{app:global_injectivity} provides an analytic proof for Model~1
-(CRRA + Prelec). The proof extends directly to Model~2
-(CRRA + Goldstein-Einhorn), since both use the same CRRA utility and a
-2-parameter PWF satisfying the same two-point injectivity condition. For
-Model~3 (CRRA + Power), the proof also extends: the Power PWF is strictly
-monotone in $\delta$, so a single decision weight identifies $\delta$, and the
-remaining CE identifies $r$ through the same CRRA monotonicity argument.
-Numerical verification via the Gram determinant $\det(J_\bg^\top J_\bg)$ on
-dense grids confirms full column rank of the Jacobian for Model~3.
+chosen so that the map from parameters to predictive quantities is injective.
+Injectivity must be verified for each specification separately, and
+Appendix~\ref{app:global_injectivity} does so for all three. The analytic
+proof rests on a two-point argument that covers both the Prelec and
+Goldstein-Einhorn forms, the Power form follows from monotonicity in its
+single parameter, and a numerical rank check of the Gram determinant
+supplements the argument for Model~3.
 The design uses two binary lotteries with distinct probabilities on the higher
 outcome and a third binary lottery with shared probability $p_3 = p_1$ whose
 outcome ratio differs from that of $L_1$. No pair of lotteries with
@@ -1457,10 +1449,12 @@ Finally, quantity-space specification requires an injective mapping from
 parameters to predictive quantities. This is not a cosmetic condition; it
 constrains the design of reference quantities and implies that not all
 experimental designs are equally suitable for prior specification. Proving
-injectivity can also be technically demanding. For Models 1 and 3, analytic
-proofs are available (Appendix \ref{app:global_injectivity}). For Model 2,
-the 2-parameter utility function makes the analytic approach substantially
-harder, and numerical verification is used instead. Other quantities, such
+injectivity can also be technically demanding. The analytic argument in
+Appendix \ref{app:global_injectivity} covers all three models here because
+they share the scalar CRRA utility, but utility functions with more than one
+parameter, such as the Expo-Power form, replace that scalar argument with a
+higher-dimensional condition for which numerical verification of the Gram
+determinant is the practical route. Other quantities, such
 as choice probabilities, avoid some of these complications and can support
 flexible reference designs, at least for EUT\@.
 Appendix \ref{app:eut_choice_probs} shows that broad classes of lottery pairs

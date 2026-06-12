@@ -1200,15 +1200,15 @@ _bl = _load_npz('posterior_ce_comparison.npz')
 _sens = _load_npz('rk_sensitivity_summary.npz')
 _n_subj = int(D.get('n_subjects', 111))
 
-def _rk_row(rho, kappa, nw, nm, nd):
+def _rk_row(alpha, kappa, nw, nm, nd):
     pct = int(round(100 * nd / _n_subj))
-    return f"    {rho:.1f} & {kappa:.2f} & {nw} & {nm} & {nd} & {pct}\\% \\\\"
+    return f"    {alpha:.1f} & {kappa:.2f} & {nw} & {nm} & {nd} & {pct}\\% \\\\"
 
 _bl_row = _rk_row(0.2, 0.25, int(_bl.get('n_well', 79)), int(_bl.get('n_moderate', 14)), int(_bl.get('n_dominated', 18)))
 _sens_rows = []
-for i in range(len(_sens.get('rho', []))):
+for i in range(len(_sens.get('alpha', []))):
     _sens_rows.append(
-        _rk_row(float(_sens['rho'][i]), float(_sens['kappa'][i]),
+        _rk_row(float(_sens['alpha'][i]), float(_sens['kappa'][i]),
                 int(_sens['n_well'][i]), int(_sens['n_moderate'][i]),
                 int(_sens['n_dominated'][i])))
 
@@ -1546,7 +1546,9 @@ the reason quantity-space hyperprior specification may be useful well beyond the
 present application.
 
 
-\subsection*{Code and Data Availability}
+% \subsection is redefined in packages.tex without starred-form support,
+% so call the saved original directly for an unnumbered heading.
+{\singlespacing\oldsubsection*{Code and Data Availability}}
 
 The estimation code, data, and replication materials for this paper are
 available at \url{https://github.com/bmonroe3/bhm-prior-selection}.

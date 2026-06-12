@@ -479,34 +479,6 @@ def run_injectivity_power(output_dir, reference_lotteries, config=None):
     print("Done.\n")
 
 
-def run_injectivity_ep_eut(output_dir, reference_lotteries, config=None):
-    """Run EP+EUT injectivity analysis (Gram determinant, k=4 > p=3).
-
-    Parameters
-    ----------
-    output_dir : Path
-        Output directory for report and NPZ files.
-    reference_lotteries : list of dict
-        Current lottery design from main.py.
-    config : dict, optional
-        Keys: 'domain', 'n_grid', 'x_min', 'x_max'.
-    """
-    print("\n" + "=" * 60)
-    print("Running: EP+EUT Injectivity Analysis")
-    print("=" * 60)
-    from injectivity_ep_eut import run_injectivity_ep_eut as _run
-    config = config or {}
-    _run(
-        output_dir=output_dir,
-        reference_lotteries=reference_lotteries,
-        domain=config.get('domain'),
-        n_grid=config.get('n_grid', 40),
-        x_min=config.get('x_min', 10.0),
-        x_max=config.get('x_max', 50.0),
-    )
-    print("Done.\n")
-
-
 # =============================================================================
 # Legacy functions kept for Appendix D (α,κ) sensitivity analysis
 # =============================================================================

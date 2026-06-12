@@ -217,42 +217,6 @@ sampling_opts_ge = {
     'beta_min': 0.1,
 }
 
-# Expo-Power + EUT model config (k=4 > p=3, same quantity-space Beta-Beta prior)
-sampling_opts_ep_eut = {
-    'model': 'rdu_ep_eut_bhm_ce',
-    'output_dir': DATA_DIR / 'output',
-    'plots_dir': PLOTS_DIR / 'rdu_ep_eut_bhm_ce',
-    'clean': True,
-    'reset_runs': 1,
-    'resume_runs': 5,
-    'num_chains': 1000,
-    'num_collect': 100,
-    'thin_iteration': 10,
-    'chunk_size': 10,
-    'seed': SEEDS['sampling'],
-    'use_double': True,
-    'n_temperatures': 0,
-    'beta_min': 0.1,
-}
-
-# Expo-Power + TK92 model config (same quantity-space Beta-Beta prior)
-sampling_opts_ep = {
-    'model': 'rdu_ep_bhm_ce',
-    'output_dir': DATA_DIR / 'output',
-    'plots_dir': PLOTS_DIR / 'rdu_ep_bhm_ce',
-    'clean': True,
-    'reset_runs': 1,
-    'resume_runs': 5,
-    'num_chains': 1000,
-    'num_collect': 100,
-    'thin_iteration': 10,
-    'chunk_size': 10,
-    'seed': SEEDS['sampling'],
-    'use_double': True,
-    'n_temperatures': 0,
-    'beta_min': 0.1,
-}
-
 # CRRA + Power model config (k=4 > p=3, same quantity-space Beta-Beta prior)
 sampling_opts_power = {
     'model': 'rdu_power_bhm_ce',
@@ -311,11 +275,11 @@ do_sensitivity          = False
 do_family_comparison    = False
 
 # --- Per-Model Flags (keyed by model registry key) ---
-do_sampling       = {'crra': False, 'ge': False, 'ep_eut': False, 'ep': False, 'power': False}
-do_sampling_prior = {'crra': False, 'ge': False, 'ep_eut': False, 'power': False}
-do_prior_only_plots = {'crra': False, 'ge': False, 'ep_eut': False, 'power': False}
-do_preprocessing  = {'crra': False, 'ge': False, 'ep_eut': False, 'ep': False, 'power': False}
-do_diagnostic_plots = {'crra': False, 'ge': False, 'ep_eut': False, 'ep': False, 'power': False}
+do_sampling       = {'crra': False, 'ge': False, 'power': False}
+do_sampling_prior = {'crra': False, 'ge': False, 'power': False}
+do_prior_only_plots = {'crra': False, 'ge': False, 'power': False}
+do_preprocessing  = {'crra': False, 'ge': False, 'power': False}
+do_diagnostic_plots = {'crra': False, 'ge': False, 'power': False}
 
 # --- Stan (separate, not in registry) ---
 do_sampling_stan           = False
@@ -423,8 +387,6 @@ if __name__ == '__main__':
     sampling_opts_map = {
         'crra': sampling_opts_ce,
         'ge': sampling_opts_ge,
-        'ep_eut': sampling_opts_ep_eut,
-        'ep': sampling_opts_ep,
         'power': sampling_opts_power,
     }
     prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
@@ -568,7 +530,6 @@ if __name__ == '__main__':
             generate_cross_model_ce_overlay(
                 crra_hyper_path=hyper_paths['crra'],
                 ge_hyper_path=hyper_paths.get('ge'),
-                ep_hyper_path=hyper_paths.get('ep'),
                 power_hyper_path=hyper_paths.get('power'),
                 prior_params_path=str(DATA_DIR / 'output' / 'prior_params_ce.npz'),
                 output_dir=str(paper_plots_dir),
@@ -579,7 +540,6 @@ if __name__ == '__main__':
             generate_subject_detail_figures(
                 crra_subjects_dir=subj_dirs['crra'],
                 ge_subjects_dir=subj_dirs.get('ge'),
-                ep_subjects_dir=subj_dirs.get('ep'),
                 power_subjects_dir=subj_dirs.get('power'),
                 output_dir=str(paper_plots_dir),
                 seed=SEEDS['sampling'],

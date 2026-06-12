@@ -1112,7 +1112,6 @@ def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
 
 def generate_cross_model_ce_overlay(
     crra_hyper_path,
-    ep_hyper_path=None,
     power_hyper_path=None,
     ge_hyper_path=None,
     prior_params_path=None,
@@ -1204,7 +1203,6 @@ def generate_cross_model_ce_overlay(
 
 def generate_subject_detail_figures(
     crra_subjects_dir,
-    ep_subjects_dir=None,
     power_subjects_dir=None,
     ge_subjects_dir=None,
     output_dir=None,

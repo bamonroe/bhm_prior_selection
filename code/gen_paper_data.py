@@ -236,7 +236,7 @@ def gen_paper_data(output_path=None,
             for model_name, hyper_path in available_models.items():
                 model_ce = _draw_ce_from_beta_hierarchy(
                     str(hyper_path), prior_params_file, k,
-                    n_draws=n_ce_draws, seed=42+40*(1 if model_name == 'ep' else 2)+k,
+                    n_draws=n_ce_draws, seed=42 + 80 + k,
                     use_posterior=True)
                 save_dict[f'xmodel_{model_name}_median_{suffix}'] = np.nanmedian(model_ce)
                 msg += f", {model_name.upper()}=${np.nanmedian(model_ce):.1f}"

@@ -117,98 +117,6 @@ def _compute_ces_for_lottery(r_arr, phi_arr, eta_arr, lottery):
     return ces
 
 
-def _compute_ces_for_lottery_ep(alpha_arr, r_arr, gamma_arr, lottery):
-    """Compute CEs for arrays of EP+TK parameters and a specific lottery (vectorized).
-
-    Uses numpy for batch computation. The EP inverse is computed via
-    Newton iteration (same approach as the JAX version in common_fns).
-    """
-    prizes = np.array(lottery['prizes'], dtype=np.float64)
-    probs = np.array(lottery['probs'], dtype=np.float64)
-
-    sorted_idx = np.argsort(prizes)
-    sp = prizes[sorted_idx]
-    sq = probs[sorted_idx]
-
-    lo, hi = float(sp[0]), float(sp[-1])
-
-    cum = np.cumsum(sq)
-
-    alpha_arr = np.asarray(alpha_arr, dtype=np.float64)
-    r_arr = np.asarray(r_arr, dtype=np.float64)
-    gamma_arr = np.asarray(gamma_arr, dtype=np.float64)
-    n = len(r_arr)
-
-    # TK weights: w(p) = p^gamma / (p^gamma + (1-p)^gamma)^(1/gamma)
-    gamma_safe = np.maximum(gamma_arr, 0.28)
-    cum_clipped = np.clip(cum[:-1], 1e-10, 1 - 1e-10)  # (n_outcomes-1,)
-    p_g = cum_clipped[None, :] ** gamma_safe[:, None]    # (n, n_outcomes-1)
-    q_g = (1 - cum_clipped[None, :]) ** gamma_safe[:, None]
-    w_inner = p_g / np.power(p_g + q_g, 1.0 / gamma_safe[:, None])
-    w = np.ones((n, len(cum)), dtype=np.float64)
-    w[:, :-1] = w_inner
-
-    # Decision weights
-    d = np.empty_like(w)
-    d[:, 0] = w[:, 0]
-    d[:, 1:] = w[:, 1:] - w[:, :-1]
-
-    # EP utility: u(x) = (exp(-alpha*xmin^s) - exp(-alpha*x^s))
-    #                   / (exp(-alpha*xmin^s) - exp(-alpha*xmax^s))
-    # where s = 1-r. At s=0: reduces to log form.
-    x_min, x_max = lo, hi
-    s_arr = 1.0 - r_arr
-    use_log = np.abs(s_arr) < 1e-10
-    s_safe = np.where(use_log, 0.5, s_arr)
-    alpha_safe = np.maximum(alpha_arr, 1e-10)
-
-    sp_s = sp[None, :] ** s_safe[:, None]              # (n, n_outcomes)
-    xmin_s = x_min ** s_safe                            # (n,)
-    xmax_s = x_max ** s_safe                            # (n,)
-
-    exp_x = np.exp(-alpha_safe[:, None] * sp_s)         # (n, n_outcomes)
-    exp_min = np.exp(-alpha_safe * xmin_s)              # (n,)
-    exp_max = np.exp(-alpha_safe * xmax_s)              # (n,)
-    ep_denom = exp_min - exp_max                        # (n,)
-    utilities = (exp_min[:, None] - exp_x) / ep_denom[:, None]
-
-    log_utilities = np.log(sp / x_min)[None, :] / np.log(x_max / x_min)
-    log_utilities = log_utilities * np.ones((n, 1))
-
-    # RDU value (normalized)
-    rdu = np.sum(d * np.where(use_log[:, None], log_utilities, utilities), axis=1)
-    rdu = np.clip(rdu, 0.0, 1.0)
-
-    # EP inverse via Newton iteration (numpy batch version)
-    # Initial guess: CRRA inverse
-    with np.errstate(invalid='ignore', over='ignore'):
-        ce_s_crra = rdu * (xmax_s - xmin_s) + xmin_s
-        x0_normal = np.power(np.maximum(ce_s_crra, 1e-30), 1.0 / s_safe)
-        x0_log = x_min * np.power(x_max / x_min, rdu)
-    x = np.where(use_log, x0_log, x0_normal)
-    x = np.clip(x, lo + 1e-8, hi - 1e-8)
-
-    # Newton steps
-    for _ in range(20):
-        x = np.clip(x, lo + 1e-8, hi - 1e-8)
-        x_s = np.power(x, s_safe)
-        exp_x_newton = np.exp(-alpha_safe * x_s)
-        fx = (exp_min - exp_x_newton) / ep_denom - rdu
-        dfx = alpha_safe * s_safe * np.power(x, s_safe - 1) * exp_x_newton / ep_denom
-        dfx = np.where(np.abs(dfx) < 1e-30, 1e-30, dfx)
-        x_new = x - fx / dfx
-        # Only update for non-log cases
-        x = np.where(use_log, x, np.clip(x_new, lo + 1e-8, hi - 1e-8))
-
-    ces = np.clip(x, lo, hi)
-    ces[~np.isfinite(ces)] = np.nan
-    return ces
-
-
-# =============================================================================
-# Hyper-posterior predictive draws
-# =============================================================================
-
 def _draw_ce_from_beta_hierarchy(hyper_path, prior_params_path, quantity_idx,
                                   n_draws=50000, seed=42, use_posterior=True):
     """Draw CEs directly from the Beta-Beta hierarchy.
@@ -1136,75 +1044,6 @@ def _plot_one_subject_ce_all_lotteries(args):
     return sid
 
 
-def generate_subject_ce_plots(
-    info_subjects_dir,
-    uninf_subjects_dir,
-    output_dir,
-    lotteries=None,
-    n_sub=5000,
-    n_workers=25,
-    seed=42,
-):
-    """Generate per-subject CE comparison plots for all subjects.
-
-    Each subject gets a single PDF with 3 panels (one per reference lottery),
-    showing informative vs diffuse posterior CE distributions.
-
-    Args:
-        info_subjects_dir: Path to informative model preprocessed subjects dir
-        uninf_subjects_dir: Path to diffuse model preprocessed subjects dir
-        output_dir: Output directory for PDFs (subject_NNN.pdf)
-        lotteries: List of reference lottery dicts (default: REFERENCE_LOTTERIES)
-        n_sub: Number of draws to subsample per subject (default: 5000)
-        n_workers: Number of parallel workers (default: 25)
-        seed: Random seed
-    """
-    # Setup matplotlib in main process (validates LaTeX availability)
-    _setup_matplotlib()
-
-    info_subjects_dir = Path(info_subjects_dir)
-    uninf_subjects_dir = Path(uninf_subjects_dir)
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    if lotteries is None:
-        lotteries = REFERENCE_LOTTERIES
-
-    # Load metadata to get subject count
-    meta = np.load(info_subjects_dir / 'metadata.npz')
-    n_subjects = int(meta['n_subjects'])
-
-    print(f"  Generating CE comparison plots for {n_subjects} subjects...")
-    print(f"  Output: {output_dir}")
-    print(f"  Workers: {n_workers}, Subsample: {n_sub}")
-
-    # Build task list
-    tasks = []
-    for sid in range(n_subjects):
-        info_path = str(info_subjects_dir / f'subject_{sid:03d}_params.npz')
-        uninf_path = str(uninf_subjects_dir / f'subject_{sid:03d}_params.npz')
-        out_path = str(output_dir / f'subject_{sid:03d}.pdf')
-        tasks.append((sid, info_path, uninf_path, lotteries, out_path, n_sub, seed))
-
-    from concurrent.futures import ProcessPoolExecutor, as_completed
-
-    completed = 0
-    with ProcessPoolExecutor(max_workers=n_workers) as executor:
-        futures = {executor.submit(_plot_one_subject_ce_all_lotteries, t): t[0]
-                   for t in tasks}
-        for future in as_completed(futures):
-            sid = futures[future]
-            try:
-                future.result()
-                completed += 1
-                if completed % 20 == 0 or completed == n_subjects:
-                    print(f"  Completed {completed}/{n_subjects} subjects")
-            except Exception as e:
-                print(f"  ERROR on subject {sid}: {e}")
-
-    print(f"  Done: {completed}/{n_subjects} subject PDFs saved to {output_dir}")
-
-
 def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
                                           n_subjects_step=10):
     """Generate 2x2 KDE plot of prior predictive parameter distributions.
@@ -1271,143 +1110,212 @@ def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
     print(f"  Saved: {medians_path}")
 
 
-# =============================================================================
-# EP+TK Subject Parameter Loading
-# =============================================================================
-
-def _load_subject_params_ep(preprocessed_dir):
-    """Load all EP+TK subject parameter draws, return dict of arrays.
-
-    EP model stores (alpha, r, gamma, lambda) instead of (r, phi, eta, lambda).
-    The param names in the NPZ files match the generated_quantities ordering.
-    """
-    preprocessed_dir = Path(preprocessed_dir)
-    meta = np.load(preprocessed_dir / 'metadata.npz')
-    n_subjects = int(meta['n_subjects'])
-
-    # EP generated_quantities stores: alpha, r, gamma, lambda
-    # But the preprocessing extracts them as the 4 param columns, named
-    # based on position. Let's check what keys are available.
-    d0 = np.load(preprocessed_dir / 'subject_000_params.npz')
-    param_keys = [k for k in d0.keys() if k not in ('iterations',)]
-
-    # The EP model has params in order: alpha_raw, r, gamma_raw, lambda_raw
-    # generated_quantities returns: alpha, r, gamma, lambda (natural scale)
-    # The preprocessing saves them as the same positional keys as CRRA:
-    # position 0 -> 'r' (but it's actually alpha for EP)
-    # position 1 -> 'phi' (but it's actually r for EP)
-    # position 2 -> 'eta' (but it's actually gamma for EP)
-    # position 3 -> 'lambda'
-    # We need to remap.
-    all_params = {'alpha': [], 'r': [], 'gamma': [], 'lambda': []}
-    ep_key_map = {'alpha': 'r', 'r': 'phi', 'gamma': 'eta', 'lambda': 'lambda'}
-
-    for sid in range(n_subjects):
-        d = np.load(preprocessed_dir / f'subject_{sid:03d}_params.npz')
-        burn = d[ep_key_map['alpha']].shape[0] // 2
-        for ep_name, file_key in ep_key_map.items():
-            all_params[ep_name].append(d[file_key][burn:].ravel())
-
-    return {k: np.array(v) for k, v in all_params.items()}, n_subjects
-
-
-# =============================================================================
-# Cross-Model CE Overlay
-# =============================================================================
-
 def generate_cross_model_ce_overlay(
     crra_hyper_path,
-    ep_hyper_path,
-    uninf_hyper_path,
-    prior_params_path,
-    ep_subjects_dir,
-    output_dir,
-    data_output_dir=None,
+    power_hyper_path=None,
+    ge_hyper_path=None,
+    prior_params_path=None,
+    output_dir=None,
     seed=42,
 ):
-    """Generate cross-model CE overlay comparing CRRA, EP+TK, and diffuse models.
+    """Generate cross-model CE overlay comparing all three informative models.
 
     For each reference lottery, plots the hyper-posterior predictive CE
-    distribution under three specifications:
-    1. CRRA+Prelec informative (Beta-Beta hierarchy)
-    2. EP+TK informative (Beta-Beta hierarchy, same prior)
-    3. Diffuse NIG (Gao 2022)
-
-    The key visual: both informative models share the same quantity-space
-    prior, so their hyper-posterior predictive CEs should be comparable
-    despite having different structural parameters.
+    distribution under three specifications plus the shared hyperprior
+    predictive. Uses KDE smoothing consistent with other paper figures.
     """
     plt = _setup_matplotlib()
+    from scipy.stats import gaussian_kde
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if data_output_dir is None:
-        data_output_dir = output_dir
-    else:
-        data_output_dir = Path(data_output_dir)
-
     n_ce_draws = 50000
 
-    print("\nGenerating cross-model CE overlay...")
+    print("\nGenerating cross-model CE overlay (3 models)...")
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
+    fig, axes = plt.subplots(3, 1, figsize=(6, 8))
+
+    from model_registry import MODEL_REGISTRY
+    hyper_paths = {
+        'crra': crra_hyper_path,
+        'ge': ge_hyper_path,
+        'power': power_hyper_path,
+    }
+    models = []
+    for i, (key, cfg) in enumerate(MODEL_REGISTRY.items()):
+        hp = hyper_paths.get(key)
+        if hp is not None and Path(hp).exists():
+            models.append((cfg['name'], hp, cfg['color'], cfg['linestyle'], 10 + i * 30))
 
     for k, lottery in enumerate(REFERENCE_LOTTERIES):
         ax = axes[k]
-        qname = QUANTITY_NAMES[k]
         ev = sum(p * x for p, x in zip(lottery['probs'], lottery['prizes']))
         lo = min(lottery['prizes'])
         hi = max(lottery['prizes'])
-
-        # CRRA informative: draw from Beta-Beta posterior
-        crra_ce = _draw_ce_from_beta_hierarchy(
-            crra_hyper_path, prior_params_path, k,
-            n_draws=n_ce_draws, seed=seed+10+k, use_posterior=True)
-
-        # EP informative: draw from Beta-Beta posterior (same hierarchy!)
-        ep_ce = _draw_ce_from_beta_hierarchy(
-            ep_hyper_path, prior_params_path, k,
-            n_draws=n_ce_draws, seed=seed+40+k, use_posterior=True)
-
-        # Diffuse NIG: draw from NIG hyper-posterior
-        uninf_ce = _draw_nig_predictive_ce(
-            uninf_hyper_path, lottery,
-            n_draws=n_ce_draws, seed=seed+30+k)
+        x_grid = np.linspace(lo, hi, 300)
 
         # Hyperprior predictive (shared prior)
         prior_ce = _draw_ce_from_beta_hierarchy(
             crra_hyper_path, prior_params_path, k,
             n_draws=n_ce_draws, seed=seed+20+k, use_posterior=False)
 
-        bins = np.linspace(lo, hi, 80)
-        ax.hist(prior_ce, bins=bins, density=True, alpha=0.3, color='gray',
-                label='Hyperprior predictive')
-        ax.hist(crra_ce, bins=bins, density=True, alpha=0.5, color='C0',
-                histtype='step', linewidth=1.5,
-                label='CRRA+Prelec posterior')
-        ax.hist(ep_ce, bins=bins, density=True, alpha=0.5, color='C2',
-                histtype='step', linewidth=1.5, linestyle='--',
-                label='EP+TK posterior')
-        ax.hist(uninf_ce, bins=bins, density=True, alpha=0.5, color='C1',
-                histtype='step', linewidth=1.5, linestyle=':',
-                label='Diffuse posterior')
-        ax.axvline(ev, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
-        ax.set_xlabel(f'CE (\\$)')
-        ax.set_title(lottery['label'])
+        ce_clip = prior_ce[(prior_ce >= lo) & (prior_ce <= hi) & np.isfinite(prior_ce)]
+        if len(ce_clip) > 100:
+            kde = gaussian_kde(ce_clip)
+            ax.plot(x_grid, kde(x_grid), color='#888888', lw=1.5, ls='--',
+                    label='Hyperprior predictive')
 
-        print(f"  {lottery['label']}: EV=${ev:.0f}")
-        print(f"    CRRA:   median={np.nanmedian(crra_ce):.1f}")
-        print(f"    EP+TK:  median={np.nanmedian(ep_ce):.1f}")
-        print(f"    Uninf:  median={np.nanmedian(uninf_ce):.1f}")
-        print(f"    Prior:  median={np.nanmedian(prior_ce):.1f}")
+        msg = f"  {lottery['label']}: EV=${ev:.0f}, Prior={np.nanmedian(prior_ce):.1f}"
 
-    axes[0].set_ylabel('Density')
-    axes[0].legend(fontsize=8, loc='upper left')
+        for name, hyper_path, color, ls, seed_offset in models:
+            if hyper_path is None or not Path(hyper_path).exists():
+                continue
+            model_ce = _draw_ce_from_beta_hierarchy(
+                hyper_path, prior_params_path, k,
+                n_draws=n_ce_draws, seed=seed+seed_offset+k, use_posterior=True)
+            ce_clip = model_ce[(model_ce >= lo) & (model_ce <= hi) & np.isfinite(model_ce)]
+            if len(ce_clip) > 100:
+                kde = gaussian_kde(ce_clip)
+                ax.plot(x_grid, kde(x_grid), color=color, lw=1.5, ls=ls,
+                        label=f'{name} posterior')
+            msg += f", {name}={np.nanmedian(model_ce):.1f}"
+
+        ax.axvline(ev, color='black', ls=':', lw=0.8, alpha=0.5)
+        p_str = '/'.join(f'{p:.2f}' for p in lottery['probs'])
+        ax.set_title(
+            f'{lottery["label"]}: '
+            f'\\${lo}/\\${hi}, $p = ({p_str})$, '
+            f'EV = \\${ev:.0f}',
+            fontsize=9,
+        )
+        ax.set_ylabel('Density', fontsize=9)
+        ax.tick_params(labelsize=8)
+        ax.legend(fontsize=7)
+        print(msg)
+
+    axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
     fig.tight_layout()
     outpath = output_dir / 'cross_model_ce_overlay.pdf'
-    fig.savefig(outpath, dpi=300, bbox_inches='tight')
+    fig.savefig(outpath, bbox_inches='tight', backend='pdf')
     plt.close(fig)
     print(f"  Saved: {outpath}")
+
+
+def generate_subject_detail_figures(
+    crra_subjects_dir,
+    power_subjects_dir=None,
+    ge_subjects_dir=None,
+    output_dir=None,
+    n_sub=5000,
+    seed=42,
+):
+    """Generate subject-level CE detail figures for most agreed and most divergent subjects.
+
+    For each selected subject, produces a 3-panel figure (one per lottery)
+    showing posterior CE distributions under all three models.
+    """
+    plt = _setup_matplotlib()
+    from scipy.stats import gaussian_kde
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    rng = np.random.default_rng(seed)
+
+    from model_registry import MODEL_REGISTRY, compute_ces_for_lottery, load_subject_params
+
+    subject_dirs = {
+        'crra': crra_subjects_dir,
+        'ge': ge_subjects_dir,
+        'power': power_subjects_dir,
+    }
+
+    # Load all subject params
+    print("\nLoading subject parameters for cross-model comparison...")
+    all_models = {}
+    n_subjects = None
+    for key, cfg in MODEL_REGISTRY.items():
+        pdir = subject_dirs.get(key)
+        if pdir is None or not Path(pdir).exists():
+            continue
+        all_params_result, ns = load_subject_params(key, pdir)
+        if n_subjects is None:
+            n_subjects = ns
+        # Convert to per-subject list of dicts
+        params_list = []
+        for sid in range(ns):
+            params_list.append({k: all_params_result[k][sid] for k in cfg['param_names']})
+        all_models[key] = {
+            'params': params_list, 'cfg': cfg,
+        }
+
+    # Compute cross-model divergence per subject
+    print("Computing cross-model CE divergence per subject...")
+    model_keys = list(all_models.keys())
+    divergence = np.zeros(n_subjects)
+    for sid in range(n_subjects):
+        diffs_per_lottery = []
+        for lot in REFERENCE_LOTTERIES:
+            medians = []
+            for mkey in model_keys:
+                p = all_models[mkey]['params'][sid]
+                n_avail = len(list(p.values())[0])
+                idx = rng.choice(n_avail, min(n_sub, n_avail), replace=False)
+                sub_p = {k: v[idx] for k, v in p.items()}
+                ces = compute_ces_for_lottery(mkey, sub_p, lot)
+                medians.append(np.nanmedian(ces))
+            max_diff = max(abs(medians[i] - medians[j])
+                           for i in range(len(medians))
+                           for j in range(i+1, len(medians)))
+            diffs_per_lottery.append(max_diff)
+        divergence[sid] = np.mean(diffs_per_lottery)
+
+    most_agreed = int(np.argmin(divergence))
+    most_divergent = int(np.argmax(divergence))
+    print(f"  Most agreed: subject {most_agreed} "
+          f"(avg max diff = ${divergence[most_agreed]:.2f})")
+    print(f"  Most divergent: subject {most_divergent} "
+          f"(avg max diff = ${divergence[most_divergent]:.2f})")
+
+    # Generate figures
+    for sid, label, filename in [
+        (most_agreed, 'Most Agreed', 'subject_ce_most_agreed.pdf'),
+        (most_divergent, 'Most Divergent', 'subject_ce_most_divergent.pdf'),
+    ]:
+        fig, axes = plt.subplots(3, 1, figsize=(6, 8))
+        for k, lottery in enumerate(REFERENCE_LOTTERIES):
+            ax = axes[k]
+            ev = sum(p * x for p, x in zip(lottery['probs'], lottery['prizes']))
+            lo = min(lottery['prizes'])
+            hi = max(lottery['prizes'])
+            x_grid = np.linspace(lo, hi, 300)
+
+            for mkey in model_keys:
+                minfo = all_models[mkey]
+                mcfg = minfo['cfg']
+                p = minfo['params'][sid]
+                n_avail = len(list(p.values())[0])
+                idx = rng.choice(n_avail, min(n_sub, n_avail), replace=False)
+                sub_p = {k_: v[idx] for k_, v in p.items()}
+                ces = compute_ces_for_lottery(mkey, sub_p, lottery)
+                ce_clip = ces[(ces >= lo) & (ces <= hi) & np.isfinite(ces)]
+                if len(ce_clip) > 100:
+                    kde = gaussian_kde(ce_clip)
+                    ax.plot(x_grid, kde(x_grid), color=mcfg['color'],
+                            lw=1.5, ls=mcfg['linestyle'], label=mcfg['name'])
+
+            ax.axvline(ev, color='black', ls=':', lw=0.8, alpha=0.5)
+            p_str = '/'.join(f'{p:.2f}' for p in lottery['probs'])
+            ax.set_title(f'{lottery["label"]}: \\${lo}/\\${hi}, '
+                         f'$p = ({p_str})$, EV = \\${ev:.0f}', fontsize=9)
+            ax.set_ylabel('Density', fontsize=9)
+            ax.tick_params(labelsize=8)
+            ax.legend(fontsize=7)
+
+        axes[-1].set_xlabel('Certainty Equivalent (\\$)', fontsize=10)
+        fig.tight_layout()
+        outpath = output_dir / filename
+        fig.savefig(outpath, bbox_inches='tight', backend='pdf')
+        plt.close(fig)
+        print(f"  Saved: {outpath} (Subject {sid}, {label})")
 
 
 if __name__ == '__main__':

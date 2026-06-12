@@ -1,103 +1,83 @@
 """
-MCMC sampling for RDU BHM model.
+MCMC sampling for RDU BHM model with CRRA + Power PWF (Beta-Beta).
 
-This module handles running the bamcmc sampler and managing output.
+Same structure as sampling_ep.py but uses the rdu_power_bhm_ce posterior.
+This is the first k > p model (3 params -> 4 quantities).
 """
 
+import numpy as np
 from pathlib import Path
 
 from bamcmc import rmcmc
 from clean_data import load_clean_data, make_bamcmc_data_indexed
-from posteriors.rdu_bhm import MODEL_ID, NPARAMS, N_HYPER, get_hyperprior_array
+from posteriors.rdu_power_bhm_ce import MODEL_ID, NPARAMS, N_HYPER, get_hyperprior_array
+from sampling_ce import pack_ref_lotteries, pack_ref_pair
 
 
-# Default configuration
 DEFAULT_CONFIG = {
     'num_chains_a': 100,
     'num_chains_b': 100,
     'num_collect': 1000,
     'thin_iteration': 10,
-    'chunk_size': 100,  # Iterations per compiled chunk (1-10000)
+    'chunk_size': 10,
     'rng_seed': 42,
 }
 
 
-def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None,
-                 config=None):
-    """
-    Run MCMC sampling with bamcmc.
-
-    Args:
-        output_dir: Directory for output files
-        reset_runs: Number of fresh/reset runs (default 1)
-        resume_runs: Number of resume runs after reset runs (default 0)
-        num_collect: Collection iterations per run (overrides config)
-        config: Configuration dict (uses DEFAULT_CONFIG if None)
-
-    Returns:
-        Summary dict from rmcmc
-    """
+def run_sampling(output_dir, ref_lotteries, ref_pair, reset_runs=None,
+                 resume_runs=None, num_collect=None, config=None):
+    """Run MCMC sampling with CRRA+Power quantity-space Beta-Beta BHM."""
     cfg = config or DEFAULT_CONFIG
 
-    # Load data
     print("Loading data...")
     clean_data = load_clean_data()
     indexed_data = make_bamcmc_data_indexed(clean_data)
 
-    # Add hyperprior array to data["float"] so it's passed at runtime (not traced by JAX)
-    # This allows different priors to be used without recompiling
     hyperprior_arr = get_hyperprior_array()
     indexed_data['float'] = indexed_data['float'] + (hyperprior_arr,)
 
-    # Debug: print hyperprior values to verify correct prior is loaded
-    print(f"  Hyperprior beta_0 values: r={hyperprior_arr[3]:.1f}, phi={hyperprior_arr[7]:.1f}, eta={hyperprior_arr[11]:.1f}, lambda={hyperprior_arr[15]:.1f}")
+    ref_lot_arr = pack_ref_lotteries(ref_lotteries)
+    indexed_data['float'] = indexed_data['float'] + (ref_lot_arr,)
+
+    ref_pair_arr = pack_ref_pair(ref_pair)
+    indexed_data['float'] = indexed_data['float'] + (ref_pair_arr,)
 
     n_subjects = indexed_data['static'][0]
     print(f"  Subjects: {n_subjects}")
     print(f"  Total parameters: {n_subjects * NPARAMS + N_HYPER}")
 
-    # Ensure output directory exists
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # MCMC configuration
     mcmc_config = {
         'posterior_id': MODEL_ID,
         'num_chains_a': cfg['num_chains_a'],
         'num_chains_b': cfg['num_chains_b'],
-        'burn_iter': 0,  # Keep full history, drop burn-in post-hoc
+        'burn_iter': 0,
         'num_collect': num_collect or cfg['num_collect'],
         'thin_iteration': cfg['thin_iteration'],
-        'chunk_size': cfg.get('chunk_size', 100),
+        'chunk_size': cfg.get('chunk_size', 10),
         'rng_seed': cfg['rng_seed'],
         'use_double': cfg.get('use_double', True),
-        # Parallel tempering
         'n_temperatures': max(cfg.get('n_temperatures', 1), 1),
         'beta_min': cfg.get('beta_min', 0.1),
         'per_temp_proposals': cfg.get('per_temp_proposals', True),
         'use_deo': cfg.get('use_deo', True),
     }
 
-    # Build run schedule from reset_runs and resume_runs
     n_reset = reset_runs if reset_runs is not None else 1
     n_resume = resume_runs if resume_runs is not None else 0
-    total_runs = n_reset + n_resume
-
-    n_temps = mcmc_config['n_temperatures']
 
     print(f"\nSampling Configuration:")
     print(f"  Model: {MODEL_ID}")
     print(f"  Chains: {mcmc_config['num_chains_a']} + {mcmc_config['num_chains_b']}")
     print(f"  Collection iterations: {mcmc_config['num_collect']}")
-    print(f"  Thinning: {mcmc_config['thin_iteration']}")
+    n_temps = mcmc_config['n_temperatures']
     if n_temps > 1:
-        print(f"  Parallel tempering: {n_temps} temperatures, "
-              f"beta_min={mcmc_config['beta_min']}, "
-              f"DEO={'on' if mcmc_config['use_deo'] else 'off'}")
+        print(f"  Parallel tempering: {n_temps} temperatures")
     print(f"  Reset runs: {n_reset}, Resume runs: {n_resume}")
     print(f"  Output: {output_dir}")
 
-    # Build run schedule (passed inside mcmc_config)
     run_schedule = []
     if n_reset > 0:
         run_schedule.append(("reset", n_reset))
@@ -120,16 +100,3 @@ def run_sampling(output_dir, reset_runs=None, resume_runs=None, num_collect=None
     print(f"  History files: {len(summary['history_files'])}")
 
     return summary
-
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Run RDU BHM sampling")
-    parser.add_argument('--output-dir', type=str, default='data/output/rdu_bhm')
-    parser.add_argument('--reset-runs', type=int, default=1)
-    parser.add_argument('--resume-runs', type=int, default=0)
-    parser.add_argument('--num-collect', type=int, default=1000)
-    args = parser.parse_args()
-
-    run_sampling(args.output_dir, args.reset_runs, args.resume_runs, args.num_collect)

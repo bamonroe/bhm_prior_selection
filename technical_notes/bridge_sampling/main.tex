@@ -1,0 +1,526 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\bth}{\boldsymbol{\theta}}
+\newcommand{\bpsi}{\boldsymbol{\psi}}
+\newcommand{\by}{\mathbf{y}}
+\newcommand{\cM}{\mathcal{M}}
+\newcommand{\ptilde}{\tilde{p}}
+
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newtheorem{remark}{Remark}
+
+\title{Bridge Sampling for Marginal Likelihood Estimation:\\
+Theory, Implementation, and Diagnostics for Hierarchical RDU Models}
+\author{Technical Note}
+\date{May 2026}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Problem Statement}
+
+Given a model $\cM$ with parameters $\bth \in \R^d$, data $\by$, and prior
+$\pi(\bth)$, the marginal likelihood is
+\begin{equation}
+  \label{eq:ml}
+  p(\by \mid \cM) = \int p(\by \mid \bth, \cM)\, \pi(\bth \mid \cM)\, d\bth.
+\end{equation}
+Define the unnormalized posterior
+$\ptilde(\bth) \equiv p(\by \mid \bth)\, \pi(\bth)$, so that
+$p(\by \mid \cM) = \int \ptilde(\bth)\, d\bth$. The posterior is
+$p(\bth \mid \by) = \ptilde(\bth) / p(\by \mid \cM)$.
+
+MCMC gives us samples from $p(\bth \mid \by)$ and the ability to evaluate
+$\ptilde(\bth)$ at any point, but not $p(\by \mid \cM)$ itself. Bridge
+sampling estimates $p(\by \mid \cM)$ from these ingredients plus samples from
+a proposal distribution.
+
+
+\section{The Bridge Sampling Identity}
+
+\subsection{Statement}
+
+Let $q(\bth)$ be a normalized proposal distribution from which we can both
+sample and evaluate the density. \citet{MengWong1996} show that for any
+function $h(\bth) > 0$ satisfying integrability conditions,
+\begin{equation}
+  \label{eq:bridge_identity}
+  p(\by \mid \cM)
+  = \frac{\E_q\!\left[\ptilde(\bth)\, h(\bth)\right]}
+         {\E_{\text{post}}\!\left[q(\bth)\, h(\bth)\right]}.
+\end{equation}
+
+\subsection{Derivation}
+
+Write the numerator as
+$\int \ptilde(\bth)\, h(\bth)\, q(\bth)\, d\bth$. Write the denominator as
+\[
+  \int q(\bth)\, h(\bth)\, p(\bth \mid \by)\, d\bth
+  = \int q(\bth)\, h(\bth)\, \frac{\ptilde(\bth)}{p(\by \mid \cM)}\, d\bth
+  = \frac{1}{p(\by \mid \cM)} \int \ptilde(\bth)\, h(\bth)\, q(\bth)\, d\bth.
+\]
+The ratio cancels the common integral, leaving $p(\by \mid \cM)$. The identity
+holds for any positive $h$; the choice of $h$ affects only the variance of the
+estimator, not its expectation.
+
+
+\section{The Optimal Bridge Function and Iterative Estimator}
+
+\subsection{Optimal $h$}
+
+\citet{MengWong1996} show the variance-minimizing bridge function is
+\begin{equation}
+  \label{eq:optimal_h}
+  h^*(\bth) = \frac{1}{s_1\, \ptilde(\bth) + s_2\, q(\bth)\, r}
+\end{equation}
+where $r = p(\by \mid \cM)$ is the unknown quantity,
+$s_1 = N_1 / (N_1 + N_2)$, $s_2 = N_2 / (N_1 + N_2)$, with $N_1$ proposal
+samples and $N_2$ posterior samples.
+
+\subsection{The circularity and the iteration}
+
+Since $h^*$ depends on $r$, the estimator is defined implicitly. The solution
+is to iterate. Given posterior samples
+$\{\bth^{(i)}_\text{post}\}_{i=1}^{N_2}$ and proposal samples
+$\{\bth^{(j)}_q\}_{j=1}^{N_1}$:
+
+\begin{enumerate}[label=\textbf{Step \arabic*.}, leftmargin=2.5cm]
+  \item \textbf{Initialize} $\hat{r}^{(0)}$. A reasonable starting value is
+    the median of $\ptilde(\bth^{(i)}_\text{post}) / q(\bth^{(i)}_\text{post})$
+    over the posterior samples, since
+    $\E_\text{post}[\ptilde / q] = r$ for a perfect proposal.
+
+  \item \textbf{Compute the numerator} (average over proposal samples):
+    \begin{equation}
+      \label{eq:numerator}
+      \ell_1^{(t)} = \frac{1}{N_1} \sum_{j=1}^{N_1}
+        \frac{\ptilde(\bth^{(j)}_q)}
+             {s_1\, \ptilde(\bth^{(j)}_q) + s_2\, q(\bth^{(j)}_q)\, \hat{r}^{(t)}}
+    \end{equation}
+
+  \item \textbf{Compute the denominator} (average over posterior samples):
+    \begin{equation}
+      \label{eq:denominator}
+      \ell_2^{(t)} = \frac{1}{N_2} \sum_{i=1}^{N_2}
+        \frac{q(\bth^{(i)}_\text{post})}
+             {s_1\, \ptilde(\bth^{(i)}_\text{post}) + s_2\,
+              q(\bth^{(i)}_\text{post})\, \hat{r}^{(t)}}
+    \end{equation}
+
+  \item \textbf{Update}: $\hat{r}^{(t+1)} = \ell_1^{(t)} / \ell_2^{(t)}$.
+
+  \item \textbf{Repeat} until $|\hat{r}^{(t+1)} - \hat{r}^{(t)}| < \epsilon$.
+\end{enumerate}
+
+\subsection{Log-scale computation}
+
+All quantities are computed on the log scale to avoid overflow. Define
+$\text{LSE}$ as the log-sum-exp operation:
+$\text{LSE}(a_1, \ldots, a_n) = \log \sum_i e^{a_i}$.
+
+\begin{align}
+  \log \hat{r}^{(t+1)} &= \log \ell_1^{(t)} - \log \ell_2^{(t)} \\
+  \log \ell_1^{(t)} &= -\log N_1 + \text{LSE}_{j=1}^{N_1}\!\left[
+    \log \ptilde_j - \text{LSE}\!\left(
+      \log s_1 + \log \ptilde_j,\;
+      \log s_2 + \log q_j + \log \hat{r}^{(t)}
+    \right)
+  \right] \label{eq:log_num} \\
+  \log \ell_2^{(t)} &= -\log N_2 + \text{LSE}_{i=1}^{N_2}\!\left[
+    \log q_i - \text{LSE}\!\left(
+      \log s_1 + \log \ptilde_i,\;
+      \log s_2 + \log q_i + \log \hat{r}^{(t)}
+    \right)
+  \right] \label{eq:log_den}
+\end{align}
+
+where $\ptilde_j = \ptilde(\bth^{(j)}_q)$, $q_j = q(\bth^{(j)}_q)$, etc.
+
+
+\subsection{Self-correcting behavior}
+
+The iteration is a contraction mapping. If $\hat{r}^{(t)}$ is too large,
+the $s_2 q r^{(t)}$ term in the denominator of $h^*$ dominates, which
+inflates the denominator average relative to the numerator, driving
+$\hat{r}^{(t+1)}$ downward. Conversely, if $\hat{r}^{(t)}$ is too small,
+$s_1 \ptilde$ dominates and the update drives $r$ upward.
+
+At the fixed point $\hat{r} = r$, the bridge function
+$h^*(\bth) = 1/(s_1 \ptilde + s_2 q r)$ is a harmonic mean of $\ptilde$
+and $qr$, weighting each sample by how ``surprising'' it is relative to both
+distributions.
+
+
+\section{What the Bridge Estimator Needs}
+
+To run the estimator, we need four ingredients:
+
+\begin{enumerate}
+  \item \textbf{Posterior samples}
+    $\{\bth^{(i)}_\text{post}\}_{i=1}^{N_2}$: from MCMC. These are the
+    chain states saved in history files.
+
+  \item \textbf{Proposal samples}
+    $\{\bth^{(j)}_q\}_{j=1}^{N_1}$: drawn from $q$. These are
+    \textit{not} MCMC samples. They are independent draws from a
+    distribution we choose (e.g., multivariate normal).
+
+  \item \textbf{Evaluations of $\log \ptilde(\bth)$} at every sample (both
+    posterior and proposal). This is the full unnormalized log-posterior:
+    \begin{equation}
+      \label{eq:full_lp}
+      \log \ptilde(\bth, \bpsi) = \log \pi(\bpsi)
+        + \sum_{i=1}^{n} \left[
+          \log p(\bth_i \mid \bpsi) + \log |J_g(\bth_i)| + \log p(\by_i \mid \bth_i)
+        \right]
+    \end{equation}
+    where $\bpsi$ are hyperparameters, $p(\bth_i \mid \bpsi)$ is the
+    population prior, $|J_g(\bth_i)|$ is the Jacobian correction, and
+    $p(\by_i \mid \bth_i)$ is the data likelihood for subject $i$.
+
+  \item \textbf{Evaluations of $\log q(\bth)$} at every sample. This requires
+    a proposal with a known, computable density.
+\end{enumerate}
+
+Items 3 and 4 are the expensive parts. Item 3 requires looping over all $n$
+subjects to compute the full joint, which is computationally costly but
+parallelizable on GPU. Item 4 depends on the proposal choice.
+
+
+\section{Sources of NaN and Numerical Failures}
+
+\subsection{The float32 clipping problem}
+
+The data likelihood for each choice computes a choice probability via the
+logistic sigmoid:
+\begin{align}
+  \Delta &= \frac{V_L - V_R}{\lambda \cdot (u_{\max} - u_{\min})} \\
+  P(\text{choose } L) &= \sigma(\Delta) = \frac{1}{1 + e^{-\Delta}}
+\end{align}
+The log-likelihood contribution for one choice is
+\begin{equation}
+  \label{eq:choice_ll}
+  \ell_c = y_c \log P + (1 - y_c) \log(1 - P)
+\end{equation}
+where $y_c \in \{0, 1\}$ is the observed choice.
+
+When $|\Delta|$ is large (strong preference), $\sigma(\Delta)$ saturates to 0
+or 1. In IEEE float32, the sigmoid returns \textit{exactly} 1.0 for
+$\Delta \gtrsim 16.6$ and exactly 0.0 for $\Delta \lesssim -16.6$.
+
+\textbf{The clipping failure.} To prevent $\log(0)$, the code clips
+$P$ to $[\epsilon, 1 - \epsilon]$ with $\epsilon = 10^{-10}$.
+In float32, $1 - 10^{-10}$ rounds to $1.0$ because float32 has only
+$\sim 7$ significant digits ($\epsilon_{\text{machine}} \approx 6 \times
+10^{-8}$). The clip is a no-op, and $P = 1.0$ passes through unchecked.
+
+\textbf{The $0 \times (-\infty) = \text{NaN}$ problem.} When $y_c = 1$ (chose
+Left) and $P = 1.0$:
+\[
+  \ell_c = 1 \cdot \log(1.0) + 0 \cdot \log(1.0 - 1.0) = 0 + 0 \cdot (-\infty) = \text{NaN}
+\]
+IEEE 754 defines $0 \times \pm\infty = \text{NaN}$. Even though the ``correct''
+answer is $\ell_c = 0$ (the subject's choice was predicted with certainty), the
+floating-point arithmetic produces NaN, which then propagates through the
+entire log-posterior sum.
+
+\textbf{The fix.} Use $\epsilon = 10^{-7}$, which is above the float32 machine
+epsilon. Then $1 - 10^{-7} \approx 0.9999999$ in float32, distinct from 1.0.
+The clip now correctly prevents $\log(0)$, and $\log(10^{-7}) \approx -16.1$
+contributes a finite (if extreme) value to the likelihood.
+
+\textbf{Why the sampler didn't catch this.} The MCMC sampler evaluates the
+log-posterior one block (one subject) at a time for Metropolis-within-Gibbs
+proposals. A NaN log-posterior causes the MH step to reject the proposal
+(NaN is not $>$ current), so the chain stays at the current state. The chain
+never enters a NaN state. But the bridge sampling evaluator computes the
+\textit{full joint} across all 111 subjects, and a single subject's NaN
+poisons the sum. The sampler visits states where some subjects transiently
+have extreme parameters that produce NaN in isolation, but those subjects
+were updated at an earlier iteration and the chain has since moved on for
+other subjects.
+
+\subsection{When does the NaN occur?}
+
+The NaN occurs when \textit{all} of the following hold simultaneously for
+some subject $i$ in some chain state:
+
+\begin{enumerate}
+  \item The CRRA coefficient $r > 1$ (strong risk aversion), causing very flat
+    normalized utility over the outcome range.
+  \item The Prelec PWF parameters produce a decision weight $w \approx 1$
+    for the preferred outcome.
+  \item The noise parameter $\lambda$ is small ($\lambda < 0.01$), making
+    $\Delta = (V_L - V_R) / (\lambda \cdot u_{\text{range}})$ very large.
+  \item The observed choice matches the predicted preference, so $y_c = 1$
+    and $P \approx 1$.
+\end{enumerate}
+
+These conditions occur for about 1--2 subjects per chain state in the
+CRRA + Prelec model, affecting $\sim$48\% of saved chain states.
+
+
+\section{The Proposal Distribution}
+
+\subsection{Requirements}
+
+The proposal $q(\bth)$ must satisfy:
+\begin{enumerate}
+  \item We can draw independent samples from $q$.
+  \item We can evaluate $q(\bth)$ at any point (known normalizing constant).
+  \item $q$ has sufficient overlap with the posterior: the ratio
+    $\ptilde(\bth) / q(\bth)$ should not vary too wildly over the posterior
+    support.
+\end{enumerate}
+
+\subsection{Multivariate normal}
+
+The simplest choice: fit $q(\bth) = \mathcal{N}(\hat{\mu}, \hat{\Sigma})$
+from the posterior sample mean and covariance. This satisfies requirements 1
+and 2, but requirement 3 degrades rapidly with dimension. In $d = 452$
+dimensions, even a well-fitted Gaussian generates samples that are far from
+the posterior mode in at least some coordinates, producing extreme
+$\ptilde / q$ ratios.
+
+\subsection{Gaussian mixture}
+
+A $K$-component Gaussian mixture with shared covariance:
+\begin{equation}
+  q(\bth) = \frac{1}{K} \sum_{k=1}^{K} \mathcal{N}(\bth \mid \mu_k, \Sigma)
+\end{equation}
+where $\mu_k$ are centers selected from the posterior samples (e.g., via
+stratified sampling along the first principal component) and $\Sigma$ is the
+full posterior covariance.
+
+This improves coverage relative to a single Gaussian: proposal samples
+cluster around actual posterior draws rather than all emanating from a single
+center. Density evaluation is $O(K \cdot d^2)$ per point (one Mahalanobis
+distance per component).
+
+For the application in this project, $K = 10$ with the full $452 \times 452$
+posterior covariance provides the best results.
+
+\subsection{Kernel density estimate (KDE)}
+
+Using $K = N_2$ (every posterior sample as a center) with a bandwidth
+$h\Sigma$ is a Gaussian KDE. In principle this maximizes overlap, but in
+$d = 452$ dimensions the Gaussian kernels are so concentrated that each
+point only ``sees'' its nearest center. The effective density is approximately
+constant across all points, providing no useful variation for the bridge
+estimator.
+
+\subsection{Factored proposals exploiting hierarchical structure}
+
+The hierarchical model has conditional independence structure:
+\begin{equation}
+  p(\bth_1, \ldots, \bth_n, \bpsi \mid \by)
+  = p(\bpsi \mid \by) \prod_{i=1}^{n} p(\bth_i \mid \bpsi, \by_i)
+\end{equation}
+A factored proposal $q(\bth, \bpsi) = q(\bpsi) \prod_i q(\bth_i \mid \bpsi)$
+would only require fitting low-dimensional components (8-dimensional for
+$\bpsi$, 3--4 dimensional for each $\bth_i$). However, this requires
+modeling the dependence of $q(\bth_i \mid \bpsi)$ on $\bpsi$, which adds
+implementation complexity.
+
+This approach has not been tried in the current implementation but is the
+most promising direction for improving the CRRA model's convergence.
+
+
+\section{Convergence Diagnostics}
+
+\subsection{What convergence means}
+
+The iteration $\hat{r}^{(t+1)} = \ell_1^{(t)} / \ell_2^{(t)}$ should
+converge to a fixed point. At each iteration, the change
+$|\hat{r}^{(t+1)} - \hat{r}^{(t)}|$ should decrease geometrically toward
+zero. A well-functioning estimator typically converges in 10--50 iterations.
+
+\subsection{Monotone drift}
+
+When the change decreases slowly or remains approximately constant, the
+estimator is ``drifting.'' This occurs when the effective sample size is too
+small relative to the dimension, typically because:
+\begin{enumerate}
+  \item A few samples with extreme $\ptilde/q$ ratios dominate one of the
+    averages.
+  \item The proposal has poor tail coverage, so posterior samples in the tails
+    have very high $\ptilde/q$.
+  \item Non-finite evaluations ($-\infty$ or NaN) create numerical artifacts
+    in the log-sum-exp computation.
+\end{enumerate}
+
+\subsection{Initialization}
+
+If $\hat{r}^{(0)}$ is far from the true $r$, the bridge function
+degenerates. When $\hat{r}^{(0)} \ll r$, the term
+$s_1 \ptilde$ dominates the denominator of $h^*$, and the estimator
+reduces to the importance sampling estimator (which may have infinite
+variance). When $\hat{r}^{(0)} \gg r$, the term $s_2 q r$ dominates,
+and the estimator reduces to the harmonic mean estimator (which has
+known instabilities).
+
+A good initialization uses
+$\log \hat{r}^{(0)} = \text{median}_{i}(\log \ptilde_i - \log q_i)$
+over the posterior samples, which estimates $\log r$ without extreme values
+dominating.
+
+
+\section{Application: Hierarchical RDU Models}
+
+\subsection{Model structure}
+
+Each model has $n = 111$ subjects, each with $p = 3$ or $4$ structural
+parameters, plus $H = 8$ hyperparameters. The full parameter vector has
+dimension $d = n \cdot p + H = 341$ (Power) or $452$ (Prelec, GE).
+
+The full unnormalized log-posterior is
+\begin{equation}
+  \log \ptilde = \underbrace{\log \pi(\bpsi)}_{\text{hyperprior}}
+  + \sum_{i=1}^{111} \underbrace{\left[
+    \log p(\bth_i \mid \bpsi) + \log |J_g(\bth_i)|
+    + \log p(\by_i \mid \bth_i)
+  \right]}_{\text{subject } i}
+\end{equation}
+
+Each subject contributes approximately $-50$ to the log-posterior (the data
+likelihood for 80 binary choices). A ``bad'' evaluation from one subject
+(e.g., $-500$ from NaN clamping, or $-\infty$ from overflow) dominates
+the sum.
+
+\subsection{Computational cost}
+
+Evaluating $\log \ptilde$ at one point requires looping over 111 subjects,
+each requiring utility computation, PWF evaluation, decision weights, RDU
+values for 80 choices, and the Jacobian determinant. On GPU with JIT
+compilation, this takes approximately 0.5--2ms per evaluation.
+
+For bridge sampling with $N_1 = N_2 = 30{,}000$ samples, the total cost is
+$60{,}000 \times 0.001 \approx 60$ seconds of GPU time, plus the overhead
+of JIT compilation ($\sim$1--2 minutes) and density evaluation
+($\sim$1 minute for the mixture proposal).
+
+\subsection{Current results}
+
+With the float32 clipping fix ($\epsilon = 10^{-7}$), a 10-component
+Gaussian mixture proposal with full posterior covariance, and 2000 bridge
+iterations:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Model & log ML & SE & Converged \\
+\midrule
+CRRA + Prelec & $\approx -5475$ & -- & No (drift $\sim$11/iter) \\
+CRRA + GE & $\approx -5541$ & -- & Nearly (drift $\sim$0.0002/iter) \\
+CRRA + Power & $-5614.22$ & 0.044 & Yes (iter 438) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The ordering is CRRA $>$ GE $>$ Power (more complex models preferred),
+with log Bayes factors of approximately $+77$ (CRRA vs GE) and $+73$
+(GE vs Power). The data (8,880 binary choices) strongly support the
+additional flexibility of the 2-parameter PWFs.
+
+\subsection{Remaining issues}
+
+The CRRA + Prelec model's bridge estimator has not converged despite
+2000 iterations. The per-iteration drift of $\sim$11 log units suggests
+poor effective overlap. The CRRA posterior spans a wider range of $r$ values
+(including $r > 1$ where the likelihood has borderline numerical behavior),
+and the 10-component mixture proposal does not adequately cover these
+tails. Possible remedies:
+\begin{enumerate}
+  \item Increase the number of proposal samples ($N_1 \gg 30{,}000$).
+  \item Use a factored proposal that exploits conditional independence.
+  \item Switch to thermodynamic integration, which avoids the overlap problem.
+\end{enumerate}
+
+
+\section{Alternative Approaches}
+
+\subsection{Thermodynamic integration (TI)}
+
+TI estimates $\log p(\by \mid \cM)$ via
+\begin{equation}
+  \log p(\by \mid \cM) = \int_0^1 \E_\beta\!\left[\log p(\by \mid \bth)\right] d\beta
+\end{equation}
+where $\E_\beta$ is the expectation under the power posterior
+$p_\beta(\bth) \propto p(\by \mid \bth)^\beta \pi(\bth)$.
+
+TI requires running the sampler at $\sim$20--30 temperature levels
+$\beta_k \in [0, 1]$ and recording the mean log-likelihood at each level.
+The \texttt{bamcmc} sampler already supports parallel tempering, so the
+infrastructure exists. TI avoids the proposal overlap problem entirely,
+making it more robust in high dimensions, but requires substantially more
+computation ($20\times$ the sampling cost).
+
+\subsection{LOO-CV / WAIC}
+
+Leave-one-out cross-validation via Pareto-smoothed importance sampling
+\citep{Vehtari2017} requires only pointwise log-likelihood evaluations and
+no proposal distribution. It estimates predictive performance rather than the
+marginal likelihood, so it penalizes complexity differently from Bayes
+factors. For the hierarchical models in this application, ``leave-one-out''
+means leaving out one subject, and the LOO estimate requires the predictive
+density $p(\by_i \mid \by_{-i})$ for each subject.
+
+\subsection{Chib's method}
+
+\citet{Chib1995} estimates the marginal likelihood from the posterior
+ordinate at a single point $\bth^*$:
+\begin{equation}
+  p(\by \mid \cM) = \frac{p(\by \mid \bth^*) \pi(\bth^*)}{p(\bth^* \mid \by)}
+\end{equation}
+The numerator is easy to compute. The denominator $p(\bth^* \mid \by)$ is
+estimated from the Gibbs full conditionals. For Metropolis-within-Gibbs,
+this requires additional Rao-Blackwellization steps. The method is exact
+for Gibbs samplers but introduces approximation error for MH-based samplers.
+
+
+\bibliographystyle{apalike}
+\begin{thebibliography}{99}
+
+\bibitem[Chib, 1995]{Chib1995}
+Chib, S. (1995).
+\newblock Marginal likelihood from the {G}ibbs output.
+\newblock {\em Journal of the American Statistical Association},
+  90(432):1313--1321.
+
+\bibitem[Gronau et~al., 2020]{Gronau2020}
+Gronau, Q.~F., Sarafoglou, A., Matzke, D., Ly, A., Boehm, U.,
+  Marsman, M., Leslie, D.~S., Forster, J.~J., Wagenmakers, E.-J., and
+  Steingroever, H. (2020).
+\newblock A tutorial on bridge sampling.
+\newblock {\em Journal of Mathematical Psychology}, 94:102502.
+
+\bibitem[Meng and Wong, 1996]{MengWong1996}
+Meng, X.-L. and Wong, W.~H. (1996).
+\newblock Simulating ratios of normalizing constants via a simple identity:
+  A theoretical exploration.
+\newblock {\em Statistica Sinica}, 6(4):831--860.
+
+\bibitem[Vehtari et~al., 2017]{Vehtari2017}
+Vehtari, A., Gelman, A., and Gabry, J. (2017).
+\newblock Practical {B}ayesian model evaluation using leave-one-out
+  cross-validation and {WAIC}.
+\newblock {\em Statistics and Computing}, 27(5):1413--1432.
+
+\end{thebibliography}
+
+\end{document}

@@ -83,12 +83,8 @@ CE_HYPER_TRANSFORMS = [
 ]
 
 # Subject parameter display info: (name, latex_label)
-SUBJECT_PARAM_INFO = [
-    ('r', r'$r$'),
-    ('phi', r'$\phi$'),
-    ('eta', r'$\eta$'),
-    ('lambda', r'$\lambda$'),
-]
+# Subject param info is now read dynamically from NPZ keys.
+# Model-specific labels come from model_registry.MODEL_REGISTRY.
 
 # Color schemes
 COLOR_DATA = 'steelblue'
@@ -134,7 +130,7 @@ def crra_utility(x, r, x_min=X_MIN, x_max=X_MAX):
 # =============================================================================
 
 def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False,
-                        nparams=None, n_hyper=None):
+                        nparams=None, n_hyper=None, param_names=None):
     """
     Load full history and save per-subject parameter files.
 
@@ -198,11 +194,12 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False,
     # Auto-detect n_subjects
     if n_subjects is None:
         # History contains:
-        # - Raw state: n_hyper hyperparams + n_subjects * nparams subject epsilon params
-        # - Generated quantities: n_subjects * 4 (r, phi, eta, lambda) + 8 (population params)
-        # Total = n_hyper + n_subjects * nparams + n_subjects * 4 + 8
-        #       = n_hyper + 8 + n_subjects * (nparams + 4)
-        n_subjects = (n_params - n_hyper - 8) // (nparams + 4)
+        # - Raw state: n_subjects * nparams + n_hyper
+        # - Generated quantities: n_subjects * nparams + 2 * N_QUANTITIES
+        # Total = 2 * (n_subjects * nparams) + n_hyper + 2 * N_QUANTITIES
+        # With n_hyper = 2 * N_QUANTITIES:
+        # Total = 2 * n_subjects * nparams + 2 * n_hyper
+        n_subjects = (n_params - 2 * n_hyper) // (2 * nparams)
         print(f"  Auto-detected {n_subjects} subjects")
 
     # Calculate batch boundaries from metadata
@@ -217,18 +214,22 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False,
     # Raw params: n_hyper hyperparams + n_subjects * nparams subject params
     first_gq = n_hyper + n_subjects * nparams
 
-    print(f"  Extracting {n_subjects} subjects...")
+    # Default param names for backward compatibility
+    if param_names is None:
+        if nparams == 3:
+            param_names = ['r', 'phi', 'eta']  # positional names
+        else:
+            param_names = ['r', 'phi', 'eta', 'lambda']
+
+    print(f"  Extracting {n_subjects} subjects ({nparams} params: {param_names})...")
     for sid in range(n_subjects):
         if (sid + 1) % 100 == 0 or sid == 0:
             print(f"    Subject {sid}...", flush=True)
 
-        # Generated quantities layout: r[0:n], phi[n:2n], eta[2n:3n], lambda[3n:4n], then pop params
-        subject_data = {
-            'r': history[:, :, first_gq + sid],
-            'phi': history[:, :, first_gq + n_subjects + sid],
-            'eta': history[:, :, first_gq + 2 * n_subjects + sid],
-            'lambda': history[:, :, first_gq + 3 * n_subjects + sid],
-        }
+        # Generated quantities layout: param0[0:n], param1[n:2n], ..., then pop params
+        subject_data = {}
+        for p_idx, pname in enumerate(param_names):
+            subject_data[pname] = history[:, :, first_gq + p_idx * n_subjects + sid]
 
         out_path = output_dir / f'subject_{sid:03d}_params.npz'
         np.savez_compressed(out_path, **subject_data)
@@ -243,21 +244,25 @@ def preprocess_subjects(history_dir, output_dir, n_subjects=None, force=False,
     return output_dir, iterations, batch_boundaries
 
 
-def preprocess_hyperparams_ce(history_dir, output_dir, force=False):
+def preprocess_hyperparams_ce(history_dir, output_dir, force=False,
+                              nparams=None, n_hyper=None):
     """
     Load full history and save CE-model hyperparameter data to a single file.
-
-    Uses CE-model constants (NPARAMS_CE, N_HYPER_CE) and HYPERPARAM_INFO_CE
-    for state names.
 
     Args:
         history_dir: Directory with history files
         output_dir: Directory to save preprocessed hyperparameter file
         force: If True, overwrite existing data
+        nparams: Number of params per subject (default: NPARAMS_CE=4)
+        n_hyper: Number of hyperparameters (default: N_HYPER_CE=8)
 
     Returns:
         Path to the preprocessed hyperparameter file
     """
+    if nparams is None:
+        nparams = NPARAMS_CE
+    if n_hyper is None:
+        n_hyper = N_HYPER_CE
     history_dir = Path(history_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -286,10 +291,10 @@ def preprocess_hyperparams_ce(history_dir, output_dir, force=False):
 
     # Calculate hyperparameter indices
     n_raw_params = n_total_params // 2
-    n_subjects = (n_raw_params - N_HYPER_CE) // NPARAMS_CE
-    hyper_start = n_subjects * NPARAMS_CE
+    n_subjects = (n_raw_params - n_hyper) // nparams
+    hyper_start = n_subjects * nparams
 
-    print(f"  Extracting {N_HYPER_CE} CE hyperparameters (subjects={n_subjects})...")
+    print(f"  Extracting {n_hyper} CE hyperparameters (nparams={nparams}, subjects={n_subjects})...")
 
     # Extract hyperparameter samples using CE-specific state names
     hyper_data = {}
@@ -339,36 +344,39 @@ def _plot_single_subject(args):
     params_dir = Path(params_dir)
     output_dir = Path(output_dir)
 
-    # Load subject data from file
+    # Load subject data from file — read whatever params are present
     params_path = params_dir / f'subject_{subject_id:03d}_params.npz'
     data = np.load(params_path)
-    params = {k: data[k] for k in ['r', 'phi', 'eta', 'lambda']}
+    param_keys = [k for k in data.keys() if k not in ('iterations',)]
+    params = {k: data[k] for k in param_keys}
 
     # Generate PDF
     pdf_path = output_dir / f'subject_{subject_id:03d}.pdf'
 
+    has_crra_params = all(k in params for k in ['r', 'phi', 'eta', 'lambda'])
+
     with PdfPages(pdf_path) as pdf:
-        # Page 1: Trace plots (all history files)
+        # Page 1: Trace plots (all history files) — works for any model
         _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
                              chain_subsample=config.get('chain_subsample', 50),
                              figsize=config.get('subject_trace_figsize', (12, 12)))
 
-        # Page 2: Density plots (last history file)
+        # Page 2: Density plots (last history file) — works for any model
         _plot_subject_densities(params, subject_id, pdf, batch_boundaries)
 
-        # Page 3: Utility spaghetti (last history file)
-        _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
-                              prizes=np.asarray(prizes) if prizes is not None else None,
-                              figsize=config.get('subject_utility_figsize', (10, 7)),
-                              n_spaghetti=config.get('n_spaghetti', None))
+        # Page 3-4: Utility spaghetti and CE distribution — CRRA+Prelec only
+        if has_crra_params:
+            _plot_subject_utility(params, subject_id, pdf, batch_boundaries,
+                                  prizes=np.asarray(prizes) if prizes is not None else None,
+                                  figsize=config.get('subject_utility_figsize', (10, 7)),
+                                  n_spaghetti=config.get('n_spaghetti', None))
 
-        # Page 4: CE distribution (last history file)
-        if prizes is not None:
-            _plot_subject_ce(params, subject_id, pdf,
-                             np.asarray(prizes),
-                             batch_boundaries,
-                             figsize=config.get('subject_ce_figsize', (10, 7)),
-                             bins=config.get('ce_hist_bins', None))
+            if prizes is not None:
+                _plot_subject_ce(params, subject_id, pdf,
+                                 np.asarray(prizes),
+                                 batch_boundaries,
+                                 figsize=config.get('subject_ce_figsize', (10, 7)),
+                                 bins=config.get('ce_hist_bins', None))
 
     return subject_id
 
@@ -506,17 +514,22 @@ def _last_batch_start(batch_boundaries, n_samples):
 def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
                          chain_subsample=50, figsize=(12, 12)):
     """Plot trace plots for a subject."""
-    fig, axes = plt.subplots(4, 1, figsize=figsize)
+    param_info = [(k, f'${k}$') for k in params.keys()]
+    n_params = len(param_info)
+    fig, axes = plt.subplots(n_params, 1, figsize=(figsize[0], figsize[1] * n_params / 4))
+    if n_params == 1:
+        axes = [axes]
     fig.suptitle(f'Subject {subject_id} - Trace Plots', fontsize=14)
 
-    n_samples, n_chains = params['r'].shape
+    first_key = list(params.keys())[0]
+    n_samples, n_chains = params[first_key].shape
 
     # Subsample chains for visibility
     chain_subsample = min(chain_subsample, n_chains)
     chain_indices = np.linspace(0, n_chains - 1, chain_subsample, dtype=int)
     chain_colors = plt.cm.tab20(np.linspace(0, 1, min(20, chain_subsample)))
 
-    for i, (name, label) in enumerate(SUBJECT_PARAM_INFO):
+    for i, (name, label) in enumerate(param_info):
         ax = axes[i]
         param_samples = params[name]
 
@@ -547,13 +560,18 @@ def _plot_subject_traces(params, iterations, batch_boundaries, subject_id, pdf,
 
 def _plot_subject_densities(params, subject_id, pdf, batch_boundaries):
     """Plot density plots for a subject (using last history file)."""
-    fig, axes = plt.subplots(4, 1, figsize=(12, 12))
+    param_info = [(k, f'${k}$') for k in params.keys()]
+    n_params = len(param_info)
+    fig, axes = plt.subplots(n_params, 1, figsize=(12, 12 * n_params / 4))
+    if n_params == 1:
+        axes = [axes]
     fig.suptitle(f'Subject {subject_id} - Posterior Densities', fontsize=14)
 
-    n_samples = params['r'].shape[0]
+    first_key = list(params.keys())[0]
+    n_samples = params[first_key].shape[0]
     burn_idx = _last_batch_start(batch_boundaries, n_samples)
 
-    for i, (name, label) in enumerate(SUBJECT_PARAM_INFO):
+    for i, (name, label) in enumerate(param_info):
         ax = axes[i]
         flat_samples = params[name][burn_idx:, :].flatten()
 

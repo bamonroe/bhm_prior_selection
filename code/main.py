@@ -123,6 +123,17 @@ INJECTIVITY_CONFIG = {
     },
 }
 
+# CRRA+Power injectivity analysis configuration (Gram determinant, k=4 > p=3)
+INJECTIVITY_POWER_CONFIG = {
+    'domain': {
+        'r': (0.01, 0.98),
+        'delta': (0.1, 3.0),
+    },
+    'n_grid': 40,
+    'x_min': 10.0,
+    'x_max': 50.0,
+}
+
 # =============================================================================
 # Dataset Configuration
 # =============================================================================
@@ -187,11 +198,12 @@ sampling_opts_ce = {
     'beta_min': 0.1,
 }
 
-# Uninformative NIG model config (Gao 2022 diffuse prior)
-sampling_opts_uninf = {
-    'model': 'rdu_bhm',
+
+# CRRA + Goldstein-Einhorn model config (same quantity-space Beta-Beta prior)
+sampling_opts_ge = {
+    'model': 'rdu_ge_bhm_ce',
     'output_dir': DATA_DIR / 'output',
-    'plots_dir': PLOTS_DIR / 'rdu_bhm_uninf',
+    'plots_dir': PLOTS_DIR / 'rdu_ge_bhm_ce',
     'clean': True,
     'reset_runs': 1,
     'resume_runs': 5,
@@ -202,14 +214,14 @@ sampling_opts_uninf = {
     'seed': SEEDS['sampling'],
     'use_double': True,
     'n_temperatures': 0,
-    'beta_0_min': 0.1,
+    'beta_min': 0.1,
 }
 
-# Expo-Power + TK92 model config (same quantity-space Beta-Beta prior)
-sampling_opts_ep = {
-    'model': 'rdu_ep_bhm_ce',
+# CRRA + Power model config (k=4 > p=3, same quantity-space Beta-Beta prior)
+sampling_opts_power = {
+    'model': 'rdu_power_bhm_ce',
     'output_dir': DATA_DIR / 'output',
-    'plots_dir': PLOTS_DIR / 'rdu_ep_bhm_ce',
+    'plots_dir': PLOTS_DIR / 'rdu_power_bhm_ce',
     'clean': True,
     'reset_runs': 1,
     'resume_runs': 5,
@@ -250,14 +262,6 @@ sampling_opts_prior = {
     'use_double': True,
 }
 
-# Gao (2022) diffuse hyperprior: N(0, 100) means, IG(0.001, 0.001) variances
-UNINF_HYPERPRIOR_SPECS = {
-    'r':          {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
-    'phi_raw':    {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
-    'eta_raw':    {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
-    'lambda_raw': {'mu_0': 0.0, 'tau_0_sq': 100.0, 'alpha_0': 0.001, 'beta_0': 0.001},
-}
-
 # =============================================================================
 # Control Flags
 # =============================================================================
@@ -270,35 +274,35 @@ do_gen_paper_data = False
 do_sensitivity          = False
 do_family_comparison    = False
 
-# --- MCMC Sampling ---
-do_sampling_ce             = False
-do_sampling_ep             = False
-do_sampling_uninf          = False
+# --- Per-Model Flags (keyed by model registry key) ---
+do_sampling       = {'crra': False, 'ge': False, 'power': False}
+do_sampling_prior = {'crra': False, 'ge': False, 'power': False}
+do_prior_only_plots = {'crra': False, 'ge': False, 'power': False}
+do_preprocessing  = {'crra': False, 'ge': False, 'power': False}
+do_diagnostic_plots = {'crra': False, 'ge': False, 'power': False}
+
+# --- Stan (separate, not in registry) ---
 do_sampling_stan           = False
-do_sampling_prior          = False
 
-# --- Preprocessing (extract from history files) ---
+# --- Prior selection ---
 do_generate_prior_ce       = False
-do_preprocess_hyper_ce     = False
-do_preprocess_subjects_ce  = False
-do_preprocess_hyper_ep     = False
-do_preprocess_subjects_ep  = False
-do_preprocess_hyper_uninf  = False
-do_preprocess_subjects_uninf = False
-do_preprocess_subjects_prior = False
-
-# --- Diagnostic Plots ---
-do_hyper_plots_ce          = False
-do_subject_plots_ce        = False
 
 # --- Paper Plots ---
 do_paper_predictive_overlay      = False
 do_paper_prior_predictive_params = False
-do_paper_subject_ce_all          = False
+do_subject_ce_plots              = False
+
+# --- Diagnostics ---
+do_mcmc_diagnostics        = False
+
+# --- Marginal likelihoods (corrected RB estimator) ---
+do_ml_validation           = False
+do_bayes_factors_rb2       = False
 
 # --- Appendix Analyses ---
 do_rk_sensitivity          = False
 do_injectivity_analysis    = False
+do_injectivity_power       = False
 
 # --- Document Compilation ---
 do_compile_doc          = False
@@ -374,29 +378,107 @@ if __name__ == '__main__':
             prior_selection_ce=PRIOR_SELECTION_CE,
         )
 
-    if do_sampling_ce:
-        check_dependency('sampling_ce', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
-        pipelines.run_sampling_ce(
-            sampling_opts_ce,
-            ref_lotteries=REFERENCE_LOTTERIES,
-            ref_pair=REFERENCE_PAIR,
-            prior_params_path=prior_params_ce_path,
-        )
+    # =========================================================================
+    # Per-Model Pipeline (sampling, preprocessing, diagnostic plots)
+    # =========================================================================
+    from model_registry import MODEL_REGISTRY, get_data_dir, get_history_dir, get_preproc_dir
+    from model_registry import get_plots_dir as get_model_plots_dir
 
-    if do_sampling_ep:
-        check_dependency('sampling_ep', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
-        pipelines.run_sampling_ep(
-            sampling_opts_ep,
-            ref_lotteries=REFERENCE_LOTTERIES,
-            ref_pair=REFERENCE_PAIR,
-            prior_params_path=prior_params_ce_path,
-        )
+    sampling_opts_map = {
+        'crra': sampling_opts_ce,
+        'ge': sampling_opts_ge,
+        'power': sampling_opts_power,
+    }
+    prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
 
+    for model_key, cfg in MODEL_REGISTRY.items():
+        # --- Sampling ---
+        if do_sampling.get(model_key, False):
+            check_dependency(f'sampling_{model_key}', ['clean_data'])
+            pipelines.run_sampling_model(
+                model_key, sampling_opts_map[model_key],
+                ref_lotteries=REFERENCE_LOTTERIES,
+                ref_pair=REFERENCE_PAIR,
+                prior_params_path=prior_params_ce_path,
+            )
+
+        # --- Prior-only sampling ---
+        if do_sampling_prior.get(model_key, False) and cfg.get('has_prior_only', False):
+            check_dependency(f'sampling_{model_key}_prior', ['clean_data'])
+            pipelines.run_sampling_prior(
+                model_key, sampling_opts_map[model_key],
+                ref_lotteries=REFERENCE_LOTTERIES,
+                ref_pair=REFERENCE_PAIR,
+                prior_params_path=prior_params_ce_path,
+            )
+
+        # --- Preprocessing ---
+        if do_preprocessing.get(model_key, False):
+            pipelines.run_preprocess_model(model_key)
+
+        # --- Prior-only preprocessing and plots ---
+        if do_prior_only_plots.get(model_key, False) and cfg.get('has_prior_only', False):
+            prior_model_id = cfg['prior_model_id']
+            prior_data_dir = DATA_DIR / 'output' / prior_model_id
+            prior_history_dir = prior_data_dir / 'history' / 'full'
+            prior_preproc_dir = prior_data_dir / 'preprocessed'
+            prior_plots_dir = PLOTS_DIR / prior_model_id
+
+            if prior_history_dir.exists():
+                from plotting import (preprocess_hyperparams_ce,
+                                      preprocess_subjects,
+                                      plot_hyperparams_ce_from_preprocessed,
+                                      parallel_plot_subjects)
+
+                print(f"\n  Preprocessing prior-only: {cfg['name']}")
+                preprocess_hyperparams_ce(
+                    prior_history_dir, prior_preproc_dir, force=True,
+                    nparams=cfg['nparams'], n_hyper=cfg['n_hyper'])
+                preprocess_subjects(
+                    prior_history_dir, prior_preproc_dir / 'subjects', force=True,
+                    nparams=cfg['nparams'], n_hyper=cfg['n_hyper'],
+                    param_names=cfg['param_names'])
+
+                print(f"  Plotting prior-only hyperparams: {cfg['name']}")
+                hyper_preproc = prior_preproc_dir / 'hyperparams_preprocessed.npz'
+                if hyper_preproc.exists():
+                    plot_hyperparams_ce_from_preprocessed(
+                        str(hyper_preproc),
+                        str(prior_plots_dir / 'hyperparams'))
+
+                print(f"  Plotting prior-only subjects: {cfg['name']}")
+                subjects_dir = prior_preproc_dir / 'subjects'
+                if subjects_dir.exists() and (subjects_dir / 'metadata.npz').exists():
+                    import numpy as _np
+                    meta = _np.load(subjects_dir / 'metadata.npz')
+                    pipelines.run_subject_plots(
+                        prior_history_dir,
+                        prior_plots_dir,
+                        n_workers=1,
+                        preprocessed_dir=subjects_dir,
+                        config=DIAGNOSTIC_PLOT_CONFIG)
+            else:
+                print(f"  Skipping prior-only plots for {cfg['name']}: no history files")
+
+        # --- Diagnostic plots ---
+        if do_diagnostic_plots.get(model_key, False):
+            subjects_dir = get_preproc_dir(model_key) / 'subjects'
+            model_plots_dir = get_model_plots_dir(model_key)
+            history_dir = get_history_dir(model_key)
+            if subjects_dir.exists() and (subjects_dir / 'metadata.npz').exists():
+                # Only pass prizes for CRRA model (utility/CE pages are CRRA-specific)
+                prizes = _load_reference_prizes() if cfg['utility_type'] == 'crra' and cfg['pwf_type'] == 'prelec' else None
+                pipelines.run_subject_plots(history_dir, model_plots_dir,
+                                            n_workers=N_WORKERS,
+                                            preprocessed_dir=subjects_dir,
+                                            prizes=prizes,
+                                            config=DIAGNOSTIC_PLOT_CONFIG)
+            else:
+                print(f"Skipping {cfg['name']} subject plots: preprocessed data not found")
+
+    # --- Stan (not in registry) ---
     if do_sampling_stan:
         check_dependency('sampling_stan', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
         pipelines.run_sampling_stan(
             sampling_opts_stan,
             ref_lotteries=REFERENCE_LOTTERIES,
@@ -404,163 +486,86 @@ if __name__ == '__main__':
             prior_params_path=prior_params_ce_path,
         )
 
-    if do_sampling_prior:
-        check_dependency('sampling_prior', ['clean_data'])
-        prior_params_ce_path = DATA_DIR / 'output' / 'prior_params_ce.npz'
-        pipelines.run_sampling_prior(
-            sampling_opts_prior,
-            ref_lotteries=REFERENCE_LOTTERIES,
-            ref_pair=REFERENCE_PAIR,
-            prior_params_path=prior_params_ce_path,
+    # -------------------------------------------------------------------------
+    # MCMC Diagnostics
+    # -------------------------------------------------------------------------
+    if do_mcmc_diagnostics:
+        from mcmc_diagnostics import run_all_diagnostics
+        run_all_diagnostics(DATA_DIR / 'output' / 'mcmc_diagnostics.npz')
+
+    if do_ml_validation:
+        from ml_validation import run_ml_validation
+        run_ml_validation(
+            data_dir=DATA_DIR / 'output',
+            output_path=DATA_DIR / 'output' / 'ml_validation.npz',
         )
 
-    # -------------------------------------------------------------------------
-    # Preprocessing (CE-Space Prior)
-    # -------------------------------------------------------------------------
-    history_dir_ce = get_mcmc_dir('rdu_bhm_ce') / 'history' / 'full'
-    preprocess_dir_ce = get_mcmc_dir('rdu_bhm_ce') / 'preprocessed'
-
-    if do_preprocess_hyper_ce:
-        if history_dir_ce.exists():
-            pipelines.run_preprocess_hyperparams_ce(history_dir_ce, preprocess_dir_ce)
-        else:
-            print(f"Skipping CE preprocessing: {history_dir_ce} not found")
-
-    if do_preprocess_subjects_ce:
-        if history_dir_ce.exists():
-            pipelines.run_preprocess_subjects_ce(history_dir_ce, preprocess_dir_ce / 'subjects')
-        else:
-            print(f"Skipping CE subject preprocessing: {history_dir_ce} not found")
-
-    # -------------------------------------------------------------------------
-    # Preprocessing (EP+TK Model)
-    # -------------------------------------------------------------------------
-    history_dir_ep = get_mcmc_dir('rdu_ep_bhm_ce') / 'history' / 'full'
-    preprocess_dir_ep = get_mcmc_dir('rdu_ep_bhm_ce') / 'preprocessed'
-
-    if do_preprocess_hyper_ep:
-        if history_dir_ep.exists():
-            pipelines.run_preprocess_hyperparams_ce(history_dir_ep, preprocess_dir_ep)
-        else:
-            print(f"Skipping EP preprocessing: {history_dir_ep} not found")
-
-    if do_preprocess_subjects_ep:
-        if history_dir_ep.exists():
-            pipelines.run_preprocess_subjects_ce(history_dir_ep, preprocess_dir_ep / 'subjects')
-        else:
-            print(f"Skipping EP subject preprocessing: {history_dir_ep} not found")
-
-    # -------------------------------------------------------------------------
-    # Preprocessing (Prior-Only Model)
-    # -------------------------------------------------------------------------
-    history_dir_prior = get_mcmc_dir('rdu_bhm_ce_prior') / 'history' / 'full'
-    preprocess_dir_prior = get_mcmc_dir('rdu_bhm_ce_prior') / 'preprocessed'
-
-    if do_preprocess_subjects_prior:
-        if history_dir_prior.exists():
-            pipelines.run_preprocess_subjects_prior(
-                history_dir_prior, preprocess_dir_prior / 'subjects')
-        else:
-            print(f"Skipping prior subject preprocessing: {history_dir_prior} not found")
-
-    # -------------------------------------------------------------------------
-    # Plotting (CE-Space Prior)
-    # -------------------------------------------------------------------------
-    plots_dir_ce = get_plots_dir('rdu_bhm_ce')
-
-    if do_hyper_plots_ce:
-        hyper_preprocessed_ce = preprocess_dir_ce / 'hyperparams_preprocessed.npz'
-        if hyper_preprocessed_ce.exists():
-            pipelines.run_hyperparameter_plots_ce(hyper_preprocessed_ce, plots_dir_ce,
-                                                   ce_direct_prior=DIRECT_PRIOR_CE,
-                                                   config=DIAGNOSTIC_PLOT_CONFIG)
-        else:
-            print(f"Skipping CE hyper plots: {hyper_preprocessed_ce} not found")
-
-    if do_subject_plots_ce:
-        subjects_preprocessed_ce = preprocess_dir_ce / 'subjects'
-        if subjects_preprocessed_ce.exists() and (subjects_preprocessed_ce / 'metadata.npz').exists():
-            ref_prizes_ce = _load_reference_prizes()
-            pipelines.run_subject_plots(history_dir_ce, plots_dir_ce,
-                                        n_workers=N_WORKERS,
-                                        preprocessed_dir=subjects_preprocessed_ce,
-                                        prizes=ref_prizes_ce,
-                                        config=DIAGNOSTIC_PLOT_CONFIG)
-        else:
-            print(f"Skipping CE subject plots: preprocessed data not found")
-
-    # -------------------------------------------------------------------------
-    # Uninformative NIG Model (Gao 2022 diffuse prior)
-    # -------------------------------------------------------------------------
-    uninf_output_dir = DATA_DIR / 'output' / 'rdu_bhm_uninf'
-    history_dir_uninf = uninf_output_dir / 'rdu_bhm' / 'history' / 'full'
-    preprocess_dir_uninf = uninf_output_dir / 'preprocessed'
-
-    if do_sampling_uninf:
-        # Set diffuse hyperpriors before sampling
-        from posteriors.rdu_bhm import HYPERPRIOR_SPECS, PARAM_NAMES
-        for pname in PARAM_NAMES:
-            HYPERPRIOR_SPECS[pname] = UNINF_HYPERPRIOR_SPECS[pname]
-        from sampling import run_sampling as run_sampling_nig
-        run_sampling_nig(
-            output_dir=uninf_output_dir,
-            reset_runs=sampling_opts_uninf.get('reset_runs', 1),
-            resume_runs=sampling_opts_uninf.get('resume_runs', 5),
-            num_collect=sampling_opts_uninf.get('num_collect', 100),
-            config={
-                'num_chains_a': sampling_opts_uninf['num_chains'] // 2,
-                'num_chains_b': sampling_opts_uninf['num_chains'] // 2,
-                'num_collect': sampling_opts_uninf['num_collect'],
-                'thin_iteration': sampling_opts_uninf['thin_iteration'],
-                'chunk_size': sampling_opts_uninf['chunk_size'],
-                'rng_seed': sampling_opts_uninf['seed'],
-                'use_double': sampling_opts_uninf.get('use_double', True),
-                'n_temperatures': sampling_opts_uninf.get('n_temperatures', 1),
-                'beta_min': sampling_opts_uninf.get('beta_0_min', 0.1),
-            },
+    if do_bayes_factors_rb2:
+        from marginal_likelihood import compute_marginal_likelihoods
+        compute_marginal_likelihoods(
+            model_keys=['crra', 'ge', 'power'],
+            data_dir=DATA_DIR / 'output',
+            output_path=DATA_DIR / 'output' / 'bayes_factors_rb2.npz',
+            seed=SEEDS['sampling'],
         )
-
-    if do_preprocess_hyper_uninf:
-        if history_dir_uninf.exists():
-            pipelines.run_preprocess_hyperparams(history_dir_uninf, preprocess_dir_uninf)
-        else:
-            print(f"Skipping uninf preprocessing: {history_dir_uninf} not found")
-
-    if do_preprocess_subjects_uninf:
-        if history_dir_uninf.exists():
-            pipelines.run_preprocess_subjects(history_dir_uninf, preprocess_dir_uninf / 'subjects')
-        else:
-            print(f"Skipping uninf subject preprocessing: {history_dir_uninf} not found")
 
     # -------------------------------------------------------------------------
     # Paper Plots
     # -------------------------------------------------------------------------
-    hyper_preprocessed_info = preprocess_dir_ce / 'hyperparams_preprocessed.npz'
-    hyper_preprocessed_uninf = preprocess_dir_uninf / 'hyperparams_preprocessed.npz'
     paper_plots_dir = PLOTS_DIR / 'paper'
 
     if do_paper_predictive_overlay:
-        info_subjects = preprocess_dir_ce / 'subjects'
-        uninf_subjects = preprocess_dir_uninf / 'subjects'
-        if info_subjects.exists() and uninf_subjects.exists():
-            from paper_plots import generate_paper_plots
-            generate_paper_plots(
-                info_subjects_dir=str(info_subjects),
-                uninf_subjects_dir=str(uninf_subjects),
-                info_hyper_path=str(hyper_preprocessed_info),
-                uninf_hyper_path=str(hyper_preprocessed_uninf),
+        from paper_plots import generate_cross_model_ce_overlay, generate_subject_detail_figures
+
+        # Build hyper paths from registry
+        hyper_paths = {}
+        subj_dirs = {}
+        for mk in MODEL_REGISTRY:
+            hp = get_preproc_dir(mk) / 'hyperparams_preprocessed.npz'
+            hyper_paths[mk] = str(hp) if hp.exists() else None
+            sd = get_preproc_dir(mk) / 'subjects'
+            subj_dirs[mk] = str(sd) if sd.exists() else None
+
+        if hyper_paths.get('crra'):
+            generate_cross_model_ce_overlay(
+                crra_hyper_path=hyper_paths['crra'],
+                ge_hyper_path=hyper_paths.get('ge'),
+                power_hyper_path=hyper_paths.get('power'),
                 prior_params_path=str(DATA_DIR / 'output' / 'prior_params_ce.npz'),
                 output_dir=str(paper_plots_dir),
-                data_output_dir=str(DATA_DIR / 'output'),
+                seed=SEEDS['sampling'],
+            )
+
+        if subj_dirs.get('crra'):
+            generate_subject_detail_figures(
+                crra_subjects_dir=subj_dirs['crra'],
+                ge_subjects_dir=subj_dirs.get('ge'),
+                power_subjects_dir=subj_dirs.get('power'),
+                output_dir=str(paper_plots_dir),
                 seed=SEEDS['sampling'],
             )
         else:
-            missing = []
-            if not info_subjects.exists():
-                missing.append('informative subjects')
-            if not uninf_subjects.exists():
-                missing.append('uninformative subjects')
-            print(f"Skipping paper plots: missing {', '.join(missing)}")
+            print("Skipping subject detail figures: not all models preprocessed")
+
+    if do_subject_ce_plots:
+        import numpy as np
+        from gen_subject_ce_plots import plot_one_subject, MODELS as CE_PLOT_MODELS
+        from concurrent.futures import ProcessPoolExecutor
+        for model_key, name, model_id, param_names, color in CE_PLOT_MODELS:
+            output_dir = PLOTS_DIR / model_id / 'subject_ces'
+            output_dir.mkdir(parents=True, exist_ok=True)
+            preproc = DATA_DIR / 'output' / model_id / 'preprocessed' / 'subjects'
+            if not (preproc / 'metadata.npz').exists():
+                print(f"Skipping {name} CE plots: preprocessed data not found")
+                continue
+            meta = np.load(preproc / 'metadata.npz')
+            n_subj = int(meta['n_subjects'])
+            print(f"\n{name}: generating {n_subj} subject CE plots...")
+            args_list = [(sid, model_key, name, model_id, param_names, color)
+                         for sid in range(n_subj)]
+            with ProcessPoolExecutor(max_workers=N_WORKERS) as pool:
+                done = list(pool.map(plot_one_subject, args_list))
+            print(f"  Saved {len(done)} PDFs to {output_dir}")
 
     if do_paper_prior_predictive_params:
         prior_subjects = preprocess_dir_prior / 'subjects'
@@ -571,32 +576,6 @@ if __name__ == '__main__':
             )
         else:
             print(f"Skipping prior predictive params plot: {prior_subjects} not found")
-
-    if do_paper_subject_ce_all:
-        print("\n" + "=" * 60)
-        print("Running: Per-Subject CE Comparison Plots (All Subjects)")
-        print("=" * 60)
-        info_subjects = preprocess_dir_ce / 'subjects'
-        uninf_subjects = preprocess_dir_uninf / 'subjects'
-        if info_subjects.exists() and uninf_subjects.exists():
-            from paper_plots import generate_subject_ce_plots
-            generate_subject_ce_plots(
-                info_subjects_dir=str(info_subjects),
-                uninf_subjects_dir=str(uninf_subjects),
-                output_dir=str(PLOTS_DIR / 'paper' / 'subject_ce'),
-                lotteries=REFERENCE_LOTTERIES,
-                n_sub=5000,
-                n_workers=N_WORKERS,
-                seed=SEEDS['sampling'],
-            )
-        else:
-            missing = []
-            if not info_subjects.exists():
-                missing.append('informative subjects')
-            if not uninf_subjects.exists():
-                missing.append('uninformative subjects')
-            print(f"Skipping subject CE plots: missing {', '.join(missing)}")
-        print("Done.\n")
 
     # -------------------------------------------------------------------------
     # Appendix Analyses
@@ -617,6 +596,13 @@ if __name__ == '__main__':
         pipelines.run_injectivity_analysis(
             output_dir=PLOTS_DIR / 'injectivity',
             config=INJECTIVITY_CONFIG,
+        )
+
+    if do_injectivity_power:
+        pipelines.run_injectivity_power(
+            output_dir=PLOTS_DIR / 'injectivity',
+            reference_lotteries=REFERENCE_LOTTERIES,
+            config=INJECTIVITY_POWER_CONFIG,
         )
 
     # -------------------------------------------------------------------------

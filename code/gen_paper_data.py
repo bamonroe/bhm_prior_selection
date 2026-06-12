@@ -216,6 +216,29 @@ def gen_paper_data(output_path=None,
             gaps.append(abs(save_dict[f'ml_{m}_is']
                             - save_dict[f'ml_{m}_bridge']))
         save_dict['ml_route_gap_max'] = max(gaps)
+        # Feasible-mass normalization (truncated-prior construction)
+        if 'crra_log_Z' in ml:
+            for m in ['crra', 'ge', 'power']:
+                save_dict[f'ml_{m}_logZ'] = float(ml[f'{m}_log_Z'])
+                save_dict[f'ml_{m}_logZ_se'] = float(ml[f'{m}_log_Z_se'])
+                save_dict[f'ml_{m}_is_corr'] = \
+                    float(ml[f'{m}_log_ml_is_corrected'])
+                save_dict[f'ml_{m}_bridge_corr'] = \
+                    float(ml[f'{m}_log_ml_bridge_corrected'])
+            for pair in ['crra_vs_ge', 'crra_vs_power', 'ge_vs_power']:
+                short = pair.replace('_vs', '')
+                save_dict[f'bf_{short}_corr'] = \
+                    float(ml[f'log_bf_rb2_{pair}_corrected'])
+                save_dict[f'bf_{short}_corr_se'] = \
+                    float(ml[f'log_bf_rb2_{pair}_corrected_se'])
+        # Prior feasible mass at the posterior-mean psi (measurement run)
+        pm_path = output_path.parent / 'prior_mass_measurement.npz'
+        if pm_path.exists():
+            pm = dict(np.load(pm_path))
+            for m in ['crra', 'ge', 'power']:
+                if f'{m}_log_C_bar' in pm:
+                    save_dict[f'ml_{m}_logC_bar'] = \
+                        float(pm[f'{m}_log_C_bar'])
         for pair in ['crra_vs_ge', 'crra_vs_power', 'ge_vs_power']:
             short = pair.replace('_vs', '')
             save_dict[f'bf_{short}'] = float(ml[f'log_bf_rb2_{pair}'])
@@ -259,6 +282,11 @@ def gen_paper_data(output_path=None,
             med = diag.get(f'{model}_rhat_median', np.nan)
             mx = diag.get(f'{model}_rhat_max', np.nan)
             acc = diag.get(f'{model}_accept_mean', np.nan)
+            # Hyperparameters occupy the last 8 slots of the state vector
+            arr = diag.get(f'{model}_all_rhats')
+            if arr is not None and np.asarray(arr).size >= 8:
+                save_dict[f'{model}_rhat_hyper_max'] = \
+                    float(np.asarray(arr)[-8:].max())
             print(f"  {model}: R-hat median={float(med):.4f}, max={float(mx):.4f}, accept={float(acc):.1%}")
     else:
         print(f"\nSkipping MCMC diagnostics (run do_mcmc_diagnostics first)")

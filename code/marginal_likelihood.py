@@ -1013,3 +1013,816 @@ def compute_marginal_likelihoods(model_keys, data_dir, output_path,
     np.savez(Path(output_path), **save)
     print(f"\nSaved to: {output_path}")
     return results
+
+
+# =============================================================================
+# Prior normalization mass C_m(psi) = integral of the unnormalized induced
+# prior pop(g(theta)|psi) * vol(J(theta)) over theta.
+#
+# The induced prior used in sampling and in the marginal likelihood above is
+# unnormalized: its theta-integral C_m(psi) need not equal 1, generally
+# differs across models (for k > p the quantity-space support is a
+# lower-dimensional manifold), and may vary with psi. The properly
+# normalized model divides each subject's prior by C_m(psi), so the
+# corrected marginal likelihood subtracts n_subjects * log C_m(psi) inside
+# the psi-integral. C_m is subject-independent, so it is a single 3- or
+# 4-dimensional integral per (model, psi), estimated below by the same
+# adaptive importance sampling machinery with the likelihood replaced by 1.
+# =============================================================================
+
+def _build_log_jac_fn(model_key, data):
+    """Per-model log volume element: log|det J| (k=p) or the Gram
+    log-determinant (k>p), for the full 4-quantity map including P."""
+    dataf = data['float']
+    ref_lotteries = jnp.asarray(dataf[8])
+    ref_pair = jnp.asarray(dataf[9])
+
+    if model_key == 'crra':
+        from posteriors.common_fns import full_jacobian_logabsdet
+
+        def jac(t):
+            return full_jacobian_logabsdet(t[0], t[1], t[2], t[3],
+                                           ref_lotteries, ref_pair)
+    elif model_key == 'ge':
+        from posteriors.common_fns import full_jacobian_logabsdet_ge
+
+        def jac(t):
+            return full_jacobian_logabsdet_ge(t[0], t[1], t[2], t[3],
+                                              ref_lotteries, ref_pair)
+    elif model_key == 'power':
+        from posteriors.common_fns import gram_logdet_power
+
+        def jac(t):
+            return gram_logdet_power(t[0], t[1], t[2],
+                                     ref_lotteries, ref_pair)
+    else:
+        raise ValueError(f"Unknown model key: {model_key}")
+
+    return jax.jit(jac)
+
+
+def load_prior_theta_draws(model_key, data_dir, n_samples=50000, seed=42):
+    """Load theta draws from the model's prior-only MCMC run (1 subject)."""
+    from model_registry import MODEL_REGISTRY
+    cfg = MODEL_REGISTRY[model_key]
+    nparams = cfg['nparams']
+    n_hyper = cfg['n_hyper']
+
+    history_dir = (Path(data_dir) / cfg['prior_model_id'] / 'history' / 'full')
+    files = sorted(history_dir.glob('*.npz'))
+    if not files:
+        raise FileNotFoundError(f"No prior-only history in {history_dir}")
+
+    n_raw = nparams + n_hyper
+    states = [np.load(f, allow_pickle=True)['history'][:, :, :n_raw]
+              for f in files]
+    combined = np.concatenate(states, axis=0)
+    burn = combined.shape[0] // 2
+    flat = combined[burn:].reshape(-1, n_raw)
+    if n_samples < len(flat):
+        rng = np.random.default_rng(seed)
+        flat = flat[rng.choice(len(flat), n_samples, replace=False)]
+    return flat[:, :nparams]
+
+
+def _build_prior_mass_cache(model_key, data, proposal, K, rng):
+    """Draw K theta from the proposal and cache the C-integrand pieces in
+    the (K, 1, 4) layout that make_psi_sweep_fn expects."""
+    hyperprior_arr = np.asarray(data['float'][7])
+    lo, hi = _bounds_from_hyperprior(hyperprior_arr)
+    jac_vec = jax.jit(jax.vmap(_build_log_jac_fn(model_key, data)))
+    qfn_vec = jax.jit(jax.vmap(_build_quantity_fn(model_key, data)))
+
+    theta = proposal.sample(K, rng)
+    log_q = proposal.log_density(theta)
+    th_jax = jnp.asarray(theta)
+    log_jac = np.array(jac_vec(th_jax))
+    quantities = np.array(qfn_vec(th_jax))
+
+    bad = ~np.isfinite(log_jac) | ~np.isfinite(quantities).all(axis=1)
+    log_jac[bad] = -np.inf
+    quantities[bad] = 0.5 * (lo + hi)
+
+    z = np.clip((quantities - lo) / (hi - lo), 1e-10, 1 - 1e-10)
+    return {
+        'log_fq': (log_jac - log_q)[:, None],
+        'logz': np.log(z)[:, None, :],
+        'log1mz': np.log1p(-z)[:, None, :],
+        'nonfinite_frac': float(bad.mean()),
+        'theta': theta[:, None, :],
+        'hyperprior_arr': hyperprior_arr,
+        'model_key': model_key,
+    }
+
+
+def build_prior_mass_estimator(model_key, data, psi_probes, rng,
+                               K=262144, K_probe=65536, n_resample=4000,
+                               rounds=2, df=7.0, scale=1.3, n_bins=8,
+                               init_theta=None, data_dir=None,
+                               verbose=True):
+    """Adaptively fit proposals to the prior integrand and return a sweep
+    function psi (B,8) -> log C_hat (B,), plus the proposal for replicates.
+
+    The integrand at given psi is the conditional prior ball, which moves
+    and tightens with psi, so proposals are refined by importance
+    resampling against the integrand pooled over several posterior psi
+    probes (same scheme as the per-subject likelihood integrals).
+    """
+    if init_theta is None:
+        init_theta = load_prior_theta_draws(model_key, data_dir)
+    proposal = fit_subject_proposal(init_theta, n_bins=n_bins, df=df,
+                                    scale=scale)
+    psi_probes = np.atleast_2d(psi_probes)
+
+    probe_ess = None
+    for rnd in range(rounds):
+        caches = _build_prior_mass_cache(model_key, data, proposal,
+                                         K_probe, rng)
+        hyperprior_arr = caches['hyperprior_arr']
+        a, b, _ = _beta_pop_coeffs(jnp.asarray(psi_probes), hyperprior_arr)
+        a, b = np.asarray(a), np.asarray(b)
+        core = (np.einsum('knq,pq->pkn', caches['logz'], a - 1.0)
+                + np.einsum('knq,pq->pkn', caches['log1mz'], b - 1.0))
+        log_w = caches['log_fq'][None, :, :] + core   # (P, K, 1)
+        log_w = np.where(np.isfinite(log_w), log_w, -np.inf)[:, :, 0]
+
+        pooled = []
+        ess_list = []
+        for p in range(len(psi_probes)):
+            lw = log_w[p]
+            w = np.exp(lw - np.max(lw))
+            ess_list.append(np.sum(w) ** 2 / np.sum(w * w))
+            idx = rng.choice(K_probe, n_resample, replace=True,
+                             p=w / w.sum())
+            pooled.append(caches['theta'][idx, 0, :])
+        probe_ess = np.array(ess_list)
+        if verbose:
+            print(f"  [{model_key}] C-proposal round {rnd}: probe ESS "
+                  f"min={probe_ess.min():.0f}, "
+                  f"median={np.median(probe_ess):.0f} (K_probe={K_probe})")
+        core_mix = fit_subject_proposal(np.concatenate(pooled),
+                                        n_bins=n_bins, df=df, scale=scale,
+                                        defensive_weight=0.0)
+        proposal = MixtureProposal([core_mix, proposal], [0.85, 0.15])
+
+    caches = _build_prior_mass_cache(model_key, data, proposal, K, rng)
+    sweep_fn = make_psi_sweep_fn(caches)
+    if verbose:
+        print(f"  [{model_key}] final C-cache: K={K}, non-finite "
+              f"{caches['nonfinite_frac']:.5f}")
+
+    def log_C(psi, want_ess=False):
+        return sweep_psi(sweep_fn, psi, want_ess=want_ess)
+
+    return log_C, proposal, probe_ess
+
+
+def measure_prior_mass(model_keys, data_dir, output_path=None, n_psi=200,
+                       K=262144, n_replicates=2, seed=42):
+    """Phase-A measurement: level and psi-variation of log C_m(psi) at
+    posterior-representative psi draws, with replicate agreement."""
+    data_dir = Path(data_dir)
+    data = assemble_data(data_dir)
+    results = {}
+
+    for mk in model_keys:
+        print(f"\n{'=' * 60}\nPrior mass: {mk}\n{'=' * 60}")
+        rng = np.random.default_rng(seed + hash(mk) % 1000)
+        hyper, _subj, n_subjects = load_posterior_states(
+            mk, str(data_dir), n_samples=50000, seed=seed)
+        psi_bar = hyper.mean(axis=0)
+        idx = rng.choice(len(hyper), n_psi, replace=False)
+        psi_eval = np.vstack([psi_bar, hyper[idx]])
+        psi_probes = np.vstack([psi_bar,
+                                hyper[rng.choice(len(hyper), 7,
+                                                 replace=False)]])
+
+        reps = []
+        for rep in range(n_replicates):
+            log_C, proposal, probe_ess = build_prior_mass_estimator(
+                mk, data, psi_probes, rng, K=K, data_dir=data_dir)
+            lc, ess = log_C(psi_eval, want_ess=True)
+            reps.append(lc)
+            print(f"  replicate {rep}: log C(psi_bar) = {lc[0]:.5f}, "
+                  f"across-psi SD = {np.std(lc[1:]):.5f}, "
+                  f"ESS min={ess.min():.0f} med={np.median(ess):.0f}")
+
+        lc_mean = np.mean(reps, axis=0)
+        rep_diff = float(np.max(np.abs(reps[0] - reps[1]))) \
+            if n_replicates > 1 else np.nan
+
+        # Linear regression of log C on psi to detect systematic variation
+        X = np.column_stack([np.ones(len(psi_eval)), psi_eval])
+        beta, res, *_ = np.linalg.lstsq(X, lc_mean, rcond=None)
+        fitted = X @ beta
+        resid_sd = float(np.std(lc_mean - fitted))
+        fitted_spread = float(np.std(fitted[1:]))
+
+        results[mk] = {
+            'log_C_bar': float(lc_mean[0]),
+            'sd_across_psi': float(np.std(lc_mean[1:])),
+            'fitted_spread': fitted_spread,
+            'resid_sd': resid_sd,
+            'rep_max_diff': rep_diff,
+            'n_subjects': n_subjects,
+            'correction_at_bar': float(-n_subjects * lc_mean[0]),
+            'tilt_sd': float(n_subjects * fitted_spread),
+            'beta': beta,
+            'psi_eval': psi_eval,
+            'log_C': lc_mean,
+        }
+        r = results[mk]
+        print(f"  log C(psi_bar) = {r['log_C_bar']:.5f}  "
+              f"(replicate max |diff| {rep_diff:.5f})")
+        print(f"  across-psi SD = {r['sd_across_psi']:.5f} "
+              f"(systematic {fitted_spread:.5f}, noise {resid_sd:.5f})")
+        print(f"  ML level correction -n*logC = {r['correction_at_bar']:.2f}; "
+              f"psi-tilt SD n*spread = {r['tilt_sd']:.2f}")
+
+    if output_path is not None:
+        save = {}
+        for mk, r in results.items():
+            for k in ('log_C_bar', 'sd_across_psi', 'fitted_spread',
+                      'resid_sd', 'rep_max_diff', 'correction_at_bar',
+                      'tilt_sd'):
+                save[f'{mk}_{k}'] = r[k]
+            save[f'{mk}_beta'] = r['beta']
+            save[f'{mk}_psi_eval'] = r['psi_eval']
+            save[f'{mk}_log_C'] = r['log_C']
+        np.savez(Path(output_path), **save)
+        print(f"\nSaved to: {output_path}")
+    return results
+
+
+# =============================================================================
+# Hyperprior-tilted feasible mass Z_m = E_{psi ~ pi}[ C_m(psi)^N ].
+#
+# The model as sampled is the quantity-space hierarchy TRUNCATED to each
+# model's feasible image: per subject the conditional prior is p_tilde / C,
+# and the truncation reweights the hyperprior by the feasible mass,
+# pi_eff(psi) proportional to pi(psi) C(psi)^N with normalizer Z_m. The
+# posteriors reported in the paper are exactly this model's posteriors, and
+# its properly normalized marginal likelihood is the reported value minus
+# log Z_m. Because N log C amplifies estimation noise by N, log C is
+# evaluated at a moderate number of design psi points with high inner ESS,
+# smoothed by a quadratic surface in psi, and the tilted expectation is
+# taken over exact hyperprior draws evaluated on the surface.
+# =============================================================================
+
+def sample_hyperprior_psi(n, hyperprior_arr, rng):
+    """Draw psi (n, 8) exactly from the Beta-Beta hyperprior (logit scale)."""
+    hp = np.asarray(hyperprior_arr).reshape(N_QUANTITIES, HYPERPRIOR_STRIDE)
+    psi = np.empty((n, 2 * N_QUANTITIES))
+    for k in range(N_QUANTITIES):
+        mu = rng.beta(hp[k, 0], hp[k, 1], size=n)
+        ps = rng.beta(hp[k, 2], hp[k, 3], size=n)
+        psi[:, 2 * k] = np.log(mu / (1 - mu))
+        psi[:, 2 * k + 1] = np.log(ps / (1 - ps))
+    return psi
+
+
+def _quad_features(psi, center, scale):
+    """Standardized quadratic feature matrix (1, z, z_i z_j for i<=j)."""
+    z = (psi - center) / scale
+    n, d = z.shape
+    cols = [np.ones(n)]
+    cols.extend(z[:, j] for j in range(d))
+    for i in range(d):
+        for j in range(i, d):
+            cols.append(z[:, i] * z[:, j])
+    return np.column_stack(cols)
+
+
+def estimate_log_Z(model_key, data, n_subjects, rng, data_dir,
+                   n_design=256, n_design_stage2=64, K=262144,
+                   n_mc=2000000, verbose=True):
+    """Estimate log Z_m = log E_pi[C_m(psi)^N] with a fitted log C surface.
+
+    Stage 1 evaluates log C at hyperprior-drawn design points and fits a
+    quadratic surface. Stage 2 adds design points where the tilted
+    integrand concentrates and refits. The expectation is then computed
+    over exact hyperprior draws on the surface, with a jackknife SE for
+    the surface fit propagated through the tilt.
+    """
+    hyperprior_arr = np.asarray(data['float'][7])
+    psi_design = sample_hyperprior_psi(n_design, hyperprior_arr, rng)
+
+    # Proposal refined against the integrand pooled over hyperprior probes
+    psi_probes = psi_design[rng.choice(n_design, 12, replace=False)]
+    log_C, _prop, _ = build_prior_mass_estimator(
+        model_key, data, psi_probes, rng, K=K, data_dir=data_dir,
+        verbose=verbose)
+
+    lc, ess = log_C(psi_design, want_ess=True)
+    if verbose:
+        print(f"  [{model_key}] stage-1 design: log C in "
+              f"[{lc.min():.3f}, {lc.max():.3f}], ESS min={ess.min():.0f}")
+
+    center = psi_design.mean(axis=0)
+    scale = psi_design.std(axis=0)
+
+    def fit_surface(psi_pts, lc_pts):
+        X = _quad_features(psi_pts, center, scale)
+        beta, *_ = np.linalg.lstsq(X, lc_pts, rcond=None)
+        resid = lc_pts - X @ beta
+        return beta, float(np.std(resid))
+
+    beta, resid_sd = fit_surface(psi_design, lc)
+
+    # Stage 2: concentrate design where the tilt puts mass
+    psi_mc = sample_hyperprior_psi(200000, hyperprior_arr, rng)
+    lw = n_subjects * (_quad_features(psi_mc, center, scale) @ beta)
+    w = np.exp(lw - lw.max())
+    idx2 = rng.choice(len(psi_mc), n_design_stage2, replace=True,
+                      p=w / w.sum())
+    psi2 = psi_mc[idx2]
+    lc2, ess2 = log_C(psi2, want_ess=True)
+    if verbose:
+        print(f"  [{model_key}] stage-2 design (tilt region): log C in "
+              f"[{lc2.min():.3f}, {lc2.max():.3f}], ESS min={ess2.min():.0f}")
+
+    psi_all = np.vstack([psi_design, psi2])
+    lc_all = np.concatenate([lc, lc2])
+    beta, resid_sd = fit_surface(psi_all, lc_all)
+
+    # Tilted expectation over exact hyperprior draws on the surface
+    psi_big = sample_hyperprior_psi(n_mc, hyperprior_arr, rng)
+    lw_big = n_subjects * (_quad_features(psi_big, center, scale) @ beta)
+    log_Z = float(_logsumexp(lw_big) - np.log(n_mc))
+    wb = np.exp(lw_big - lw_big.max())
+    tilt_ess = float(np.sum(wb) ** 2 / np.sum(wb * wb))
+
+    # Jackknife over design blocks for surface-fit uncertainty
+    n_blocks = 8
+    blocks = np.array_split(rng.permutation(len(psi_all)), n_blocks)
+    jk = []
+    for b in blocks:
+        mask = np.ones(len(psi_all), bool)
+        mask[b] = False
+        bta, _ = fit_surface(psi_all[mask], lc_all[mask])
+        lwj = n_subjects * (_quad_features(psi_big[:200000], center,
+                                           scale) @ bta)
+        jk.append(_logsumexp(lwj) - np.log(200000))
+    jk = np.asarray(jk)
+    se_jk = float(np.sqrt((n_blocks - 1) / n_blocks
+                          * np.sum((jk - jk.mean()) ** 2)))
+
+    if verbose:
+        print(f"  [{model_key}] surface residual SD = {resid_sd:.4f} "
+              f"(x N = {n_subjects * resid_sd:.2f} worst-case pointwise)")
+        print(f"  [{model_key}] log Z = {log_Z:.3f} "
+              f"(jackknife SE {se_jk:.3f}, tilt ESS {tilt_ess:.0f} "
+              f"of {n_mc})")
+
+    return {'log_Z': log_Z, 'se_jk': se_jk, 'resid_sd': resid_sd,
+            'tilt_ess': tilt_ess, 'beta': beta,
+            'lc_design': lc_all, 'psi_design': psi_all}
+
+
+def compute_normalization_corrections(model_keys, data_dir, output_path,
+                                      seed=42):
+    """Estimate log Z_m for each model, apply corrections to the reported
+    marginal likelihoods, and save corrected values alongside the raw."""
+    data_dir = Path(data_dir)
+    data = assemble_data(data_dir)
+    ml = dict(np.load(data_dir / 'bayes_factors_rb2.npz'))
+
+    results = {}
+    for mk in model_keys:
+        print(f"\n{'=' * 60}\nFeasible-mass tilt: {mk}\n{'=' * 60}")
+        rng = np.random.default_rng(seed + 7000 + hash(mk) % 1000)
+        _h, _s, n_subjects = load_posterior_states(
+            mk, str(data_dir), n_samples=2000, seed=seed)
+        results[mk] = estimate_log_Z(mk, data, n_subjects, rng,
+                                     data_dir=data_dir)
+
+    for mk in model_keys:
+        r = results[mk]
+        ml[f'{mk}_log_Z'] = r['log_Z']
+        ml[f'{mk}_log_Z_se'] = r['se_jk']
+        ml[f'{mk}_log_ml_is_corrected'] = \
+            float(ml[f'{mk}_log_ml_is']) - r['log_Z']
+        ml[f'{mk}_log_ml_bridge_corrected'] = \
+            float(ml[f'{mk}_log_ml_bridge']) - r['log_Z']
+
+    print(f"\n{'=' * 60}\nCORRECTED BAYES FACTORS (log scale, IS route)\n"
+          f"{'=' * 60}")
+    keys = list(model_keys)
+    for i, k1 in enumerate(keys):
+        for k2 in keys[i + 1:]:
+            bf = (float(ml[f'{k1}_log_ml_is_corrected'])
+                  - float(ml[f'{k2}_log_ml_is_corrected']))
+            se = float(np.sqrt(float(ml[f'{k1}_log_ml_is_se']) ** 2
+                               + float(ml[f'{k2}_log_ml_is_se']) ** 2
+                               + results[k1]['se_jk'] ** 2
+                               + results[k2]['se_jk'] ** 2))
+            print(f"  log BF({k1} vs {k2}) = {bf:.2f} +/- {se:.2f}  "
+                  f"(uncorrected {float(ml[f'log_bf_rb2_{k1}_vs_{k2}']):.2f})")
+            ml[f'log_bf_rb2_{k1}_vs_{k2}_corrected'] = bf
+            ml[f'log_bf_rb2_{k1}_vs_{k2}_corrected_se'] = se
+
+    np.savez(Path(output_path), **ml)
+    print(f"\nSaved to: {output_path}")
+    return results
+
+
+def estimate_log_Z_laplace(model_key, data, n_subjects, rng, data_dir,
+                           n_global=192, n_local=120, K_local=1048576,
+                           n_is=200000, verbose=True):
+    """Laplace-centered estimate of log Z = log E_pi[C(psi)^N].
+
+    The tilt C^N concentrates the integral in a small psi region near the
+    maximizer of h(psi) = log pi(psi) + N log C(psi). A global surface
+    locates the mode; a local high-accuracy design refits log C there; the
+    integral is then computed by importance sampling from a Student-t
+    matched to the local curvature, with all C evaluations taken from the
+    local quadratic. For k = p models C is a probability mass, so the
+    surface is clipped at log C <= 0.
+    """
+    from scipy.optimize import minimize
+
+    hyperprior_arr = np.asarray(data['float'][7])
+    log_pi_vec = make_log_hyperprior_vec(data)
+    bounded = model_key in ('crra', 'ge')
+
+    # --- Global stage: coarse surface to locate the mode ---
+    psi_design = sample_hyperprior_psi(n_global, hyperprior_arr, rng)
+    psi_probes = psi_design[rng.choice(n_global, 12, replace=False)]
+    log_C, _prop, _ = build_prior_mass_estimator(
+        model_key, data, psi_probes, rng, K=262144, data_dir=data_dir,
+        verbose=verbose)
+    lc = log_C(psi_design)
+    center = psi_design.mean(axis=0)
+    scale = psi_design.std(axis=0)
+    Xg = _quad_features(psi_design, center, scale)
+    beta_g, *_ = np.linalg.lstsq(Xg, lc, rcond=None)
+
+    def h_surface(psi_row, beta):
+        x = float((_quad_features(psi_row[None, :], center, scale)
+                   @ beta)[0])
+        if bounded:
+            x = min(x, 0.0)
+        return float(log_pi_vec(psi_row[None, :])[0]) + n_subjects * x
+
+    starts = psi_design[np.argsort(-(n_subjects * np.minimum(lc, 0.0)
+                                     + log_pi_vec(psi_design)))[:6]]
+    best = None
+    for s in starts:
+        res = minimize(lambda p: -h_surface(p, beta_g), s,
+                       method='Nelder-Mead',
+                       options={'maxiter': 4000, 'xatol': 1e-5,
+                                'fatol': 1e-8})
+        if best is None or res.fun < best.fun:
+            best = res
+    psi_star = best.x
+    if verbose:
+        print(f"  [{model_key}] tilt mode: h = {-best.fun:.2f}, "
+              f"psi* - mean(pi) = {np.round(psi_star - center, 2)}")
+
+    # --- Local stage: high-accuracy design around the mode ---
+    # Curvature of h from the global surface via finite differences
+    eps = 0.05 * scale
+    H = np.zeros((8, 8))
+    h0 = h_surface(psi_star, beta_g)
+    for i in range(8):
+        for j in range(i, 8):
+            pp = psi_star.copy(); pp[i] += eps[i]; pp[j] += eps[j]
+            pm = psi_star.copy(); pm[i] += eps[i]; pm[j] -= eps[j]
+            mp = psi_star.copy(); mp[i] -= eps[i]; mp[j] += eps[j]
+            mm = psi_star.copy(); mm[i] -= eps[i]; mm[j] -= eps[j]
+            H[i, j] = H[j, i] = (
+                h_surface(pp, beta_g) - h_surface(pm, beta_g)
+                - h_surface(mp, beta_g) + h_surface(mm, beta_g)
+            ) / (4 * eps[i] * eps[j])
+    # Covariance of the Laplace Gaussian (regularize to be safe)
+    evals, evecs = np.linalg.eigh(-H)
+    evals = np.maximum(evals, 1e-2)
+    cov_loc = (evecs / evals) @ evecs.T
+
+    proposal_loc = StudentTProposal.from_moments(psi_star, 4.0 * cov_loc,
+                                                 df=7.0)
+    psi_loc = np.vstack([psi_star, proposal_loc.sample(n_local - 1, rng)])
+
+    # Rebuild the C estimator with probes at the mode region, big K
+    log_C_loc, _p2, _ = build_prior_mass_estimator(
+        model_key, data, psi_loc[rng.choice(n_local, 12, replace=False)],
+        rng, K=K_local, data_dir=data_dir, verbose=verbose)
+    lc_loc, ess_loc = log_C_loc(psi_loc, want_ess=True)
+    if verbose:
+        print(f"  [{model_key}] local design: log C in "
+              f"[{lc_loc.min():.4f}, {lc_loc.max():.4f}], "
+              f"ESS min={ess_loc.min():.0f} med={np.median(ess_loc):.0f}")
+
+    c_loc = psi_star
+    s_loc = np.sqrt(np.diag(cov_loc)) * 2.0
+    Xl = _quad_features(psi_loc, c_loc, s_loc)
+    beta_l, *_ = np.linalg.lstsq(Xl, lc_loc, rcond=None)
+    resid = lc_loc - Xl @ beta_l
+    resid_sd = float(np.std(resid))
+
+    # --- Importance sampling of the tilted integral on the local surface ---
+    def log_h_batch(psi):
+        x = _quad_features(psi, c_loc, s_loc) @ beta_l
+        if bounded:
+            x = np.minimum(x, 0.0)
+        return log_pi_vec(psi) + n_subjects * x
+
+    psi_is = proposal_loc.sample(n_is, rng)
+    lw = log_h_batch(psi_is) - proposal_loc.log_density(psi_is)
+    lw = np.where(np.isfinite(lw), lw, -np.inf)
+    log_Z = float(_logsumexp(lw) - np.log(n_is))
+    w = np.exp(lw - lw.max())
+    is_ess = float(np.sum(w) ** 2 / np.sum(w * w))
+
+    # SE: jackknife over local-design blocks (surface noise, amplified by N)
+    n_blocks = 8
+    blocks = np.array_split(rng.permutation(n_local), n_blocks)
+    jk = []
+    psi_jk = psi_is[:50000]
+    lq_jk = proposal_loc.log_density(psi_jk)
+    lpi_jk = log_pi_vec(psi_jk)
+    F_jk = _quad_features(psi_jk, c_loc, s_loc)
+    for b in blocks:
+        mask = np.ones(n_local, bool)
+        mask[b] = False
+        bta, *_ = np.linalg.lstsq(Xl[mask], lc_loc[mask], rcond=None)
+        x = F_jk @ bta
+        if bounded:
+            x = np.minimum(x, 0.0)
+        lwj = lpi_jk + n_subjects * x - lq_jk
+        jk.append(_logsumexp(lwj) - np.log(len(psi_jk)))
+    jk = np.asarray(jk)
+    se = float(np.sqrt((n_blocks - 1) / n_blocks
+                       * np.sum((jk - jk.mean()) ** 2)))
+
+    if verbose:
+        print(f"  [{model_key}] local surface residual SD = {resid_sd:.4f}; "
+              f"IS ESS = {is_ess:.0f} of {n_is}")
+        print(f"  [{model_key}] log Z = {log_Z:.3f} (jackknife SE {se:.3f})")
+    return {'log_Z': log_Z, 'se_jk': se, 'resid_sd': resid_sd,
+            'is_ess': is_ess, 'psi_star': psi_star, 'lc_loc': lc_loc,
+            'psi_loc': psi_loc}
+
+
+def compute_normalization_corrections_v2(model_keys, data_dir, output_path,
+                                         seed=42, n_replicates=2):
+    """Laplace-grade log Z estimates with replicate agreement, applied to
+    the reported marginal likelihoods."""
+    data_dir = Path(data_dir)
+    data = assemble_data(data_dir)
+    ml = dict(np.load(data_dir / 'bayes_factors_rb2.npz'))
+
+    results = {}
+    for mk in model_keys:
+        print(f"\n{'=' * 60}\nFeasible-mass tilt (Laplace): {mk}\n{'=' * 60}")
+        _h, _s, n_subjects = load_posterior_states(
+            mk, str(data_dir), n_samples=2000, seed=seed)
+        reps = []
+        for rep in range(n_replicates):
+            rng = np.random.default_rng(seed + 9000 + 100 * rep
+                                        + hash(mk) % 1000)
+            reps.append(estimate_log_Z_laplace(mk, data, n_subjects, rng,
+                                               data_dir=data_dir))
+        lz = np.array([r['log_Z'] for r in reps])
+        print(f"  [{mk}] replicate log Z values: {np.round(lz, 3)} "
+              f"(spread {lz.max() - lz.min():.3f})")
+        results[mk] = {
+            'log_Z': float(np.mean(lz)),
+            'se': float(np.sqrt(np.mean([r['se_jk'] ** 2 for r in reps])
+                                / n_replicates
+                                + np.var(lz, ddof=1) / n_replicates)),
+            'reps': reps,
+        }
+
+    for mk in model_keys:
+        r = results[mk]
+        ml[f'{mk}_log_Z'] = r['log_Z']
+        ml[f'{mk}_log_Z_se'] = r['se']
+        ml[f'{mk}_log_ml_is_corrected'] = \
+            float(ml[f'{mk}_log_ml_is']) - r['log_Z']
+        ml[f'{mk}_log_ml_bridge_corrected'] = \
+            float(ml[f'{mk}_log_ml_bridge']) - r['log_Z']
+
+    print(f"\n{'=' * 60}\nCORRECTED BAYES FACTORS (log scale, IS route)\n"
+          f"{'=' * 60}")
+    keys = list(model_keys)
+    for i, k1 in enumerate(keys):
+        for k2 in keys[i + 1:]:
+            bf = (float(ml[f'{k1}_log_ml_is_corrected'])
+                  - float(ml[f'{k2}_log_ml_is_corrected']))
+            se = float(np.sqrt(float(ml[f'{k1}_log_ml_is_se']) ** 2
+                               + float(ml[f'{k2}_log_ml_is_se']) ** 2
+                               + results[k1]['se'] ** 2
+                               + results[k2]['se'] ** 2))
+            print(f"  log BF({k1} vs {k2}) = {bf:.2f} +/- {se:.2f}  "
+                  f"(uncorrected {float(ml[f'log_bf_rb2_{k1}_vs_{k2}']):.2f})")
+            ml[f'log_bf_rb2_{k1}_vs_{k2}_corrected'] = bf
+            ml[f'log_bf_rb2_{k1}_vs_{k2}_corrected_se'] = se
+
+    np.savez(Path(output_path), **ml)
+    print(f"\nSaved to: {output_path}")
+    return results
+
+
+def estimate_log_Z_tr(model_key, data, n_subjects, rng, data_dir,
+                      n_per_round=160, K=262144, max_rounds=5,
+                      n_is=300000, verbose=True):
+    """Trust-region estimate of log Z = log E_pi[C(psi)^N].
+
+    The tilt C^N concentrates the integral in a small psi region, and any
+    surface for log C extrapolates dangerously there (N amplifies fit
+    errors and the maximizer of an extrapolated quadratic is an
+    artifact). This routine therefore only ever evaluates the fitted
+    surface INSIDE the design support: each round fits a quadratic to all
+    design evaluations, importance-samples the tilted integrand with
+    weights zeroed outside the design's Mahalanobis hull, and adds new
+    design points where the tilted mass actually sits. Iteration stops
+    when the tilted mass is interior to the hull (negligible boundary
+    fraction) and the region is stable. The hull truncation makes the
+    estimate a lower bound whose omitted mass is controlled by the
+    reported boundary fraction.
+    """
+    from scipy.linalg import solve_triangular
+
+    hyperprior_arr = np.asarray(data['float'][7])
+    log_pi_vec = make_log_hyperprior_vec(data)
+    bounded = model_key in ('crra', 'ge')
+
+    # Round-0 design: hyperprior draws
+    psi_D = sample_hyperprior_psi(n_per_round, hyperprior_arr, rng)
+    probes = psi_D[rng.choice(len(psi_D), 12, replace=False)]
+    log_C, _p, _ = build_prior_mass_estimator(
+        model_key, data, probes, rng, K=K, data_dir=data_dir,
+        verbose=False)
+    lc_D = log_C(psi_D)
+
+    history = []
+    prev_tilt_pts = None
+    for rnd in range(max_rounds):
+        center = psi_D.mean(axis=0)
+        cov_D = np.cov(psi_D, rowvar=False) + 1e-10 * np.eye(8)
+        L_D = np.linalg.cholesky(cov_D)
+        scale = np.sqrt(np.diag(cov_D))
+
+        X = _quad_features(psi_D, center, scale)
+        beta, *_ = np.linalg.lstsq(X, lc_D, rcond=None)
+        resid_sd = float(np.std(lc_D - X @ beta))
+
+        def mahal(psi):
+            u = solve_triangular(L_D, (psi - center).T, lower=True)
+            return np.sqrt(np.sum(u * u, axis=0))
+
+        rho = float(np.max(mahal(psi_D)))
+
+        # Tilted IS within the hull. After round 0 the proposal is fitted
+        # to the previous round's tilted resample (far better matched than
+        # the design cloud), defensively mixed with the design-cloud fit.
+        q_design = StudentTProposal.from_moments(center, 1.5 ** 2 * cov_D,
+                                                 df=7.0)
+        if prev_tilt_pts is None:
+            q = q_design
+        else:
+            q = MixtureProposal(
+                [StudentTProposal(prev_tilt_pts, df=7.0, scale=1.5),
+                 q_design], [0.8, 0.2])
+        psi_s = q.sample(n_is, rng)
+        x = _quad_features(psi_s, center, scale) @ beta
+        if bounded:
+            x = np.minimum(x, 0.0)
+        lw = log_pi_vec(psi_s) + n_subjects * x - q.log_density(psi_s)
+        m = mahal(psi_s)
+        inside = m <= rho
+        lw = np.where(inside, lw, -np.inf)
+
+        log_Z = float(_logsumexp(lw) - np.log(n_is))
+        w = np.exp(lw - lw.max())
+        ess = float(np.sum(w) ** 2 / np.sum(w * w))
+        boundary_frac = float(np.sum(w[m > 0.9 * rho]) / np.sum(w))
+
+        # Where does the tilted mass sit?
+        idx = rng.choice(n_is, 2000, replace=True, p=w / w.sum())
+        tilt_pts = psi_s[idx]
+        prev_tilt_pts = tilt_pts
+        tilt_center = tilt_pts.mean(axis=0)
+        shift = float(np.max(np.abs(tilt_center - center) / scale))
+
+        history.append((log_Z, ess, boundary_frac, resid_sd))
+        if verbose:
+            print(f"  [{model_key}] round {rnd}: log Z = {log_Z:.3f}, "
+                  f"IS ESS {ess:.0f}, boundary mass {boundary_frac:.3f}, "
+                  f"fit resid {resid_sd:.4f}, design n={len(psi_D)}, "
+                  f"shift {shift:.2f}")
+
+        if boundary_frac < 0.02 and rnd > 0:
+            break
+
+        # New design points at the tilted mass (jittered to spread)
+        new_pts = tilt_pts[rng.choice(len(tilt_pts), n_per_round,
+                                      replace=False)] \
+            + 0.3 * scale * rng.standard_normal((n_per_round, 8))
+        probes = new_pts[rng.choice(len(new_pts), 12, replace=False)]
+        log_C, _p, _ = build_prior_mass_estimator(
+            model_key, data, probes, rng, K=K, data_dir=data_dir,
+            verbose=False)
+        lc_new = log_C(new_pts)
+        psi_D = np.vstack([psi_D, new_pts])
+        lc_D = np.concatenate([lc_D, lc_new])
+
+    # Jackknife over design blocks for the surface contribution to SE
+    n_blocks = 8
+    blocks = np.array_split(rng.permutation(len(psi_D)), n_blocks)
+    psi_jk = psi_s[:60000]
+    lq_jk = q.log_density(psi_jk)
+    lpi_jk = log_pi_vec(psi_jk)
+    m_jk = mahal(psi_jk)
+    F_jk = _quad_features(psi_jk, center, scale)
+    jk = []
+    for b in blocks:
+        mask = np.ones(len(psi_D), bool)
+        mask[b] = False
+        Xb = _quad_features(psi_D[mask], center, scale)
+        bta, *_ = np.linalg.lstsq(Xb, lc_D[mask], rcond=None)
+        xj = F_jk @ bta
+        if bounded:
+            xj = np.minimum(xj, 0.0)
+        lwj = np.where(m_jk <= rho,
+                       lpi_jk + n_subjects * xj - lq_jk, -np.inf)
+        jk.append(_logsumexp(lwj) - np.log(len(psi_jk)))
+    jk = np.asarray(jk)
+    se = float(np.sqrt((n_blocks - 1) / n_blocks
+                       * np.sum((jk - jk.mean()) ** 2)))
+
+    hard_bound = n_subjects * float(np.max(lc_D))
+    if verbose:
+        print(f"  [{model_key}] log Z = {log_Z:.3f} (jackknife SE {se:.3f}); "
+              f"sanity: <= N*max(logC) = {hard_bound:.1f}")
+
+    return {'log_Z': log_Z, 'se_jk': se, 'boundary_frac': boundary_frac,
+            'is_ess': ess, 'resid_sd': resid_sd,
+            'hard_bound': hard_bound, 'history': history,
+            'psi_D': psi_D, 'lc_D': lc_D}
+
+
+def compute_normalization_corrections_tr(model_keys, data_dir, output_path,
+                                         seed=42, n_replicates=2):
+    """Trust-region log Z estimates with replicate agreement, applied to
+    the reported marginal likelihoods."""
+    data_dir = Path(data_dir)
+    data = assemble_data(data_dir)
+    ml = dict(np.load(data_dir / 'bayes_factors_rb2.npz'))
+
+    results = {}
+    for mk in model_keys:
+        print(f"\n{'=' * 60}\nFeasible-mass tilt (trust region): {mk}\n"
+              f"{'=' * 60}")
+        _h, _s, n_subjects = load_posterior_states(
+            mk, str(data_dir), n_samples=2000, seed=seed)
+        reps = []
+        for rep in range(n_replicates):
+            rng = np.random.default_rng(seed + 11000 + 100 * rep
+                                        + hash(mk) % 1000)
+            reps.append(estimate_log_Z_tr(mk, data, n_subjects, rng,
+                                          data_dir=data_dir))
+        lz = np.array([r['log_Z'] for r in reps])
+        print(f"  [{mk}] replicate log Z values: {np.round(lz, 3)} "
+              f"(spread {lz.max() - lz.min():.3f})")
+        results[mk] = {
+            'log_Z': float(np.mean(lz)),
+            'se': float(np.sqrt(np.mean([r['se_jk'] ** 2 for r in reps])
+                                / n_replicates
+                                + (np.var(lz, ddof=1) / n_replicates
+                                   if n_replicates > 1 else 0.0))),
+            'boundary_frac': float(np.max([r['boundary_frac']
+                                           for r in reps])),
+            'reps': reps,
+        }
+
+    for mk in model_keys:
+        r = results[mk]
+        ml[f'{mk}_log_Z'] = r['log_Z']
+        ml[f'{mk}_log_Z_se'] = r['se']
+        ml[f'{mk}_log_Z_boundary_frac'] = r['boundary_frac']
+        ml[f'{mk}_log_ml_is_corrected'] = \
+            float(ml[f'{mk}_log_ml_is']) - r['log_Z']
+        ml[f'{mk}_log_ml_bridge_corrected'] = \
+            float(ml[f'{mk}_log_ml_bridge']) - r['log_Z']
+
+    print(f"\n{'=' * 60}\nCORRECTED BAYES FACTORS (log scale, IS route)\n"
+          f"{'=' * 60}")
+    keys = list(model_keys)
+    for i, k1 in enumerate(keys):
+        for k2 in keys[i + 1:]:
+            bf = (float(ml[f'{k1}_log_ml_is_corrected'])
+                  - float(ml[f'{k2}_log_ml_is_corrected']))
+            se = float(np.sqrt(float(ml[f'{k1}_log_ml_is_se']) ** 2
+                               + float(ml[f'{k2}_log_ml_is_se']) ** 2
+                               + results[k1]['se'] ** 2
+                               + results[k2]['se'] ** 2))
+            print(f"  log BF({k1} vs {k2}) = {bf:.2f} +/- {se:.2f}  "
+                  f"(uncorrected {float(ml[f'log_bf_rb2_{k1}_vs_{k2}']):.2f})")
+            ml[f'log_bf_rb2_{k1}_vs_{k2}_corrected'] = bf
+            ml[f'log_bf_rb2_{k1}_vs_{k2}_corrected_se'] = se
+
+    np.savez(Path(output_path), **ml)
+    print(f"\nSaved to: {output_path}")
+    return results

@@ -413,9 +413,9 @@ $t_1^{\phi_1} > 0$.
 The proof uses only the \emph{ratio property}: a logarithmic
 transformation separates the parameters multiplicatively, and the
 resulting basis functions form a ratio differing from~$1$ at
-distinct probability points. Any two-parameter PWF with this
-structure (e.g., Goldstein--Einhorn) satisfies two-point
-injectivity by the same argument.
+distinct probability points. For the Goldstein--Einhorn family the
+analogous transformation is the logit, and the argument is recorded
+explicitly as Lemma~\ref{lem:ge_two_point} below.
 
 
 \subsubsection{$W$ is a bijection: the $(r, w_1, w_2)$ reparameterization}
@@ -433,7 +433,7 @@ equals the full codomain and no such characterization is needed.
 
 For the Prelec family, $W$ is in fact \emph{bijective} onto the
 order-compatible region
-\begin{equation}
+\begin{equation}\label{eq:order_compatible}
   W(\R^2_{>0}) =
   \begin{cases}
     \{(w_1, w_2) : 0 < w_1 < w_2 < 1\}, & \text{if } p_1 < p_2, \\[4pt]
@@ -457,8 +457,40 @@ and $w_i \in (0,1)$ ensures $-\ln w_i > 0$. If $p_1 < p_2$, then
 $t_1 > t_2$, so $\ln(t_1/t_2) > 0$ and positivity of $\phi$ requires
 $\ln(\ln w_1 / \ln w_2) > 0$, equivalently $w_1 < w_2$.
 The case $p_1 > p_2$ is symmetric, yielding $w_1 > w_2$.
-This bijectivity is likely available for other common two-parameter
-PWF families (e.g., Goldstein--Einhorn). Because of this bijection,
+The Goldstein--Einhorn family admits the same bijectivity by a direct
+argument.
+
+\begin{lemma}[Goldstein--Einhorn two-point injectivity and bijectivity]
+\label{lem:ge_two_point}
+For the Goldstein--Einhorn PWF
+$w(p; \gamma, \delta) = \delta p^{\gamma}/\big(\delta p^{\gamma} +
+(1-p)^{\gamma}\big)$ with $\gamma, \delta > 0$, the two-point
+evaluation map $W_{\mathrm{GE}}\colon (\gamma, \delta) \mapsto
+\big(w(p_1), w(p_2)\big)$ is injective on $\R^2_{>0}$ for any
+$p_1 \neq p_2 \in (0,1)$, and is a bijection onto the order-compatible
+region~\eqref{eq:order_compatible}.
+\end{lemma}
+
+\begin{proof}
+Write $\operatorname{logit}(x) = \ln\big(x/(1-x)\big)$ and
+$\ell_i = \operatorname{logit}(p_i)$. From the definition,
+$w/(1-w) = \delta\, \big(p/(1-p)\big)^{\gamma}$, so
+\begin{equation}
+  \operatorname{logit}\big(w(p_i)\big) = \ln \delta + \gamma\, \ell_i,
+  \qquad i = 1, 2.
+\end{equation}
+Because the logit is strictly increasing, $p_1 \neq p_2$ gives
+$\ell_1 \neq \ell_2$, so these two equations form an invertible linear
+system in $(\ln \delta, \gamma)$ with explicit solution
+$\gamma = \big[\operatorname{logit}(w_1) -
+\operatorname{logit}(w_2)\big]/(\ell_1 - \ell_2)$ and
+$\ln \delta = \operatorname{logit}(w_1) - \gamma\, \ell_1$. Injectivity
+follows. The constraint $\gamma > 0$ holds exactly when $w_1$ and
+$w_2$ share the ordering of $p_1$ and $p_2$, and $\delta > 0$ is
+automatic, so every pair in the order-compatible region is attained.
+\end{proof}
+
+Because of this bijection,
 we conduct all subsequent analysis in $(r, w_1, w_2)$ space subject
 only to the ordering restriction implied by $p_1$ and $p_2$; the
 Prelec parameters do not appear again. This ordering restriction is automatic

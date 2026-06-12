@@ -550,7 +550,7 @@ of heterogeneity:
   \label{eq:kappa_def}
   \begin{split}
     \kappa &\coloneqq \frac{\SDhpv{\hypev{}}}{\Ehpv{\hypev{}}} \\[.75em]
-    {} &\coloneqq \frac{\SDhpv{\hypev{}}}{(1 - \alpha) \, v^*}
+    {} &= \frac{\SDhpv{\hypev{}}}{(1 - \alpha) \, v^*}
   \end{split}
 \end{align}
 which measures relative uncertainty about the variance hyperparameter. As
@@ -622,10 +622,10 @@ form from the researcher's direct prior and can be checked before estimation.
 
 \subsection{Practical Interpretation}
 
-When $p > 1$, the decomposition applies separately to each of the $p$
-predictive quantities. Each quantity $k$ requires a direct prior mean $\dpm_k$
+With $k$ predictive quantities, the decomposition applies separately to each
+quantity. Each quantity requires a direct prior mean $\dpm_k$
 and variance $\dpv_k$, a variance partition ratio $\alpha_k$, and a heterogeneity
-confidence $\kappa_k$, yielding $4p$ researcher inputs in total. The value of
+confidence $\kappa_k$, yielding $4k$ researcher inputs in total. The value of
 the framework is therefore not parsimony in the number of choices, but a
 change in what those choices mean.
 
@@ -779,7 +779,8 @@ $(r, \delta, \lambda)$.
 This specification serves two purposes. First, it shares the CRRA utility with
 Models 1 and 2, so any CE difference between Models 1, 2, and 3 is
 attributable entirely to the PWF\@. The Power PWF is nested within the Prelec
-family (setting $\phi = 1$ in (\ref{eq:prelec}) gives $w(p) = p^\eta$), making
+family (setting $\phi = 1$ in (\ref{eq:prelec}) gives $w(p) = p^\eta$, so the
+Power exponent $\delta$ plays the role of $\eta$), making
 Models 1 and 3 nested, which I exploit in the Bayes factor comparison of
 Section~\ref{sec:model_comparison}. Second, with only 3 structural parameters mapped to 4 predictive
 quantities, it is an over-determined case ($k = 4 > p = 3$). The
@@ -1018,7 +1019,9 @@ prior variance for each quantity, as shown in Table~\ref{tab:prior_beliefs}.
     $P$     & $\py{fmt(D['pchoice_mu'], 2)}$ & $0.50$ & $\py{fmt(D['ce_p_risk_seeking'], 2)}$ & $\py{fmt(D['pchoice_var'], 4)}$ & $\py{fmt(D['pchoice_sd'], 4)}$ \\
     \bottomrule
   \end{tabular}
-  \caption{Direct prior beliefs for the four predictive quantities.}
+  \caption{Direct prior beliefs for the four predictive quantities.
+    CE rows are in dollars (variances in squared dollars); the $P$ row is
+    on the probability scale.}
   \label{tab:prior_beliefs}
 \end{table}
 
@@ -1070,6 +1073,7 @@ prior beliefs about certainty equivalents and choice probabilities, while
 inducing different priors over their respective structural parameters.
 
 \subsection{Cross-Model Posterior Predictive Certainty Equivalents}
+\label{sec:ce_overlay}
 
 \begin{figure}[hp]
   \centering
@@ -1354,7 +1358,7 @@ Prelec over Goldstein-Einhorn by a margin an order of magnitude smaller
 but still far beyond conventional thresholds. For the nested comparison,
 the evidence against the $\phi = 1$ restriction that reduces Prelec to
 the Power form is overwhelming. The cross-model CE analysis of
-Section~\ref{sec:estimation} suggested that the weighting functions
+Section~\ref{sec:ce_overlay} suggested that the weighting functions
 separate mainly at the symmetric lottery, and the Bayes factors match
 that pattern. The forms that can move the symmetric-lottery CE
 independently of the asymmetric ones dominate the Power form, while the
@@ -1421,7 +1425,7 @@ by iterating over hyperprior parameters until the prior predictive distribution
 of relevant quantities looks reasonable. The framework developed here changes
 where the iteration happens. Instead of iterating over $4p$ hyperprior
 parameters whose individual effects on observables are difficult to anticipate,
-the researcher iterates over direct prior beliefs about $p$ predictive
+the researcher iterates over direct prior beliefs about the $k$ predictive
 quantities, with the variance decomposition handling the hierarchical layer
 automatically. When the researcher has substantive intuitions about more than
 one predictive quantity, say choice probabilities for one set of lotteries and
@@ -1445,7 +1449,7 @@ which would also permit distributions such as the Cauchy that lack the moments
 required by the current method.
 
 Second, the current framework is built around independent marginal direct
-priors over the $p$ predictive quantities. In the application, $\CE_1$,
+priors over the $k$ predictive quantities. In the application, $\CE_1$,
 $\CE_2$, $\CE_3$, and $P$ are treated as independent in the elicited prior even
 though they are deterministic functions of the same underlying parameters and
 are therefore necessarily dependent. This use of independent marginals is
@@ -1480,6 +1484,17 @@ Appendix \ref{app:eut_choice_probs} shows that broad classes of lottery pairs
 yield injective maps when the predictive quantities are choice probabilities
 under EUT\@.
 
+A related limitation concerns the Bayes factors of
+Section~\ref{sec:model_comparison}. The shared quantity-space prior removes
+cross-model differences in prior calibration from the comparison, but the
+resulting evidence is still conditional on the one shared specification.
+A different direct prior or a different $(\alpha, \kappa)$ allocation would
+change all three marginal likelihoods, and not necessarily by equal amounts.
+The nested Prelec and Power comparison is the most robust of the three,
+since the restriction $\phi = 1$ is being tested against margins two orders
+of magnitude larger than plausible prior perturbations, while the closer
+Prelec and Goldstein-Einhorn comparison should be read as evidence under
+the stated prior rather than as a prior-free verdict.
 
 \subsection{Extensions}
 
@@ -1532,8 +1547,9 @@ influence transparent across subjects, lotteries, and quantiles. The results sho
 hyperpriors matter most where the data are weak, while leaving well-identified
 subjects largely unchanged. The shared prior also supports a Bayes factor
 comparison in which differences in marginal likelihood reflect structural
-form alone, turning a quantity that is notoriously prior-sensitive into a
-clean measure of evidence about probability weighting.
+form rather than differences in prior calibration, making a quantity that
+is notoriously prior-sensitive substantially easier to interpret as
+evidence about probability weighting.
 
 The framework changes the object of prior specification. Instead of asking
 researchers to work directly with opaque hyperprior parameters, it asks them to

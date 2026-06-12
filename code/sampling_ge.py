@@ -1,7 +1,7 @@
 """
-MCMC sampling for RDU BHM model with Expo-Power + TK92 PWF (Beta-Beta).
+MCMC sampling for RDU BHM model with CRRA + Goldstein-Einhorn PWF (Beta-Beta).
 
-Same structure as sampling_ce.py but uses the rdu_ep_bhm_ce posterior.
+Same structure as sampling_ce.py but uses the rdu_ge_bhm_ce posterior.
 Reference lottery packing and data assembly are identical.
 """
 
@@ -10,14 +10,14 @@ from pathlib import Path
 
 from bamcmc import rmcmc
 from clean_data import load_clean_data, make_bamcmc_data_indexed
-from posteriors.rdu_ep_bhm_ce import MODEL_ID, NPARAMS, N_HYPER, get_hyperprior_array
+from posteriors.rdu_ge_bhm_ce import MODEL_ID, NPARAMS, N_HYPER, get_hyperprior_array
 from sampling_ce import pack_ref_lotteries, pack_ref_pair
 
 
 DEFAULT_CONFIG = {
     'num_chains_a': 100,
     'num_chains_b': 100,
-    'num_collect': 1000,
+    'num_collect': 100,
     'thin_iteration': 10,
     'chunk_size': 10,
     'rng_seed': 42,
@@ -27,7 +27,7 @@ DEFAULT_CONFIG = {
 def run_sampling(output_dir, ref_lotteries, ref_pair, reset_runs=None,
                  resume_runs=None, num_collect=None, config=None):
     """
-    Run MCMC sampling with EP+TK quantity-space Beta-Beta BHM.
+    Run MCMC sampling with CRRA+GE quantity-space Beta-Beta BHM.
 
     Same interface as sampling_ce.run_sampling.
     """
@@ -76,12 +76,13 @@ def run_sampling(output_dir, ref_lotteries, ref_pair, reset_runs=None,
     n_reset = reset_runs if reset_runs is not None else 1
     n_resume = resume_runs if resume_runs is not None else 0
 
+    n_temps = mcmc_config['n_temperatures']
+
     print(f"\nSampling Configuration:")
     print(f"  Model: {MODEL_ID}")
     print(f"  Chains: {mcmc_config['num_chains_a']} + {mcmc_config['num_chains_b']}")
     print(f"  Collection iterations: {mcmc_config['num_collect']}")
     print(f"  Thinning: {mcmc_config['thin_iteration']}")
-    n_temps = mcmc_config['n_temperatures']
     if n_temps > 1:
         print(f"  Parallel tempering: {n_temps} temperatures, "
               f"beta_min={mcmc_config['beta_min']}")
@@ -108,5 +109,3 @@ def run_sampling(output_dir, ref_lotteries, ref_pair, reset_runs=None,
     print(f"  Total runs: {summary['total_runs_completed']}")
     print(f"  Final iteration: {summary['final_iteration']}")
     print(f"  History files: {len(summary['history_files'])}")
-
-    return summary

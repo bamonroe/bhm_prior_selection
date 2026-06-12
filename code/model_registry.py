@@ -36,20 +36,23 @@ MODEL_REGISTRY = {
         'prior_posterior_module': 'posteriors.rdu_bhm_ce_prior',
         'prior_sampling_module': 'sampling_ce_prior',
     },
-    'ep': {
-        'model_id': 'rdu_ep_bhm_ce',
-        'name': 'EP+TK',
+    'ge': {
+        'model_id': 'rdu_ge_bhm_ce',
+        'name': 'CRRA+GE',
         'color': '#2ca02c',
         'linestyle': '-',
-        'posterior_module': 'posteriors.rdu_ep_bhm_ce',
-        'sampling_module': 'sampling_ep',
+        'posterior_module': 'posteriors.rdu_ge_bhm_ce',
+        'sampling_module': 'sampling_ge',
         'nparams': 4,
         'n_hyper': 8,
-        'param_names': ['alpha', 'r', 'gamma', 'lambda'],
-        'param_labels': [r'$\alpha$', r'$r$', r'$\gamma$', r'$\lambda$'],
-        'utility_type': 'ep',
-        'pwf_type': 'tk',
-        'has_prior_only': False,
+        'param_names': ['r', 'gamma', 'delta', 'lambda'],
+        'param_labels': [r'$r$', r'$\gamma$', r'$\delta$', r'$\lambda$'],
+        'utility_type': 'crra',
+        'pwf_type': 'ge',
+        'has_prior_only': True,
+        'prior_model_id': 'rdu_ge_bhm_ce_prior',
+        'prior_posterior_module': 'posteriors.rdu_ge_bhm_ce_prior',
+        'prior_sampling_module': 'sampling_ge',
     },
     'power': {
         'model_id': 'rdu_power_bhm_ce',
@@ -114,7 +117,7 @@ def _compute_pwf_weights(cum_probs, pwf_type, pwf_params):
 
     Args:
         cum_probs: array of cumulative probabilities (n_outcomes-1,)
-        pwf_type: 'prelec', 'tk', or 'power'
+        pwf_type: 'prelec', 'ge', or 'power'
         pwf_params: dict with PWF parameter arrays (n_draws,)
 
     Returns:
@@ -129,14 +132,15 @@ def _compute_pwf_weights(cum_probs, pwf_type, pwf_params):
         eta = pwf_params['eta'][:, None]
         neg_ln = -np.log(cum_clipped)[None, :]
         w_inner = np.exp(-eta * np.power(neg_ln, phi))
-    elif pwf_type == 'tk':
-        gamma = np.maximum(pwf_params['gamma'], 0.28)[:, None]
-        p_g = cum_clipped[None, :] ** gamma
-        q_g = (1 - cum_clipped[None, :]) ** gamma
-        w_inner = p_g / np.power(p_g + q_g, 1.0 / gamma)
     elif pwf_type == 'power':
         delta = np.maximum(pwf_params['delta'], 0.01)[:, None]
         w_inner = cum_clipped[None, :] ** delta
+    elif pwf_type == 'ge':
+        gamma = np.maximum(pwf_params['gamma'], 0.01)[:, None]
+        delta = np.maximum(pwf_params['delta'], 0.01)[:, None]
+        p_g = cum_clipped[None, :] ** gamma
+        q_g = (1 - cum_clipped[None, :]) ** gamma
+        w_inner = delta * p_g / (delta * p_g + q_g)
     else:
         raise ValueError(f"Unknown PWF type: {pwf_type}")
 
@@ -173,57 +177,11 @@ def _compute_crra_utilities_and_inverse(r_arr, sorted_prizes, rdu_values):
     return final_utilities, ces
 
 
-def _compute_ep_utilities_and_inverse(alpha_arr, r_arr, sorted_prizes, rdu_values):
-    """Compute EP utilities and invert RDU values to CEs via Newton."""
-    x_min, x_max = sorted_prizes[0], sorted_prizes[-1]
-    n_draws = len(r_arr)
-    s_arr = 1.0 - r_arr
-    use_log = np.abs(s_arr) < 1e-10
-    s_safe = np.where(use_log, 0.5, s_arr)
-    alpha_safe = np.maximum(alpha_arr, 1e-10)
-
-    # Utilities
-    sp_s = sorted_prizes[None, :] ** s_safe[:, None]
-    xmin_s = x_min ** s_safe
-    xmax_s = x_max ** s_safe
-    exp_x = np.exp(-alpha_safe[:, None] * sp_s)
-    exp_min = np.exp(-alpha_safe * xmin_s)
-    exp_max = np.exp(-alpha_safe * xmax_s)
-    ep_denom = exp_min - exp_max
-    utilities = (exp_min[:, None] - exp_x) / ep_denom[:, None]
-    log_utilities = np.log(sorted_prizes / x_min)[None, :] / np.log(x_max / x_min)
-    log_utilities = log_utilities * np.ones((n_draws, 1))
-    final_utilities = np.where(use_log[:, None], log_utilities, utilities)
-
-    # Inverse via Newton
-    rdu_clipped = np.clip(rdu_values, 0.0, 1.0)
-    with np.errstate(invalid='ignore', over='ignore'):
-        ce_s_crra = rdu_clipped * (xmax_s - xmin_s) + xmin_s
-        x0_normal = np.power(np.maximum(ce_s_crra, 1e-30), 1.0 / s_safe)
-        x0_log = x_min * np.power(x_max / x_min, rdu_clipped)
-    x = np.where(use_log, x0_log, x0_normal)
-    x = np.clip(x, x_min + 1e-8, x_max - 1e-8)
-
-    for _ in range(20):
-        x = np.clip(x, x_min + 1e-8, x_max - 1e-8)
-        x_s = np.power(x, s_safe)
-        exp_x_n = np.exp(-alpha_safe * x_s)
-        fx = (exp_min - exp_x_n) / ep_denom - rdu_clipped
-        dfx = alpha_safe * s_safe * np.power(x, s_safe - 1) * exp_x_n / ep_denom
-        dfx = np.where(np.abs(dfx) < 1e-30, 1e-30, dfx)
-        x_new = x - fx / dfx
-        x = np.where(use_log, x, np.clip(x_new, x_min + 1e-8, x_max - 1e-8))
-
-    ces = x
-
-    return final_utilities, ces
-
-
 def compute_ces_for_lottery(model_key, params_dict, lottery):
     """Compute CEs for arrays of parameters under a given model.
 
     Args:
-        model_key: Key into MODEL_REGISTRY ('crra', 'ep', 'power')
+        model_key: Key into MODEL_REGISTRY ('crra', 'ge', 'power')
         params_dict: Dict of {param_name: 1D array of draws}
         lottery: Dict with 'prizes' and 'probs'
 
@@ -244,10 +202,10 @@ def compute_ces_for_lottery(model_key, params_dict, lottery):
     pwf_type = cfg['pwf_type']
     if pwf_type == 'prelec':
         pwf_params = {'phi': params_dict['phi'], 'eta': params_dict['eta']}
-    elif pwf_type == 'tk':
-        pwf_params = {'gamma': params_dict['gamma']}
     elif pwf_type == 'power':
         pwf_params = {'delta': params_dict['delta']}
+    elif pwf_type == 'ge':
+        pwf_params = {'gamma': params_dict['gamma'], 'delta': params_dict['delta']}
     else:
         raise ValueError(f"Unknown PWF type: {pwf_type}")
     w = _compute_pwf_weights(cum[:-1], pwf_type, pwf_params)
@@ -263,11 +221,6 @@ def compute_ces_for_lottery(model_key, params_dict, lottery):
         utilities, _ = _compute_crra_utilities_and_inverse(r_arr, sp, np.zeros(len(r_arr)))
         rdu = np.sum(d * utilities, axis=1)
         _, ces = _compute_crra_utilities_and_inverse(r_arr, sp, rdu)
-    elif cfg['utility_type'] == 'ep':
-        alpha_arr = params_dict['alpha']
-        utilities, _ = _compute_ep_utilities_and_inverse(alpha_arr, r_arr, sp, np.zeros(len(r_arr)))
-        rdu = np.sum(d * utilities, axis=1)
-        _, ces = _compute_ep_utilities_and_inverse(alpha_arr, r_arr, sp, rdu)
     else:
         raise ValueError(f"Unknown utility type: {cfg['utility_type']}")
 

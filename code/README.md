@@ -70,28 +70,28 @@ Three RDU models are estimated, all sharing the same quantity-space prior:
 | Model Key | Name | Parameters | Description |
 |-----------|------|-----------|-------------|
 | `crra` | CRRA + Prelec | r, phi, eta, lambda (4) | CRRA utility with 2-parameter Prelec PWF |
-| `ep` | EP + TK | alpha, r, gamma, lambda (4) | Expo-Power utility with 1-parameter Tversky-Kahneman inverse-S PWF |
-| `power` | CRRA + Power | r, delta, lambda (3) | CRRA utility with 1-parameter Power PWF. First k > p case (4 quantities from 3 parameters, uses Gram determinant) |
+| `ge` | CRRA + GE | r, gamma, delta, lambda (4) | CRRA utility with 2-parameter Goldstein-Einhorn PWF |
+| `power` | CRRA + Power | r, delta, lambda (3) | CRRA utility with 1-parameter Power PWF. The k > p case (4 quantities from 3 parameters, uses Gram determinant) |
 
 Sampling flags are dictionaries keyed by model:
 
 | Flag | Description |
 |------|-------------|
-| `do_sampling = {'crra': T/F, 'ep': T/F, 'power': T/F}` | Run MCMC estimation for each model. Uses the Metropolis-within-Gibbs sampler with A/B coupled proposal covariance. Each model runs independently with 2000 chains (1000 per A/B group). Configuration is in the `sampling_opts_*` dicts. |
-| `do_sampling_prior = {'crra': T/F, 'power': T/F}` | Run prior-only MCMC (no data likelihood) for models that have a prior-only variant. Used to verify the induced parameter-space prior and generate prior predictive plots. |
+| `do_sampling = {'crra': T/F, 'ge': T/F, 'power': T/F}` | Run MCMC estimation for each model. Uses the Metropolis-within-Gibbs sampler with A/B coupled proposal covariance. Each model runs independently with 2000 chains (1000 per A/B group). Configuration is in the `sampling_opts_*` dicts. |
+| `do_sampling_prior = {'crra': T/F, 'ge': T/F, 'power': T/F}` | Run prior-only MCMC (no data likelihood). Used to verify the induced parameter-space prior and generate prior predictive plots. |
 | `do_sampling_stan` | Run Stan/NUTS sampling for the CRRA model (alternative sampler, not the primary estimation method). |
 
 ### Preprocessing
 
 | Flag | Description |
 |------|-------------|
-| `do_preprocessing = {'crra': T/F, 'ep': T/F, 'power': T/F}` | Extract hyperparameter and subject-level parameter posteriors from raw MCMC history files. For each model, produces `preprocessed/hyperparams_preprocessed.npz` (population-level hyperparameters) and `preprocessed/subjects/subject_XXX_params.npz` (per-subject parameter traces). The preprocessor auto-detects the number of subjects and parameters from the model registry. |
+| `do_preprocessing = {'crra': T/F, 'ge': T/F, 'power': T/F}` | Extract hyperparameter and subject-level parameter posteriors from raw MCMC history files. For each model, produces `preprocessed/hyperparams_preprocessed.npz` (population-level hyperparameters) and `preprocessed/subjects/subject_XXX_params.npz` (per-subject parameter traces). The preprocessor auto-detects the number of subjects and parameters from the model registry. |
 
 ### Diagnostic Plots
 
 | Flag | Description |
 |------|-------------|
-| `do_diagnostic_plots = {'crra': T/F, 'ep': T/F, 'power': T/F}` | Generate per-subject diagnostic PDFs for each model. Each subject gets a multi-page PDF with trace plots and posterior density plots. Uses `N_WORKERS` parallel workers. Output in `plots/{model_id}/subjects/`. |
+| `do_diagnostic_plots = {'crra': T/F, 'ge': T/F, 'power': T/F}` | Generate per-subject diagnostic PDFs for each model. Each subject gets a multi-page PDF with trace plots and posterior density plots. Uses `N_WORKERS` parallel workers. Output in `plots/{model_id}/subjects/`. |
 | `do_subject_ce_plots` | Generate per-subject CE density plots for all three models. Each subject gets a 3-panel PDF (one per reference lottery) showing the posterior CE distribution. Uses parallel workers. Output in `plots/{model_id}/subject_ces/`. |
 
 ### Paper Plots
@@ -107,12 +107,20 @@ Sampling flags are dictionaries keyed by model:
 |------|-------------|
 | `do_mcmc_diagnostics` | Compute per-subject split-R-hat for all parameters, aggregate convergence statistics, worst-20 parameter list, and acceptance rates for each model. Saves to `data/output/mcmc_diagnostics.npz`. Values are loaded by `do_gen_paper_data` for the MCMC appendix table. |
 
+### Marginal Likelihoods
+
+| Flag | Description |
+|------|-------------|
+| `do_ml_validation` | Validate the marginal likelihood estimator end to end on a small synthetic dataset (5 subjects x 20 choices) against a brute-force ground truth computed with exact hyperprior draws. Runs a short MCMC on the synthetic data the first time. Saves to `data/output/ml_validation.npz` with a `passed` flag. |
+| `do_bayes_factors_rb2` | Compute log marginal likelihoods and pairwise Bayes factors for all three models with the Rao-Blackwellized estimator in `marginal_likelihood.py`: per-subject importance sampling with adaptively refined stratified Student-t mixture proposals, two independent hyperparameter-integration routes (Student-t importance sampling and Meng-Wong bridge), and R=8 replicated caches combined on the natural scale. Saves to `data/output/bayes_factors_rb2.npz`. Loaded by `do_gen_paper_data` for the model comparison section. IMPORTANT: the loader excludes parallel-tempering history files by checking the stored `mcmc_config['n_temperatures']`. |
+
 ### Appendix Analyses
 
 | Flag | Description |
 |------|-------------|
 | `do_rk_sensitivity` | Re-estimate the CRRA model at alternative (alpha, kappa) configurations and compare to a diffuse benchmark. Generates CDF difference plots, CE overlays, and subject classification tables for Appendix D. This runs full MCMC estimation for each configuration. |
 | `do_injectivity_analysis` | Run the CE mapping injectivity analysis (P-matrix condition verification on a grid) for Appendix B. |
+| `do_injectivity_power` | Run the CRRA+Power Gram determinant rank check (k > p case) for Appendix B. |
 
 ### Document Compilation
 
@@ -131,24 +139,29 @@ do_generate_prior_ce = True
 do_gen_paper_data = True
 
 # 2. MCMC estimation (hours on GPU)
-do_sampling = {'crra': True, 'ep': True, 'power': True}
+do_sampling = {'crra': True, 'ge': True, 'power': True}
 
 # 3. Postprocessing
-do_preprocessing = {'crra': True, 'ep': True, 'power': True}
+do_preprocessing = {'crra': True, 'ge': True, 'power': True}
 do_mcmc_diagnostics = True
-do_gen_paper_data = True  # re-run to pick up diagnostics
 
-# 4. Plots
-do_diagnostic_plots = {'crra': True, 'ep': True, 'power': True}
+# 4. Marginal likelihoods (minutes on GPU)
+do_ml_validation = True
+do_bayes_factors_rb2 = True
+do_gen_paper_data = True  # re-run to pick up diagnostics and Bayes factors
+
+# 5. Plots
+do_diagnostic_plots = {'crra': True, 'ge': True, 'power': True}
 do_paper_predictive_overlay = True
 do_subject_ce_plots = True
 
-# 5. Appendix analyses (optional, hours on GPU)
+# 6. Appendix analyses (optional, hours on GPU)
 do_family_comparison = True  # run separately, not with sampling
 do_rk_sensitivity = True
 do_injectivity_analysis = True
+do_injectivity_power = True
 
-# 6. Compile paper
+# 7. Compile paper
 do_compile_doc = True
 ```
 
@@ -174,9 +187,12 @@ code/
 ├── paper_plots.py           # Paper figures (CE overlays, subject details)
 ├── helpers.py               # Shared utilities
 ├── injectivity_analysis.py  # Appendix B: CE mapping injectivity check
+├── injectivity_power.py     # Appendix B: Power Gram determinant rank check
+├── marginal_likelihood.py   # Corrected RB marginal likelihood estimator
+├── ml_validation.py         # Synthetic ground-truth validation of the estimator
 ├── prior_predictive_ce.py   # Prior predictive CE distributions
 ├── sampling_ce.py           # MCMC wrapper for CRRA+Prelec model
-├── sampling_ep.py           # MCMC wrapper for EP+TK model
+├── sampling_ge.py           # MCMC wrapper for CRRA+GE model
 ├── sampling_power.py        # MCMC wrapper for CRRA+Power model
 ├── sampling_ce_prior.py     # Prior-only MCMC for CRRA+Prelec
 ├── sampling_power_prior.py  # Prior-only MCMC for CRRA+Power
@@ -184,9 +200,10 @@ code/
 └── posteriors/              # Model-specific log-posterior definitions
     ├── common_fns.py        # Shared: utility functions, PWFs, forward maps
     ├── rdu_bhm_ce.py        # CRRA+Prelec BHM posterior
-    ├── rdu_ep_bhm_ce.py     # EP+TK BHM posterior
+    ├── rdu_ge_bhm_ce.py     # CRRA+GE BHM posterior
     ├── rdu_power_bhm_ce.py  # CRRA+Power BHM posterior
     ├── rdu_bhm_ce_prior.py  # CRRA+Prelec prior-only posterior
+    ├── rdu_ge_bhm_ce_prior.py     # CRRA+GE prior-only posterior
     ├── rdu_power_bhm_ce_prior.py  # CRRA+Power prior-only posterior
     └── rdu_bhm.py           # Legacy NIG model (used by Appendix D only)
 ```

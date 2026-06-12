@@ -1,93 +1,62 @@
 # TODO - Quantity-Space Prior Specification for BHMs
 
-## Project Status: JoE Paper — Two-Model Application (RDU with Real Data)
+## Project Status: Submission-ready (June 2026)
 
-Paper restructured for Journal of Econometrics with two-model application:
-- 7 sections + 4 appendices
-- Model 1: CRRA + Prelec (`rdu_bhm_ce`) — full pipeline working
-- Model 2: Expo-Power + TK92 (`rdu_ep_bhm_ce`) — code complete, MCMC in progress
-- Comparison model: NIG parameter-space with Gao (2022) diffuse prior (`rdu_bhm`)
-- Both models share identical quantity-space prior (same reference lotteries, same α/κ)
-- Reference lotteries: L1=($10,$50, p=0.75/0.25), L2=($20,$40, p=0.50/0.50), L3=($12,$44, p=0.75/0.25)
+Three-model JoE paper: CRRA utility with Prelec, Goldstein-Einhorn, and Power
+PWFs, all sharing one quantity-space Beta-Beta prior. Estimation, marginal
+likelihoods, paper integration, and the appendix pass are complete; the full
+document compiles cleanly (pythontex 0 errors, no undefined references).
 
-**Current branch:** `feat/expo-power-model` (sub-branch: `ep-core-functions`)
+Final Bayes factors (data/output/bayes_factors_rb2.npz, validated estimator):
+log BF crra/ge 16.6, crra/power 171.7, ge/power 155.1.
 
 ---
 
-## Remaining
+## Remaining before submission
 
-### EP Model (In Progress)
-- [x] Core functions: ep_ufn, ep_inverse, tk_pwf, forward map, Jacobian (common_fns.py)
-- [x] Posterior module: rdu_ep_bhm_ce.py (imports shared Beta-Beta infrastructure)
-- [x] Sampling infrastructure: sampling_ep.py, main.py config, pipelines.py
-- [x] Smoke test: 10 chains, compilation + basic evaluation verified
-- [x] Injectivity numerical verification: det(J) ≠ 0 on prior support
-- [ ] Full MCMC estimation (6 runs, ~4.5 hours) — IN PROGRESS
-- [ ] EP preprocessing (hyper + subject level)
-- [ ] Paper plots: EP CE overlays, EP subject comparisons
-- [ ] Cross-model comparison plots
-- [ ] gen_paper_data.py: add EP model quantities
+- [ ] Human proofread of the full PDF (104 pp) — especially Section 5.4
+      (model comparison) and Appendix E, which were rewritten on June 12
+- [ ] Decide target length: current build is long; consider moving some
+      appendix figures to an online supplement per JoE guidelines
+- [ ] Cover letter, highlights, and submission metadata
+- [ ] Merge `feat/ml-repair` into `power-model`, then `power-model` into
+      `master` (ALWAYS PROMPT BEFORE MERGING)
+- [ ] Optional: archive or delete remaining legacy data
+      (`rdu_bhm_uninf` 15G is still used to regenerate the Appendix D diffuse
+      benchmark; `rdu_bhm_ce_stan` 133M is the sampler cross-check)
 
-### Paper Content
-- [x] Restructure Section 4: two RDU specifications side by side
-- [x] Update abstract, introduction, discussion, conclusion for two models
-- [x] Update CE mapping subsection to be model-agnostic
-- [x] Update injectivity limitation to cover both models
-- [x] Trim Extensions subsection (EP is no longer hypothetical)
-- [ ] Add EP estimation results to Section 5
-- [ ] Add cross-model comparison subsection to Section 5
-- [ ] Update Appendix B with EP injectivity note
-- [ ] Update sensitivity analysis for EP model
-- [ ] Proofread full paper for consistency
+## Completed (June 2026, feat/ml-repair)
 
-### Code
-- [ ] Write automated tests for core functions
-- [ ] Ensure main.py default flags are set to safe defaults (all sampling False)
-- [ ] Merge ep-core-functions into feat/expo-power-model
-- [ ] Merge feat/expo-power-model into master
+- [x] Marginal likelihoods: corrected RB estimator (marginal_likelihood.py),
+      synthetic ground-truth validation PASSED (ml_validation.py),
+      two psi-integration routes agree on all three models
+- [x] Found and fixed: invalid IS in old RB bridge, Power psi-indexing bug,
+      parallel-tempering files contaminating history/full (loader now filters
+      on stored mcmc_config n_temperatures)
+- [x] Big cleanup: deleted superseded ML machinery (full-space bridge, both
+      TI variants), EP+TK and EP-EUT models, ~170 GB of tempered samples and
+      EP outputs; registry now contains exactly crra/ge/power
+- [x] Paper integration: model comparison subsection and Appendix E rewritten
+      around the actual estimator, all numbers via pythontex from
+      paper_data.npz (populated from bayes_factors_rb2.npz, ml_validation.npz,
+      and history-file timing diagnostics)
+- [x] Appendix pass: restored silently-missing sensitivity table rows
+      (stale 'rho' NPZ key), renamed rho-named plot dirs to alpha naming,
+      removed dead pythontex loads and the \pending macro
+- [x] Project docs updated: CLAUDE.md, code/README.md, TODO.md
 
----
+## Earlier milestones
 
-## Completed
-
-### Paper Structure & Content
-- [x] Restructure for JoE (7 sections + appendices)
-- [x] Section 3: quantity-space priors + variance decomposition + NIG example + heatmaps
-- [x] Terminology: "generated quantities" → "predictive quantities"
-- [x] Drop Appendices A (Full Covariance), C (Jacobian Correction), D (MCMC Details)
-- [x] Drop hyper_comparison and predictive_params_overlay figures
-- [x] Writing rules: no em-dashes, no side-by-side equations, no itemize, no textbf
-- [x] Rename general hyperparameters from ψ to γ (avoid collision with Beta-Beta ψ_k)
-- [x] Add limitation on independence of quantity-space marginals
-- [x] Acknowledge asymmetric comparison (CE-space vs NIG)
-- [x] Rewrite results for 3-panel CE overlay, 3-lottery subject comparisons
-- [x] Add RDU signature paragraph (lottery-specific risk attitudes)
-- [x] Add CDF difference figure and discussion
-- [x] Strengthen subject 74 discussion with posterior decomposition
-- [x] Revise Discussion: prose workflow, 6 limitations, no Bayes factor section
-- [x] Revise Conclusion: empirical findings, 4p→4p reframing
-- [x] Add code/data availability statement
-- [x] Abstract updated with empirical findings
-- [x] Fix stale pythontex (paper_quantities.npz → paper_data.npz)
-- [x] Move inline calculations from pythontex to gen_paper_data.py
-- [x] Simulated referee report written (technical_notes/referee_report/23_03_2026.tex)
-
-### Estimation & Plots
-- [x] CE-space Beta-Beta model: full pipeline with hyper-posterior optimization
-- [x] Diffuse NIG model: sampling + preprocessing
-- [x] Vectorized CE computation (1000x speedup)
-- [x] Paper plots: CE overlay (3-panel), subject comparisons (3-lottery), CDF difference
-- [x] Per-subject CE diagnostic plots (111 PDFs)
-- [x] NIG sensitivity heatmaps (viridis, stacked panels)
-- [x] Reference lotteries updated: p=0.25, L3=($12,$44)
-- [x] R-hat converged (max 1.21, median 1.004)
-
----
+- [x] Three-model restructure of paper and pipeline (power-model branch)
+- [x] CE-space Beta-Beta pipeline for all three models, R-hat diagnostics
+- [x] Paper plots: cross-model CE overlay, subject comparisons, CDF difference
+- [x] (alpha, kappa) sensitivity analysis with diffuse NIG benchmark (App D)
+- [x] Injectivity: analytic for Models 1 and 3, numerical for Model 2 (App B)
 
 ## Ideas / Future Work
 
-- **CPT simulation study** — Full Monte Carlo with 8-10 parameter CPT model
-- **Discounting simulation study** — Quasi-hyperbolic (β, δ) model
-- **MCMC appendix** — Rewrite for CE-space model (centered parameterization, no NCP)
-- **Symmetric comparison** — Diffuse Beta-Beta model to isolate distributional family effect
-- **ρ/κ sensitivity on posterior** — How does fraction of prior-dominated subjects change with ρ/κ
+- CPT simulation study (8-10 parameter model)
+- Discounting simulation study (quasi-hyperbolic beta, delta)
+- Expo-Power models (removed June 2026; recover from snapshot commit 0ce199f)
+- Symmetric comparison: diffuse Beta-Beta to isolate distributional family
+- Float64 re-run of the uninformative NIG benchmark (claude_review note)

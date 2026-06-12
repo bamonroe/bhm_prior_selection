@@ -4,31 +4,39 @@ Instructions for Claude Code sessions in this workspace.
 
 ## Project Status
 
-**Current State:** Paper restructured for Journal of Econometrics. Two models: CRRA+Prelec and Expo-Power+TK92, both using Beta-Beta CE-space hierarchy.
+**Current State:** Submission-ready. Three models, all CRRA utility, differing
+only in the probability weighting function, all sharing one quantity-space
+Beta-Beta CE-space prior. Estimation, model comparison (Bayes factors via a
+validated Rao-Blackwellized marginal likelihood estimator), and the paper's
+results integration are complete; the full document compiles cleanly.
 
-The paper has been restructured from an Economics Letter into a full JoE paper:
-- Title: "Quantity-Space Hyperprior Specification for Bayesian Hierarchical Models"
-- 7 sections + 4 appendices
-- Two contributions: (i) quantity-space priors with Jacobian correction; (ii) variance decomposition with κ parameterization
-- Third contribution (implicit): cross-model prior consistency via shared quantity-space prior
-- Two applications: CRRA+Prelec and Expo-Power+TK92, both with real data
-- Bibliography expanded from ~11 to ~30+ references
-- Technical notes integrated into main paper body and appendices
+**Model 1: `rdu_bhm_ce`** (CRRA + Prelec, model key `crra`): Full pipeline.
+4 params per subject (r, phi_raw, eta_raw, lambda_raw); analytic Jacobian.
 
-**Model 1: `rdu_bhm_ce`** (CRRA + Prelec, Beta-Beta, CE-space): Full pipeline —
-prior selection, sampling, preprocessing, and diagnostic plotting. Uses
-logit-parameterized hyperparams internally; diagnostic plots display on
-natural scale (dollars for CEs, [0,1] for ψ).
+**Model 2: `rdu_ge_bhm_ce`** (CRRA + Goldstein-Einhorn, key `ge`): Full
+pipeline. 4 params per subject (r, gamma_raw, delta_raw, lambda_raw);
+analytic Jacobian; injectivity verified numerically.
 
-**Model 2: `rdu_ep_bhm_ce`** (Expo-Power + TK92, Beta-Beta, CE-space): Core
-implementation complete. Same Beta-Beta hierarchy, same quantity-space prior,
-same reference lotteries. Uses JAX autodiff for Jacobian (no analytic form).
-Parameters: (alpha_raw, r, gamma_raw, lambda_raw) on log/natural scale.
+**Model 3: `rdu_power_bhm_ce`** (CRRA + Power, key `power`): Full pipeline.
+The k > p case: 3 params per subject (r, delta_raw, lambda_raw) mapped to 4
+quantities; induced prior uses the Gram determinant sqrt(det(J^T J)).
+
+**Marginal likelihoods** come from `code/marginal_likelihood.py`
+(`do_bayes_factors_rb2`): per-subject importance sampling with adaptively
+refined mixture proposals plus two independent 8-D hyperparameter-integration
+routes, validated against a brute-force synthetic ground truth
+(`do_ml_validation`). Results in `data/output/bayes_factors_rb2.npz`; log BFs
+crra/ge 16.6, crra/power 171.7, ge/power 155.1. The model comparison is
+referee insurance, not a central contribution; keep that section short.
+
+IMPORTANT data gotcha: history NPZ files store their `mcmc_config`; any
+loader of posterior draws must skip files with `n_temperatures > 1`
+(parallel-tempering runs once lived alongside plain runs in history/full and
+contaminated downstream analyses). `marginal_likelihood.load_posterior_states`
+does this correctly.
 
 The diffuse NIG parameter-space model (`rdu_bhm`) is retained as a comparison
-benchmark (Gao 2022 specification).
-
-**Current branch:** `feat/expo-power-model`
+benchmark (Gao 2022 specification) for the Appendix D sensitivity exercise.
 
 See `TODO.md` for detailed task tracking.
 
@@ -87,24 +95,31 @@ A copy is in the `lit/` directory.
   - Chain state stores logit-scale; generated quantities return sigmoid-transformed values
   - Hyperprior array layout: [a_mu, b_mu, a_psi, b_psi, lo, hi] per quantity
 
-- **`code/posteriors/rdu_ep_bhm_ce.py`** - Expo-Power + TK92 BHM log posterior
-  - 4 params per subject: α (EP curvature), r, γ (TK curvature), λ (noise)
-  - Same 8 hyperparameters, same Beta-Beta hierarchy as CRRA model
+- **`code/posteriors/rdu_ge_bhm_ce.py`** - CRRA + Goldstein-Einhorn BHM log posterior
+  - 4 params per subject: r, γ (GE curvature), δ (GE elevation), λ (noise)
+  - Same 8 hyperparameters, same Beta-Beta hierarchy as the Prelec model
   - Imports shared hyperprior infrastructure from `rdu_bhm_ce.py`
-  - Uses JAX autodiff for Jacobian (no analytic decomposition)
+
+- **`code/posteriors/rdu_power_bhm_ce.py`** - CRRA + Power BHM log posterior
+  - 3 params per subject: r, δ (Power exponent), λ (noise) — the k > p case
+  - Induced prior uses the Gram determinant sqrt(det(J^T J))
 
 - **`code/posteriors/common_fns.py`** - Shared utility functions
   - CRRA: `crra_ufn`, `crra_inverse`, `prelec_pwf`, analytic Jacobian
-  - EP+TK: `ep_ufn`, `ep_inverse` (Newton), `tk_pwf`, autodiff Jacobian
-  - Shared: `risk_likelihood`, `risk_likelihood_ep`, forward maps, CE computation
+  - GE: `ge_pwf`, `risk_likelihood_ge`, analytic Jacobian
+  - Power: `power_pwf`, `risk_likelihood_power`, `gram_logdet_power`
+  - Shared: `risk_likelihood`, forward maps, CE computation
 
-- **`code/sampling_ce.py`** - CRRA CE-space model sampling setup
-  - Configures bamcmc for `rdu_bhm_ce` model
-  - Passes reference lottery data and hyperprior params to posterior
+- **`code/sampling_ce.py` / `sampling_ge.py` / `sampling_power.py`** - Sampling
+  setups per model; `sampling_ce.py` owns `pack_ref_lotteries`, `pack_ref_pair`
 
-- **`code/sampling_ep.py`** - EP+TK CE-space model sampling setup
-  - Same structure as `sampling_ce.py` but imports EP posterior
-  - Reuses `pack_ref_lotteries`, `pack_ref_pair` from `sampling_ce.py`
+- **`code/marginal_likelihood.py`** - Marginal likelihoods / Bayes factors
+  - `load_posterior_states()`: posterior draws, SKIPS parallel-tempering files
+  - `estimate_model_log_ml()`: replicated corrected-RB estimate, two psi routes
+  - `compute_marginal_likelihoods()`: driver -> bayes_factors_rb2.npz
+
+- **`code/ml_validation.py`** - Synthetic ground-truth validation of the
+  marginal likelihood estimator (brute force vs estimator, must pass)
 
 - **`code/sensitivity.py`** - Sensitivity analysis over (ρ, κ) grid
   - Beta-Beta hierarchy sampling for between/within population SD
@@ -135,17 +150,22 @@ Prelec probability weighting: `w(p) = exp(-η(-ln p)^φ)`
 - When φ = η = 1: linear PWF (Expected Utility)
 - φ < 1: inverse-S shape (overweight small p, underweight large p)
 
-**Model 2 (Expo-Power + TK92)** — 4 parameters per subject:
-- **α (alpha)**: EP curvature (log scale internally, α > 0)
-- **r**: Risk aversion coefficient (natural scale, unbounded)
-- **γ (gamma)**: TK curvature (log scale internally, γ > 0.28)
+**Model 2 (CRRA + Goldstein-Einhorn)** — 4 parameters per subject:
+- **r**: CRRA risk aversion coefficient
+- **γ (gamma)**: GE curvature (log scale internally)
+- **δ (delta)**: GE elevation (log scale internally)
 - **λ (lambda)**: Fechner noise (log scale internally)
 
-Expo-Power utility: `U(x) = (1 - exp(-α x^(1-r))) / (α(1-r))`
-- Nests CRRA as α → 0, CARA as r → 0
+GE probability weighting: `w(p) = δp^γ / (δp^γ + (1-p)^γ)`
+- γ = δ = 1: linear; γ < 1: inverse-S shape
 
-TK probability weighting: `w(p) = p^γ / (p^γ + (1-p)^γ)^(1/γ)`
-- γ = 1: linear; γ < 1: inverse-S shape
+**Model 3 (CRRA + Power)** — 3 parameters per subject:
+- **r**: CRRA risk aversion coefficient
+- **δ (delta)**: Power exponent (log scale internally)
+- **λ (lambda)**: Fechner noise (log scale internally)
+
+Power probability weighting: `w(p) = p^δ` (nested in Prelec at φ = 1)
+- k = 4 quantities from p = 3 parameters; Gram determinant prior
 
 ### Variance Decomposition (Beta-Beta)
 
@@ -270,7 +290,7 @@ the previous step has been completed, and throw an error if it hasn't. The
 other python files.
 
 ```python
-# main.py control flags:
+# main.py control flags (see code/README.md for the full list):
 
 # --- Data Pipeline ---
 do_clean_data     = False
@@ -278,21 +298,24 @@ do_gen_paper_data = False
 
 # --- Prior Selection & Analysis ---
 do_sensitivity          = False
+do_family_comparison    = False
+do_generate_prior_ce    = False
 
-# --- MCMC Sampling ---
-do_sampling_ce             = False
+# --- Per-Model Flags (keyed by registry key: crra, ge, power) ---
+do_sampling         = {'crra': False, 'ge': False, 'power': False}
+do_sampling_prior   = {'crra': False, 'ge': False, 'power': False}
+do_preprocessing    = {'crra': False, 'ge': False, 'power': False}
+do_diagnostic_plots = {'crra': False, 'ge': False, 'power': False}
 
-# --- Preprocessing (extract from history files) ---
-do_generate_prior_ce       = False
-do_preprocess_hyper_ce     = False
-do_preprocess_subjects_ce  = False
+# --- Diagnostics & Marginal Likelihoods ---
+do_mcmc_diagnostics   = False
+do_ml_validation      = False
+do_bayes_factors_rb2  = False
 
-# --- Diagnostic Plots ---
-do_hyper_plots_ce          = False
-do_subject_plots_ce        = False
-
-# --- Appendix Examples ---
-do_injectivity_analysis    = False
+# --- Appendix Analyses ---
+do_rk_sensitivity       = False
+do_injectivity_analysis = False
+do_injectivity_power    = False
 
 # --- Document Compilation ---
 do_compile_doc          = False
@@ -430,16 +453,17 @@ The paper is in `doc/main.tex`. Restructured for Journal of Econometrics:
 1. **Introduction** - Two contributions, bridge between two literatures
 2. **Literature: Two Camps of Prior Specification** - Camp 1 (uninformative), Camp 2 (knowledge-based), BHMs in economics
 3. **General Hyperprior Specification from Predictive Quantities** - Framework, variance decomposition, NIG example with heatmaps, κ parameterization
-4. **Application: RDU with Real Data** - Model, CE mapping, Beta-Beta hierarchy, comparison prior (Gao 2022)
-5. **Estimation** - Data, MCMC, CE overlay (3 panels), subject comparisons
+4. **Application: RDU with Real Data** - Three models (Prelec/GE/Power PWFs), CE mapping, Beta-Beta hierarchy, comparison prior (Gao 2022)
+5. **Estimation** - Data, MCMC, CE overlay (3 panels), subject comparisons, model comparison via Bayes factors
 6. **Discussion** - Practical guidance, limitations, extensions
 7. **Conclusion**
 
-### Appendices (4 total, loaded via `\input{}`)
+### Appendices (5 total, loaded via `\input{}`)
 - **A**: Hyperprior Derivation by Distributional Family — `appendix_hyperprior_families.tex`
 - **B**: Injectivity Analysis for the Change-of-Variables Prior — `appendix_global_injectivity.tex`
 - **C**: Identification from Choice Probabilities under EUT — `appendix_eut_choice_probs.tex`
 - **D**: Sensitivity to `(\alpha, \kappa)` — `appendix_rk_sensitivity.tex`
+- **E**: MCMC Estimation and Marginal Likelihood Details — `appendix_mcmc_details.tex`
 
 ### Compiling
 

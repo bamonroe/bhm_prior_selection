@@ -19,7 +19,7 @@ REFERENCE_LOTTERIES = [
 
 MODELS = [
     ('crra', 'CRRA+Prelec', 'rdu_bhm_ce', ['r', 'phi', 'eta', 'lambda'], '#1f77b4'),
-    ('ep', 'EP+TK', 'rdu_ep_bhm_ce', ['alpha', 'r', 'gamma', 'lambda'], '#2ca02c'),
+    ('ge', 'CRRA+GE', 'rdu_ge_bhm_ce', ['r', 'gamma', 'delta', 'lambda'], '#2ca02c'),
     ('power', 'CRRA+Power', 'rdu_power_bhm_ce', ['r', 'delta', 'lambda'], '#d62728'),
 ]
 

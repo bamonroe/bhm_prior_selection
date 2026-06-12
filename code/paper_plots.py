@@ -1112,10 +1112,10 @@ def generate_prior_predictive_params_plot(prior_subjects_dir, output_path,
 
 def generate_cross_model_ce_overlay(
     crra_hyper_path,
-    ep_hyper_path,
-    power_hyper_path,
-    prior_params_path,
-    output_dir,
+    power_hyper_path=None,
+    ge_hyper_path=None,
+    prior_params_path=None,
+    output_dir=None,
     seed=42,
 ):
     """Generate cross-model CE overlay comparing all three informative models.
@@ -1138,7 +1138,7 @@ def generate_cross_model_ce_overlay(
     from model_registry import MODEL_REGISTRY
     hyper_paths = {
         'crra': crra_hyper_path,
-        'ep': ep_hyper_path,
+        'ge': ge_hyper_path,
         'power': power_hyper_path,
     }
     models = []
@@ -1203,9 +1203,9 @@ def generate_cross_model_ce_overlay(
 
 def generate_subject_detail_figures(
     crra_subjects_dir,
-    ep_subjects_dir,
-    power_subjects_dir,
-    output_dir,
+    power_subjects_dir=None,
+    ge_subjects_dir=None,
+    output_dir=None,
     n_sub=5000,
     seed=42,
 ):
@@ -1224,7 +1224,7 @@ def generate_subject_detail_figures(
 
     subject_dirs = {
         'crra': crra_subjects_dir,
-        'ep': ep_subjects_dir,
+        'ge': ge_subjects_dir,
         'power': power_subjects_dir,
     }
 

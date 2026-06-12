@@ -1,4 +1,4 @@
-\appsection{MCMC Estimation Details}
+\appsection{MCMC Estimation and Marginal Likelihood Details}
 \label{app:mcmc_details}
 %==============================================================================
 
@@ -57,3 +57,36 @@ samples split again into two segments. Elevated $\hat{R}$ values are
 concentrated in the noise parameter $\lambda$ for subjects whose choice data
 are consistent with multiple modes in the posterior. These subjects exhibit
 bimodal CE posteriors, as discussed in Section \ref{sec:estimation}.
+
+\subsection{Marginal Likelihood Computation}
+
+The marginal likelihoods reported in Section~\ref{sec:model_comparison} are
+computed with three estimators, each operating on the posterior draws
+described above.
+
+The warp bridge sampling estimator follows \textcite{MengWong1996}, with the
+warp transformation of \textcite{MengSchilling2002} applied to the posterior
+draws so that the proposal distribution and the warped posterior overlap. The
+proposal is \pending{bridge_proposal_detail}, and the Meng-Wong fixed point
+iteration is run for \pending{bridge_n_iterations} iterations. Standard
+errors come from the standard asymptotic formula for the bridge estimator.
+Because the bridge operates on the full parameter space, the proposal must
+cover 452 dimensions for Models 1 and 2 and 341 for Model 3, which makes
+overlap with the posterior the binding practical constraint.
+
+The Rao-Blackwellized bridge addresses that constraint by integrating out the
+subject-level parameters before bridging. For each hyperparameter draw, the
+per-subject integrated likelihood is estimated by
+\pending{rb_subject_integration_method}, reducing the bridge to the
+8-dimensional hyperparameter space, where a moment-matched proposal overlaps
+the marginal posterior easily.
+
+Thermodynamic integration runs independent MCMC at each rung of a
+temperature ladder of \pending{n_temperatures} temperatures with
+\pending{ti_schedule} spacing, raising the likelihood to the power
+$\beta_t$ while keeping the prior fixed. The headline estimate uses the
+stepping-stone estimator of \textcite{Xie2011}, with the trapezoidal
+estimate along the path sampling identity of \textcite{GelmanMeng1998}
+serving as an internal consistency check. The per-model compute cost of the
+full ladder is governed by the same per-iteration costs reported in
+Table~\ref{tab:mcmc_summary}.

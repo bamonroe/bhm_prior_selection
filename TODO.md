@@ -7,8 +7,10 @@ PWFs, all sharing one quantity-space Beta-Beta prior. Estimation, marginal
 likelihoods, paper integration, and the appendix pass are complete; the full
 document compiles cleanly (pythontex 0 errors, no undefined references).
 
-Final Bayes factors (data/output/bayes_factors_rb2.npz, validated estimator):
-log BF crra/ge 16.6, crra/power 171.7, ge/power 155.1.
+Final normalized Bayes factors (bayes_factors_rb2.npz, validated estimator
+plus feasible-mass normalization): log BF crra/ge 16.05 +/- 0.35,
+crra/power >= 107.4, ge/power >= 91.3 (Power normalizer is a rigorous
+convexity bound; see technical_notes/bridge_sampling/rb2_results.md).
 
 ---
 

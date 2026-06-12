@@ -49,15 +49,16 @@ from bayes_factors_rb import (
 
 
 def load_posterior_states(model_key, data_dir, n_samples=None, seed=42):
-    """Load posterior states, robust to heterogeneous run sequences.
+    """Load posterior states, excluding parallel-tempering runs.
 
-    History files may come from successive run sequences with different
-    chain counts or, worse, different targets (prior_params_ce.npz was
-    regenerated on May 6, 2026, so rdu_bhm_ce files written before that
-    date sample the posterior under the OLD prior). We therefore use only
-    the LAST contiguous group of files with identical (iters, chains)
-    shape — the most recent configuration — and drop the first half of
-    its iterations as burn-in.
+    History directories can mix plain posterior runs with parallel
+    tempering runs made for thermodynamic integration (e.g. the May 27
+    rdu_bhm_ce files have n_temperatures=20, so only ~1/20 of their
+    saved chain states are beta=1 posterior draws — treating them as
+    posterior samples contaminates everything downstream). Each history
+    file stores its mcmc_config; keep only files with n_temperatures=1,
+    require them to share one shape, and drop the first half of their
+    iterations as burn-in.
     """
     from model_registry import MODEL_REGISTRY
     cfg = MODEL_REGISTRY[model_key]
@@ -70,25 +71,31 @@ def load_posterior_states(model_key, data_dir, n_samples=None, seed=42):
     if not files:
         raise FileNotFoundError(f"No history files in {history_dir}")
 
+    group = []
     shapes = []
+    n_skipped = 0
     for f in files:
         with np.load(f, allow_pickle=True) as d:
+            run_cfg = d['mcmc_config'].item() if 'mcmc_config' in d else {}
+            if run_cfg.get('n_temperatures', 1) > 1:
+                n_skipped += 1
+                continue
+            group.append(f)
             shapes.append(d['history'].shape)
-
-    # Last contiguous group of files with identical shape
-    last_shape = shapes[-1]
-    start = len(files)
-    while start > 0 and shapes[start - 1] == last_shape:
-        start -= 1
-    group = files[start:]
-    if start > 0:
-        print(f"  NOTE: using last run sequence only "
-              f"({group[0].name}..{group[-1].name}, shape {last_shape}); "
-              f"skipping {start} earlier file(s) with different shape/target")
+    if n_skipped:
+        print(f"  NOTE: skipped {n_skipped} parallel-tempering history "
+              f"file(s) (n_temperatures > 1); using {len(group)} plain "
+              f"posterior file(s)")
+    if not group:
+        raise FileNotFoundError(
+            f"No untempered history files in {history_dir}")
+    if len(set(shapes)) > 1:
+        raise RuntimeError(
+            f"Untempered history files have mixed shapes: {set(shapes)}")
 
     # State layout: [theta (n*p), psi (n_hyper)] + GQ [theta_nat (n*p),
     # pop params (2*N_QUANTITIES)], so total = 2*n*p + n_hyper + 2*N_QUANTITIES
-    total_dim = last_shape[2]
+    total_dim = shapes[0][2]
     n_subjects = (total_dim - n_hyper - 2 * N_QUANTITIES) // (2 * nparams)
     n_raw = n_subjects * nparams + n_hyper
 
@@ -288,9 +295,10 @@ def fit_subject_proposal(draws, n_bins=8, df=7.0, scale=1.3,
 
     weights = np.asarray(weights, dtype=np.float64)
     weights = (1 - defensive_weight) * weights / weights.sum()
-    components.append(StudentTProposal.from_moments(
-        center, 1.5 ** 2 * cov, df=5.0))
-    weights = np.append(weights, defensive_weight)
+    if defensive_weight > 0:
+        components.append(StudentTProposal.from_moments(
+            center, 1.5 ** 2 * cov, df=5.0))
+        weights = np.append(weights, defensive_weight)
     return MixtureProposal(components, weights)
 
 
@@ -304,38 +312,56 @@ def fit_subject_proposals(subject_draws, rng, df=7.0, scale=1.3, n_bins=8,
             for i in range(subject_draws.shape[1])]
 
 
-def refine_subject_proposals(model_key, data, proposals, psi_bar, rng,
-                             K_probe=16384, n_resample=5000,
-                             df=7.0, scale=1.3, n_bins=8):
+def refine_subject_proposals(model_key, data, proposals, psi_probes, rng,
+                             K_probe=16384, n_resample=2000,
+                             df=7.0, scale=1.3, n_bins=8,
+                             defensive_weight=0.15):
     """One round of adaptive proposal refinement.
 
     The integrand of p(y_i|psi) at posterior psi is the subject's
     conditional posterior, which is much narrower than the marginal
     posterior the initial proposals are fitted to (observed ESS ~ 1%).
-    Probe the integrand at the posterior-mean psi with the initial
-    proposals, importance-resample, and refit the mixture on the
-    resampled points. Returns (refined_proposals, probe_ess_per_subject).
+    Probe the integrand at SEVERAL posterior psi draws (the conditional
+    ball moves with psi, so a single-psi refinement under-covers the
+    posterior region), importance-resample per probe, and refit the
+    mixture on the pooled resamples. The initial proposal is kept as a
+    defensive component so regions lost in refinement stay covered.
+
+    Returns (refined_proposals, probe_ess_per_subject) where probe_ess
+    is the minimum over probes.
     """
     caches = build_caches_from_proposals(model_key, data, proposals,
                                          K_probe, rng)
     hyperprior_arr = caches['hyperprior_arr']
-    a, b, const = _beta_pop_coeffs(jnp.asarray(psi_bar[None, :]),
-                                   hyperprior_arr)
-    a, b = np.asarray(a)[0], np.asarray(b)[0]
-    core = (np.einsum('knq,q->kn', caches['logz'], a - 1.0)
-            + np.einsum('knq,q->kn', caches['log1mz'], b - 1.0))
-    log_w = caches['log_fq'] + core          # (K_probe, n)
+    psi_probes = np.atleast_2d(psi_probes)
+    a, b, _ = _beta_pop_coeffs(jnp.asarray(psi_probes), hyperprior_arr)
+    a, b = np.asarray(a), np.asarray(b)          # (P, 4)
+    # log weights per probe: (P, K, n)
+    core = (np.einsum('knq,pq->pkn', caches['logz'], a - 1.0)
+            + np.einsum('knq,pq->pkn', caches['log1mz'], b - 1.0))
+    log_w = caches['log_fq'][None, :, :] + core
+    log_w = np.where(np.isfinite(log_w), log_w, -np.inf)
 
+    n_subjects = log_w.shape[2]
     refined = []
-    probe_ess = np.empty(log_w.shape[1])
-    for i in range(log_w.shape[1]):
-        lw = log_w[:, i]
-        lw = np.where(np.isfinite(lw), lw, -np.inf)
-        w = np.exp(lw - np.max(lw))
-        probe_ess[i] = np.sum(w) ** 2 / np.sum(w * w)
-        idx = rng.choice(K_probe, n_resample, replace=True, p=w / w.sum())
-        refined.append(fit_subject_proposal(
-            caches['theta'][idx, i, :], n_bins=n_bins, df=df, scale=scale))
+    probe_ess = np.empty(n_subjects)
+    for i in range(n_subjects):
+        pooled = []
+        ess_i = []
+        for p in range(len(psi_probes)):
+            lw = log_w[p, :, i]
+            w = np.exp(lw - np.max(lw))
+            ess_i.append(np.sum(w) ** 2 / np.sum(w * w))
+            idx = rng.choice(K_probe, n_resample, replace=True,
+                             p=w / w.sum())
+            pooled.append(caches['theta'][idx, i, :])
+        probe_ess[i] = np.min(ess_i)
+        core_mix = fit_subject_proposal(
+            np.concatenate(pooled), n_bins=n_bins, df=df, scale=scale,
+            defensive_weight=0.0)
+        refined.append(MixtureProposal(
+            [core_mix, proposals[i]], [1 - defensive_weight,
+                                       defensive_weight]))
     return refined, probe_ess
 
 
@@ -392,9 +418,13 @@ def build_caches_from_proposals(model_key, data, proposals, K, rng):
         log_f[:, i] = np.asarray(log_f_vec(th_jax, i))
         quantities[:, i, :] = np.asarray(qfn_vec(th_jax))
 
-    nonfinite = ~np.isfinite(log_f)
-    nonfinite_frac = float(nonfinite.mean())
-    log_f[nonfinite] = -np.inf
+    # A draw is unusable if log f or any quantity is non-finite. Zero its
+    # weight via log_f = -inf AND sanitize the quantities: a NaN in logz
+    # would otherwise poison the whole (subject, psi) sweep (-inf + NaN).
+    bad = ~np.isfinite(log_f) | ~np.isfinite(quantities).all(axis=2)
+    nonfinite_frac = float(bad.mean())
+    log_f[bad] = -np.inf
+    quantities[bad] = 0.5 * (lo + hi)
 
     z = (quantities - lo) / (hi - lo)
     z = np.clip(z, 1e-10, 1 - 1e-10)  # match _subject_quantity_prior
@@ -429,8 +459,11 @@ def _beta_pop_coeffs(psi_batch, hyperprior_arr):
 
     logit_mu = psi_batch[:, 0::2]   # (B, 4)
     logit_psi = psi_batch[:, 1::2]  # (B, 4)
-    mu = jax.nn.sigmoid(logit_mu)
-    ps = jax.nn.sigmoid(logit_psi)
+    # Clip away from {0, 1}: at psi -> 0 the Beta concentration diverges
+    # and gammaln cancellation overflows. Posterior draws sit far inside
+    # these bounds; only absurd proposal-tail psi values are affected.
+    mu = jnp.clip(jax.nn.sigmoid(logit_mu), 1e-7, 1 - 1e-7)
+    ps = jnp.clip(jax.nn.sigmoid(logit_psi), 1e-7, 1 - 1e-7)
 
     a = jnp.maximum(mu * (1 - ps) / ps, 1e-6)
     b = jnp.maximum((1 - mu) * (1 - ps) / ps, 1e-6)
@@ -550,6 +583,10 @@ def log_ml_is(sweep_fn, log_pi_vec, psi_proposal, n_psi, rng, n_batches=25):
 def _bridge_iterate(lp_post, lq_post, lp_prop, lq_prop, n_iter=500, tol=1e-10):
     """Meng-Wong iterative bridge estimator (cf. bayes_factors.py)."""
     n2, n1 = len(lp_post), len(lp_prop)
+    if n1 == 0 or n2 == 0:
+        raise RuntimeError(
+            f"Bridge sampling has no finite evaluations on one side "
+            f"(posterior: {n2}, proposal: {n1})")
     s1 = n1 / (n1 + n2)
     s2 = n2 / (n1 + n2)
 
@@ -665,7 +702,7 @@ def verify_pop_prior_vectorization(data, model_keys=('crra', 'ge', 'power'),
 def estimate_model_log_ml(model_key, data, hyper, subj, rng,
                           K=16384, R=8, n_psi_is=4000, n_psi_bridge=2500,
                           theta_df=7.0, theta_scale=1.3,
-                          psi_df=5.0, psi_scale=1.5, ess_floor=100.0,
+                          psi_df=10.0, psi_scale=1.1, ess_floor=100.0,
                           verbose=True):
     """Replicated corrected-RB estimate of log p(y) for one model.
 
@@ -681,17 +718,21 @@ def estimate_model_log_ml(model_key, data, hyper, subj, rng,
     log_pi_vec = make_log_hyperprior_vec(data)
     psi_proposal = StudentTProposal(hyper, df=psi_df, scale=psi_scale)
 
-    # Fit proposals once, refine once at the posterior-mean psi, share
-    # the refined proposals across replicates (independence of caches
-    # comes from fresh theta draws within each replicate).
+    # Fit proposals once, refine once at a spread of posterior psi draws,
+    # share the refined proposals across replicates (independence of
+    # caches comes from fresh theta draws within each replicate).
     proposals = fit_subject_proposals(subj, rng, df=theta_df,
                                       scale=theta_scale)
-    psi_bar = hyper.mean(axis=0)
+    psi_probes = np.vstack([
+        hyper.mean(axis=0),
+        hyper[rng.choice(len(hyper), 7, replace=False)],
+    ])
     proposals, probe_ess = refine_subject_proposals(
-        model_key, data, proposals, psi_bar, rng,
+        model_key, data, proposals, psi_probes, rng,
         df=theta_df, scale=theta_scale)
     if verbose:
-        print(f"  Proposal refinement probe ESS: min={probe_ess.min():.0f}, "
+        print(f"  Proposal refinement probe ESS (min over {len(psi_probes)} "
+              f"probes): min={probe_ess.min():.0f}, "
               f"median={np.median(probe_ess):.0f}")
 
     rep_is = np.empty(R)
@@ -774,7 +815,7 @@ def compute_marginal_likelihoods(model_keys, data_dir, output_path,
                                  K=16384, R=8, n_psi_is=4000,
                                  n_psi_bridge=2500,
                                  n_load=100000, seed=42,
-                                 psi_df=5.0, psi_scale=1.5,
+                                 psi_df=10.0, psi_scale=1.1,
                                  theta_df=7.0, theta_scale=1.3,
                                  ess_floor=100.0):
     """Corrected RB marginal likelihoods with two psi-integration routes.

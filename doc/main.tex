@@ -24,6 +24,9 @@
 \newcommand{\bomega}{\boldsymbol{\omega}} % PWF parameter sub-vector (Appendix B)
 \DeclareMathOperator{\diag}{diag}
 
+% Placeholder for pending model-comparison statistics (slug = NPZ key)
+\newcommand{\pending}[1]{\textcolor{red}{[PENDING: \detokenize{#1}]}}
+
 \hyphenpenalty=10000
 
 \title{Quantity-Space Hyperprior Specification for Bayesian Hierarchical Models:\\
@@ -1049,10 +1052,10 @@ prior used in sampling. For Models 1 and 2 ($k = p = 4$):
   p(r, \phi, \eta, \lambda)
     &= p_Y\!\bigl(\bg_1(r, \phi, \eta, \lambda)\bigr)\;
       \bigl|\!\det J_{\bg_1}(r, \phi, \eta, \lambda)\bigr| \\
-  \label{eq:jacobian_prior_ep}
-  p(\alpha, r, \gamma, \lambda)
-    &= p_Y\!\bigl(\bg_2(\alpha, r, \gamma, \lambda)\bigr)\;
-      \bigl|\!\det J_{\bg_2}(\alpha, r, \gamma, \lambda)\bigr|
+  \label{eq:jacobian_prior_ge}
+  p(r, \gamma, \delta, \lambda)
+    &= p_Y\!\bigl(\bg_2(r, \gamma, \delta, \lambda)\bigr)\;
+      \bigl|\!\det J_{\bg_2}(r, \gamma, \delta, \lambda)\bigr|
 \end{align}
 For Model 3 ($k = 4 > p = 3$), the Jacobian is non-square and the induced
 prior uses the Gram determinant:

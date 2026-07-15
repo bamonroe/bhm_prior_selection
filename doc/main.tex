@@ -314,31 +314,27 @@ inference in unintended ways,\footnote{
 The central idea in that second camp is to elicit beliefs in terms that are
 more natural than structural parameters. \textcite{Kadane1980} established the
 paradigm of \enquote{predictive elicitation}, in which experts are asked about
-observable quantities rather than prior parameters directly. Compatible prior
-distributions for parameters are then derived from those predictive beliefs.
-\textcite{KadaneWolfson1998} argue that this is cognitively more natural than
-eliciting beliefs about structural parameters themselves. Practical methods for
-eliciting and encoding such beliefs have since been developed extensively in
-economics and psychology; see
+observable quantities and compatible parameter priors are derived from those
+predictive beliefs, an approach \textcite{KadaneWolfson1998} argue is
+cognitively more natural than direct elicitation of structural parameters.
 \textcite{Schlag2015}, \textcite{Garthwaite2005}, and \textcite{Mikkola2024}
-for reviews.
+review the practical elicitation methods developed since.
 
 Once a researcher does have informed beliefs about relevant quantities, there
 remains the question of how to use them in Bayesian analysis.
 \textcite{Gabry2019} propose a Bayesian workflow that
 iteratively searches for prior parameters producing reasonable prior
 predictive distributions of quantities about which the researcher has
-well-calibrated beliefs. In the experimental economics literature specifically,
-\textcite{Bland2025} proposes calibrating priors for structural models by
-examining their implications for certainty equivalents.
-\textcite{Manderson2026} propose a general approach to translating predictive
-beliefs into prior distributions using Kullback-Leibler optimization, which can
-numerically match the prior predictive to some prior distribution.
-\textcite{Segert2019} develop Jacobian-based transformations between parameter
-and observable spaces for individual-level models. Their emphasis is on the
-conceptual interpretation of predictive distributions, but the same machinery is
-directly useful for informed priors. Relative to this literature, I
-contribute an exact Jacobian-based translation from
+well-calibrated beliefs, and in the experimental economics literature
+\textcite{Bland2025} calibrates priors for structural models by examining
+their implications for certainty equivalents. \textcite{Manderson2026}
+translate predictive beliefs into prior distributions using Kullback-Leibler
+optimization, which can numerically match the prior predictive to a target
+distribution. \textcite{Segert2019} develop Jacobian-based transformations
+between parameter and observable spaces for individual-level models, with an
+emphasis on the conceptual interpretation of predictive distributions, and
+the same machinery is directly useful for informed priors. Relative to this
+literature, I contribute an exact Jacobian-based translation from
 quantity-space beliefs to parameter-space priors, together with a hierarchical
 extension that organizes the remaining hyperprior choices through a variance
 decomposition.
@@ -346,9 +342,8 @@ decomposition.
 In the hierarchical setting specifically, \textcite{Fuglstad2020} develop a
 framework for specifying joint priors on variance parameters by decomposing
 total variance along a tree structure, with Dirichlet or penalized complexity
-priors at each split. Their approach makes variance allocation interpretable for
-additive Gaussian models, and is implemented in the \texttt{makemyprior} R
-package. I share that goal of making variance allocation an
+priors at each split. Their approach makes variance allocation interpretable
+for additive Gaussian models. I share that goal of making variance allocation an
 explicit researcher input and extend it in a different direction. Here the
 decomposition is expressed through two scalar parameters ($\alpha$ and $\kappa$)
 combined with closed-form moment-matching, which is convenient for hierarchies
@@ -633,18 +628,13 @@ quantity. Each quantity requires a direct prior mean $\dpm_k$
 and variance $\dpv_k$, a variance partition ratio $\alpha_k$, and a heterogeneity
 confidence $\kappa_k$, yielding $4k$ researcher inputs in total. The value of
 the framework is therefore not parsimony in the number of choices, but a
-change in what those choices mean.
-
-First, the method guarantees that the hyperprior predictive matches the direct
-prior in its first two moments by construction, making the calibration more
-direct \parencite{Gabry2019, Bland2025}.
-Second, once a direct prior has been specified, the remaining hierarchical
-choices become interpretable. The parameter $\alpha$ governs how much
-uncertainty is attributed to heterogeneity across individuals rather than to
-uncertainty about the population mean, while $\kappa$ governs how tightly that
-heterogeneity level is held. The benefit is therefore operational rather than
-numerical: the researcher reasons about observables and about the structure of
-heterogeneity, rather than about opaque hyperprior parameters.
+change in what those choices mean. The hyperprior predictive matches the
+direct prior in its first two moments by construction, making the calibration
+more direct \parencite{Gabry2019, Bland2025}, and the remaining hierarchical
+choices are interpretable, with $\alpha$ governing how much uncertainty is
+attributed to heterogeneity across individuals rather than to uncertainty
+about the population mean and $\kappa$ governing how tightly that
+heterogeneity level is held.
 
 The practical workflow is therefore two-step. First, specify a quantity-space
 prior for a randomly selected individual using predictive quantities that admit
@@ -1437,44 +1427,28 @@ to the hierarchical setting by making the two distinct roles of a hyperprior
 explicit: anchoring the unconditional distribution of observables and allocating
 uncertainty across levels of the hierarchy.
 
-In practice, the method fits naturally into a prior-predictive workflow. The
-researcher chooses a specification space, either parameter space itself or a
+In practice, the method complements the iterative prior-predictive workflow
+of \textcite{Gabry2019} rather than replacing it. The researcher chooses a
 quantity space such as certainty equivalents, choice probabilities, or
-indifference amounts. For each dimension, the researcher provides a mean and
-variance reflecting beliefs about a single random individual, informed by
-published empirical estimates, pilot data, or expert judgment. The researcher
-then chooses $\alpha$ and $\kappa$ to express beliefs about the degree of
+indifference amounts, and for each dimension provides a mean and variance
+reflecting beliefs about a single random individual, informed by published
+empirical estimates, pilot data, or expert judgment. The researcher then
+chooses $\alpha$ and $\kappa$ to express beliefs about the degree of
 population heterogeneity and confidence in that specification. Values of
 $\alpha = 0.2$ and $\kappa = 0.25$, as used in the application, correspond to
 substantial heterogeneity with moderate confidence. The implied prior
-predictive distribution should then be examined, not merely to confirm that the
-first two moments match the direct prior, which they do by construction, but
-also to verify that the allocation between population-mean uncertainty and
-individual heterogeneity is substantively reasonable. The sensitivity analysis
-in Appendix \ref{app:rk_sensitivity} indicates that the broad posterior
-patterns are stable across a range of $(\alpha, \kappa)$ values, even though the
-magnitude of prior influence moves in the expected direction. Estimation then
-proceeds with standard MCMC sampling,
-adding the Jacobian correction term to the log-posterior when quantity-space
-specification is used.
-
-The framework complements the iterative prior-predictive
-workflow of \textcite{Gabry2019} rather than replacing it. In practice,
-specifying a prior is rarely a one-shot exercise: researchers form beliefs,
-examine implications, and revise. \textcite{Gabry2019} make this loop explicit
-by iterating over hyperprior parameters until the prior predictive distribution
-of relevant quantities looks reasonable. The framework developed here changes
-where the iteration happens. Instead of iterating over $4p$ hyperprior
-parameters whose individual effects on observables are difficult to anticipate,
-the researcher iterates over direct prior beliefs about the $k$ predictive
-quantities, with the variance decomposition handling the hierarchical layer
-automatically. When the researcher has substantive intuitions about more than
-one predictive quantity, say choice probabilities for one set of lotteries and
-relative risk aversion implied for another set, the same loop applies: specify
-direct priors over the elicited quantities, examine the implied priors over
-the others, and revise. Both the iterative and the analytic component address
-the same underlying problem at different points in the workflow, and they
-combine naturally rather than competing.
+predictive distribution should then be examined and the inputs revised,
+exactly the loop that \textcite{Gabry2019} make explicit. What the framework
+changes is where that iteration happens. Instead of iterating over $4p$
+hyperprior parameters whose individual effects on observables are difficult
+to anticipate, the researcher iterates over direct prior beliefs about the
+$k$ predictive quantities, with the variance decomposition handling the
+hierarchical layer automatically. The sensitivity analysis in Appendix
+\ref{app:rk_sensitivity} indicates that the broad posterior patterns are
+stable across a range of $(\alpha, \kappa)$ values, even though the magnitude
+of prior influence moves in the expected direction. Estimation then proceeds
+with standard MCMC sampling, adding the Jacobian correction term to the
+log-posterior when quantity-space specification is used.
 
 \subsection{Limitations}
 
@@ -1583,29 +1557,23 @@ population heterogeneity from beliefs about the location of the population
 mean.
 
 The application to RDU estimation with three structurally different models
-illustrates the methodological value of this approach. The CRRA + Prelec,
-CRRA + Goldstein-Einhorn, and CRRA + Power specifications differ in
-their probability weighting functions and the number of free parameters, yet they share a single quantity-space prior over certainty
-equivalents and choice probabilities. In quantity space, the substantive
-implications of a hyperprior are directly visible, and diagnostics based on
-posterior predictive distributions and CDF differences make the prior's
-influence transparent across subjects, lotteries, and quantiles. The results show that informative
+illustrates the methodological value of this approach. The specifications
+differ in their probability weighting functions and in the number of free
+parameters, yet they share a single quantity-space prior over certainty
+equivalents and choice probabilities. The results show that informative
 hyperpriors matter most where the data are weak, while leaving well-identified
-subjects largely unchanged. The shared prior also supports a Bayes factor
+subjects largely unchanged, and the shared prior supports a Bayes factor
 comparison in which differences in marginal likelihood reflect structural
-form rather than differences in prior calibration, making a quantity that
-is notoriously prior-sensitive substantially easier to interpret as
-evidence about probability weighting.
+form rather than differences in prior calibration.
 
 The framework changes the object of prior specification. Instead of asking
 researchers to work directly with opaque hyperprior parameters, it asks them to
 reason about observables and about the structure of heterogeneity in the
-population. The cross-model application demonstrates that this shift not only
-makes hierarchical prior specification easier to interpret and diagnose, but
-also makes it coherent across competing structural models that speak to the
-same behavioral quantities. This is the main advantage of the framework, and
-the reason quantity-space hyperprior specification may be useful well beyond the
-present application.
+population. That shift makes hierarchical prior specification easier to
+interpret and diagnose, and it makes prior beliefs coherent across competing
+structural models that speak to the same behavioral quantities. This is the
+main advantage of the framework, and the reason quantity-space hyperprior
+specification may be useful well beyond the present application.
 
 
 % \subsection is redefined in packages.tex without starred-form support,

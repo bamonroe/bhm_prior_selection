@@ -21,8 +21,11 @@ convexity bound; see technical_notes/bridge_sampling/rb2_results.md).
 - [ ] Decide target length: current build is long; consider moving some
       appendix figures to an online supplement per JoE guidelines
 - [ ] Cover letter, highlights, and submission metadata
-- [ ] Merge `feat/ml-repair` into `power-model`, then `power-model` into
-      `master` (ALWAYS PROMPT BEFORE MERGING)
+- [x] Merge `feat/ml-repair` into `power-model`, then `power-model` into
+      `master` (both merged; master 692c0a1 and later)
+- [ ] Uncommitted `fixed_beta` patch in the bamcmc submodule
+      (src/bamcmc/mcmc/config.py) — leftover from the deleted TI machinery;
+      decide whether to commit upstream or discard
 - [ ] Optional: archive or delete remaining legacy data
       (`rdu_bhm_uninf` 15G is still used to regenerate the Appendix D diffuse
       benchmark; `rdu_bhm_ce_stan` 133M is the sampler cross-check)

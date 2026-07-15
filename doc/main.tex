@@ -117,6 +117,10 @@ n_dominated = int(_ce_comp.get('n_dominated', 0))
 n_subj = int(D.get('n_subjects', 111))
 pct_dominated = int(round(100 * n_dominated / n_subj))
 
+# Marginal likelihood integral dimensions (subject params + 8 hyperparams)
+dim_flexible = 4 * n_subj + 8
+dim_power = 3 * n_subj + 8
+
 # CE overlay quantities
 hprior_pred_rs = fmt(float(_ce_overlay.get('prior_pct_above_ev', 0)), 1)
 prior_ce_below_15 = fmt(float(_ce_overlay.get('prior_pct_below_15', 0)), 1)
@@ -691,11 +695,11 @@ follows the logistic choice function with Contextual Utility normalization
 \label{eq:likelihood}
 \begin{split}
   P(A) &= \frac{1}{1 + \exp\left(-\Delta\right)}, \\
-  \Delta &= \frac{U(A) - U(B)}{\lambda \left(u(\bar{x}) - u(\underbar{x})\right)}
+  \Delta &= \frac{U(A) - U(B)}{\lambda \left(u(\bar{x}) - u(\underline{x})\right)}
 \end{split}
 \end{align}
 where $\lambda > 0$ is a Fechnerian noise scaling parameter and
-$u(\bar{x}) - u(\underbar{x})$ is the utility range across all outcomes with
+$u(\bar{x}) - u(\underline{x})$ is the utility range across all outcomes with
 positive probability in both lotteries. This choice model is common to all
 three specifications below.
 
@@ -1317,8 +1321,8 @@ hyperparameter:
   p(y \mid M_m) = \int p(y \mid \bth, M_m)\,
     p(\bth \mid \hype, M_m)\, p(\hype \mid M_m)\, d\bth\, d\hype
 \end{align}
-For Models 1 and 2 this integral spans 452 dimensions, and for Model 3 it
-spans 341 (Table~\ref{tab:mcmc_summary}). The log Bayes factor between models
+For Models 1 and 2 this integral spans \py{dim_flexible} dimensions, and for
+Model 3 it spans \py{dim_power} (Table~\ref{tab:mcmc_summary}). The log Bayes factor between models
 $m$ and $m'$ is the difference in log marginal likelihoods:
 \begin{align}
   \label{eq:log_bf}
@@ -1454,7 +1458,7 @@ proceeds with standard MCMC sampling,
 adding the Jacobian correction term to the log-posterior when quantity-space
 specification is used.
 
-The framework also fits naturally alongside the iterative prior-predictive
+The framework complements the iterative prior-predictive
 workflow of \textcite{Gabry2019} rather than replacing it. In practice,
 specifying a prior is rarely a one-shot exercise: researchers form beliefs,
 examine implications, and revise. \textcite{Gabry2019} make this loop explicit
@@ -1478,8 +1482,7 @@ The framework has several limitations. First, the variance decomposition is
 \textit{moment-based}, matching the first two moments of the direct prior. If
 the researcher's beliefs are better captured by higher moments (skewness, heavy
 tails), two-moment matching may be insufficient. The framework does generalize
-to higher moments via the law of total cumulance (see footnote in Section
-\ref{sec:variance_decomposition}), but at the cost of additional researcher
+to higher moments via the law of total cumulance, but at the cost of additional researcher
 choices and numerical rather than closed-form solutions. An alternative is to
 match cumulative probabilities at distinct points of the direct-prior CDF,
 which would also permit distributions such as the Cauchy that lack the moments

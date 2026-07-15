@@ -71,3 +71,6 @@ code/example_code/
 code/main
 code/main.log
 code/examples/
+
+# Codex CLI artifact
+.codex

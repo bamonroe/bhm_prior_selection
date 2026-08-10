@@ -28,7 +28,7 @@ model.
     Structural parameters per subject & 4 & 4 & 3 \\
     Predictive quantities & 4 & 4 & 4 \\
     Hyperparameters & 8 & 8 & 8 \\
-    Total parameters & 452 & 452 & 341 \\
+    Total parameters & \py{dim_flexible} & \py{dim_flexible} & \py{dim_power} \\
     Chains (A + B) & 2000 & 2000 & 2000 \\
     Collection iterations & 6000 & 6000 & 10000 \\
     Thinning & 10 & 10 & 10 \\
@@ -62,8 +62,9 @@ subjects whose choice data are consistent with multiple modes in the
 posterior, and for such genuinely multimodal subject posteriors the split
 statistic overstates non-convergence, since chains that settle in
 different modes inflate the between-chain variance even at stationarity.
-These subjects exhibit bimodal CE posteriors, as discussed in
-Section~\ref{sec:estimation}. The eight hyperparameters mix far better
+These are the weakly identified subjects discussed in
+Section~\ref{sec:estimation}, whose choices are consistent with multiple
+risk preference profiles. The eight hyperparameters mix far better
 than the worst subject parameters, with maximum hyperparameter $\hat{R}$
 of \py{fmt(D['crra_rhat_hyper_max'], 2)},
 \py{fmt(D['ge_rhat_hyper_max'], 2)}, and

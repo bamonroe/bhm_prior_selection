@@ -1446,17 +1446,22 @@ Section~\ref{sec:model_comparison}. The shared quantity-space prior removes
 cross-model differences in prior calibration from the comparison, but the
 resulting evidence is still conditional on the one shared specification.
 A different direct prior or a different $(\alpha, \kappa)$ allocation would
-change the marginal likelihoods, and not necessarily by equal amounts, so
-the Prelec and Goldstein-Einhorn comparison should be read as evidence
-under the stated prior rather than as a prior-free verdict. The nested
-Power comparison is robust in the opposite sense, with the restriction
-$\phi = 1$ rejected by margins far larger than plausible prior
-perturbations, but it carries its own caveat. The feasible-mass tilt of
-the truncated $k > p$ construction concentrates at extreme heterogeneity
-values, its normalizer is bounded rather than point estimated, and a
-fully normalized comparison of over-determined specifications is a
-methodological problem the quantity-space framework inherits rather
-than solves.
+change the marginal likelihoods, and not necessarily by equal amounts. The
+Prelec and Goldstein-Einhorn comparison should therefore be read as
+evidence under the stated prior rather than as a prior-free verdict.
+
+The Power comparison does not share this sensitivity, because the
+restriction $\phi = 1$ is rejected by a margin far larger than any
+plausible prior perturbation, but it carries a caveat of its own. With
+fewer parameters than predictive quantities, the Power model can
+generate only a surface of quantity vectors inside the four-dimensional
+quantity space, and its prior is the shared specification restricted to
+that surface. The restriction reweights the effective hyperprior toward
+values that imply extreme population heterogeneity, and the normalizing
+constant of that reweighting proved computable only as a bound
+(Appendix~\ref{app:feasible_mass}). A fully normalized comparison of
+over-determined specifications is therefore a methodological problem
+the quantity-space framework inherits rather than solves.
 
 \subsection{Extensions}
 

@@ -206,7 +206,7 @@ Bayesian hierarchical models (BHMs) are becoming a standard tool for estimating 
 experimental economics \parencite{Gao2022,Nilsson2011}. These models jointly
 estimate individual-level parameters and the hyperparameters that govern their
 population distribution. By assuming exchangeability across subjects, BHMs use
-the distribution of individual estimands to inform each subject's prior,
+the distribution of parameters across subjects to inform each subject's prior,
 producing partially pooled estimates that balance individual data against
 population-level information. But this benefit creates an additional prior
 specification problem. Instead of specifying a prior for a single individual,
@@ -268,8 +268,8 @@ lottery-choice data from \textcite{Harrison2016}, combining CRRA utility
 with Prelec, Goldstein-Einhorn, and Power probability weighting functions.
 The three models are chosen to exercise different aspects of the framework.
 All three share the same utility function but differ in their probability
-weighting, with the third using a simpler 1-parameter PWF that yields fewer
-free parameters and an overdetermined quantity-to-parameter mapping. By sharing a single quantity-space prior
+weighting, with the third using a simpler 1-parameter PWF that has fewer
+structural parameters than predictive quantities. By sharing a single quantity-space prior
 across all three, the application reveals where the models agree on
 predictive quantities (indicating that the structural specification is
 immaterial for those predictions) and where they diverge (indicating that
@@ -396,11 +396,12 @@ This change-of-variables adjustment is well known, although it is usually
 presented in the special case $k = p$, where
 $\sqrt{\det(J_\bg{}^\top J_\bg{})} = |\det J|$. \textcite[108-110]{Segert2019}
 discuss the detailed mathematical derivation of this formula and note the
-correction via the Coarea Formula needed when $k < p$. Given the focus of
+further correction needed when $k < p$, given by the Coarea Formula, the
+extension of the change-of-variables theorem to maps that reduce dimension. Given the focus of
 risk preference models, and the abundance of economically meaningful predictive
 quantities they generate, I focus on the case $k = p$ in the main text, while
 noting that the same logic extends to $k > p$.\footnote{
-  When $k > p$, the image of $\bg$ is a $p$-dimensional submanifold of $\R^k$,
+  When $k > p$, the image of $\bg$ is a $p$-dimensional surface inside $\R^k$,
   and the researcher's quantity-space density should be understood as evaluated
   on this image rather than as a free-standing density on all of $\R^k$. In
   this case, the induced prior (\ref{eq:jacobian_prior}) is not automatically
@@ -488,9 +489,9 @@ moment hyperparameters.\footnote{
   common families.
 }
 
-Each moment hyperparameter has a two-parameter hyperprior whose parameters
-biject to its first two moments, so $\hprior$ can be represented by four
-unknown moments. I write $\hpriormm$ and
+Each moment hyperparameter has a two-parameter hyperprior whose two
+parameters are in one-to-one correspondence with its first two moments, so
+$\hprior$ can be represented by four unknown moments. I write $\hpriormm$ and
 $\hpriormv$ for the mean and variance of the hyperprior over $\hypem$, and
 $\hpriorvm$ and $\hpriorvv$ for the mean and variance of the hyperprior over
 $\hypev$. The laws of iterated expectations and total variance then imply
@@ -539,8 +540,9 @@ moment conditions that uniquely determine $\hpriormm{}$ and $\hpriormv{}$:
 \Ehpm{\hypem{}} &= m^* \\
 \Varhpm{\hypem{}} &= \alpha \, v^*
 \end{align}
-\noindent These are known quantities, and the hyperprior family is assumed
-bijective in its first two moments, so this system has a unique solution
+\noindent These are known quantities, and the hyperprior family's two
+parameters are assumed to be uniquely determined by its first two moments,
+so this system has a unique solution
 $\hpriormm{}$ and $\hpriormv{}$.
 
 With $\alpha$, $\dpm$, and $\dpv$ specified, the remaining hierarchical choice
@@ -571,9 +573,9 @@ determine $\hpriorvm{}$ and $\hpriorvv{}$:
 \end{align}
 \noindent As in (\ref{eq:hyperm_solved}), the right-hand side of
 (\ref{eq:hyperv_solved}) is composed of researcher-specified constants, and
-the hyperprior over $\hypev$ is presumed to have a bijective mapping from its
-parameters to its first two moments, so (\ref{eq:hyperv_solved}) has a unique
-solution $\hpriorvm{}$ and $\hpriorvv{}$.
+the hyperprior over $\hypev$ is presumed to have parameters in one-to-one
+correspondence with its first two moments, so (\ref{eq:hyperv_solved}) has a
+unique solution $\hpriorvm{}$ and $\hpriorvv{}$.
 Thus, all four hyperprior parameters $(\hpriormm{}, \hpriormv{}, \hpriorvm{},
 \hpriorvv{})$ are now determined. The researcher's beliefs about heterogeneity
 are fully characterized by $\alpha$, which controls the level of heterogeneity
@@ -615,10 +617,11 @@ The feasibility region in $(\alpha, \kappa)$ space is also family-dependent.
 Families where the conditional variance is a single parameter (NIG,
 Gamma-Inverse-Gamma) admit all $\kappa > 0$ with no joint constraint on $\alpha$.
 Families where the conditional variance depends on the mean hyperparameter
-(Beta-Beta) impose both a lower bound on $\kappa$ (from the irreducible
-conditional variance variation contributed by the mean hyperparameter) and an
-upper bound (from the requirement that the dispersion hyperprior remain
-proper). In all cases, the feasibility constraints are computable in closed
+(Beta-Beta) impose both a lower and an upper bound on $\kappa$. The lower
+bound arises because uncertainty about the mean hyperparameter alone already
+induces some variation in the conditional variance, which $\kappa$ cannot
+fall below. The upper bound arises because the hyperprior on the dispersion
+parameter must remain a proper distribution. In all cases, the feasibility constraints are computable in closed
 form from the researcher's direct prior and can be checked before estimation.
 
 \subsection{Practical Interpretation}
@@ -703,8 +706,8 @@ second retains the same CRRA utility but replaces the PWF with a different
 2-parameter form, isolating the effect of the probability weighting
 specification on posterior predictions. The third uses a simpler 1-parameter
 PWF with fewer free parameters, creating an over-determined ($k > p$) case
-that exercises the Gram determinant machinery from
-Section~\ref{sec:gq_space}.
+that requires the Gram-determinant form of the change-of-variables formula
+from Section~\ref{sec:gq_space}.
 
 \subsubsection*{Model 1: CRRA + Prelec}
 
@@ -783,7 +786,7 @@ quantities, it is an over-determined case ($k = 4 > p = 3$). The
 change-of-variables formula uses the Gram determinant
 $\sqrt{\det(J_\bg^\top J_\bg)}$ in place of $|\det J_\bg|$, as described in
 Section~\ref{sec:gq_space}. This demonstrates that the framework handles the
-$k > p$ case with no additional machinery beyond the Jacobian computation.
+$k > p$ case with no additional derivations beyond the Jacobian computation.
 
 Together the three specifications cover both the square case, with Models 1
 and 2 at $k = p = 4$, and the over-determined case, with Model 3 at
@@ -885,8 +888,11 @@ dispersion, which together determine the conditional variance:
 \end{equation}
 
 The mean-dispersion parameterization allows independent hyperpriors on $\mu_k$
-and $\psi_k$, avoiding the conditional domain restriction that would arise from
-parameterizing in terms of mean and variance directly.
+and $\psi_k$. Parameterizing in terms of mean and variance directly would not,
+because the variance of a Beta random variable cannot exceed
+$\mu_k(1 - \mu_k)$, so the admissible range of the variance would depend on
+the mean, whereas $\mu_k$ and $\psi_k$ are free to vary independently on
+$(0,1)$.
 
 The hierarchical model has 4 hyperprior parameters per quantity. The variance
 decomposition of Section \ref{sec:variance_decomposition} replaces these with
@@ -1073,17 +1079,17 @@ inducing different priors over their respective structural parameters.
 
 \begin{figure}[hp]
   \centering
-  \mycaption{Hyper-posterior predictive CE distributions across three models}
+  \mycaption{Population-level posterior predictive CE distributions across three models}
   \label{fig:cross_model_ce}
   \includegraphics[width=\textwidth]{../plots/paper/cross_model_ce_overlay.pdf}
 \end{figure}
 
 I begin the discussion of results with the population-level predictive
 distributions, which show what each estimated model implies for a new,
-unobserved individual. Figure \ref{fig:cross_model_ce} shows the hyper-posterior
-predictive distribution of certainty equivalents for each of the three
-reference lotteries under all three models, together with the shared hyperprior
-predictive.\footnote{
+unobserved individual. Figure \ref{fig:cross_model_ce} shows the posterior
+predictive distribution of certainty equivalents for a new individual drawn
+from the population, for each of the three reference lotteries under all
+three models, together with the shared hyperprior predictive.\footnote{
   For all three models, predictive CEs are drawn from the Beta-Beta hierarchy
   using the model's estimated hyperparameter posterior. The hyperprior
   predictive draws from the hyperprior directly, before seeing data.
@@ -1091,16 +1097,15 @@ predictive.\footnote{
 
 The estimation for each model starts from identical beliefs about these
 quantities, so differences in the
-posterior predictive CEs reflect the interaction between the structural model's
-Jacobian and the data likelihood. For lotteries $L_1$ and $L_3$, which place
+posterior predictive CEs reflect how each functional form's restrictions
+interact with the data. For lotteries $L_1$ and $L_3$, which place
 probability $0.75$ on the worse outcome, I find closely
 aligned CE posteriors across the three models, with median CEs of $\$\py{xm_crra_1}$,
 $\$\py{xm_ge_1}$, and $\$\py{xm_power_1}$ for $L_1$ under Models 1, 2, and
 3 respectively. All three are concentrated below the expected value, indicating
 that the estimated population is risk-averse for these asymmetric lotteries.
-Model~3, which has only 3 free parameters mapped to 4 predictive quantities
-through the Gram determinant, produces posterior CEs within $\$0.25$ of the
-4-parameter models on these lotteries.
+Model~3, which has only 3 free parameters, produces posterior CEs within
+$\$0.25$ of the 4-parameter models on these lotteries.
 
 For lottery $L_2$, which splits probability equally between outcomes, a more
 nuanced pattern emerges. The Prelec and Goldstein-Einhorn posteriors
@@ -1399,7 +1404,8 @@ The framework has several limitations. First, the variance decomposition is
 \textit{moment-based}, matching the first two moments of the direct prior. If
 the researcher's beliefs are better captured by higher moments (skewness, heavy
 tails), two-moment matching may be insufficient. The framework does generalize
-to higher moments via the law of total cumulance, but at the cost of additional researcher
+to higher moments via the law of total cumulance, the higher-moment analogue
+of the law of total variance, but at the cost of additional researcher
 choices and numerical rather than closed-form solutions. An alternative is to
 match cumulative probabilities at distinct points of the direct-prior CDF,
 which would also permit distributions such as the Cauchy that lack the moments
@@ -1467,10 +1473,10 @@ the quantity-space framework inherits rather than solves.
 
 The application already demonstrates that a single quantity-space prior can
 serve models with different parameter dimensions. Model 3 maps 3 structural
-parameters to 4 predictive quantities through the Gram determinant, and the
+parameters to 4 predictive quantities, and the
 comparison of Section~\ref{sec:model_comparison} ranks it against the two
-4-parameter models, with the caveat that its normalizer is bounded rather
-than point estimated. The natural next
+4-parameter models, with the caveat that its normalizing constant is
+available only as a bound. The natural next
 step is to widen the comparison set. Models in the Cumulative Prospect
 Theory class, with separate utility and weighting functions over gains and
 losses, predict the same certainty equivalents and choice probabilities and

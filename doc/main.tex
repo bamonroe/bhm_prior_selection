@@ -1278,98 +1278,41 @@ $(\CE_1, \CE_2, \CE_3, P)$, so differences in marginal likelihood isolate the
 probability weighting specification. The comparison is therefore a test of
 functional form, not of prior calibration.
 
-One qualification makes the shared-prior statement precise. The
-change-of-variables construction supports each subject's prior on the
-model's feasible set, the image of its forward map, which differs across
-models and is a 3-dimensional manifold inside the 4-dimensional quantity
-space for Model 3. The model as estimated is therefore the quantity-space
-hierarchy truncated to its feasible set. Truncation has two effects that
-the marginal likelihoods must account for. It renormalizes the
-conditional subject prior by the feasible mass
-$C_m(\hype) = \int p_{\vartheta}\big(\bg_m(\bth) \mid \hype\big)\,
-\mathrm{vol}\, J_{\bg_m}(\bth)\, d\bth$, and it reweights the hyperprior
-by $C_m(\hype)^N$, with normalizer
-$Z_m = \E{C_m(\hype)^N \mid \hprior}$ taken over the nominal hyperprior.
-At the posterior mean of the hyperparameters the feasible mass is
-\py{fmt(np.exp(D['ml_crra_logC_bar']), 2)} for Model 1 and
-\py{fmt(np.exp(D['ml_ge_logC_bar']), 2)} for Model 2, while for Model 3
-the corresponding surface integral is
-\py{fmt(np.exp(D['ml_power_logC_bar']), 2)}. Appendix~\ref{app:feasible_mass}
-describes how $C_m$ and $Z_m$ are estimated. For Models 1 and 2 the
-normalizer is estimated directly and the two models can be compared on
-fully normalized terms. For the over-determined Model 3 the normalizer
-can only be bounded, for reasons developed in
-Appendix~\ref{app:feasible_mass}, so the formal comparison below is
-restricted to the two flexible models and the evidence on Model 3 is
-summarized afterward.
-
-The object of comparison is the marginal likelihood of each model, which
-integrates the likelihood over every subject-level parameter and
-hyperparameter:
-\begin{align}
-  \label{eq:log_ml}
-  p(y \mid M_m) = \int p(y \mid \bth, M_m)\,
-    p(\bth \mid \hype, M_m)\, p(\hype \mid M_m)\, d\bth\, d\hype
-\end{align}
-For Models 1 and 2 this integral spans \py{dim_flexible} dimensions, and for
-Model 3 it spans \py{dim_power} (Table~\ref{tab:mcmc_summary}). The log Bayes factor between models
-$m$ and $m'$ is the difference in log marginal likelihoods:
-\begin{align}
-  \label{eq:log_bf}
-  \log \mathrm{BF}_{mm'} = \log p(y \mid M_m) - \log p(y \mid M_{m'})
-\end{align}
-The Power PWF is nested within the Prelec family at $\phi = 1$, while the
-Prelec and Goldstein-Einhorn forms are non-nested. The marginal likelihood
-treats both cases identically, so a single set of estimates supports all
-three pairwise comparisons.
-
-I estimate each marginal likelihood with a Rao-Blackwellized estimator
-that exploits the hierarchical structure. Conditional on the
-hyperparameters the subjects are independent, so the integral in
-Equation~\eqref{eq:log_ml} factors into per-subject integrals over three
-or four parameters followed by a single 8-dimensional integral over the
-hyperparameters. The per-subject integrals are estimated by importance
-sampling with mixture proposals adapted to each subject's posterior. The
-hyperparameter integral is then computed twice, by two routes that share
-no integration logic. The first is importance sampling from a Student-$t$
-distribution fitted to the hyperparameter posterior, and the second is
-the iterative bridge sampling estimator of \textcite{MengWong1996}. The
-whole procedure runs on \py{D['ml_R']} independent sets of importance
-draws, and the replicate spread provides the standard errors. As a
-correctness check, the same estimator recovers a brute-force benchmark
-on a small synthetic dataset to within
-\py{fmt(D['mlval_abs_err_is'], 2)} log units.
-Appendix~\ref{app:mcmc_details} describes the procedure in detail.
-
-Table~\ref{tab:log_ml} reports the log marginal likelihoods under both
-routes. The two routes agree to within
+The object of comparison is the marginal likelihood of each model, the
+probability of the observed choices with every subject-level parameter
+and hyperparameter integrated out. This is a
+\py{dim_flexible}-dimensional integral for Models 1 and 2 and a
+\py{dim_power}-dimensional integral for Model 3
+(Table~\ref{tab:mcmc_summary}). The Power PWF is nested within the
+Prelec family at $\phi = 1$, while the Prelec and Goldstein-Einhorn
+forms are non-nested. The marginal likelihood treats both cases
+identically, so a single set of estimates supports all three pairwise
+comparisons. I estimate each marginal likelihood with a
+Rao-Blackwellized importance sampling procedure that exploits the
+conditional independence of subjects given the hyperparameters. Two
+integration routes that share no logic agree to within
 \py{fmt(D['ml_route_gap_max'], 2)} log units for every model, and the
-ranking of the models is the same under each.
+same estimator recovers a brute-force benchmark on a small synthetic
+dataset to within \py{fmt(D['mlval_abs_err_is'], 2)} log units.
+Appendix~\ref{app:mcmc_details} describes the procedure in detail and
+reports the estimates with their standard errors.
 
-\begin{table}[h!]
-  \centering
-  \begin{tabular}{lccc}
-    \toprule
-    & Importance sampling & Bridge sampling & $\log Z_m$ \\
-    \midrule
-    Model 1 (CRRA + Prelec) &
-      \py{fmt(D['ml_crra_is_corr'], 1)} (\py{fmt(D['ml_crra_is_se'], 2)}) &
-      \py{fmt(D['ml_crra_bridge_corr'], 1)} (\py{fmt(D['ml_crra_bridge_se'], 2)}) &
-      \py{fmt(D['ml_crra_logZ'], 1)} (\py{fmt(D['ml_crra_logZ_se'], 2)}) \\
-    Model 2 (CRRA + GE) &
-      \py{fmt(D['ml_ge_is_corr'], 1)} (\py{fmt(D['ml_ge_is_se'], 2)}) &
-      \py{fmt(D['ml_ge_bridge_corr'], 1)} (\py{fmt(D['ml_ge_bridge_se'], 2)}) &
-      \py{fmt(D['ml_ge_logZ'], 1)} (\py{fmt(D['ml_ge_logZ_se'], 2)}) \\
-    \bottomrule
-  \end{tabular}
-  \caption{Normalized log marginal likelihoods for the two flexible
-    models, by integration route, with the feasible-mass normalizer
-    $\log Z_m$. Replicate-based standard errors in parentheses; the
-    $\log Z_m$ standard error is common to both routes.}
-  \label{tab:log_ml}
-\end{table}
+One accounting issue requires care. Each model's prior is the shared
+quantity-space specification restricted to the combinations of
+certainty equivalents and choice probability that the model can
+actually generate, and this feasible set differs across models. Each
+marginal likelihood therefore carries a normalization for the prior
+mass its model places on its own feasible set, a correction defined
+and estimated in Appendix~\ref{app:feasible_mass}. For Models 1 and 2
+the correction is estimated precisely and is nearly identical across
+the two models, so the flexible pair can be compared on fully
+normalized terms. For Model 3, whose three parameters trace out a
+surface inside the four-dimensional quantity space, the correction can
+only be bounded. The formal comparison below is therefore restricted
+to the two flexible models, and the evidence on Model 3 is summarized
+afterward.
 
-The importance sampling estimates imply a log Bayes factor of
+The normalized estimates imply a log Bayes factor of
 \py{fmt(D['bf_crra_ge_corr'], 1)}
 ($\pm$\py{fmt(D['bf_crra_ge_corr_se'], 1)}) for Prelec over
 Goldstein-Einhorn. On the scale of \textcite{KassRaftery1995} this is
@@ -1378,21 +1321,21 @@ not. Section~\ref{sec:ce_overlay} found the two flexible forms
 empirically interchangeable at these lotteries, with nearly identical
 posterior predictive CEs, yet integrated over the full choice data the
 Prelec form is clearly favored. The comparison is exactly the situation
-the shared quantity-space prior is designed for, since the two
-non-nested specifications differ only in functional form and their
-feasible masses nearly coincide, so neither prior calibration nor
+the shared quantity-space prior is designed for. The two non-nested
+specifications differ only in functional form and place nearly the same
+prior mass on their feasible sets, so neither prior calibration nor
 normalization plays any role in the verdict.
 
-The evidence on Model 3 is summarized rather than tabulated, because
-the normalizer of the $k > p$ construction is available only as a
-bound. The Power PWF is nested in Prelec at $\phi = 1$, the cross-model
-CE analysis shows it departing from the flexible forms exactly where
-probability weighting is most consequential, and the bounded comparison in
+The evidence on Model 3 is stated as a bound rather than a point
+estimate, because its normalization can only be bounded. The
+cross-model CE analysis showed the Power form departing from the
+flexible forms exactly where probability weighting is most
+consequential, and the bounded comparison in
 Appendix~\ref{app:feasible_mass} puts the log Bayes factor for Prelec
 over Power at no less than \py{fmt(D['bf_crra_power_corr'], 1)}, an
 order of magnitude beyond the decisive threshold even at the bound. The
-data leave no doubt that the one-parameter restriction is rejected; what
-the $k > p$ case lacks is a sharp point estimate of the margin, a
+data leave no doubt that the one-parameter restriction is rejected.
+What the comparison lacks is a sharp point estimate of the margin, a
 limitation taken up in Section~\ref{sec:discussion}.
 
 Because the prior is fixed in quantity space, these numbers are

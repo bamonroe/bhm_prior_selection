@@ -158,6 +158,7 @@ for _m in ['crra', 'ge', 'power']:
 
 \begin{abstract}
   \begin{justify}
+  \tolerance=2000\emergencystretch=1.5em
 
   Bayesian hierarchical models require hyperpriors that researchers rarely
   have direct intuition about. I
@@ -205,10 +206,10 @@ elicitation, quantity-space priors, risk preferences, rank-dependent utility
 Bayesian hierarchical models (BHMs) are becoming a standard tool for estimating heterogeneous preferences in
 experimental economics \parencite{Gao2022,Nilsson2011}. These models jointly
 estimate individual-level parameters and the hyperparameters that govern their
-population distribution. By assuming exchangeability across subjects, BHMs use
-the distribution of parameters across subjects to inform each subject's prior,
-producing partially pooled estimates that balance individual data against
-population-level information. But this benefit creates an additional prior
+population distribution. Because subjects are treated as exchangeable, the
+estimated population distribution serves as a prior for each subject, and the
+resulting partially pooled estimates balance each subject's own data against
+what is learned from the rest of the population. But this benefit creates an additional prior
 specification problem. Instead of specifying a prior for a single individual,
 the researcher must specify a \textit{hyperprior} over the population
 distribution.
@@ -254,7 +255,7 @@ practice, this asks the researcher to specify beliefs about observables for a
 random individual and then to state how much of the resulting uncertainty should
 be attributed to heterogeneity in the population.
 
-The contribution is therefore not to eliminate prior choices, but to move them
+My contribution is therefore not to eliminate prior choices, but to move them
 into objects that are easier to interpret and defend. I extend the broader
 workflow of informed prior specification, in which priors are reasoned through
 their implications for predictive quantities, to hierarchical models of
@@ -320,7 +321,7 @@ cognitively more natural than direct elicitation of structural parameters.
 \textcite{Schlag2015}, \textcite{Garthwaite2005}, and \textcite{Mikkola2024}
 review the practical elicitation methods developed since.
 
-Once a researcher does have informed beliefs about relevant quantities, there
+Once a researcher \textit{does} have informed beliefs about relevant quantities, there
 remains the question of how to use them in Bayesian analysis.
 \textcite{Gabry2019} propose a Bayesian workflow that
 iteratively searches for prior parameters producing reasonable prior
@@ -334,7 +335,7 @@ distribution. \textcite{Segert2019} develop Jacobian-based transformations
 between parameter and observable spaces for individual-level models, with an
 emphasis on the conceptual interpretation of predictive distributions, and
 the same machinery is directly useful for informed priors. Relative to this
-literature, I contribute an exact Jacobian-based translation from
+literature, this paper contributes an exact Jacobian-based translation from
 quantity-space beliefs to parameter-space priors, together with a hierarchical
 extension that organizes the remaining hyperprior choices through a variance
 decomposition.
@@ -344,7 +345,9 @@ framework for specifying joint priors on variance parameters by decomposing
 total variance along a tree structure, with Dirichlet or penalized complexity
 priors at each split. Their approach makes variance allocation interpretable
 for additive Gaussian models. I share that goal of making variance allocation an
-explicit researcher input and extend it in a different direction. Here the
+explicit researcher input and extend it in a different direction.
+
+In the framework developed in Section~\ref{sec:variance_decomposition}, the
 decomposition is expressed through two scalar parameters ($\alpha$ and $\kappa$)
 combined with closed-form moment-matching, which is convenient for hierarchies
 where the conditional variance may itself depend on the mean hyperparameter.
@@ -430,7 +433,10 @@ Equation (\ref{eq:jacobian_prior}) is the starting point of the method. I
 assume that the researcher can specify a proper prior over $k \geq p$
 predictive quantities for a randomly selected individual from a population of
 exchangeable individuals, and that these quantities are related to the $p$
-structural parameters through a provably injective map $\bg$. I refer to this
+structural parameters through an injective map $\bg$. A proof of
+injectivity is valuable because it guarantees that the induced prior is well
+defined, but the method itself requires only that $\bg$ be injective, not that
+injectivity has been proven. I refer to this
 individual-level quantity prior as the \enquote{direct prior}. For a model of a
 single random individual, the direct prior completes the prior specification
 exercise. For a BHM, however, it remains to construct a hyperprior that is
@@ -621,7 +627,8 @@ Families where the conditional variance depends on the mean hyperparameter
 bound arises because uncertainty about the mean hyperparameter alone already
 induces some variation in the conditional variance, which $\kappa$ cannot
 fall below. The upper bound arises because the hyperprior on the dispersion
-parameter must remain a proper distribution. In all cases, the feasibility constraints are computable in closed
+parameter must remain a proper distribution. In all cases, the feasibility
+constraints are computable in closed
 form from the researcher's direct prior and can be checked before estimation.
 
 \subsection{Practical Interpretation}
@@ -648,7 +655,7 @@ lottery-choice data, where the predictive quantities are certainty equivalents
 and a choice probability.
 
 %==============================================================================
-\section{Application: RDU with Experimental Lottery-Choice Data}
+\section{RDU with Experimental Lottery-Choice Data}
 \label{sec:application_rdu}
 %==============================================================================
 
@@ -746,7 +753,7 @@ the 2-parameter \textcite{GoldsteinEinhorn1987} PWF:
 where $r$ governs risk aversion as in Model~1, $\gamma > 0$ controls the
 curvature (discriminability) of the PWF, and $\delta > 0$ controls its
 elevation (attractiveness). When $\gamma < 1$ and $\delta = 1$ the function
-produces the empirically well-documented inverse-S shape, overweighting small
+produces the popular inverse-S shape, overweighting small
 probabilities and underweighting large ones. When $\gamma = 1$ and $\delta = 1$
 the PWF reduces to the identity, recovering EUT\@.
 \textcite{GonzalezWu1999} give the two parameters a psychological
@@ -797,8 +804,8 @@ $k = 4 > p = 3$.
 \subsection{Quantity-Space Mapping for RDU}
 \label{sec:ce_space}
 
-Under each specification, each individual has 3 or 4 structural parameters
-$\bth$, and a traditional parameter-space approach would require setting
+Each specification has 3 or 4 structural parameters per individual, so a
+traditional parameter-space approach would require setting
 12--16 hyperprior parameters. Following the method in Section \ref{sec:gq_space}, I
 instead specify 4 direct priors on predictive quantities about which a
 researcher has well-calibrated beliefs: 3 certainty equivalents (CEs) and one
@@ -913,20 +920,6 @@ researcher to specify beliefs about structural parameters directly.
 \label{sec:estimation}
 %==============================================================================
 
-I estimate the model using lottery choice data from \textcite{Harrison2016},
-in which \py{D['n_subjects']} subjects each made
-\py{D['n_choices_per_subject']} binary choices between three-outcome lotteries
-with prize amounts of \$10, \$30, and \$50. All three RDU models are
-estimated on the same data, each from 80 choices per subject, a setting
-where the hyperprior has real influence, making it a useful testbed for the
-proposed framework.\footnote{
-  MCMC estimation details, including chain counts, convergence
-  diagnostics, and acceptance rates for each model, are reported in
-  Appendix~\ref{app:mcmc_details}.
-} I now
-describe the specific choices made, including the reference lottery design,
-direct prior beliefs, and variance decomposition parameters.
-
 \begin{pycode}
 # Reference lottery shorthand for Table 1
 ref_lots = []
@@ -939,15 +932,23 @@ for k in [1, 2, 3]:
     })
 \end{pycode}
 
+I estimate the models using lottery choice data from \textcite{Harrison2016},
+in which \py{D['n_subjects']} subjects each made
+\py{D['n_choices_per_subject']} binary choices between three-outcome lotteries
+with prize amounts of \$10, \$30, and \$50. All three RDU models are
+estimated on the same data, each from 80 choices per subject, a setting
+where the hyperprior has real influence, making it a useful testbed for the
+proposed framework.\footnote{
+  MCMC estimation details, including chain counts, convergence
+  diagnostics, and acceptance rates for each model, are reported in
+  Appendix~\ref{app:mcmc_details}.
+}
 The quantity-space framework of Section \ref{sec:ce_space} requires reference
 lotteries for the CE mapping and a reference pair for the choice probability,
 chosen so that the map from parameters to predictive quantities is injective.
 Injectivity must be verified for each specification separately, and
-Appendix~\ref{app:global_injectivity} does so for all three. The analytic
-proof rests on a two-point argument that covers both the Prelec and
-Goldstein-Einhorn forms, the Power form follows from monotonicity in its
-single parameter, and a numerical rank check of the Gram determinant
-supplements the argument for Model~3.
+Appendix~\ref{app:global_injectivity} does so for all three.
+
 The design uses two binary lotteries with distinct probabilities on the higher
 outcome and a third binary lottery with shared probability $p_3 = p_1$ whose
 outcome ratio differs from that of $L_1$. No pair of lotteries with
@@ -981,7 +982,7 @@ to specify a mean and the probability that a randomly selected individual is
 risk-seeking. For CEs, risk-seeking means having a CE above the expected value.
 For the choice probability, it means preferring the riskier of two equal-EV
 lotteries. For a Beta distribution with fixed mean, this tail probability
-uniquely determines the concentration and therefore the variance.
+uniquely determines the variance.
 
 The reference pair for the choice probability is $L_1$ and $L_3$, which share
 the same expected value but differ in spread: $L_1$ has outcomes
@@ -1115,15 +1116,12 @@ $\$\py{xm_crra_2}$ and $\$\py{xm_ge_2}$ respectively. The Power posterior
 CRRA utility function, these differences are attributable entirely to the
 probability weighting specification. The agreement between Prelec and
 Goldstein-Einhorn is notable because these are non-nested functional forms.
-Both can produce inverse-S shaped distortions, and the reference lotteries
-use moderate probabilities ($p = 0.25$ and $p = 0.50$) where the two
-functions can closely approximate each other by adjusting their curvature and
-elevation parameters. The two forms differ most in how they weight extreme
+The two forms differ most in how they weight extreme
 probabilities near 0 or 1, so experimental designs with highly skewed
 lotteries would be needed to discriminate between them. In other words, for
 lotteries with moderate probabilities the two functions are empirically
 interchangeable, and the CE overlays show that equivalence directly. The Power PWF, which
-distorts probabilities uniformly rather than producing an inverse-S shape,
+distorts probabilities uniformly,
 pulls the $L_2$ CE approximately $\$1$ lower, reflecting the structural
 restriction of the 1-parameter specification at $p = 0.5$.
 

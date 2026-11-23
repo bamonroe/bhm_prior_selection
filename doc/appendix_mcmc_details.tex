@@ -2,15 +2,25 @@
 \label{app:mcmc_details}
 %==============================================================================
 
-All three models are estimated using a Metropolis-within-Gibbs sampler. The
-parameter vector is partitioned into blocks, with each subject's structural
-parameters forming one block and each pair of hyperparameters (population mean
-and dispersion for each quantity) forming another. Each block is updated
-sequentially using a Metropolis-Hastings step with an adaptive multivariate
-normal proposal distribution. The proposal covariance is estimated from the
-empirical covariance of an A/B chain split: Group A chains use the running
-covariance of Group B to construct proposals, and vice versa. This coupled
-design improves mixing while maintaining detailed balance within each group.
+All three models are estimated with bamcmc, a GPU sampler written in JAX by
+the author, run in double precision. The sampler is Metropolis-within-Gibbs.
+The parameter vector is partitioned into blocks, with each subject's
+structural parameters forming one block and each pair of hyperparameters
+(population mean and dispersion for each quantity) forming another, and each
+block is updated in turn by a Metropolis-Hastings step.
+
+Chains are split into two groups, A and B. When a Group A chain updates a
+block, its proposal is built from the current states of the Group B chains,
+and vice versa. The proposal is multivariate normal, with covariance equal to
+the cross-chain covariance of that block in the other group. Its mean is a
+weighted average of the chain's current value and the other group's mean,
+with the weight on the current value rising as the chain moves further from
+that mean, and the proposal variance shrinking at the same time. Near
+equilibrium the proposal is therefore close to an independence proposal
+centered on the population of chains, and far from it the proposal becomes a
+cautious random walk. Because the other group is held fixed during each
+update, the Hastings correction for this state-dependent proposal keeps each
+group's update exact.
 
 For each model, 2000 chains are run in parallel on GPU (1000 per A/B group).
 Every 10th iteration is retained (thinning factor of 10), and the first half

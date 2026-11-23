@@ -139,9 +139,29 @@ route and \py{fmt(D['mlval_abs_err_bridge'], 2)} on the bridge route.
 \subsection{Feasible-Mass Normalization}
 \label{app:feasible_mass}
 
-The values above integrate the prior as constructed, before the
-truncation normalization described in
-Section~\ref{sec:model_comparison}. The feasible mass $C_m(\hype)$ is a
+The change-of-variables construction supports each subject's prior on
+the model's feasible set, the image of its forward map, which differs
+across models and is a 3-dimensional manifold inside the 4-dimensional
+quantity space for Model 3. The model as estimated is therefore the
+quantity-space hierarchy truncated to its feasible set. Truncation has
+two effects that the marginal likelihoods must account for. It
+renormalizes the conditional subject prior by the feasible mass
+\begin{equation}
+  \label{eq:feasible_mass}
+  C_m(\hype) = \int p_{\vartheta}\big(\bg_m(\bth) \mid \hype\big)\,
+    \mathrm{vol}\, J_{\bg_m}(\bth)\, d\bth,
+\end{equation}
+and it reweights the hyperprior by $C_m(\hype)^N$, with normalizer
+$Z_m = \E{C_m(\hype)^N \mid \hprior}$ taken over the nominal
+hyperprior. At the posterior mean of the hyperparameters the feasible
+mass is \py{fmt(np.exp(D['ml_crra_logC_bar']), 2)} for Model 1 and
+\py{fmt(np.exp(D['ml_ge_logC_bar']), 2)} for Model 2, while for
+Model 3 the corresponding surface integral is
+\py{fmt(np.exp(D['ml_power_logC_bar']), 2)}. The estimates described
+in Appendix~\ref{app:ml_details} integrate the prior as constructed,
+before this truncation normalization.
+
+The feasible mass $C_m(\hype)$ is a
 single 3- or 4-dimensional integral per model and hyperparameter value,
 the same object as a per-subject integrated likelihood with the
 likelihood replaced by one, and is estimated by the same adaptive
@@ -174,6 +194,36 @@ $\log Z_m \leq N \max_{\hype} \log C_m(\hype)$ implied by $C_m \leq 1$
 is respected, and a separate trust-region scheme whose hull truncation
 makes it a lower bound lands about two log units below the annealed
 value, consistent with the small mass it omits.
+
+Table~\ref{tab:log_ml} reports the resulting normalized log marginal
+likelihoods for the two flexible models under both integration routes,
+together with the normalizers $\log Z_m$. The ranking of the models is
+the same under each route, and the difference between the importance
+sampling estimates is the log Bayes factor quoted in
+Section~\ref{sec:model_comparison}.
+
+\begin{table}[h!]
+  \centering
+  \begin{tabular}{lccc}
+    \toprule
+    & Importance sampling & Bridge sampling & $\log Z_m$ \\
+    \midrule
+    Model 1 (CRRA + Prelec) &
+      \py{fmt(D['ml_crra_is_corr'], 1)} (\py{fmt(D['ml_crra_is_se'], 2)}) &
+      \py{fmt(D['ml_crra_bridge_corr'], 1)} (\py{fmt(D['ml_crra_bridge_se'], 2)}) &
+      \py{fmt(D['ml_crra_logZ'], 1)} (\py{fmt(D['ml_crra_logZ_se'], 2)}) \\
+    Model 2 (CRRA + GE) &
+      \py{fmt(D['ml_ge_is_corr'], 1)} (\py{fmt(D['ml_ge_is_se'], 2)}) &
+      \py{fmt(D['ml_ge_bridge_corr'], 1)} (\py{fmt(D['ml_ge_bridge_se'], 2)}) &
+      \py{fmt(D['ml_ge_logZ'], 1)} (\py{fmt(D['ml_ge_logZ_se'], 2)}) \\
+    \bottomrule
+  \end{tabular}
+  \caption{Normalized log marginal likelihoods for the two flexible
+    models, by integration route, with the feasible-mass normalizer
+    $\log Z_m$. Replicate-based standard errors in parentheses; the
+    $\log Z_m$ standard error is common to both routes.}
+  \label{tab:log_ml}
+\end{table}
 
 For Model 3 the annealing reliably reaches a tilt of roughly $t = 60$
 and then encounters what appears to be a first-order transition: the
